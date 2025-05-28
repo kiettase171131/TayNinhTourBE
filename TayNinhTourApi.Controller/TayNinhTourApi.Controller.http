@@ -1,0 +1,6 @@
+@TayNinhTourApi.Controller_HostAddress = http://localhost:5267
+
+GET {{TayNinhTourApi.Controller_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
