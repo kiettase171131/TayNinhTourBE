@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using TayNinhTourApi.BusinessLogicLayer.Common;
@@ -145,23 +146,39 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 ImageUrls = uploadedUrls
             };
         }
-        
 
 
-        public Task<IEnumerable<SupportTicket>> GetTicketsForUserAsync(Guid userid) =>
-            _ticketRepo.ListByUserAsync(userid);
+
+        public async Task<IEnumerable<SupportTicket>> GetTicketsForUserAsync(Guid userid)
+        {
+
+            var tickets = await _ticketRepo.ListByUserAsync(userid);
+            return tickets
+                .Where(t => t != null && !t.IsDeleted);
+        }
 
 
-        public Task<IEnumerable<SupportTicket>> GetTicketsForAdminAsync(Guid adminId) =>
-            _ticketRepo.ListByAdminAsync(adminId);
+        public async Task<IEnumerable<SupportTicket>> GetTicketsForAdminAsync(Guid adminId)
+        {
+            var tickets = await _ticketRepo.ListByAdminAsync(adminId);
+            return tickets
+                .Where(t => t != null && !t.IsDeleted);
+        }
 
-        public Task<SupportTicket?> GetTicketDetailsAsync(Guid ticketId) =>
-            _ticketRepo.GetWithCommentsAsync(ticketId);
+        public async Task<SupportTicket?> GetTicketDetailsAsync(Guid ticketId)
+        {
+            var tickets = await _ticketRepo.GetWithCommentsAsync(ticketId);
+            if (tickets == null || tickets.IsDeleted)
+            {
+                throw new KeyNotFoundException("Support ticket not found");
+            }
+            return tickets;
+        }
 
         public async Task<BaseResposeDto> ReplyAsync(Guid ticketId, Guid replierId, string comment)
         {
             var ticket = await _ticketRepo.GetByIdAsync(ticketId);
-            if (ticket == null)
+            if (ticket == null || ticket.IsDeleted)
             {
                 return new BaseResposeDto
                 {
@@ -190,7 +207,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<BaseResposeDto> ChangeStatusAsync(Guid ticketId, TicketStatus newStatus)
         {
             var ticket = await _ticketRepo.GetByIdAsync(ticketId);
-            if (ticket == null)
+            if (ticket == null || ticket.IsDeleted)
             {
                 return new BaseResposeDto
                 {

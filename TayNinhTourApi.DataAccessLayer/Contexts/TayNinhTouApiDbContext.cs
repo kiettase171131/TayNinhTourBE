@@ -13,6 +13,8 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<Image> Images { get; set; } = null!;
         public DbSet<Tour> Tours { get; set; } = null!;
         public DbSet<SupportTicketImage> SupportTicketImages { get; set; } = null!;
+        public DbSet<Blog> Blogs { get; set; } = null!;
+        public DbSet<BlogImage> BlogImages { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

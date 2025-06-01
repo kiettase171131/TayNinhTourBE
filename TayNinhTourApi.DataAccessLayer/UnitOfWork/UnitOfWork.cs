@@ -16,6 +16,8 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private IRoleRepository _roleRepository = null!;
         private IImageRepository _imageRepository = null!;
         private ITourRepository _tourRepository = null!;
+        private IBlogRepository _blogRepository = null!;
+
 
         public UnitOfWork(TayNinhTouApiDbContext context)
         {
@@ -51,6 +53,13 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             get
             {
                 return _tourRepository ??= new TourRepository(_context);
+            }
+        }
+        public IBlogRepository BlogRepository
+        {
+            get
+            {
+                return _blogRepository ??= new BlogRepository(_context);
             }
         }
 

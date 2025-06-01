@@ -97,6 +97,7 @@ builder.Services.AddScoped<ITourCompanyService, TourCompanyService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
 builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>();
 builder.Services.AddScoped<IImageService, ImageService>();
+builder.Services.AddScoped<IBlogService, BlogService>();
 
 
 // Register repositories layer
@@ -105,6 +106,8 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 builder.Services.AddScoped<ISupportTicketCommentRepository, SupportTicketCommentRepository>();
 builder.Services.AddScoped<ITourGuideApplicationRepository, TourGuideApplicationRepository>();
+builder.Services.AddScoped<IBlogRepository, BlogRepository>();
+builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();
