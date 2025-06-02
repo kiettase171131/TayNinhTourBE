@@ -45,11 +45,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         public virtual TourTemplate TourTemplate { get; set; } = null!;
 
-        // TODO: Uncomment when TourOperation entity is created in Task 6
-        // /// <summary>
-        // /// Thông tin vận hành cụ thể cho slot này
-        // /// Relationship: One TourSlot to One TourOperation
-        // /// </summary>
-        // public virtual TourOperation? TourOperation { get; set; }
+        /// <summary>
+        /// TourOperation cho slot này
+        /// Relationship: One-to-One với TourOperation
+        /// </summary>
+        public virtual TourOperation? TourOperation { get; set; }
     }
 }

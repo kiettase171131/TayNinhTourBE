@@ -20,5 +20,6 @@
         public virtual ICollection<Shop> ShopsCreated { get; set; } = new List<Shop>();
         public virtual ICollection<Shop> ShopsUpdated { get; set; } = new List<Shop>();
         public virtual ICollection<Blog> Blogs { get; set; } = new List<Blog>();
+        public virtual ICollection<TourOperation> TourOperationsAsGuide { get; set; } = new List<TourOperation>();
     }
 }
