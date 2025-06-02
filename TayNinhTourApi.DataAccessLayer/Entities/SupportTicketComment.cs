@@ -11,7 +11,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         
         public Guid SupportTicketId { get; set; }
         public virtual SupportTicket SupportTicket { get; set; } = null!;
-        public Guid CreatedById { get; set; }
+        public new Guid CreatedById { get; set; }
         public virtual User CreatedBy { get; set; } = null!;
         public string CommentText { get; set; } = null!;
     }

@@ -30,12 +30,18 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public ScheduleDay ScheduleDay { get; set; }
 
         /// <summary>
+        /// Trạng thái của tour slot
+        /// </summary>
+        [Required]
+        public TourSlotStatus Status { get; set; } = TourSlotStatus.Available;
+
+        /// <summary>
         /// Trạng thái slot có sẵn sàng để booking không
         /// Khác với BaseEntity.IsActive (dùng cho soft delete)
         /// - true: Slot có thể được booking
         /// - false: Slot tạm thời không available (do thời tiết, bảo trì, etc.)
         /// </summary>
-        public bool IsActive { get; set; } = true;
+        public new bool IsActive { get; set; } = true;
 
         // Navigation Properties
 

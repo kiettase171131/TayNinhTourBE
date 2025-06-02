@@ -15,8 +15,11 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private IUserRepository _userRepository = null!;
         private IRoleRepository _roleRepository = null!;
         private IImageRepository _imageRepository = null!;
-        private ITourRepository _tourRepository = null!;
         private ITourTemplateRepository _tourTemplateRepository = null!;
+        private IShopRepository _shopRepository = null!;
+        private ITourSlotRepository _tourSlotRepository = null!;
+        private ITourDetailsRepository _tourDetailsRepository = null!;
+        private ITourOperationRepository _tourOperationRepository = null!;
         private IBlogRepository _blogRepository = null!;
 
 
@@ -49,19 +52,43 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
-        public ITourRepository TourRepository
-        {
-            get
-            {
-                return _tourRepository ??= new TourRepository(_context);
-            }
-        }
-
         public ITourTemplateRepository TourTemplateRepository
         {
             get
             {
                 return _tourTemplateRepository ??= new TourTemplateRepository(_context);
+            }
+        }
+
+        public IShopRepository ShopRepository
+        {
+            get
+            {
+                return _shopRepository ??= new ShopRepository(_context);
+            }
+        }
+
+        public ITourSlotRepository TourSlotRepository
+        {
+            get
+            {
+                return _tourSlotRepository ??= new TourSlotRepository(_context);
+            }
+        }
+
+        public ITourDetailsRepository TourDetailsRepository
+        {
+            get
+            {
+                return _tourDetailsRepository ??= new TourDetailsRepository(_context);
+            }
+        }
+
+        public ITourOperationRepository TourOperationRepository
+        {
+            get
+            {
+                return _tourOperationRepository ??= new TourOperationRepository(_context);
             }
         }
 

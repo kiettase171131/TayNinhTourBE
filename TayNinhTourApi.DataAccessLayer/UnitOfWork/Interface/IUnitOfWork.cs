@@ -8,8 +8,12 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         IUserRepository UserRepository { get; }
         IRoleRepository RoleRepository { get; }
         IImageRepository ImageRepository { get; }
-        ITourRepository TourRepository { get; }
         ITourTemplateRepository TourTemplateRepository { get; }
+        IShopRepository ShopRepository { get; }
+        ITourSlotRepository TourSlotRepository { get; }
+        ITourDetailsRepository TourDetailsRepository { get; }
+        ITourOperationRepository TourOperationRepository { get; }
+        IBlogRepository BlogRepository { get; }
 
         Task<int> SaveChangesAsync();
         IDbContextTransaction BeginTransaction();

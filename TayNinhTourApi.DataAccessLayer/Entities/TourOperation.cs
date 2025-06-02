@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -42,6 +43,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         [StringLength(1000)]
         public string? Description { get; set; }
+
+        /// <summary>
+        /// Trạng thái của tour operation
+        /// </summary>
+        [Required]
+        public TourOperationStatus Status { get; set; } = TourOperationStatus.Scheduled;
 
         /// <summary>
         /// Trạng thái hoạt động của tour operation
