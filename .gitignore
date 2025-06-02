@@ -396,3 +396,127 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# ===================================
+# CUSTOM IGNORES FOR PROJECT SETUP
+# ===================================
+
+# Git configuration files (local project configs)
+.gitconfig-local
+.gitconfig-project
+
+# PowerShell scripts for Git configuration and verification
+verify-git-config.ps1
+test-git-config.ps1
+setup-git-*.ps1
+config-*.ps1
+
+# VS Code workspace settings (keep only settings.json, ignore others)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Temporary files and logs
+*.tmp
+*.temp
+*.log
+.DS_Store
+Thumbs.db
+
+# Environment and credential files
+.env
+.env.local
+.env.development
+.env.production
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Database files (if any)
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# IDE specific files
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific ignores
+Images/
+wwwroot/Images/
+uploads/
+temp/
+
+# Added by Task Master AI
+# Logs
+logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+# Dependency directories
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+# Task files
+tasks.json
+tasks/
+
+# TayNinhTourBE specific ignores
+# History folders
+.history/
+.groupedtimelineinclude
+
+# Custom rule files
+.roo/
+.roomodes
+.windsurfrules
+.cursor/
+.taskmaster/
+
+# Task Master files và rulefiles (chỉ giữ lại templates và docs)
+.taskmaster/tasks/*
+.taskmaster/reports/*
+!.taskmaster/templates/
+!.taskmaster/docs/
+
+# Copilot và Cursor files
+.vs/*/copilot-chat/
+.vs/*/CopilotIndices/
+
+# Thư mục uploads ngoại trừ .gitkeep
+TayNinhTourApi.Controller/wwwroot/images/*
+TayNinhTourApi.Controller/wwwroot/uploads/*
+!TayNinhTourApi.Controller/wwwroot/images/.gitkeep
+!TayNinhTourApi.Controller/wwwroot/uploads/.gitkeep
+!TayNinhTourApi.Controller/wwwroot/images/avatars/.gitkeep
+!TayNinhTourApi.Controller/wwwroot/uploads/cv/.gitkeep
+
+# Các file backup tự động
+.history/
+*.bakk
+*.orig 
