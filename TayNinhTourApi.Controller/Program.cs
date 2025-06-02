@@ -94,6 +94,7 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<ICmsService, CmsService>();
 builder.Services.AddScoped<ITourCompanyService, TourCompanyService>();
+builder.Services.AddScoped<ITourTemplateService, TourTemplateService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
 builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>();
 builder.Services.AddScoped<IImageService, ImageService>();
@@ -103,6 +104,7 @@ builder.Services.AddScoped<IBlogService, BlogService>();
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<ITourTemplateRepository, TourTemplateRepository>();
 builder.Services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 builder.Services.AddScoped<ISupportTicketCommentRepository, SupportTicketCommentRepository>();
 builder.Services.AddScoped<ITourGuideApplicationRepository, TourGuideApplicationRepository>();

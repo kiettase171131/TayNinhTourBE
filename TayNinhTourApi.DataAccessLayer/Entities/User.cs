@@ -15,6 +15,10 @@
         public DateTime? RefreshTokenExpiryTime { get; set; }
         public virtual ICollection<Tour> ToursCreated { get; set; } = new List<Tour>();
         public virtual ICollection<Tour> ToursUpdated { get; set; } = new List<Tour>();
+        public virtual ICollection<TourTemplate> TourTemplatesCreated { get; set; } = new List<TourTemplate>();
+        public virtual ICollection<TourTemplate> TourTemplatesUpdated { get; set; } = new List<TourTemplate>();
+        public virtual ICollection<Shop> ShopsCreated { get; set; } = new List<Shop>();
+        public virtual ICollection<Shop> ShopsUpdated { get; set; } = new List<Shop>();
         public virtual ICollection<Blog> Blogs { get; set; } = new List<Blog>();
     }
 }

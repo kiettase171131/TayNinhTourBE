@@ -9,6 +9,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         IRoleRepository RoleRepository { get; }
         IImageRepository ImageRepository { get; }
         ITourRepository TourRepository { get; }
+        ITourTemplateRepository TourTemplateRepository { get; }
 
         Task<int> SaveChangesAsync();
         IDbContextTransaction BeginTransaction();

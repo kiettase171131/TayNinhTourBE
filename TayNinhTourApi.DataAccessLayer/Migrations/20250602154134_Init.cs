@@ -91,6 +91,35 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "Blogs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Title = table.Column<string>(type: "longtext", nullable: false),
+                    Content = table.Column<string>(type: "longtext", nullable: false),
+                    AuthorName = table.Column<string>(type: "longtext", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Blogs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Blogs_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "SupportTickets",
                 columns: table => new
                 {
@@ -193,6 +222,33 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "BlogImages",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false),
+                    BlogId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Url = table.Column<string>(type: "longtext", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BlogImages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BlogImages_Blogs_BlogId",
+                        column: x => x.BlogId,
+                        principalTable: "Blogs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "SupportTicketComments",
                 columns: table => new
                 {
@@ -278,6 +334,16 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateIndex(
+                name: "IX_BlogImages_BlogId",
+                table: "BlogImages",
+                column: "BlogId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Blogs_UserId",
+                table: "Blogs",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ImageTour_TourId",
                 table: "ImageTour",
                 column: "TourId");
@@ -332,6 +398,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "BlogImages");
+
+            migrationBuilder.DropTable(
                 name: "ImageTour");
 
             migrationBuilder.DropTable(
@@ -342,6 +411,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             migrationBuilder.DropTable(
                 name: "TourGuideApplications");
+
+            migrationBuilder.DropTable(
+                name: "Blogs");
 
             migrationBuilder.DropTable(
                 name: "Images");
