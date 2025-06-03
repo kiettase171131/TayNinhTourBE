@@ -33,27 +33,37 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// <summary>
         /// Danh sách các tour details được sắp xếp theo thứ tự timeline
         /// </summary>
-        public List<TourDetailDto> TourDetails { get; set; } = new List<TourDetailDto>();
+        public List<TourDetailDto> Items { get; set; } = new List<TourDetailDto>();
 
         /// <summary>
-        /// Tổng số điểm dừng trong timeline
+        /// Tổng số items trong timeline
         /// </summary>
-        public int TotalStops => TourDetails.Count;
+        public int TotalItems { get; set; }
 
         /// <summary>
-        /// Thời gian bắt đầu sớm nhất trong timeline
+        /// Tổng thời lượng timeline tính bằng giờ
         /// </summary>
-        public TimeOnly? EarliestTime => TourDetails.Any() ? TourDetails.Min(td => td.TimeSlot) : null;
+        public decimal TotalDuration { get; set; }
 
         /// <summary>
-        /// Thời gian kết thúc muộn nhất trong timeline
+        /// Tổng số điểm dừng trong timeline (computed property)
         /// </summary>
-        public TimeOnly? LatestTime => TourDetails.Any() ? TourDetails.Max(td => td.TimeSlot) : null;
+        public int TotalStops => Items.Count;
 
         /// <summary>
-        /// Số lượng shops được ghé thăm trong tour
+        /// Thời gian bắt đầu sớm nhất trong timeline (computed property)
         /// </summary>
-        public int ShopsCount => TourDetails.Count(td => td.ShopId.HasValue);
+        public TimeOnly? EarliestTime => Items.Any() ? Items.Min(td => td.TimeSlot) : null;
+
+        /// <summary>
+        /// Thời gian kết thúc muộn nhất trong timeline (computed property)
+        /// </summary>
+        public TimeOnly? LatestTime => Items.Any() ? Items.Max(td => td.TimeSlot) : null;
+
+        /// <summary>
+        /// Số lượng shops được ghé thăm trong tour (computed property)
+        /// </summary>
+        public int ShopsCount => Items.Count(td => td.ShopId.HasValue);
 
         /// <summary>
         /// Thời gian tạo timeline

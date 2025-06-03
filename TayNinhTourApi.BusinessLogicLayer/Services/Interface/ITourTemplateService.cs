@@ -16,8 +16,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// </summary>
         /// <param name="request">Thông tin tour template</param>
         /// <param name="createdById">ID của user tạo</param>
-        /// <returns>Tour template đã tạo</returns>
-        Task<TourTemplate> CreateTourTemplateAsync(RequestCreateTourTemplateDto request, Guid createdById);
+        /// <returns>Response với tour template đã tạo</returns>
+        Task<ResponseCreateTourTemplateDto> CreateTourTemplateAsync(RequestCreateTourTemplateDto request, Guid createdById);
 
         /// <summary>
         /// Cập nhật tour template
@@ -25,23 +25,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="id">ID của tour template</param>
         /// <param name="request">Thông tin cập nhật</param>
         /// <param name="updatedById">ID của user cập nhật</param>
-        /// <returns>Tour template đã cập nhật</returns>
-        Task<TourTemplate?> UpdateTourTemplateAsync(Guid id, RequestUpdateTourTemplateDto request, Guid updatedById);
+        /// <returns>Response với tour template đã cập nhật</returns>
+        Task<ResponseUpdateTourTemplateDto> UpdateTourTemplateAsync(Guid id, RequestUpdateTourTemplateDto request, Guid updatedById);
 
         /// <summary>
         /// Xóa tour template (soft delete)
         /// </summary>
         /// <param name="id">ID của tour template</param>
         /// <param name="deletedById">ID của user xóa</param>
-        /// <returns>True nếu xóa thành công</returns>
-        Task<bool> DeleteTourTemplateAsync(Guid id, Guid deletedById);
+        /// <returns>Response với kết quả xóa</returns>
+        Task<ResponseDeleteTourTemplateDto> DeleteTourTemplateAsync(Guid id, Guid deletedById);
 
         /// <summary>
         /// Lấy tour template theo ID
         /// </summary>
         /// <param name="id">ID của tour template</param>
-        /// <returns>Tour template</returns>
-        Task<TourTemplate?> GetTourTemplateByIdAsync(Guid id);
+        /// <returns>Response với tour template</returns>
+        Task<ResponseGetTourTemplateDto> GetTourTemplateByIdAsync(Guid id);
 
         /// <summary>
         /// Lấy tour template với đầy đủ thông tin
@@ -101,14 +101,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <returns>Danh sách tour templates phổ biến</returns>
         Task<IEnumerable<TourTemplate>> GetPopularTourTemplatesAsync(int top = 10);
 
-        /// <summary>
-        /// Kích hoạt/vô hiệu hóa tour template
-        /// </summary>
-        /// <param name="id">ID của tour template</param>
-        /// <param name="isActive">Trạng thái active</param>
-        /// <param name="updatedById">ID của user cập nhật</param>
-        /// <returns>True nếu cập nhật thành công</returns>
-        Task<bool> SetTourTemplateActiveStatusAsync(Guid id, bool isActive, Guid updatedById);
+
 
         /// <summary>
         /// Sao chép tour template
@@ -116,21 +109,45 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="id">ID của tour template gốc</param>
         /// <param name="newTitle">Tiêu đề mới</param>
         /// <param name="createdById">ID của user tạo</param>
-        /// <returns>Tour template đã sao chép</returns>
-        Task<TourTemplate?> CopyTourTemplateAsync(Guid id, string newTitle, Guid createdById);
+        /// <returns>Response với tour template đã sao chép</returns>
+        Task<ResponseCopyTourTemplateDto> CopyTourTemplateAsync(Guid id, string newTitle, Guid createdById);
 
         /// <summary>
         /// Kiểm tra xem tour template có thể xóa không
         /// </summary>
         /// <param name="id">ID của tour template</param>
-        /// <returns>True nếu có thể xóa</returns>
-        Task<bool> CanDeleteTourTemplateAsync(Guid id);
+        /// <returns>Response với thông tin có thể xóa</returns>
+        Task<ResponseCanDeleteDto> CanDeleteTourTemplateAsync(Guid id);
 
         /// <summary>
         /// Lấy thống kê tour templates
         /// </summary>
         /// <param name="createdById">ID của user (optional, nếu null thì lấy tất cả)</param>
-        /// <returns>Thống kê tour templates</returns>
-        Task<object> GetTourTemplateStatisticsAsync(Guid? createdById = null);
+        /// <returns>Response với thống kê tour templates</returns>
+        Task<ResponseTourTemplateStatisticsDto> GetTourTemplateStatisticsAsync(Guid? createdById = null);
+
+        /// <summary>
+        /// Kích hoạt/vô hiệu hóa tour template
+        /// </summary>
+        /// <param name="id">ID của tour template</param>
+        /// <param name="isActive">Trạng thái active</param>
+        /// <param name="updatedById">ID của user cập nhật</param>
+        /// <returns>Response với kết quả cập nhật</returns>
+        Task<ResponseSetActiveStatusDto> SetTourTemplateActiveStatusAsync(Guid id, bool isActive, Guid updatedById);
+
+        /// <summary>
+        /// Validate tour template data
+        /// </summary>
+        /// <param name="request">Request data để validate</param>
+        /// <returns>Response với kết quả validation</returns>
+        Task<ResponseValidationDto> ValidateCreateRequestAsync(RequestCreateTourTemplateDto request);
+
+        /// <summary>
+        /// Validate tour template update data
+        /// </summary>
+        /// <param name="id">ID của tour template</param>
+        /// <param name="request">Request data để validate</param>
+        /// <returns>Response với kết quả validation</returns>
+        Task<ResponseValidationDto> ValidateUpdateRequestAsync(Guid id, RequestUpdateTourTemplateDto request);
     }
 }

@@ -4,21 +4,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
 {
     /// <summary>
     /// DTO cho request cập nhật tour detail (timeline item)
+    /// Tất cả fields đều optional để cho phép partial update
     /// </summary>
     public class RequestUpdateTourDetailDto
     {
         /// <summary>
-        /// ID của tour detail cần cập nhật
-        /// </summary>
-        [Required(ErrorMessage = "Id là bắt buộc")]
-        public Guid Id { get; set; }
-
-        /// <summary>
         /// Thời gian trong ngày cho hoạt động này (giờ:phút)
         /// Ví dụ: 08:30, 14:00, 16:45
         /// </summary>
-        [Required(ErrorMessage = "TimeSlot là bắt buộc")]
-        public TimeOnly TimeSlot { get; set; }
+        public TimeOnly? TimeSlot { get; set; }
 
         /// <summary>
         /// Địa điểm hoặc tên hoạt động
@@ -39,13 +33,5 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         /// Nullable - chỉ có giá trị khi hoạt động liên quan đến một shop cụ thể
         /// </summary>
         public Guid? ShopId { get; set; }
-
-        /// <summary>
-        /// Thứ tự sắp xếp trong timeline (bắt đầu từ 1)
-        /// Dùng để sắp xếp các hoạt động theo đúng trình tự thời gian
-        /// </summary>
-        [Required(ErrorMessage = "SortOrder là bắt buộc")]
-        [Range(1, int.MaxValue, ErrorMessage = "SortOrder phải lớn hơn 0")]
-        public int SortOrder { get; set; }
     }
 }

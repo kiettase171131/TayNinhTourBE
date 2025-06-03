@@ -6,6 +6,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 {
@@ -29,20 +30,93 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
             #region TourDetails Mapping
             CreateMap<RequestCreateTourDetailDto, TourDetails>();
-            CreateMap<RequestUpdateTourDetailDto, TourDetails>();
-            CreateMap<TourDetails, TourDetailDto>();
+            CreateMap<RequestUpdateTourDetailDto, TourDetails>()
+                .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<TourDetails, TourDetailDto>()
+                .ForMember(dest => dest.Shop, opt => opt.MapFrom(src => src.Shop));
             #endregion
 
             #region Shop Mapping
+            CreateMap<RequestCreateShopDto, Shop>();
+            CreateMap<RequestUpdateShopDto, Shop>()
+                .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
             CreateMap<Shop, ShopDto>();
+            CreateMap<Shop, ShopSummaryDto>();
             #endregion
 
             #region Timeline Mapping
             CreateMap<TourTemplate, TimelineDto>()
                 .ForMember(dest => dest.TourTemplateId, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.TourTemplateTitle, opt => opt.MapFrom(src => src.Title))
-                .ForMember(dest => dest.TourDetails, opt => opt.MapFrom(src => src.TourDetails.OrderBy(td => td.SortOrder)));
+                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.TourDetails.OrderBy(td => td.SortOrder)))
+                .ForMember(dest => dest.TotalItems, opt => opt.MapFrom(src => src.TourDetails.Count))
+                .ForMember(dest => dest.TotalDuration, opt => opt.Ignore()) // Will be calculated in service
+                .ForMember(dest => dest.StartLocation, opt => opt.MapFrom(src => src.StartLocation))
+                .ForMember(dest => dest.EndLocation, opt => opt.MapFrom(src => src.EndLocation))
+                .ForMember(dest => dest.Duration, opt => opt.MapFrom(src => src.Duration))
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
+                .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => src.UpdatedAt));
             #endregion
+
+
+
+            #region TourSlot Mapping
+            CreateMap<RequestUpdateSlotDto, TourSlot>();
+            CreateMap<TourSlot, TourSlotDto>()
+                .ForMember(dest => dest.ScheduleDayName, opt => opt.MapFrom(src => src.ScheduleDay.GetVietnameseName()))
+                .ForMember(dest => dest.StatusName, opt => opt.MapFrom(src => GetTourSlotStatusName(src.Status)));
+            #endregion
+
+            #region TourOperation Mapping
+            CreateMap<RequestCreateOperationDto, TourOperation>();
+            CreateMap<RequestUpdateOperationDto, TourOperation>()
+                .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+            CreateMap<TourOperation, TourOperationDto>()
+                .ForMember(dest => dest.ActualPrice, opt => opt.MapFrom(src => src.Price))
+                .ForMember(dest => dest.StatusName, opt => opt.MapFrom(src => GetTourOperationStatusName(src.Status)))
+                .ForMember(dest => dest.Guide, opt => opt.MapFrom(src => src.Guide))
+                .ForMember(dest => dest.MaxCapacity, opt => opt.MapFrom(src => src.MaxGuests));
+            CreateMap<TourOperation, OperationSummaryDto>()
+                .ForMember(dest => dest.TourDate, opt => opt.MapFrom(src => src.TourSlot.TourDate))
+                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide.Name))
+                .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.Guide.Email))
+                .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.Guide.PhoneNumber))
+                .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price))
+                .ForMember(dest => dest.StatusName, opt => opt.MapFrom(src => GetTourOperationStatusName(src.Status)));
+            #endregion
+        }
+
+        /// <summary>
+        /// Helper method để convert TourSlotStatus sang tên tiếng Việt
+        /// </summary>
+        private static string GetTourSlotStatusName(TourSlotStatus status)
+        {
+            return status switch
+            {
+                TourSlotStatus.Available => "Có sẵn",
+                TourSlotStatus.FullyBooked => "Đã đầy",
+                TourSlotStatus.Cancelled => "Đã hủy",
+                TourSlotStatus.Completed => "Đã hoàn thành",
+                TourSlotStatus.InProgress => "Đang thực hiện",
+                _ => status.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Helper method để convert TourOperationStatus sang tên tiếng Việt
+        /// </summary>
+        private static string GetTourOperationStatusName(TourOperationStatus status)
+        {
+            return status switch
+            {
+                TourOperationStatus.Scheduled => "Đã lên lịch",
+                TourOperationStatus.InProgress => "Đang thực hiện",
+                TourOperationStatus.Completed => "Đã hoàn thành",
+                TourOperationStatus.Cancelled => "Đã hủy",
+                TourOperationStatus.Postponed => "Đã hoãn",
+                TourOperationStatus.PendingConfirmation => "Chờ xác nhận",
+                _ => status.ToString()
+            };
         }
     }
 }

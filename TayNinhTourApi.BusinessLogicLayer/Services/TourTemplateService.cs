@@ -2,6 +2,7 @@ using AutoMapper;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
@@ -14,8 +15,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     /// </summary>
     public class TourTemplateService : BaseService, ITourTemplateService
     {
+        private readonly TourTemplateImageHandler _imageHandler;
+
         public TourTemplateService(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
         {
+            _imageHandler = new TourTemplateImageHandler(unitOfWork);
         }
 
         public async Task<TourTemplate> CreateTourTemplateAsync(RequestCreateTourTemplateDto request, Guid createdById)

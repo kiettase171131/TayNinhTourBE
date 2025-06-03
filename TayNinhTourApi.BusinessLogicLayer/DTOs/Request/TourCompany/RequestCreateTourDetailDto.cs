@@ -39,5 +39,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         /// Nullable - chỉ có giá trị khi hoạt động liên quan đến một shop cụ thể
         /// </summary>
         public Guid? ShopId { get; set; }
+
+        /// <summary>
+        /// Thứ tự sắp xếp trong timeline (tùy chọn, sẽ tự động assign nếu không có)
+        /// </summary>
+        [Range(1, int.MaxValue, ErrorMessage = "SortOrder phải lớn hơn 0")]
+        public int? SortOrder { get; set; }
     }
 }

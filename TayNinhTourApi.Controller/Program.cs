@@ -89,12 +89,24 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 // Register AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
+// Validate AutoMapper configuration in development
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton(provider =>
+    {
+        var mapper = provider.GetRequiredService<IMapper>();
+        mapper.ConfigurationProvider.AssertConfigurationIsValid();
+        return mapper.ConfigurationProvider;
+    });
+}
+
 // Register services layer
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<ICmsService, CmsService>();
 builder.Services.AddScoped<ITourCompanyService, TourCompanyService>();
 builder.Services.AddScoped<ITourTemplateService, TourTemplateService>();
+builder.Services.AddScoped<ITourDetailsService, TourDetailsService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
 builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>();
 builder.Services.AddScoped<IImageService, ImageService>();
