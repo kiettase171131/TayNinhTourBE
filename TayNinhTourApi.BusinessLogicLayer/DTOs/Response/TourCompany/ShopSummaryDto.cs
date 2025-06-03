@@ -21,6 +21,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string Location { get; set; } = null!;
 
         /// <summary>
+        /// Mô tả của shop
+        /// </summary>
+        public string? Description { get; set; }
+
+        /// <summary>
+        /// Số điện thoại của shop
+        /// </summary>
+        public string? PhoneNumber { get; set; }
+
+        /// <summary>
         /// Loại shop (ví dụ: Souvenir, Food, Craft, etc.)
         /// </summary>
         public string? ShopType { get; set; }

@@ -93,6 +93,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     public class ResponseGetTourTemplatesDto
     {
         public int StatusCode { get; set; }
+        public string? Message { get; set; }
         public List<TourTemplateSummaryDto> Data { get; set; } = new List<TourTemplateSummaryDto>();
         public int TotalRecord { get; set; }
         public int TotalPages { get; set; }

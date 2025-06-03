@@ -146,7 +146,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                     GuideId = Guid.NewGuid(),
                     Price = 150000 + (i * 1000),
                     MaxGuests = 15 + (i % 10),
-                    CurrentBookings = i % 10,
                     Description = $"Operation description {i}",
                     Status = (TourOperationStatus)(i % 6 + 1),
                     IsActive = true,

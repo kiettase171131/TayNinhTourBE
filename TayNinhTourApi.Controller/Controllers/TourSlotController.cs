@@ -34,7 +34,7 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<ActionResult<ResponseGenerateSlotsDto>> GenerateSlots([FromBody] RequestGenerateSlotsDto request)
         {
             var response = await _tourSlotService.GenerateSlotsAsync(request);
-            return StatusCode(response.StatusCode, response);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<ActionResult<ResponsePreviewSlotsDto>> PreviewSlots([FromBody] RequestPreviewSlotsDto request)
         {
             var response = await _tourSlotService.PreviewSlotsAsync(request);
-            return StatusCode(response.StatusCode, response);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         /// <summary>
@@ -58,7 +58,7 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<ActionResult<ResponseGetSlotsDto>> GetSlots([FromQuery] RequestGetSlotsDto request)
         {
             var response = await _tourSlotService.GetSlotsAsync(request);
-            return StatusCode(response.StatusCode, response);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         /// <summary>
@@ -67,10 +67,10 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="id">ID của tour slot</param>
         /// <returns>Thông tin chi tiết tour slot</returns>
         [HttpGet("{id}")]
-        public async Task<ActionResult<ResponseGetSlotByIdDto>> GetSlotById(Guid id)
+        public async Task<ActionResult<ResponseGetSlotDetailDto>> GetSlotById(Guid id)
         {
-            var response = await _tourSlotService.GetSlotByIdAsync(id);
-            return StatusCode(response.StatusCode, response);
+            var response = await _tourSlotService.GetSlotDetailAsync(id);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return BadRequest("User ID not found in claims.");
             }
 
-            var response = await _tourSlotService.UpdateSlotAsync(id, request, Guid.Parse(userId));
+            var response = await _tourSlotService.UpdateSlotAsync(id, request);
             return StatusCode(response.StatusCode, response);
         }
 
@@ -110,7 +110,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return BadRequest("User ID not found in claims.");
             }
 
-            var response = await _tourSlotService.DeleteSlotAsync(id, Guid.Parse(userId));
+            var response = await _tourSlotService.DeleteSlotAsync(id);
             return StatusCode(response.StatusCode, response);
         }
 
@@ -124,7 +124,7 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<ActionResult<ResponseCheckSlotConflictsDto>> CheckSlotConflicts([FromBody] RequestCheckSlotConflictsDto request)
         {
             var response = await _tourSlotService.CheckSlotConflictsAsync(request.TourTemplateId, request.Dates);
-            return StatusCode(response.StatusCode, response);
+            return response.IsSuccess ? Ok(response) : BadRequest(response);
         }
 
         /// <summary>

@@ -20,26 +20,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     public class TourSlotService : BaseService, ITourSlotService
     {
         private readonly ILogger<TourSlotService> _logger;
+        private readonly ISchedulingService _schedulingService;
 
         public TourSlotService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
-            ILogger<TourSlotService> logger) : base(unitOfWork, mapper)
+            ILogger<TourSlotService> logger,
+            ISchedulingService schedulingService) : base(mapper, unitOfWork)
         {
             _logger = logger;
+            _schedulingService = schedulingService;
         }
 
         /// <summary>
         /// Tự động tạo tour slots cho một tháng dựa trên tour template
         /// </summary>
-        public async Task<ResponseGenerateSlotsDto> GenerateSlotsAsync(RequestGenerateSlotsDto request)
+        public async Task<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot.ResponseGenerateSlotsDto> GenerateSlotsAsync(RequestGenerateSlotsDto request)
         {
             try
             {
-                _logger.LogInformation("Starting generate slots for template {TemplateId}, month {Month}/{Year}", 
+                _logger.LogInformation("Starting generate slots for template {TemplateId}, month {Month}/{Year}",
                     request.TourTemplateId, request.Month, request.Year);
 
-                var response = new ResponseGenerateSlotsDto();
+                var response = new TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot.ResponseGenerateSlotsDto();
 
                 // Validate tour template exists
                 var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(request.TourTemplateId);
@@ -50,9 +53,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return response;
                 }
 
-                // Calculate weekend dates for the month
-                var weekendDates = CalculateWeekendDatesInMonth(request.Year, request.Month, request.ScheduleDays);
-                
+                // Validate input using SchedulingService
+                var validation = _schedulingService.ValidateScheduleInput(request.Year, request.Month, request.ScheduleDays);
+                if (!validation.IsValid)
+                {
+                    response.IsSuccess = false;
+                    response.Message = validation.Message;
+                    response.Errors = validation.ValidationErrors;
+                    return response;
+                }
+
+                // Calculate weekend dates for the month using SchedulingService
+                var weekendDates = _schedulingService.CalculateWeekendDates(request.Year, request.Month, request.ScheduleDays);
+
                 if (!weekendDates.Any())
                 {
                     response.IsSuccess = false;
@@ -99,7 +112,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             Status = TourSlotStatus.Available,
                             IsActive = request.AutoActivate,
                             CreatedAt = DateTime.UtcNow,
-                            CreatedBy = Guid.Empty // TODO: Get from current user context
+                            CreatedById = Guid.Empty // TODO: Get from current user context
                         };
 
                         if (existingSlot != null && request.OverwriteExisting)
@@ -108,7 +121,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             existingSlot.Status = TourSlotStatus.Available;
                             existingSlot.IsActive = request.AutoActivate;
                             existingSlot.UpdatedAt = DateTime.UtcNow;
-                            existingSlot.UpdatedBy = Guid.Empty; // TODO: Get from current user context
+                            existingSlot.UpdatedById = Guid.Empty; // TODO: Get from current user context
 
                             await _unitOfWork.TourSlotRepository.UpdateAsync(existingSlot);
                             createdSlots.Add(existingSlot);
@@ -151,7 +164,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in GenerateSlotsAsync");
-                return new ResponseGenerateSlotsDto
+                return new TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot.ResponseGenerateSlotsDto
                 {
                     IsSuccess = false,
                     Message = "Có lỗi xảy ra khi tạo slots",
@@ -167,7 +180,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                _logger.LogInformation("Previewing slots for template {TemplateId}, month {Month}/{Year}", 
+                _logger.LogInformation("Previewing slots for template {TemplateId}, month {Month}/{Year}",
                     request.TourTemplateId, request.Month, request.Year);
 
                 var response = new ResponsePreviewSlotsDto();
@@ -181,9 +194,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return response;
                 }
 
-                // Calculate weekend dates for the month
-                var weekendDates = CalculateWeekendDatesInMonth(request.Year, request.Month, request.ScheduleDays);
-                
+                // Validate input using SchedulingService
+                var validation = _schedulingService.ValidateScheduleInput(request.Year, request.Month, request.ScheduleDays);
+                if (!validation.IsValid)
+                {
+                    response.IsSuccess = false;
+                    response.Message = validation.Message;
+                    return response;
+                }
+
+                // Calculate weekend dates for the month using SchedulingService
+                var weekendDates = _schedulingService.CalculateWeekendDates(request.Year, request.Month, request.ScheduleDays);
+
                 if (!weekendDates.Any())
                 {
                     response.IsSuccess = false;
@@ -253,29 +275,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        /// <summary>
-        /// Tính toán các ngày weekend trong tháng
-        /// </summary>
-        private List<DateOnly> CalculateWeekendDatesInMonth(int year, int month, ScheduleDay scheduleDays)
-        {
-            var weekendDates = new List<DateOnly>();
-            var daysInMonth = DateTime.DaysInMonth(year, month);
 
-            for (int day = 1; day <= daysInMonth; day++)
-            {
-                var date = new DateOnly(year, month, day);
-                var dayOfWeek = date.DayOfWeek;
-
-                // Check if this day matches the requested schedule days
-                if ((scheduleDays.HasFlag(ScheduleDay.Saturday) && dayOfWeek == DayOfWeek.Saturday) ||
-                    (scheduleDays.HasFlag(ScheduleDay.Sunday) && dayOfWeek == DayOfWeek.Sunday))
-                {
-                    weekendDates.Add(date);
-                }
-            }
-
-            return weekendDates.OrderBy(d => d).ToList();
-        }
 
         /// <summary>
         /// Chuyển đổi DayOfWeek sang ScheduleDay enum
@@ -333,7 +333,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (!string.IsNullOrEmpty(request.SearchKeyword))
                 {
-                    query = query.Where(s => s.TourTemplate.Name.Contains(request.SearchKeyword, StringComparison.OrdinalIgnoreCase));
+                    query = query.Where(s => s.TourTemplate.Title.Contains(request.SearchKeyword, StringComparison.OrdinalIgnoreCase));
                 }
 
                 // Apply sorting
@@ -465,7 +465,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 slot.UpdatedAt = DateTime.UtcNow;
-                slot.UpdatedBy = Guid.Empty; // TODO: Get from current user context
+                slot.UpdatedById = Guid.Empty; // TODO: Get from current user context
 
                 await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
                 await _unitOfWork.SaveChangesAsync();
@@ -516,7 +516,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 //     };
                 // }
 
-                await _unitOfWork.TourSlotRepository.DeleteAsync(slot);
+                await _unitOfWork.TourSlotRepository.DeleteAsync(slot.Id);
                 await _unitOfWork.SaveChangesAsync();
 
                 return new BaseResposeDto
@@ -673,7 +673,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
 
                     slot.UpdatedAt = DateTime.UtcNow;
-                    slot.UpdatedBy = Guid.Empty; // TODO: Get from current user context
+                    slot.UpdatedById = Guid.Empty; // TODO: Get from current user context
 
                     await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
                 }

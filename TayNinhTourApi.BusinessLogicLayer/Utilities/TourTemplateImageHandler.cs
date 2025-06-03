@@ -155,7 +155,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
                     // Get new images
                     var newImages = await GetImagesAsync(newImageUrls);
-                    
+
                     // Update template images
                     template.Images.Clear();
                     foreach (var image in newImages)
@@ -281,12 +281,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
                     {
                         TemplateId = templateId.Value,
                         ImageCount = template.Images?.Count ?? 0,
-                        Images = template.Images?.Select(img => new
-                        {
-                            img.Id,
-                            img.Url,
-                            img.CreatedAt
-                        }).ToList() ?? new List<object>()
+                        Images = template.Images != null
+                            ? template.Images.Select(img => new
+                            {
+                                img.Id,
+                                img.Url,
+                                img.CreatedAt
+                            }).Cast<object>().ToList()
+                            : new List<object>()
                     };
                 }
                 else

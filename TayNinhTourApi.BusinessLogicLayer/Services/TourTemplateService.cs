@@ -10,14 +10,14 @@ using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service implementation cho TourTemplate management
-    /// Cung cấp business logic cho việc quản lý tour templates
+    /// Legacy TourTemplateService implementation - DEPRECATED
+    /// Sử dụng EnhancedTourTemplateService thay thế
     /// </summary>
-    public class TourTemplateService : BaseService, ITourTemplateService
+    public class LegacyTourTemplateService : BaseService
     {
         private readonly TourTemplateImageHandler _imageHandler;
 
-        public TourTemplateService(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
+        public LegacyTourTemplateService(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
         {
             _imageHandler = new TourTemplateImageHandler(unitOfWork);
         }
@@ -26,7 +26,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             // Map DTO to entity
             var tourTemplate = _mapper.Map<TourTemplate>(request);
-            
+
             // Set audit fields
             tourTemplate.Id = Guid.NewGuid();
             tourTemplate.CreatedById = createdById;
@@ -51,7 +51,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             // Map updates
             _mapper.Map(request, existingTemplate);
-            
+
             // Set audit fields
             existingTemplate.UpdatedById = updatedById;
             existingTemplate.UpdatedAt = DateTime.UtcNow;
@@ -120,8 +120,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         public async Task<ResponseGetTourTemplatesDto> GetTourTemplatesPaginatedAsync(
-            int pageIndex, 
-            int pageSize, 
+            int pageIndex,
+            int pageSize,
             TourTemplateType? templateType = null,
             decimal? minPrice = null,
             decimal? maxPrice = null,
@@ -131,7 +131,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var (templates, totalCount) = await _unitOfWork.TourTemplateRepository.GetPaginatedAsync(
                 pageIndex, pageSize, templateType, minPrice, maxPrice, startLocation, includeInactive);
 
-            var tourTemplateDtos = _mapper.Map<List<TourTemplateDto>>(templates);
+            var tourTemplateDtos = _mapper.Map<List<TourTemplateSummaryDto>>(templates);
 
             return new ResponseGetTourTemplatesDto
             {
@@ -218,7 +218,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             // TODO: Implement comprehensive statistics
             // For now, return basic counts
-            var allTemplates = createdById.HasValue 
+            var allTemplates = createdById.HasValue
                 ? await _unitOfWork.TourTemplateRepository.GetByCreatedByAsync(createdById.Value, true)
                 : await _unitOfWork.TourTemplateRepository.GetAllAsync();
 

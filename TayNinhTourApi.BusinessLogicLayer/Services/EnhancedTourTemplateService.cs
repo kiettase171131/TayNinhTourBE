@@ -39,9 +39,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
 
             // Validate images if provided
-            if (request.ImageUrls != null && request.ImageUrls.Any())
+            if (request.Images != null && request.Images.Any())
             {
-                var imageValidation = await _imageHandler.ValidateImageUrlsAsync(request.ImageUrls);
+                var imageValidation = await _imageHandler.ValidateImageUrlsAsync(request.Images);
                 if (!imageValidation.IsValid)
                 {
                     return new ResponseCreateTourTemplateDto
@@ -64,9 +64,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 tourTemplate.IsDeleted = false;
 
                 // Handle images if provided
-                if (request.ImageUrls != null && request.ImageUrls.Any())
+                if (request.Images != null && request.Images.Any())
                 {
-                    var images = await _imageHandler.GetImagesAsync(request.ImageUrls);
+                    var images = await _imageHandler.GetImagesAsync(request.Images);
                     tourTemplate.Images = images;
                 }
 
@@ -148,9 +148,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // Handle image updates
-                if (request.ImageUrls != null)
+                if (request.Images != null)
                 {
-                    var imageUpdateResult = await _imageHandler.UpdateTourTemplateImagesAsync(existingTemplate, request.ImageUrls);
+                    var imageUpdateResult = await _imageHandler.UpdateTourTemplateImagesAsync(existingTemplate, request.Images);
                     if (!imageUpdateResult.IsValid)
                     {
                         return new ResponseUpdateTourTemplateDto
@@ -164,7 +164,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Map updates
                 _mapper.Map(request, existingTemplate);
-                
+
                 // Set audit fields
                 existingTemplate.UpdatedById = updatedById;
                 existingTemplate.UpdatedAt = DateTime.UtcNow;
@@ -399,10 +399,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<ResponseValidationDto> ValidateCreateRequestAsync(RequestCreateTourTemplateDto request)
         {
             var validationResult = TourTemplateValidator.ValidateCreateRequest(request);
-            
-            if (request.ImageUrls != null && request.ImageUrls.Any())
+
+            if (request.Images != null && request.Images.Any())
             {
-                var imageValidation = await _imageHandler.ValidateImageUrlsAsync(request.ImageUrls);
+                var imageValidation = await _imageHandler.ValidateImageUrlsAsync(request.Images);
                 if (!imageValidation.IsValid)
                 {
                     validationResult.IsValid = false;
@@ -429,10 +429,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
 
             var validationResult = TourTemplateValidator.ValidateUpdateRequest(request, existingTemplate);
-            
-            if (request.ImageUrls != null)
+
+            if (request.Images != null)
             {
-                var imageValidation = await _imageHandler.ValidateImageUrlsAsync(request.ImageUrls);
+                var imageValidation = await _imageHandler.ValidateImageUrlsAsync(request.Images);
                 if (!imageValidation.IsValid)
                 {
                     validationResult.IsValid = false;
@@ -524,7 +524,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var totalCount = query.Count();
                 var templates = query.Skip(pageIndex * pageSize).Take(pageSize).ToList();
 
-                var tourTemplateDtos = _mapper.Map<List<TourTemplateDto>>(templates);
+                var tourTemplateDtos = _mapper.Map<List<TourTemplateSummaryDto>>(templates);
 
                 return new ResponseGetTourTemplatesDto
                 {
@@ -541,7 +541,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = "Lỗi khi lấy danh sách tour templates",
-                    Data = new List<TourTemplateDto>(),
+                    Data = new List<TourTemplateSummaryDto>(),
                     TotalRecord = 0,
                     TotalPages = 0
                 };

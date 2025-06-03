@@ -17,7 +17,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     {
         private readonly ILogger<TourDetailsService> _logger;
 
-        public TourDetailsService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<TourDetailsService> logger) 
+        public TourDetailsService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<TourDetailsService> logger)
             : base(mapper, unitOfWork)
         {
             _logger = logger;
@@ -265,8 +265,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Reorder remaining items
                 await _unitOfWork.TourDetailsRepository.UpdateSortOrdersAsync(
-                    existingDetail.TourTemplateId, 
-                    existingDetail.SortOrder + 1, 
+                    existingDetail.TourTemplateId,
+                    existingDetail.SortOrder + 1,
                     -1);
 
                 await _unitOfWork.SaveChangesAsync();
@@ -380,7 +380,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogInformation("Getting available shops, includeInactive: {IncludeInactive}, searchKeyword: {SearchKeyword}",
                     includeInactive, searchKeyword);
 
-                var shops = await _unitOfWork.ShopRepository.GetAllAsync(includeInactive);
+                var shops = includeInactive
+                    ? await _unitOfWork.ShopRepository.GetAllAsync()
+                    : await _unitOfWork.ShopRepository.GetAllAsync(s => s.IsActive && !s.IsDeleted);
 
                 // Apply search filter if provided
                 if (!string.IsNullOrEmpty(searchKeyword))

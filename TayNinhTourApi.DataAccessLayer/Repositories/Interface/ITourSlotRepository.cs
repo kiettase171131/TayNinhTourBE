@@ -43,6 +43,22 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<IEnumerable<TourSlot>> GetAvailableSlotsAsync(DateOnly? fromDate = null, DateOnly? toDate = null);
 
         /// <summary>
+        /// Lấy danh sách tour slots available với filtering chi tiết
+        /// </summary>
+        /// <param name="tourTemplateId">ID của tour template (optional)</param>
+        /// <param name="scheduleDay">Ngày trong tuần (optional)</param>
+        /// <param name="fromDate">Từ ngày (optional)</param>
+        /// <param name="toDate">Đến ngày (optional)</param>
+        /// <param name="includeInactive">Có bao gồm slots không active không</param>
+        /// <returns>Danh sách tour slots available</returns>
+        Task<IEnumerable<TourSlot>> GetAvailableSlotsAsync(
+            Guid? tourTemplateId,
+            ScheduleDay? scheduleDay,
+            DateOnly? fromDate,
+            DateOnly? toDate,
+            bool includeInactive);
+
+        /// <summary>
         /// Lấy tour slot theo ngày cụ thể và tour template
         /// </summary>
         /// <param name="tourTemplateId">ID của tour template</param>
@@ -100,5 +116,14 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="id">ID của tour slot</param>
         /// <returns>True nếu có tour operation</returns>
         Task<bool> HasTourOperationAsync(Guid id);
+
+        /// <summary>
+        /// Đếm số lượng tour slots available trong khoảng thời gian
+        /// </summary>
+        /// <param name="tourTemplateId">ID của tour template</param>
+        /// <param name="fromDate">Từ ngày</param>
+        /// <param name="toDate">Đến ngày</param>
+        /// <returns>Số lượng slots available</returns>
+        Task<int> CountAvailableSlotsAsync(Guid tourTemplateId, DateOnly fromDate, DateOnly toDate);
     }
 }

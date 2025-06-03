@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -105,7 +106,7 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<ICmsService, CmsService>();
 builder.Services.AddScoped<ITourCompanyService, TourCompanyService>();
-builder.Services.AddScoped<ITourTemplateService, TourTemplateService>();
+builder.Services.AddScoped<ITourTemplateService, EnhancedTourTemplateService>();
 builder.Services.AddScoped<ITourSlotService, TourSlotService>();
 builder.Services.AddScoped<ITourDetailsService, TourDetailsService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
@@ -113,6 +114,7 @@ builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationSer
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IShopService, ShopService>();
+builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 
 
 // Register repositories layer
