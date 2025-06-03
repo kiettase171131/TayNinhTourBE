@@ -1,0 +1,939 @@
+openapi: 3.0.3
+info:
+  title: TourTemplate API
+  description: API for managing tour templates in TayNinhTour system
+  version: 1.0.0
+  contact:
+    name: TayNinhTour Support
+    email: support@tayninhour.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.tayninhour.com
+    description: Production server
+  - url: http://localhost:5267
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/TourCompany/template:
+    get:
+      tags:
+        - TourTemplate
+      summary: Get tour templates
+      description: Retrieve a paginated list of tour templates with optional filters
+      operationId: getTourTemplates
+      parameters:
+        - name: pageIndex
+          in: query
+          description: Page number (1-based)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: templateType
+          in: query
+          description: Filter by template type
+          required: false
+          schema:
+            $ref: '#/components/schemas/TourTemplateType'
+        - name: minPrice
+          in: query
+          description: Minimum price filter
+          required: false
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+        - name: maxPrice
+          in: query
+          description: Maximum price filter
+          required: false
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+        - name: startLocation
+          in: query
+          description: Filter by start location
+          required: false
+          schema:
+            type: string
+        - name: endLocation
+          in: query
+          description: Filter by end location
+          required: false
+          schema:
+            type: string
+        - name: includeInactive
+          in: query
+          description: Include inactive templates
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: searchKeyword
+          in: query
+          description: Search in title and description
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TourTemplateListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - TourTemplate
+      summary: Create tour template
+      description: Create a new tour template
+      operationId: createTourTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTourTemplateRequest'
+      responses:
+        '201':
+          description: Tour template created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateTourTemplateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/TourCompany/template/{id}:
+    get:
+      tags:
+        - TourTemplate
+      summary: Get tour template by ID
+      description: Retrieve detailed information of a specific tour template
+      operationId: getTourTemplateById
+      parameters:
+        - name: id
+          in: path
+          description: Tour template ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TourTemplateDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - TourTemplate
+      summary: Update tour template
+      description: Partially update a tour template
+      operationId: updateTourTemplate
+      parameters:
+        - name: id
+          in: path
+          description: Tour template ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTourTemplateRequest'
+      responses:
+        '200':
+          description: Tour template updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateTourTemplateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - TourTemplate
+      summary: Delete tour template
+      description: Delete a tour template
+      operationId: deleteTourTemplate
+      parameters:
+        - name: id
+          in: path
+          description: Tour template ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tour template deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteTourTemplateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/TourCompany/template/{id}/copy:
+    post:
+      tags:
+        - TourTemplate
+      summary: Copy tour template
+      description: Create a copy of an existing tour template
+      operationId: copyTourTemplate
+      parameters:
+        - name: id
+          in: path
+          description: Source tour template ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopyTourTemplateRequest'
+      responses:
+        '201':
+          description: Tour template copied successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CopyTourTemplateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/TourSlot/generate:
+    post:
+      tags:
+        - TourSlot
+      summary: Generate tour slots
+      description: Generate tour slots for a template (max 4 per month)
+      operationId: generateTourSlots
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateSlotsRequest'
+      responses:
+        '200':
+          description: Tour slots generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateSlotsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/TourDetails/timeline/{templateId}:
+    get:
+      tags:
+        - TourDetails
+      summary: Get tour timeline
+      description: Get timeline details for a tour template
+      operationId: getTourTimeline
+      parameters:
+        - name: templateId
+          in: path
+          description: Tour template ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeShopInfo
+          in: query
+          description: Include shop information
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TourTimelineResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication. Required role: TOURCOMPANY
+
+  schemas:
+    TourTemplateType:
+      type: string
+      enum:
+        - FreeScenic
+        - PaidAttraction
+      description: |
+        Tour template type:
+        * `FreeScenic` - Free scenic tours (no entrance fee)
+        * `PaidAttraction` - Paid attraction tours (with entrance fee)
+
+    ScheduleDay:
+      type: string
+      enum:
+        - Saturday
+        - Sunday
+      description: |
+        Schedule day (only one day allowed):
+        * `Saturday` - Saturday only
+        * `Sunday` - Sunday only
+
+    TourTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+        title:
+          type: string
+          description: Tour template title
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          description: Detailed description
+          minLength: 1
+          maxLength: 2000
+        price:
+          type: number
+          format: decimal
+          description: Tour price in VND
+          minimum: 0
+          maximum: 100000000
+        childPrice:
+          type: number
+          format: decimal
+          description: Child price in VND
+          minimum: 0
+          nullable: true
+        childMaxAge:
+          type: integer
+          description: Maximum age for child pricing
+          minimum: 1
+          maximum: 17
+          nullable: true
+        maxGuests:
+          type: integer
+          description: Maximum number of guests
+          minimum: 1
+          maximum: 1000
+        minGuests:
+          type: integer
+          description: Minimum number of guests
+          minimum: 1
+        duration:
+          type: integer
+          description: Tour duration in days
+          minimum: 1
+          maximum: 30
+        templateType:
+          $ref: '#/components/schemas/TourTemplateType'
+        scheduleDays:
+          $ref: '#/components/schemas/ScheduleDay'
+        startLocation:
+          type: string
+          description: Starting location
+          minLength: 1
+          maxLength: 100
+        endLocation:
+          type: string
+          description: Ending location
+          minLength: 1
+          maxLength: 100
+        specialRequirements:
+          type: string
+          description: Special requirements
+          maxLength: 500
+          nullable: true
+        isActive:
+          type: boolean
+          description: Whether the template is active
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        createdBy:
+          $ref: '#/components/schemas/UserInfo'
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageInfo'
+          description: Associated images
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+
+    ImageInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        url:
+          type: string
+
+    CreateTourTemplateRequest:
+      type: object
+      required:
+        - title
+        - description
+        - price
+        - maxGuests
+        - minGuests
+        - duration
+        - templateType
+        - scheduleDays
+        - startLocation
+        - endLocation
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100000000
+        childPrice:
+          type: number
+          format: decimal
+          minimum: 0
+          nullable: true
+        childMaxAge:
+          type: integer
+          minimum: 1
+          maximum: 17
+          nullable: true
+        maxGuests:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        minGuests:
+          type: integer
+          minimum: 1
+        duration:
+          type: integer
+          minimum: 1
+          maximum: 30
+        templateType:
+          $ref: '#/components/schemas/TourTemplateType'
+        scheduleDays:
+          $ref: '#/components/schemas/ScheduleDay'
+        startLocation:
+          type: string
+          minLength: 1
+          maxLength: 100
+        endLocation:
+          type: string
+          minLength: 1
+          maxLength: 100
+        specialRequirements:
+          type: string
+          maxLength: 500
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+          maxItems: 10
+          description: Array of image file names
+
+    UpdateTourTemplateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100000000
+        childPrice:
+          type: number
+          format: decimal
+          minimum: 0
+          nullable: true
+        childMaxAge:
+          type: integer
+          minimum: 1
+          maximum: 17
+          nullable: true
+        maxGuests:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        minGuests:
+          type: integer
+          minimum: 1
+        duration:
+          type: integer
+          minimum: 1
+          maximum: 30
+        templateType:
+          $ref: '#/components/schemas/TourTemplateType'
+        scheduleDays:
+          $ref: '#/components/schemas/ScheduleDay'
+        startLocation:
+          type: string
+          minLength: 1
+          maxLength: 100
+        endLocation:
+          type: string
+          minLength: 1
+          maxLength: 100
+        specialRequirements:
+          type: string
+          maxLength: 500
+          nullable: true
+
+    CopyTourTemplateRequest:
+      type: object
+      required:
+        - newTitle
+      properties:
+        newTitle:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Title for the new copied template
+
+    GenerateSlotsRequest:
+      type: object
+      required:
+        - tourTemplateId
+        - month
+        - year
+        - scheduleDays
+      properties:
+        tourTemplateId:
+          type: string
+          format: uuid
+          description: Tour template ID
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Target month
+        year:
+          type: integer
+          minimum: 2025
+          description: Target year
+        scheduleDays:
+          $ref: '#/components/schemas/ScheduleDay'
+        overwriteExisting:
+          type: boolean
+          default: false
+          description: Whether to overwrite existing slots
+        autoActivate:
+          type: boolean
+          default: true
+          description: Whether to auto-activate generated slots
+
+    ApiResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        data:
+          type: object
+
+    TourTemplateListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                templates:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TourTemplate'
+                pagination:
+                  $ref: '#/components/schemas/PaginationInfo'
+
+    PaginationInfo:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+        pageIndex:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+        hasPreviousPage:
+          type: boolean
+        hasNextPage:
+          type: boolean
+
+    TourTemplateDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/TourTemplate'
+
+    CreateTourTemplateResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                title:
+                  type: string
+                templateType:
+                  $ref: '#/components/schemas/TourTemplateType'
+                scheduleDays:
+                  $ref: '#/components/schemas/ScheduleDay'
+                createdAt:
+                  type: string
+                  format: date-time
+
+    UpdateTourTemplateResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                updatedAt:
+                  type: string
+                  format: date-time
+
+    DeleteTourTemplateResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                canDelete:
+                  type: boolean
+                blockingReasons:
+                  type: array
+                  items:
+                    type: string
+
+    CopyTourTemplateResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                originalId:
+                  type: string
+                  format: uuid
+                newId:
+                  type: string
+                  format: uuid
+                newTitle:
+                  type: string
+                copiedImages:
+                  type: integer
+                copiedDetails:
+                  type: integer
+                createdAt:
+                  type: string
+                  format: date-time
+
+    GenerateSlotsResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                isSuccess:
+                  type: boolean
+                createdSlotsCount:
+                  type: integer
+                skippedSlotsCount:
+                  type: integer
+                createdSlots:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      tourDate:
+                        type: string
+                        format: date
+                      scheduleDay:
+                        $ref: '#/components/schemas/ScheduleDay'
+                      status:
+                        type: string
+
+    TourTimelineResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tourTemplateId:
+                  type: string
+                  format: uuid
+                timelineItems:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      timeSlot:
+                        type: string
+                        pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+                      location:
+                        type: string
+                      description:
+                        type: string
+                      orderIndex:
+                        type: integer
+                      shop:
+                        type: object
+                        nullable: true
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                          location:
+                            type: string
+                          phoneNumber:
+                            type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        validationErrors:
+          type: array
+          items:
+            type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - validation errors
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 400
+            message: "Dữ liệu không hợp lệ"
+            validationErrors:
+              - "Chỉ được chọn Saturday hoặc Sunday"
+              - "Giá tour không được âm"
+            fieldErrors:
+              scheduleDays:
+                - "Chỉ được chọn một ngày duy nhất"
+              price:
+                - "Giá phải >= 0"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 401
+            message: "Token không hợp lệ hoặc đã hết hạn"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 403
+            message: "Bạn không có quyền truy cập endpoint này"
+
+    NotFound:
+      description: Not found - resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: "Không tìm thấy tour template"
+
+    Conflict:
+      description: Conflict - cannot perform action due to dependencies
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 409
+            message: "Không thể xóa tour template có slots đang active"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 500
+            message: "Lỗi server nội bộ"
+
+tags:
+  - name: TourTemplate
+    description: Tour template management operations
+  - name: TourSlot
+    description: Tour slot generation operations
+  - name: TourDetails
+    description: Tour timeline management operations
