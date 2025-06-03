@@ -7,8 +7,11 @@ using MySqlX.XDevAPI.Common;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Blog;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
+using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -18,11 +21,13 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         private readonly IAccountService _accountService;
         private readonly ITourGuideApplicationService _tourGuideApplicationService;
+        private readonly IBlogReactionService _reactionService;
 
-        public AccountController(IAccountService accountService, ITourGuideApplicationService tourGuideApplicationService )
+        public AccountController(IAccountService accountService, ITourGuideApplicationService tourGuideApplicationService, IBlogReactionService blogReactionService)
         {
             _accountService = accountService;
             _tourGuideApplicationService = tourGuideApplicationService;
+            _reactionService = blogReactionService;
         }
         
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -80,6 +85,22 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _accountService.UpdateAvatar(avatarDTO, currentUserObject);
             return StatusCode(result.StatusCode, result);
 
+        }
+        [HttpPost("{blogId}/reaction")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> ReactToBlog(Guid blogId, [FromBody] RequestBlogReactionDto dto)
+        {
+            // 1. Kiểm tra DTO hợp lệ
+            if (dto == null || (dto.Reaction != BlogStatusEnum.Like && dto.Reaction != BlogStatusEnum.Dislike))
+            {
+                return BadRequest(new { Message = "Invalid upload data" });
+            }
+            // đảm bảo blogId trong route khớp dto.BlogId hoặc ignore dto.BlogId và gán:
+            dto.BlogId = blogId;
+            // 2. Lấy thông tin user hiện tại từ JWT
+            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _reactionService.ToggleReactionAsync(dto, currentUserObject);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

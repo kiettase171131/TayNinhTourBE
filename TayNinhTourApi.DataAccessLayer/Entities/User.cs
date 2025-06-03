@@ -16,5 +16,6 @@
         public virtual ICollection<Tour> ToursCreated { get; set; } = new List<Tour>();
         public virtual ICollection<Tour> ToursUpdated { get; set; } = new List<Tour>();
         public virtual ICollection<Blog> Blogs { get; set; } = new List<Blog>();
+        public virtual ICollection<BlogReaction> BlogReactions { get; set; } = new List<BlogReaction>();
     }
 }
