@@ -53,6 +53,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             // Mapping từ TourTemplate sang TourTemplateDetailDto (detailed response)
             CreateMap<TourTemplate, TourTemplateDetailDto>()
                 .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.Images != null ? src.Images.Select(i => i.Url).ToList() : new List<string>()));
+
+            // Mapping từ TourTemplate sang TourTemplateSummaryDto (summary for listing)
+            CreateMap<TourTemplate, TourTemplateSummaryDto>()
+                .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.Images != null ? src.Images.Select(i => i.Url).ToList() : new List<string>()))
+                .ForMember(dest => dest.TemplateType, opt => opt.MapFrom(src => src.TemplateType.ToString()));
         }
     }
 }
