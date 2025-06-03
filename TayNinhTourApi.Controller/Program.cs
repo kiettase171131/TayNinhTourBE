@@ -167,12 +167,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Temporarily commented out for testing
-// using (var scope = app.Services.CreateScope())
-// {
-//     var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
-//     await seeder.SeedDataAsync();
-// }
+// Initialize seed data
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
+    await seeder.SeedDataAsync();
+}
 
 // Configure the HTTP request pipeline.
 app.UseSwagger();

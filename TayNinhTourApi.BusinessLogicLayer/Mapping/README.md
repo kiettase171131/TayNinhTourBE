@@ -109,25 +109,7 @@ Chuyển đổi `TourOperationStatus` enum sang tên tiếng Việt:
 - Postponed → "Đã hoãn"
 - PendingConfirmation → "Chờ xác nhận"
 
-## Performance Testing
 
-### MappingPerformanceTest.cs
-Class test performance cho large datasets:
-
-#### Available Tests
-- `TestTourTemplateMapping()` - Test TourTemplate mapping performance
-- `TestTourDetailsMapping()` - Test TourDetails với Shop relationships
-- `TestTourOperationMapping()` - Test TourOperation với nested relationships
-- `RunAllTests()` - Chạy tất cả tests
-
-#### Usage Example
-```csharp
-// Inject IMapper vào service
-var mapper = serviceProvider.GetService<IMapper>();
-
-// Run performance tests
-MappingPerformanceTest.RunAllTests(mapper, 1000);
-```
 
 ## Configuration trong Program.cs
 
@@ -171,10 +153,10 @@ Map nested objects explicitly:
 ### Common Issues
 1. **Missing mappings** - Đảm bảo tất cả DTOs đều có mapping tương ứng
 2. **Circular references** - Sử dụng `MaxDepth()` nếu cần
-3. **Performance issues** - Sử dụng `MappingPerformanceTest` để identify bottlenecks
+3. **Performance issues** - Monitor mapping performance với large datasets
 4. **Null reference exceptions** - Luôn check null cho navigation properties
 
 ### Debug Tips
 1. Sử dụng `mapper.ConfigurationProvider.AssertConfigurationIsValid()` để validate configuration
 2. Enable AutoMapper's built-in validation trong development environment
-3. Sử dụng performance tests để monitor mapping speed với large datasets
+3. Monitor mapping performance với profiling tools khi cần thiết

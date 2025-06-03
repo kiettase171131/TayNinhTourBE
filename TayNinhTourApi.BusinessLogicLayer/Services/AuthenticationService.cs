@@ -1,9 +1,9 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Caching.Memory;
-
+using Microsoft.Extensions.Logging;
 using MySqlX.XDevAPI;
-
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 using TayNinhTourApi.BusinessLogicLayer.Common;
