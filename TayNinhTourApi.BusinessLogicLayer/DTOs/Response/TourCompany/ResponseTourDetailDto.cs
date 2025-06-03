@@ -83,41 +83,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public int TotalCount { get; set; }
     }
 
-    /// <summary>
-    /// DTO tóm tắt thông tin shop cho dropdown
-    /// </summary>
-    public class ShopSummaryDto
-    {
-        /// <summary>
-        /// ID của shop
-        /// </summary>
-        public Guid Id { get; set; }
 
-        /// <summary>
-        /// Tên của shop
-        /// </summary>
-        public string Name { get; set; } = null!;
-
-        /// <summary>
-        /// Địa điểm/vị trí của shop
-        /// </summary>
-        public string Location { get; set; } = null!;
-
-        /// <summary>
-        /// Mô tả ngắn về shop
-        /// </summary>
-        public string? Description { get; set; }
-
-        /// <summary>
-        /// Số điện thoại liên hệ của shop
-        /// </summary>
-        public string? PhoneNumber { get; set; }
-
-        /// <summary>
-        /// Trạng thái active của shop
-        /// </summary>
-        public bool IsActive { get; set; }
-    }
 
     /// <summary>
     /// Response DTO cho việc validate timeline

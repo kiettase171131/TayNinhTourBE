@@ -24,22 +24,5 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         public bool IncludeInactive { get; set; } = false;
     }
 
-    /// <summary>
-    /// Request DTO cho việc sắp xếp lại timeline
-    /// </summary>
-    public class RequestReorderTimelineDto
-    {
-        /// <summary>
-        /// ID của tour template
-        /// </summary>
-        [Required(ErrorMessage = "TourTemplateId là bắt buộc")]
-        public Guid TourTemplateId { get; set; }
 
-        /// <summary>
-        /// Danh sách ID của tour details theo thứ tự mới
-        /// </summary>
-        [Required(ErrorMessage = "OrderedDetailIds là bắt buộc")]
-        [MinLength(1, ErrorMessage = "OrderedDetailIds phải có ít nhất 1 phần tử")]
-        public List<Guid> OrderedDetailIds { get; set; } = new List<Guid>();
-    }
 }
