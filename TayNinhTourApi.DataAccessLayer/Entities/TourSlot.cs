@@ -56,5 +56,15 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Relationship: One-to-One với TourOperation
         /// </summary>
         public virtual TourOperation? TourOperation { get; set; }
+
+        /// <summary>
+        /// User đã tạo slot này
+        /// </summary>
+        public virtual User CreatedBy { get; set; } = null!;
+
+        /// <summary>
+        /// User đã cập nhật slot này lần cuối
+        /// </summary>
+        public virtual User? UpdatedBy { get; set; }
     }
 }

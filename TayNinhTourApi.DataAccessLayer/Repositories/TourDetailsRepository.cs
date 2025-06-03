@@ -92,7 +92,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(td => td.Shop)
                 .Include(td => td.CreatedBy)
                 .Include(td => td.UpdatedBy)
-                .Where(td => td.Duration >= minDuration && td.Duration <= maxDuration);
+                .Where(td => td.TourTemplate.Duration >= minDuration && td.TourTemplate.Duration <= maxDuration);
 
             if (!includeInactive)
             {
@@ -100,7 +100,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             }
 
             return await query
-                .OrderBy(td => td.Duration)
+                .OrderBy(td => td.TourTemplate.Duration)
                 .ToListAsync();
         }
 
@@ -274,9 +274,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(td => td.Shop)
                 .Include(td => td.CreatedBy)
                 .Include(td => td.UpdatedBy)
-                .Where(td => td.Title.Contains(keyword) ||
+                .Where(td => (td.Location != null && td.Location.Contains(keyword)) ||
                            (td.Description != null && td.Description.Contains(keyword)) ||
-                           td.Shop.Name.Contains(keyword));
+                           (td.Shop != null && td.Shop.Name.Contains(keyword)));
 
             if (tourTemplateId.HasValue)
             {

@@ -66,6 +66,20 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .OnDelete(DeleteBehavior.Restrict) // Prevent deleting User if they have TourOperations
                 .IsRequired();
 
+            // CreatedBy relationship
+            builder.HasOne(to => to.CreatedBy)
+                .WithMany(u => u.TourOperationsCreated)
+                .HasForeignKey(to => to.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            // UpdatedBy relationship
+            builder.HasOne(to => to.UpdatedBy)
+                .WithMany(u => u.TourOperationsUpdated)
+                .HasForeignKey(to => to.UpdatedById)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
             // Indexes for Performance
             
             // Unique index for TourSlotId (ensures one-to-one relationship)

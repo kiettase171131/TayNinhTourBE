@@ -60,5 +60,15 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Shop liên quan đến hoạt động này (nếu có)
         /// </summary>
         public virtual Shop? Shop { get; set; }
+
+        /// <summary>
+        /// User đã tạo tour detail này
+        /// </summary>
+        public virtual User CreatedBy { get; set; } = null!;
+
+        /// <summary>
+        /// User đã cập nhật tour detail này lần cuối
+        /// </summary>
+        public virtual User? UpdatedBy { get; set; }
     }
 }

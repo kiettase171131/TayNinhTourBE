@@ -51,6 +51,20 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             // TourOperation relationship (One-to-One, Optional)
             // Configured from TourOperation side to avoid circular dependency
 
+            // CreatedBy relationship
+            builder.HasOne(ts => ts.CreatedBy)
+                .WithMany(u => u.TourSlotsCreated)
+                .HasForeignKey(ts => ts.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            // UpdatedBy relationship
+            builder.HasOne(ts => ts.UpdatedBy)
+                .WithMany(u => u.TourSlotsUpdated)
+                .HasForeignKey(ts => ts.UpdatedById)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
             // Indexes for Performance
             
             // Index for TourTemplateId (most common query)

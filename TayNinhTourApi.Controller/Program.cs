@@ -106,6 +106,7 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<ICmsService, CmsService>();
 builder.Services.AddScoped<ITourCompanyService, TourCompanyService>();
 builder.Services.AddScoped<ITourTemplateService, TourTemplateService>();
+builder.Services.AddScoped<ITourSlotService, TourSlotService>();
 builder.Services.AddScoped<ITourDetailsService, TourDetailsService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
 builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>();

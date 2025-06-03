@@ -71,5 +71,15 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Relationship: Many-to-One
         /// </summary>
         public virtual User Guide { get; set; } = null!;
+
+        /// <summary>
+        /// User đã tạo tour operation này
+        /// </summary>
+        public virtual User CreatedBy { get; set; } = null!;
+
+        /// <summary>
+        /// User đã cập nhật tour operation này lần cuối
+        /// </summary>
+        public virtual User? UpdatedBy { get; set; }
     }
 }

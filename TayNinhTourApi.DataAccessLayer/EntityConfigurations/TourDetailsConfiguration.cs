@@ -59,6 +59,20 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 
+            // CreatedBy relationship
+            builder.HasOne(td => td.CreatedBy)
+                .WithMany(u => u.TourDetailsCreated)
+                .HasForeignKey(td => td.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            // UpdatedBy relationship
+            builder.HasOne(td => td.UpdatedBy)
+                .WithMany(u => u.TourDetailsUpdated)
+                .HasForeignKey(td => td.UpdatedById)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
             // Indexes for Performance
             
             // Index for TourTemplateId (most common query)
