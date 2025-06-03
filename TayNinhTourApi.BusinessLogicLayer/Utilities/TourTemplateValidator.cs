@@ -229,12 +229,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
                 StatusCode = 200
             };
 
-            // Check if template type is valid for schedule days
-            if (template.TemplateType == TourTemplateType.Group && 
-                !template.ScheduleDays.HasFlag(ScheduleDay.Saturday) && 
-                !template.ScheduleDays.HasFlag(ScheduleDay.Sunday))
+            // NEW CONSTRAINT: Validate Saturday OR Sunday only (not both)
+            var scheduleValidation = TourTemplateScheduleValidator.ValidateScheduleDay(template.ScheduleDays);
+            if (!scheduleValidation.IsValid)
             {
-                AddFieldError(result, "ScheduleDays", "Tour nhóm phải có ít nhất một ngày cuối tuần");
+                AddFieldError(result, "ScheduleDays", scheduleValidation.ErrorMessage ?? "Lỗi validation schedule day");
             }
 
             // Check price consistency

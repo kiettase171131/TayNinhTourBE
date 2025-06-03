@@ -77,11 +77,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
                 AddValidationError(result, "Phải chọn ít nhất một ngày trong tuần");
             }
 
-            // Business rule: For tour system, prefer weekend days
-            if (!scheduleDays.HasFlag(ScheduleDay.Saturday) && !scheduleDays.HasFlag(ScheduleDay.Sunday))
+            // NEW BUSINESS RULE: Only Saturday OR Sunday allowed (not both, not weekdays)
+            var scheduleValidation = TourTemplateScheduleValidator.ValidateScheduleDay(scheduleDays);
+            if (!scheduleValidation.IsValid)
             {
-                // This is a warning, not an error
-                result.ValidationErrors.Add("Khuyến nghị chọn ngày cuối tuần (Saturday hoặc Sunday) cho tour");
+                AddValidationError(result, scheduleValidation.ErrorMessage ?? "Lỗi validation schedule day");
             }
 
             SetValidationResult(result);
@@ -204,10 +204,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
         /// <param name="numberOfSlots">Số lượng slots (optional)</param>
         /// <returns>Kết quả validation tổng hợp</returns>
         public static ResponseValidationDto ValidateCompleteSchedulingRequest(
-            Guid tourTemplateId, 
-            int year, 
-            int month, 
-            ScheduleDay scheduleDays, 
+            Guid tourTemplateId,
+            int year,
+            int month,
+            ScheduleDay scheduleDays,
             int? numberOfSlots = null)
         {
             var result = new ResponseValidationDto

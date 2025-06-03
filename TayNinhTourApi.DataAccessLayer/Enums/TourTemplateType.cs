@@ -2,57 +2,84 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
 {
     /// <summary>
     /// Định nghĩa các loại tour template có thể được tạo trong hệ thống
+    /// Hệ thống mới chỉ hỗ trợ 2 loại tour chính
     /// </summary>
     public enum TourTemplateType
     {
         /// <summary>
-        /// Tour tiêu chuẩn - gói tour cơ bản với các dịch vụ thông thường
+        /// Tour danh lam thắng cảnh - Tour miễn phí tham quan các địa điểm tự nhiên, không có phí vào cửa
+        /// Ví dụ: Núi Bà Đen, Chùa Cao Đài, các khu vực tham quan miễn phí
         /// </summary>
-        Standard = 1,
+        FreeScenic = 1,
 
         /// <summary>
-        /// Tour cao cấp - gói tour với dịch vụ premium và tiện nghi cao cấp
+        /// Tour khu vui chơi - Tour có phí tham quan các khu vui chơi, công viên giải trí
+        /// Ví dụ: Khu du lịch sinh thái, công viên nước, khu vui chơi có phí vào cửa
         /// </summary>
-        Premium = 2,
+        PaidAttraction = 2
+    }
+
+    /// <summary>
+    /// Extension methods cho TourTemplateType enum
+    /// </summary>
+    public static class TourTemplateTypeExtensions
+    {
+        /// <summary>
+        /// Lấy tên tiếng Việt của loại tour template
+        /// </summary>
+        /// <param name="type">Loại tour template</param>
+        /// <returns>Tên tiếng Việt</returns>
+        public static string GetVietnameseName(this TourTemplateType type)
+        {
+            return type switch
+            {
+                TourTemplateType.FreeScenic => "Danh lam thắng cảnh",
+                TourTemplateType.PaidAttraction => "Khu vui chơi",
+                _ => type.ToString()
+            };
+        }
 
         /// <summary>
-        /// Tour tùy chỉnh - gói tour được thiết kế riêng theo yêu cầu khách hàng
+        /// Lấy mô tả chi tiết của loại tour template
         /// </summary>
-        Custom = 3,
+        /// <param name="type">Loại tour template</param>
+        /// <returns>Mô tả chi tiết</returns>
+        public static string GetDescription(this TourTemplateType type)
+        {
+            return type switch
+            {
+                TourTemplateType.FreeScenic => "Tour tham quan các danh lam thắng cảnh, di tích lịch sử không có phí vào cửa",
+                TourTemplateType.PaidAttraction => "Tour tham quan các khu vui chơi, công viên giải trí có phí vào cửa",
+                _ => "Không xác định"
+            };
+        }
 
         /// <summary>
-        /// Tour nhóm - gói tour dành cho nhóm khách du lịch
+        /// Kiểm tra xem loại tour có phí vào cửa không
         /// </summary>
-        Group = 4,
+        /// <param name="type">Loại tour template</param>
+        /// <returns>True nếu có phí vào cửa</returns>
+        public static bool HasEntranceFee(this TourTemplateType type)
+        {
+            return type == TourTemplateType.PaidAttraction;
+        }
 
         /// <summary>
-        /// Tour riêng tư - gói tour dành cho cá nhân hoặc gia đình
+        /// Lấy danh sách tất cả các loại tour template
         /// </summary>
-        Private = 5,
+        /// <returns>Danh sách các loại tour template</returns>
+        public static List<TourTemplateType> GetAllTypes()
+        {
+            return Enum.GetValues<TourTemplateType>().ToList();
+        }
 
         /// <summary>
-        /// Tour phiêu lưu - gói tour tập trung vào các hoạt động mạo hiểm
+        /// Lấy danh sách các loại tour template với tên tiếng Việt
         /// </summary>
-        Adventure = 6,
-
-        /// <summary>
-        /// Tour văn hóa - gói tour tập trung vào khám phá văn hóa địa phương
-        /// </summary>
-        Cultural = 7,
-
-        /// <summary>
-        /// Tour ẩm thực - gói tour tập trung vào trải nghiệm ẩm thực
-        /// </summary>
-        Culinary = 8,
-
-        /// <summary>
-        /// Tour sinh thái - gói tour tập trung vào thiên nhiên và môi trường
-        /// </summary>
-        Eco = 9,
-
-        /// <summary>
-        /// Tour lịch sử - gói tour tập trung vào các di tích lịch sử
-        /// </summary>
-        Historical = 10
+        /// <returns>Dictionary với key là enum value và value là tên tiếng Việt</returns>
+        public static Dictionary<TourTemplateType, string> GetAllTypesWithNames()
+        {
+            return GetAllTypes().ToDictionary(type => type, type => type.GetVietnameseName());
+        }
     }
 }

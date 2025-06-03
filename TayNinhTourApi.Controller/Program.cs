@@ -115,6 +115,7 @@ builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IShopService, ShopService>();
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 
 
 // Register repositories layer
@@ -166,11 +167,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
-    await seeder.SeedDataAsync();
-}
+// Temporarily commented out for testing
+// using (var scope = app.Services.CreateScope())
+// {
+//     var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
+//     await seeder.SeedDataAsync();
+// }
 
 // Configure the HTTP request pipeline.
 app.UseSwagger();
