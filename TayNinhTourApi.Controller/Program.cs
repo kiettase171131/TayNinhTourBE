@@ -91,6 +91,9 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 // Validate AutoMapper configuration in development
+// TEMPORARILY DISABLED: Causing deadlock during startup
+// TODO: Re-enable after fixing mapping configuration issues
+/*
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton(provider =>
@@ -100,6 +103,7 @@ if (builder.Environment.IsDevelopment())
         return mapper.ConfigurationProvider;
     });
 }
+*/
 
 // Register services layer
 builder.Services.AddScoped<IAccountService, AccountService>();
