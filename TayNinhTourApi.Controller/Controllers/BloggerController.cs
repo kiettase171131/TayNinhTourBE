@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Azure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Xml.Linq;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
@@ -19,16 +22,17 @@ namespace TayNinhTourApi.Controller.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = Constants.RoleBloggerName)]
+    
     public class BloggerController : ControllerBase
     {
         private readonly IBlogService _blogService;
-        
+        private readonly IBlogCommentService _commentService;
 
-        public BloggerController(IBlogService blogService)
+
+        public BloggerController(IBlogService blogService, IBlogCommentService commentService)
         {
             _blogService = blogService;
-            
+            _commentService = commentService;
         }
         [HttpGet("blog")]
         public async Task<ActionResult<ResponseGetBlogsDto>> GetBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
@@ -38,12 +42,14 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpGet("blog/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles ="Blogger")]
         public async Task<ActionResult<ResponseGetBlogByIdDto>> GetBlogById(Guid id)
         {
             var response = await _blogService.GetBlogByIdAsync(id);
             return StatusCode(response.StatusCode, response);
         }
         [HttpPost("blog")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Blogger")]
         public async Task<ActionResult<ResponseCreateBlogDto>> Create([FromForm] RequestCreateBlogDto dto)
         {
             CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
@@ -51,18 +57,53 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(response.StatusCode, response);
         }
         [HttpDelete("blog/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Blogger")]
         public async Task<ActionResult<BaseResposeDto>> DeleteBlog(Guid id)
         {
             var response = await _blogService.DeleteBlogAsync(id);
             return StatusCode(response.StatusCode, response);
         }
         [HttpPut("blog/{id:guid}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Blogger")]
         public async Task<ActionResult<BaseResposeDto>> UpdateBlog([FromRoute] Guid id,[FromForm] RequestUpdateBlogDto dto)
         {
 
             CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             var response = await _blogService.UpdateBlogAsync(dto,id , currentUserObject);
             return StatusCode(response.StatusCode, response);
+        }
+        [HttpGet("{blogId}/comments")]
+        public async Task<ActionResult<ResponseCommentDto>> GetComments(Guid blogId)
+        {
+            var comments = await _commentService.GetCommentsByBlogAsync(blogId);
+            return Ok(comments);
+        }
+        [HttpPost("{blogId}/comments")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> CreateComment(Guid blogId, [FromBody] RequestCreateCommentDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Content))
+            {
+                return BadRequest(new { Message = "Comment content cannot be left blank" });
+            }
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var response = await _commentService.CreateCommentAsync(blogId, currentUser.Id, dto);
+            return StatusCode(response.StatusCode, response);
+
+        }
+        [HttpPost("{blogId}/comments/{parentCommentId}/reply")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> ReplyComment(Guid blogId,Guid parentCommentId,[FromBody] RequestCreateCommentDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Content))
+            {
+                return BadRequest(new { Message = "Comment content cannot be left blank" });
+            }
+
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var response = await _commentService.CreateReplyAsync(blogId, parentCommentId, currentUser.Id, dto);
+            return StatusCode(response.StatusCode, response);
+
         }
     }
 }

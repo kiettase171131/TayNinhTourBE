@@ -19,5 +19,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         
         public virtual ICollection<BlogImage> BlogImages { get; set; } = new List<BlogImage>();
         public virtual ICollection<BlogReaction> BlogReactions { get; set; } = new List<BlogReaction>();
+        public virtual ICollection<BlogComment> BlogComments { get; set; } = new List<BlogComment>();
+
     }
 }

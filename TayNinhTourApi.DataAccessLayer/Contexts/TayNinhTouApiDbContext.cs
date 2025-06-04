@@ -16,6 +16,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<Blog> Blogs { get; set; } = null!;
         public DbSet<BlogImage> BlogImages { get; set; } = null!;
         public DbSet<BlogReaction> BlogReactions { get; set; }
+        public DbSet<BlogComment> BlogComments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
