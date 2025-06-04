@@ -102,8 +102,9 @@ namespace TayNinhTourApi.Controller.Controllers
                 parsedTemplateType = type;
             }
 
+            // Convert 1-based pageIndex to 0-based for service
             var response = await _tourTemplateService.GetTourTemplatesPaginatedAsync(
-                pageIndex, pageSize, parsedTemplateType, minPrice, maxPrice, startLocation, includeInactive);
+                pageIndex - 1, pageSize, parsedTemplateType, minPrice, maxPrice, startLocation, includeInactive);
             return StatusCode(response.StatusCode, response);
         }
 

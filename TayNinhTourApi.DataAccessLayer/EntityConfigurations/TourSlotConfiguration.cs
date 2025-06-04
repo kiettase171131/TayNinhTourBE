@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 {
@@ -20,7 +21,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.HasKey(ts => ts.Id);
 
             // Property Configurations
-            
+
             builder.Property(ts => ts.TourTemplateId)
                 .IsRequired()
                 .HasComment("ID của TourTemplate mà slot này được tạo từ");
@@ -34,13 +35,19 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasConversion<int>()
                 .HasComment("Ngày trong tuần của tour (Saturday hoặc Sunday)");
 
+            builder.Property(ts => ts.Status)
+                .IsRequired()
+                .HasConversion<int>()
+                .HasDefaultValue(TourSlotStatus.Available)
+                .HasComment("Trạng thái của tour slot");
+
             builder.Property(ts => ts.IsActive)
                 .IsRequired()
                 .HasDefaultValue(true)
                 .HasComment("Trạng thái slot có sẵn sàng để booking không");
 
             // Foreign Key Relationships
-            
+
             // TourTemplate relationship (Many-to-One)
             builder.HasOne(ts => ts.TourTemplate)
                 .WithMany(tt => tt.TourSlots)
@@ -66,7 +73,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false);
 
             // Indexes for Performance
-            
+
             // Index for TourTemplateId (most common query)
             builder.HasIndex(ts => ts.TourTemplateId)
                 .HasDatabaseName("IX_TourSlots_TourTemplateId");
