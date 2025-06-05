@@ -14,8 +14,8 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
         public void Configure(EntityTypeBuilder<TourSlot> builder)
         {
             // Table Configuration
-            builder.ToTable("TourSlots", t =>
-                t.HasCheckConstraint("CK_TourSlots_TourDate_NotPast", "TourDate >= CURDATE()"));
+            builder.ToTable("TourSlots");
+            // Note: Date validation will be handled in application logic instead of DB constraint
 
             // Primary Key
             builder.HasKey(ts => ts.Id);

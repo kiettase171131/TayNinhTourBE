@@ -11,8 +11,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250602194453_AddTourSlotEntity")]
-    partial class AddTourSlotEntity
+    [Migration("20250604145819_InitialCreateFixed")]
+    partial class InitialCreateFixed
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -512,6 +512,87 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.ToTable("Tours");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourDetails", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasComment("Mô tả chi tiết về hoạt động");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Địa điểm hoặc tên hoạt động");
+
+                    b.Property<Guid?>("ShopId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của shop liên quan (nếu có)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasComment("Thứ tự sắp xếp trong timeline");
+
+                    b.Property<TimeOnly>("TimeSlot")
+                        .HasColumnType("time")
+                        .HasComment("Thời gian trong ngày cho hoạt động này");
+
+                    b.Property<Guid>("TourTemplateId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của tour template mà chi tiết này thuộc về");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ShopId")
+                        .HasDatabaseName("IX_TourDetails_ShopId");
+
+                    b.HasIndex("TimeSlot")
+                        .HasDatabaseName("IX_TourDetails_TimeSlot");
+
+                    b.HasIndex("TourTemplateId")
+                        .HasDatabaseName("IX_TourDetails_TourTemplateId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("TourTemplateId", "SortOrder")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TourDetails_TourTemplateId_SortOrder");
+
+                    b.HasIndex("TourTemplateId", "TimeSlot")
+                        .HasDatabaseName("IX_TourDetails_TourTemplateId_TimeSlot");
+
+                    b.ToTable("TourDetails", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TourDetails_SortOrder_Positive", "SortOrder > 0");
+                        });
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourGuideApplication", b =>
                 {
                     b.Property<Guid>("Id")
@@ -562,6 +643,88 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.ToTable("TourGuideApplications");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasComment("Mô tả bổ sung cho tour operation");
+
+                    b.Property<Guid>("GuideId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của User làm hướng dẫn viên cho tour này");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasComment("Trạng thái hoạt động của tour operation");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("MaxGuests")
+                        .HasColumnType("int")
+                        .HasComment("Số lượng khách tối đa cho tour operation này");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasComment("Giá tour cho operation này");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TourSlotId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của TourSlot mà operation này thuộc về");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("GuideId")
+                        .HasDatabaseName("IX_TourOperations_GuideId");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_TourOperations_IsActive");
+
+                    b.HasIndex("TourSlotId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TourOperations_TourSlotId_Unique");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("GuideId", "IsActive")
+                        .HasDatabaseName("IX_TourOperations_GuideId_IsActive");
+
+                    b.ToTable("TourOperations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TourOperations_MaxGuests_Positive", "MaxGuests > 0");
+
+                            t.HasCheckConstraint("CK_TourOperations_Price_Positive", "Price > 0");
+                        });
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", b =>
                 {
                     b.Property<Guid>("Id")
@@ -578,19 +741,31 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasComment("Trạng thái slot có sẵn sàng để booking không");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<int>("ScheduleDay")
-                        .HasColumnType("int");
+                        .HasColumnType("int")
+                        .HasComment("Ngày trong tuần của tour (Saturday hoặc Sunday)");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasComment("Trạng thái của tour slot");
 
                     b.Property<DateOnly>("TourDate")
-                        .HasColumnType("date");
+                        .HasColumnType("date")
+                        .HasComment("Ngày tour cụ thể sẽ diễn ra");
 
                     b.Property<Guid>("TourTemplateId")
-                        .HasColumnType("char(36)");
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của TourTemplate mà slot này được tạo từ");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -600,9 +775,33 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TourTemplateId");
+                    b.HasIndex("CreatedById");
 
-                    b.ToTable("TourSlots");
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_TourSlots_IsActive");
+
+                    b.HasIndex("ScheduleDay")
+                        .HasDatabaseName("IX_TourSlots_ScheduleDay");
+
+                    b.HasIndex("TourDate")
+                        .HasDatabaseName("IX_TourSlots_TourDate");
+
+                    b.HasIndex("TourTemplateId")
+                        .HasDatabaseName("IX_TourSlots_TourTemplateId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.HasIndex("ScheduleDay", "IsActive")
+                        .HasDatabaseName("IX_TourSlots_ScheduleDay_IsActive");
+
+                    b.HasIndex("TourDate", "IsActive")
+                        .HasDatabaseName("IX_TourSlots_TourDate_IsActive");
+
+                    b.HasIndex("TourTemplateId", "TourDate")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TourSlots_TourTemplateId_TourDate");
+
+                    b.ToTable("TourSlots", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", b =>
@@ -937,6 +1136,39 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourDetails", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
+                        .WithMany("TourDetailsCreated")
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Shop", "Shop")
+                        .WithMany("TourDetails")
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", "TourTemplate")
+                        .WithMany("TourDetails")
+                        .HasForeignKey("TourTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
+                        .WithMany("TourDetailsUpdated")
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Shop");
+
+                    b.Navigation("TourTemplate");
+
+                    b.Navigation("UpdatedBy");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourGuideApplication", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
@@ -948,15 +1180,64 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
+                        .WithMany("TourOperationsCreated")
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Guide")
+                        .WithMany("TourOperationsAsGuide")
+                        .HasForeignKey("GuideId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", "TourSlot")
+                        .WithOne("TourOperation")
+                        .HasForeignKey("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", "TourSlotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
+                        .WithMany("TourOperationsUpdated")
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Guide");
+
+                    b.Navigation("TourSlot");
+
+                    b.Navigation("UpdatedBy");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", b =>
                 {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
+                        .WithMany("TourSlotsCreated")
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", "TourTemplate")
                         .WithMany("TourSlots")
                         .HasForeignKey("TourTemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
+                        .WithMany("TourSlotsUpdated")
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedBy");
+
                     b.Navigation("TourTemplate");
+
+                    b.Navigation("UpdatedBy");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", b =>
@@ -998,6 +1279,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("Users");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Shop", b =>
+                {
+                    b.Navigation("TourDetails");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.SupportTicket", b =>
                 {
                     b.Navigation("Comments");
@@ -1005,8 +1291,15 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("Images");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", b =>
+                {
+                    b.Navigation("TourOperation");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", b =>
                 {
+                    b.Navigation("TourDetails");
+
                     b.Navigation("TourSlots");
                 });
 
@@ -1017,6 +1310,20 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("ShopsCreated");
 
                     b.Navigation("ShopsUpdated");
+
+                    b.Navigation("TourDetailsCreated");
+
+                    b.Navigation("TourDetailsUpdated");
+
+                    b.Navigation("TourOperationsAsGuide");
+
+                    b.Navigation("TourOperationsCreated");
+
+                    b.Navigation("TourOperationsUpdated");
+
+                    b.Navigation("TourSlotsCreated");
+
+                    b.Navigation("TourSlotsUpdated");
 
                     b.Navigation("TourTemplatesCreated");
 
