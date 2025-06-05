@@ -1,0 +1,263 @@
+# PHÂN TÍCH FLOW VÀ API REQUIREMENTS CHO TOUR TEMPLATE SYSTEM
+
+## 📋 PHÂN TÍCH REQUIREMENT VÀ TẠO FLOW
+
+### 🎯 Core Requirements:
+1. **TourTemplate System**: Tạo template để tái sử dụng
+2. **Scheduling**: Chỉ T7 hoặc CN, 4 lần/tháng, tự động theo tháng/năm
+3. **Tour Types**: 2 loại (Free Scenic vs Paid Attraction)
+4. **Timeline Management**: Thêm/sửa mốc thời gian linh hoạt
+5. **Shop Integration**: Chọn shop tự động điền vào lịch trình
+6. **Image Management**: Thêm hình ảnh vào template
+
+---
+
+## 🔄 CÁC FLOW CHÍNH
+
+### FLOW 1: Tạo Tour Template
+```
+[TourCompany Login]
+    ↓
+[Chọn "Tạo Template Mới"]
+    ↓
+[Điền thông tin cơ bản]
+- Title, Description
+- Tour Type (FreeScenic/PaidAttraction)
+- Start/End Location
+- Duration, Max/Min Guests
+    ↓
+[Upload Images]
+    ↓
+[Lưu Template]
+    ↓
+[Template được tạo với ID]
+```
+
+**APIs cần thiết:**
+- ✅ POST /api/TourCompany/template - Create template
+- ✅ POST /api/Image/upload - Upload images (có sẵn)
+
+### FLOW 2: Quản lý Timeline cho Template
+```
+[Chọn Template đã tạo]
+    ↓
+[Vào Timeline Editor]
+    ↓
+[Thêm mốc thời gian]
+- TimeSlot (10:00, 11:00...)
+- Location/Activity
+- Description HOẶC chọn Shop
+    ↓
+[Nếu chọn Shop]
+    ↓
+[Hiển thị dropdown shops]
+    ↓
+[Auto-fill "Ghé + Tên Shop"]
+    ↓
+[Sắp xếp lại thứ tự timeline]
+    ↓
+[Lưu timeline]
+```
+
+**APIs cần thiết:**
+- ✅ GET /api/TourDetails/timeline/{templateId} - Get timeline
+- ✅ POST /api/TourDetails/timeline - Add timeline item
+- ✅ PATCH /api/TourDetails/timeline/{id} - Update timeline item
+- ✅ DELETE /api/TourDetails/timeline/{id} - Delete timeline item
+- ✅ POST /api/TourDetails/timeline/reorder - Reorder timeline
+- ✅ GET /api/TourDetails/shops - Get shops dropdown
+
+### FLOW 3: Tạo Tour Slots (Scheduling)
+```
+[Chọn Template]
+    ↓
+[Chọn tháng/năm]
+    ↓
+[Chọn ngày (T7 HOẶC CN)]
+    ↓
+[Hệ thống tự động tính 4 slots trong tháng]
+    ↓
+[Preview slots sẽ được tạo]
+    ↓
+[Xác nhận tạo slots]
+    ↓
+[4 TourSlots được tạo tự động]
+```
+
+**APIs cần thiết:**
+- ✅ POST /api/TourSlot/preview - Preview slots
+- ✅ POST /api/TourSlot/generate - Generate 4 slots
+- ✅ GET /api/Scheduling/weekend-dates/{year}/{month} - Get weekend dates
+- ✅ POST /api/Scheduling/generate-slot-dates - Generate optimal dates
+
+### FLOW 4: Quản lý Tour Operations
+```
+[Chọn TourSlot đã tạo]
+    ↓
+[Thêm thông tin vận hành]
+- Chọn hướng dẫn viên
+- Đặt giá tour
+- Số ghế tối đa
+- Description bổ sung
+    ↓
+[Lưu TourOperation]
+    ↓
+[Tour sẵn sàng cho khách đặt]
+```
+
+**APIs cần thiết:**
+- ❌ POST /api/TourOperation - **THIẾU API**
+- ❌ GET /api/TourOperation/slot/{slotId} - **THIẾU API**
+- ❌ PATCH /api/TourOperation/{id} - **THIẾU API**
+- ❌ GET /api/User/guides - **THIẾU API** (Get danh sách hướng dẫn viên)
+
+### FLOW 5: Copy và Tái sử dụng Template
+```
+[Vào danh sách Templates]
+    ↓
+[Chọn template muốn copy]
+    ↓
+[Bấm "Copy Template"]
+    ↓
+[Điền tên mới cho template]
+    ↓
+[Template mới được tạo với timeline giống hệt]
+    ↓
+[Có thể edit timeline của template mới]
+```
+
+**APIs cần thiết:**
+- ✅ GET /api/TourCompany/template - List templates
+- ✅ POST /api/TourCompany/template/{id}/copy - Copy template
+- ✅ PATCH /api/TourCompany/template/{id} - Edit copied template
+
+### FLOW 6: Quản lý Shop cho Timeline
+```
+[Admin/TourCompany tạo shops]
+    ↓
+[Shops hiển thị trong dropdown khi tạo timeline]
+    ↓
+[Chọn shop tự động điền "Ghé + Tên Shop"]
+    ↓
+[Shop info được lưu trong timeline item]
+```
+
+**APIs cần thiết:**
+- ✅ GET /api/Shop - List shops
+- ✅ POST /api/Shop - Create shop
+- ✅ PATCH /api/Shop/{id} - Update shop
+- ✅ GET /api/Shop/active - Get active shops
+
+---
+
+## ❌ CÁC API THIẾU CHO FLOW HOÀN CHỈNH
+
+### 1. TourOperation Management APIs:
+```
+POST /api/TourOperation
+GET /api/TourOperation/slot/{slotId}
+PATCH /api/TourOperation/{id}
+DELETE /api/TourOperation/{id}
+```
+
+### 2. User/Guide Management APIs:
+```
+GET /api/User/guides - Lấy danh sách hướng dẫn viên
+GET /api/User/tourcompany-users - Lấy users thuộc tour company
+```
+
+### 3. Template với Slot Integration:
+```
+GET /api/TourSlot/template/{templateId} - Lấy slots theo template
+```
+
+### 4. Booking/Customer APIs (cho tương lai):
+```
+POST /api/Booking/slot/{slotId} - Đặt tour
+GET /api/Booking/customer/{customerId} - Lịch sử đặt tour
+```
+
+---
+
+## ✅ ĐÁNH GIÁ TỔNG QUAN
+
+### Đã có đầy đủ (85%):
+- ✅ Template CRUD hoàn chỉnh
+- ✅ Timeline management hoàn chỉnh
+- ✅ Shop integration hoàn chỉnh
+- ✅ Slot generation hoàn chỉnh
+- ✅ Scheduling algorithm hoàn chỉnh
+- ✅ Template copy functionality
+
+### Còn thiếu (15%):
+- ❌ TourOperation CRUD APIs
+- ❌ Guide/User selection APIs
+- ❌ Slot-Operation integration
+
+### Kết luận:
+Project đã thực hiện **85% các API cần thiết** cho flow hoàn chỉnh.
+Chỉ còn thiếu TourOperation management và User/Guide selection để hoàn thành 100% requirement.
+
+---
+
+## 📊 TỔNG HỢP API ĐÃ CÓ (35+ endpoints)
+
+### TourCompanyController (/api/TourCompany):
+- GET /api/TourCompany/template - List templates
+- GET /api/TourCompany/template/{id} - Get template details
+- POST /api/TourCompany/template - Create template
+- PATCH /api/TourCompany/template/{id} - Update template
+- DELETE /api/TourCompany/template/{id} - Delete template
+- POST /api/TourCompany/template/{id}/copy - Copy template
+
+### TourSlotController (/api/TourSlot):
+- POST /api/TourSlot/generate - Generate slots
+- POST /api/TourSlot/preview - Preview slots
+- GET /api/TourSlot - Get slots với filtering
+- GET /api/TourSlot/{id} - Get slot details
+- PUT /api/TourSlot/{id} - Update slot
+- DELETE /api/TourSlot/{id} - Delete slot
+- POST /api/TourSlot/check-conflicts - Check conflicts
+- PUT /api/TourSlot/bulk-status - Bulk update status
+
+### TourDetailsController (/api/TourDetails):
+- GET /api/TourDetails/timeline/{templateId} - Get timeline
+- POST /api/TourDetails/timeline - Add timeline item
+- PATCH /api/TourDetails/timeline/{id} - Update timeline item
+- DELETE /api/TourDetails/timeline/{id} - Delete timeline item
+- POST /api/TourDetails/timeline/reorder - Reorder timeline
+- GET /api/TourDetails/shops - Get shops dropdown
+
+### ShopController (/api/Shop):
+- GET /api/Shop - List shops
+- GET /api/Shop/{id} - Get shop details
+- POST /api/Shop - Create shop
+- PATCH /api/Shop/{id} - Update shop
+- DELETE /api/Shop/{id} - Delete shop
+- GET /api/Shop/active - Get active shops dropdown
+
+### SchedulingController (/api/Scheduling):
+- GET /api/Scheduling/weekend-dates/{year}/{month} - Get weekend dates
+- POST /api/Scheduling/generate-slot-dates - Generate slot dates
+- POST /api/Scheduling/validate - Validate schedule input
+- POST /api/Scheduling/next-available-slots - Get available slots
+- POST /api/Scheduling/optimal-distribution - Calculate distribution
+- GET /api/Scheduling/run-tests - Run unit tests
+- GET /api/Scheduling/run-test/{testName} - Run specific test
+
+### TourMigrationController (/api/TourMigration):
+- GET /api/TourMigration/preview - Preview migration
+- POST /api/TourMigration/execute - Execute migration
+- POST /api/TourMigration/rollback - Rollback migration
+- GET /api/TourMigration/status - Get migration status
+
+### HealthController (/api/Health):
+- GET /api/Health/ping - Simple health check
+- GET /api/Health/database - Database health check
+- GET /api/Health/status - Full system status
+
+---
+
+**Ngày tạo**: 06/06/2025
+**Tác giả**: Phân tích dựa trên requirement và codebase hiện tại
+**Trạng thái**: 85% hoàn thành, cần bổ sung TourOperation APIs

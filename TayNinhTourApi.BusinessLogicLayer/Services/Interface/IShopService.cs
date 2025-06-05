@@ -22,8 +22,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="status">Filter theo status (true: active, false: inactive, null: all)</param>
         /// <returns>Danh sách shops với pagination info</returns>
         Task<ResponseGetShopsDto> GetShopsAsync(
-            int? pageIndex, 
-            int? pageSize, 
+            int? pageIndex,
+            int? pageSize,
             string? textSearch = null,
             string? location = null,
             string? shopType = null,
@@ -40,18 +40,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// Tạo shop mới
         /// </summary>
         /// <param name="request">Thông tin shop cần tạo</param>
-        /// <param name="currentUserObject">Thông tin user hiện tại</param>
         /// <returns>Thông tin shop vừa được tạo</returns>
-        Task<ResponseCreateShopDto> CreateShopAsync(RequestCreateShopDto request, CurrentUserObject currentUserObject);
+        Task<ResponseCreateShopDto> CreateShopAsync(RequestCreateShopDto request);
 
         /// <summary>
         /// Cập nhật thông tin shop
         /// </summary>
         /// <param name="request">Thông tin cần cập nhật</param>
         /// <param name="id">ID của shop cần cập nhật</param>
-        /// <param name="currentUserObject">Thông tin user hiện tại</param>
         /// <returns>Kết quả cập nhật</returns>
-        Task<BaseResposeDto> UpdateShopAsync(RequestUpdateShopDto request, Guid id, CurrentUserObject currentUserObject);
+        Task<BaseResposeDto> UpdateShopAsync(RequestUpdateShopDto request, Guid id);
 
         /// <summary>
         /// Xóa shop (soft delete)

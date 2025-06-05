@@ -111,10 +111,9 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                _logger.LogInformation("Creating shop by user {UserId}", currentUserObject.Id);
+                _logger.LogInformation("Creating shop");
 
-                var response = await _shopService.CreateShopAsync(request, currentUserObject);
+                var response = await _shopService.CreateShopAsync(request);
                 return StatusCode(response.StatusCode, response);
             }
             catch (Exception ex)
@@ -151,10 +150,9 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                _logger.LogInformation("Updating shop {ShopId} by user {UserId}", id, currentUserObject.Id);
+                _logger.LogInformation("Updating shop {ShopId}", id);
 
-                var response = await _shopService.UpdateShopAsync(request, id, currentUserObject);
+                var response = await _shopService.UpdateShopAsync(request, id);
                 return StatusCode(response.StatusCode, response);
             }
             catch (Exception ex)

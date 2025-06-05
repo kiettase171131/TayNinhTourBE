@@ -54,9 +54,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
         {
             // Convert to int để kiểm tra bitwise
             int dayValue = (int)scheduleDay;
-            
-            // Kiểm tra xem có nhiều hơn 1 bit được set không
-            return (dayValue & (dayValue - 1)) != 0;
+
+            // Với enum values đơn lẻ (0, 1, 2, 3, 4, 5, 6), không có multiple days
+            // Chỉ có multiple days khi là bitwise combination như Saturday | Sunday = 6 | 0 = 6
+            // Nhưng vì Saturday = 6 và Sunday = 0, không thể có bitwise combination thực sự
+            // Logic này không áp dụng cho enum values đơn lẻ
+
+            // Đối với ScheduleDay enum, chỉ cần kiểm tra xem có phải là Saturday hoặc Sunday không
+            // Không cần kiểm tra bitwise combination vì enum values là đơn lẻ
+            return false; // Luôn trả về false vì không có multiple days trong enum này
         }
 
         /// <summary>
@@ -106,7 +112,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             // Tính số ngày weekend trong tháng cho ngày được chọn
             var weekendDatesCount = CountWeekendDatesInMonth(year, month, scheduleDay);
-            
+
             if (weekendDatesCount == 0)
             {
                 return new ScheduleValidationResult

@@ -106,6 +106,7 @@ if (builder.Environment.IsDevelopment())
 */
 
 // Register services layer
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<ICmsService, CmsService>();
@@ -117,6 +118,7 @@ builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
 builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
+builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
 builder.Services.AddScoped<IShopService, ShopService>();
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();

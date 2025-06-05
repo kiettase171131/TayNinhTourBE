@@ -24,12 +24,14 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ITourCompanyService _tourCompanyService;
         private readonly ITourTemplateService _tourTemplateService;
         private readonly ITourGuideApplicationService _tourGuideApplicationService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public TourCompanyController(ITourCompanyService tourCompanyService, ITourTemplateService tourTemplateService, ITourGuideApplicationService tourGuideApplicationService)
+        public TourCompanyController(ITourCompanyService tourCompanyService, ITourTemplateService tourTemplateService, ITourGuideApplicationService tourGuideApplicationService, ICurrentUserService currentUserService)
         {
             _tourCompanyService = tourCompanyService;
             _tourTemplateService = tourTemplateService;
             _tourGuideApplicationService = tourGuideApplicationService;
+            _currentUserService = currentUserService;
         }
 
         [HttpGet("tour")]
@@ -49,30 +51,30 @@ namespace TayNinhTourApi.Controller.Controllers
         [HttpPost("tour")]
         public async Task<ActionResult<BaseResposeDto>> CreateTour(RequestCreateTourCmsDto request)
         {
-            // Get current user id from claims
-            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
 
-            if (string.IsNullOrEmpty(userId))
+            if (userId == Guid.Empty)
             {
-                return BadRequest("User ID not found in claims.");
+                return BadRequest("User ID not found in authentication context.");
             }
 
-            var response = await _tourCompanyService.CreateTourAsync(request, Guid.Parse(userId));
+            var response = await _tourCompanyService.CreateTourAsync(request, userId);
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpPatch("tour/{id}")]
         public async Task<ActionResult<BaseResposeDto>> UpdateTour(RequestUpdateTourDto request, Guid id)
         {
-            // Get current user id from claims
-            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
 
-            if (string.IsNullOrEmpty(userId))
+            if (userId == Guid.Empty)
             {
-                return BadRequest("User ID not found in claims.");
+                return BadRequest("User ID not found in authentication context.");
             }
 
-            var response = await _tourCompanyService.UpdateTourAsync(request, id, Guid.Parse(userId));
+            var response = await _tourCompanyService.UpdateTourAsync(request, id, userId);
             return StatusCode(response.StatusCode, response);
         }
 
@@ -118,60 +120,60 @@ namespace TayNinhTourApi.Controller.Controllers
         [HttpPost("template")]
         public async Task<ActionResult<ResponseCreateTourTemplateDto>> CreateTourTemplate(RequestCreateTourTemplateDto request)
         {
-            // Get current user id from claims
-            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
 
-            if (string.IsNullOrEmpty(userId))
+            if (userId == Guid.Empty)
             {
-                return BadRequest("User ID not found in claims.");
+                return BadRequest("User ID not found in authentication context.");
             }
 
-            var response = await _tourTemplateService.CreateTourTemplateAsync(request, Guid.Parse(userId));
+            var response = await _tourTemplateService.CreateTourTemplateAsync(request, userId);
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpPatch("template/{id}")]
         public async Task<ActionResult<ResponseUpdateTourTemplateDto>> UpdateTourTemplate(Guid id, RequestUpdateTourTemplateDto request)
         {
-            // Get current user id from claims
-            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
 
-            if (string.IsNullOrEmpty(userId))
+            if (userId == Guid.Empty)
             {
-                return BadRequest("User ID not found in claims.");
+                return BadRequest("User ID not found in authentication context.");
             }
 
-            var response = await _tourTemplateService.UpdateTourTemplateAsync(id, request, Guid.Parse(userId));
+            var response = await _tourTemplateService.UpdateTourTemplateAsync(id, request, userId);
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpDelete("template/{id}")]
         public async Task<ActionResult<ResponseDeleteTourTemplateDto>> DeleteTourTemplate(Guid id)
         {
-            // Get current user id from claims
-            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
 
-            if (string.IsNullOrEmpty(userId))
+            if (userId == Guid.Empty)
             {
-                return BadRequest("User ID not found in claims.");
+                return BadRequest("User ID not found in authentication context.");
             }
 
-            var response = await _tourTemplateService.DeleteTourTemplateAsync(id, Guid.Parse(userId));
+            var response = await _tourTemplateService.DeleteTourTemplateAsync(id, userId);
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpPost("template/{id}/copy")]
         public async Task<ActionResult<ResponseCopyTourTemplateDto>> CopyTourTemplate(Guid id, [FromBody] CopyTourTemplateRequest request)
         {
-            // Get current user id from claims
-            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
 
-            if (string.IsNullOrEmpty(userId))
+            if (userId == Guid.Empty)
             {
-                return BadRequest("User ID not found in claims.");
+                return BadRequest("User ID not found in authentication context.");
             }
 
-            var response = await _tourTemplateService.CopyTourTemplateAsync(id, request.NewTitle, Guid.Parse(userId));
+            var response = await _tourTemplateService.CopyTourTemplateAsync(id, request.NewTitle, userId);
             return StatusCode(response.StatusCode, response);
         }
     }

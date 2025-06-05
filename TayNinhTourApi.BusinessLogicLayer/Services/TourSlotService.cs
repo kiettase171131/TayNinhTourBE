@@ -21,15 +21,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     {
         private readonly ILogger<TourSlotService> _logger;
         private readonly ISchedulingService _schedulingService;
+        private readonly ICurrentUserService _currentUserService;
 
         public TourSlotService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ILogger<TourSlotService> logger,
-            ISchedulingService schedulingService) : base(mapper, unitOfWork)
+            ISchedulingService schedulingService,
+            ICurrentUserService currentUserService) : base(mapper, unitOfWork)
         {
             _logger = logger;
             _schedulingService = schedulingService;
+            _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -103,6 +106,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         }
 
                         // Create new slot
+                        var currentUserId = _currentUserService.GetCurrentUserId();
+                        if (currentUserId == Guid.Empty)
+                        {
+                            errors.Add($"Không thể xác định user hiện tại để tạo slot cho ngày {date:dd/MM/yyyy}");
+                            continue;
+                        }
+
                         var newSlot = new TourSlot
                         {
                             Id = Guid.NewGuid(),
@@ -112,7 +122,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             Status = TourSlotStatus.Available,
                             IsActive = request.AutoActivate,
                             CreatedAt = DateTime.UtcNow,
-                            CreatedById = Guid.Empty // TODO: Get from current user context
+                            CreatedById = currentUserId
                         };
 
                         if (existingSlot != null && request.OverwriteExisting)
@@ -121,7 +131,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             existingSlot.Status = TourSlotStatus.Available;
                             existingSlot.IsActive = request.AutoActivate;
                             existingSlot.UpdatedAt = DateTime.UtcNow;
-                            existingSlot.UpdatedById = Guid.Empty; // TODO: Get from current user context
+                            existingSlot.UpdatedById = currentUserId;
 
                             await _unitOfWork.TourSlotRepository.UpdateAsync(existingSlot);
                             createdSlots.Add(existingSlot);
@@ -333,7 +343,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (!string.IsNullOrEmpty(request.SearchKeyword))
                 {
-                    query = query.Where(s => s.TourTemplate.Title.Contains(request.SearchKeyword, StringComparison.OrdinalIgnoreCase));
+                    query = query.Where(s => s.TourTemplate != null &&
+                                           s.TourTemplate.Title.Contains(request.SearchKeyword, StringComparison.OrdinalIgnoreCase));
                 }
 
                 // Apply sorting
@@ -465,7 +476,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 slot.UpdatedAt = DateTime.UtcNow;
-                slot.UpdatedById = Guid.Empty; // TODO: Get from current user context
+                slot.UpdatedById = _currentUserService.GetCurrentUserId();
 
                 await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
                 await _unitOfWork.SaveChangesAsync();

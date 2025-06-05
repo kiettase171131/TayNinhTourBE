@@ -1,0 +1,246 @@
+# PHÂN TÍCH REVIEW VÀ ĐỀ XUẤT CẢI THIỆN CHO TOUR TEMPLATE SYSTEM
+
+## 📋 PHÂN TÍCH REVIEW
+
+### 🎯 Vấn đề chính cần giải quyết: T7/CN trong Template
+
+Theo requirement ban đầu, **dayOfWeek nên được định nghĩa cố định trong Template**, không phải chọn lại khi tạo slot.
+
+**Requirement gốc:**
+- Template luôn luôn chỉ cung cấp thứ bảy và chủ nhật để chọn (chỉ chọn 1 trong 2)
+- Không được chọn các ngày khác
+- Khi tạo slot chỉ cần chọn tháng/năm, hệ thống tự động dùng ngày đã định trong template
+
+---
+
+## 🔧 CÁC CẢI THIỆN CẦN THỰC HIỆN
+
+### 1. ✅ ĐIỀU ĐÃ TỐT (Không cần thay đổi)
+- `TourTemplate.ScheduleDays` đã có sẵn ✅
+- `TourTemplateScheduleValidator` đã validate chỉ cho phép T7 hoặc CN ✅
+- `RequestCreateTourTemplateDto.ScheduleDays` đã có validation ✅
+
+### 2. 🔧 CẢI THIỆN CẦN THỰC HIỆN
+
+#### A. Cải thiện TourSlot Generation Logic
+
+**Vấn đề hiện tại:**
+- Có 3 DTO khác nhau cho việc generate slots
+- API `POST /api/TourSlot/generate` vẫn yêu cầu client gửi `ScheduleDays`
+- Logic không nhất quán giữa các service
+
+**3 DTO gây confusion:**
+- `RequestGenerateSlotsDto` (TourSlot) - có `ScheduleDays`
+- `RequestGenerateSlotsDto` (TourCompany) - có `ScheduleDay`
+- `RequestGenerateSlotDatesDto` (Scheduling) - có `ScheduleDays`
+
+**Giải pháp:**
+
+```typescript
+// ❌ HIỆN TẠI (Sai logic)
+{
+  "tourTemplateId": "uuid",
+  "month": 6,
+  "year": 2025,
+  "scheduleDays": "Saturday"  // ← KHÔNG CẦN THIẾT
+}
+
+// ✅ NÊN LÀ (Đúng logic)
+{
+  "tourTemplateId": "uuid",
+  "month": 6,
+  "year": 2025
+  // scheduleDays sẽ được lấy từ TourTemplate
+}
+```
+
+#### B. Cải thiện Service Logic
+
+**Cần sửa TourSlotService.GenerateSlotsAsync():**
+
+```csharp
+public async Task<ResponseGenerateSlotsDto> GenerateSlotsAsync(RequestGenerateSlotsDto request)
+{
+    // 1. Lấy template để get ScheduleDays
+    var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(request.TourTemplateId);
+    if (template == null)
+    {
+        return new ResponseGenerateSlotsDto
+        {
+            IsSuccess = false,
+            Message = "Template không tồn tại"
+        };
+    }
+
+    // 2. Sử dụng ScheduleDays từ template thay vì từ request
+    var weekendDates = _schedulingService.CalculateWeekendDates(
+        request.Year,
+        request.Month,
+        template.ScheduleDays  // ← Lấy từ template
+    );
+
+    // 3. Tiếp tục logic generate...
+}
+```
+
+#### C. Cải thiện Frontend UX
+
+**FLOW 3 được cải thiện:**
+```
+[Chọn Template]
+    ↓
+[Hiển thị: "Template này chạy vào: Thứ 7"] ← Thông tin từ template
+    ↓
+[Chọn tháng/năm]
+    ↓
+[Preview: "Sẽ tạo 4 slots vào các ngày Thứ 7: 1/6, 8/6, 15/6, 22/6"]
+    ↓
+[Xác nhận tạo slots]
+```
+
+#### D. Cải thiện API Documentation
+
+**Cập nhật OpenAPI spec:**
+```yaml
+GenerateSlotsRequest:
+  type: object
+  required:
+    - tourTemplateId
+    - month
+    - year
+  properties:
+    tourTemplateId:
+      type: string
+      format: uuid
+      description: Tour template ID (ScheduleDays will be taken from template)
+    month:
+      type: integer
+      minimum: 1
+      maximum: 12
+    year:
+      type: integer
+      minimum: 2025
+    # Removed scheduleDays - will be taken from template
+```
+
+#### E. Thêm API TourOperation (Thiếu 15%)
+
+**Cần tạo TourOperationController:**
+
+```csharp
+[Route("api/[controller]")]
+[ApiController]
+[Authorize(Roles = Constants.RoleTourCompanyName)]
+public class TourOperationController : ControllerBase
+{
+    [HttpPost]
+    public async Task<ActionResult<ResponseCreateOperationDto>> CreateOperation(RequestCreateOperationDto request)
+
+    [HttpGet("slot/{slotId}")]
+    public async Task<ActionResult<TourOperationDto>> GetOperationBySlot(Guid slotId)
+
+    [HttpPatch("{id}")]
+    public async Task<ActionResult<ResponseUpdateOperationDto>> UpdateOperation(Guid id, RequestUpdateOperationDto request)
+
+    [HttpDelete("{id}")]
+    public async Task<ActionResult<BaseResponseDto>> DeleteOperation(Guid id)
+}
+```
+
+**APIs cần implement:**
+- `POST /api/TourOperation` - Create operation
+- `GET /api/TourOperation/slot/{slotId}` - Get operation by slot
+- `PATCH /api/TourOperation/{id}` - Update operation
+- `DELETE /api/TourOperation/{id}` - Delete operation
+
+#### F. Thêm User/Guide Selection API
+
+**Cần thêm vào AccountController hoặc tạo UserController:**
+
+```csharp
+[HttpGet("guides")]
+[Authorize(Roles = Constants.RoleTourCompanyName)]
+public async Task<ActionResult<List<GuideDto>>> GetAvailableGuides()
+
+[HttpGet("guides/available")]
+public async Task<ActionResult<List<GuideDto>>> GetAvailableGuidesForDate(DateOnly date)
+```
+
+**APIs cần implement:**
+- `GET /api/User/guides` - Lấy danh sách hướng dẫn viên
+- `GET /api/User/tourcompany-users` - Lấy users thuộc tour company
+- `GET /api/User/guides/available?date=2025-06-01` - Lấy guides available cho ngày cụ thể
+
+---
+
+## 📋 PRIORITY CẢI THIỆN
+
+### 🔥 HIGH PRIORITY (Cần làm ngay):
+1. **Sửa logic Generate Slots** - loại bỏ ScheduleDays từ request
+   - Cập nhật RequestGenerateSlotsDto
+   - Sửa TourSlotService.GenerateSlotsAsync()
+   - Cập nhật validation logic
+
+2. **Tạo TourOperationController** với CRUD APIs
+   - Tạo controller mới
+   - Implement 4 endpoints cơ bản
+   - Tạo DTOs tương ứng
+
+3. **Thêm Guide selection APIs**
+   - Extend AccountController hoặc tạo UserController
+   - Implement guide listing endpoints
+   - Tạo GuideDto
+
+### 🔶 MEDIUM PRIORITY:
+4. **Cải thiện API documentation**
+   - Cập nhật OpenAPI specs
+   - Sửa documentation files
+   - Update README
+
+5. **Thống nhất DTOs** (loại bỏ duplicate)
+   - Merge các RequestGenerateSlotsDto
+   - Standardize naming convention
+   - Remove redundant DTOs
+
+### 🔵 LOW PRIORITY:
+6. **Cải thiện error messages**
+   - Standardize error responses
+   - Add more descriptive messages
+   - Improve validation messages
+
+7. **Thêm validation rules**
+   - Enhanced business logic validation
+   - Cross-field validation
+   - Date range validation
+
+---
+
+## 🎯 KẾT LUẬN
+
+### Trước khi cải thiện (85% hoàn thành):
+- ✅ Template CRUD hoàn chỉnh
+- ✅ Timeline management hoàn chỉnh
+- ✅ Shop integration hoàn chỉnh
+- ✅ Slot generation hoàn chỉnh (nhưng logic sai)
+- ✅ Scheduling algorithm hoàn chỉnh
+- ✅ Template copy functionality
+- ❌ TourOperation CRUD APIs
+- ❌ Guide/User selection APIs
+
+### Sau khi cải thiện (100% hoàn thành):
+- ✅ Template CRUD hoàn chỉnh
+- ✅ Timeline management hoàn chỉnh
+- ✅ Shop integration hoàn chỉnh
+- ✅ Slot generation với logic ĐÚNG (lấy ngày từ template)
+- ✅ Scheduling algorithm hoàn chỉnh
+- ✅ Template copy functionality
+- ✅ TourOperation CRUD APIs
+- ✅ Guide/User selection APIs
+
+**Với những cải thiện này, project sẽ đạt 100% requirement và logic sẽ hoàn toàn đúng theo yêu cầu ban đầu: Template định nghĩa ngày cố định, chỉ cần chọn tháng/năm khi generate slots.**
+
+---
+
+**Ngày tạo**: 06/06/2025
+**Tác giả**: Phân tích dựa trên review và requirement
+**Trạng thái**: Plan để đạt 100% requirement

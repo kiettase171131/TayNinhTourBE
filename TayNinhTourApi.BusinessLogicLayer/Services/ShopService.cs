@@ -17,13 +17,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     /// </summary>
     public class ShopService : BaseService, IShopService
     {
-        public ShopService(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
+        private readonly ICurrentUserService _currentUserService;
+
+        public ShopService(IMapper mapper, IUnitOfWork unitOfWork, ICurrentUserService currentUserService) : base(mapper, unitOfWork)
         {
+            _currentUserService = currentUserService;
         }
 
         public async Task<ResponseGetShopsDto> GetShopsAsync(
-            int? pageIndex, 
-            int? pageSize, 
+            int? pageIndex,
+            int? pageSize,
             string? textSearch = null,
             string? location = null,
             string? shopType = null,
@@ -53,7 +56,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (!string.IsNullOrEmpty(textSearch))
                 {
                     var searchTerm = textSearch.Trim().ToLower();
-                    predicate = predicate.And(x => 
+                    predicate = predicate.And(x =>
                         x.Name.ToLower().Contains(searchTerm) ||
                         (x.Description != null && x.Description.ToLower().Contains(searchTerm)));
                 }
@@ -84,7 +87,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (!string.IsNullOrEmpty(textSearch))
                 {
                     var searchTerm = textSearch.Trim().ToLower();
-                    shops = shops.Where(x => 
+                    shops = shops.Where(x =>
                         x.Name.ToLower().Contains(searchTerm) ||
                         (x.Description != null && x.Description.ToLower().Contains(searchTerm)));
                     totalCount = shops.Count();
@@ -150,7 +153,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<ResponseCreateShopDto> CreateShopAsync(RequestCreateShopDto request, CurrentUserObject currentUserObject)
+        public async Task<ResponseCreateShopDto> CreateShopAsync(RequestCreateShopDto request)
         {
             try
             {
@@ -186,11 +189,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Map request to entity
                 var shop = _mapper.Map<Shop>(request);
-                
+
+                // Get current user ID
+                var currentUserId = _currentUserService.GetCurrentUserId();
+                if (currentUserId == Guid.Empty)
+                {
+                    return new ResponseCreateShopDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không thể xác định user hiện tại"
+                    };
+                }
+
                 // Set audit fields
                 shop.Id = Guid.NewGuid();
                 shop.CreatedAt = DateTime.Now;
-                shop.CreatedById = currentUserObject.UserId;
+                shop.CreatedById = currentUserId;
                 shop.IsActive = true;
                 shop.IsDeleted = false;
 
@@ -219,7 +233,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<BaseResposeDto> UpdateShopAsync(RequestUpdateShopDto request, Guid id, CurrentUserObject currentUserObject)
+        public async Task<BaseResposeDto> UpdateShopAsync(RequestUpdateShopDto request, Guid id)
         {
             try
             {
@@ -257,7 +271,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Set audit fields
                 existingShop.UpdatedAt = DateTime.Now;
-                existingShop.UpdatedById = currentUserObject.UserId;
+                existingShop.UpdatedById = _currentUserService.GetCurrentUserId();
 
                 // Update in repository
                 _unitOfWork.ShopRepository.Update(existingShop);
