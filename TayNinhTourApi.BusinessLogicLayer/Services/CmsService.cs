@@ -134,6 +134,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 predicate = predicate.And(x => x.IsActive == status.Value);
             }
+            predicate = predicate.And(x => x.Role.Name != "Admin");
 
             // Get users from repository
             var users = await _userRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate);

@@ -135,6 +135,8 @@ builder.Services.AddScoped<ISupportTicketCommentRepository, SupportTicketComment
 builder.Services.AddScoped<ITourGuideApplicationRepository, TourGuideApplicationRepository>();
 builder.Services.AddScoped<IBlogRepository, BlogRepository>();
 builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
+builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();
+builder.Services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();

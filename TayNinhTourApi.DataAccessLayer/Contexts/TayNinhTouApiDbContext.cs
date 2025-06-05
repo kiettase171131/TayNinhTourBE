@@ -20,11 +20,17 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<SupportTicketImage> SupportTicketImages { get; set; } = null!;
         public DbSet<Blog> Blogs { get; set; } = null!;
         public DbSet<BlogImage> BlogImages { get; set; } = null!;
+        public DbSet<BlogReaction> BlogReactions { get; set; }
+        public DbSet<BlogComment> BlogComments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(TayNinhTouApiDbContext).Assembly);
+            // Đảm bảo một user không thể reaction nhiều lần cho cùng 1 blog
+            modelBuilder.Entity<BlogReaction>()
+                .HasIndex(br => new { br.BlogId, br.UserId })
+                .IsUnique();
         }
 
         public override int SaveChanges()
