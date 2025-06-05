@@ -2,7 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 
@@ -11,16 +11,16 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    partial class TayNinhTouApiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250605200826_FixDateOnlyMapping")]
+    partial class FixDateOnlyMapping
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
-
-            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("ImageTour", b =>
                 {
@@ -581,7 +581,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Price")
-                        .HasColumnType("decimal(65,30)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<byte>("Status")
                         .HasColumnType("tinyint unsigned");
@@ -649,7 +649,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasComment("Thứ tự sắp xếp trong timeline");
 
                     b.Property<TimeOnly>("TimeSlot")
-                        .HasColumnType("time(6)")
+                        .HasColumnType("time")
                         .HasComment("Thời gian trong ngày cho hoạt động này");
 
                     b.Property<Guid>("TourTemplateId")

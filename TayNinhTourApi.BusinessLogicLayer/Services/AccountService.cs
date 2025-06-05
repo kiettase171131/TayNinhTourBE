@@ -3,7 +3,7 @@ using Azure.Core;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using MySqlX.XDevAPI.Common;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Eventing.Reader;
@@ -150,7 +150,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Directory.CreateDirectory(avatarsFolder);
 
                 // Đổi tên file để tránh trùng
-                
+
                 var fileName = $"{Guid.NewGuid()}{ext}";
                 var filePath = Path.Combine(avatarsFolder, fileName);
 
@@ -169,7 +169,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             await _userRepository.UpdateAsync(user);
             await _userRepository.SaveChangesAsync();
-            
+
             return new ResponseAvatarDTO
             {
                 StatusCode = 200,
@@ -181,7 +181,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         }
 
-        public async Task<dynamic> UpdateProfile( EditAccountProfileDTO editAccountProfileDTO, CurrentUserObject currentUserObject)
+        public async Task<dynamic> UpdateProfile(EditAccountProfileDTO editAccountProfileDTO, CurrentUserObject currentUserObject)
         {
             //var account = await _userRepository.GetByIdAsync(currentUserObject.Id);
             //account.Name = editAccountProfileDTO.Name;
@@ -249,5 +249,5 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 }
 
 
-    
+
 

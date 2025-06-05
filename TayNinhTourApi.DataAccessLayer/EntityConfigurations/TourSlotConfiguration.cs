@@ -28,6 +28,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 
             builder.Property(ts => ts.TourDate)
                 .IsRequired()
+                .HasColumnType("date")
                 .HasComment("Ngày tour cụ thể sẽ diễn ra");
 
             builder.Property(ts => ts.ScheduleDay)

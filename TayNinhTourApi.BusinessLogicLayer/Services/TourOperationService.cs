@@ -15,13 +15,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     public class TourOperationService : BaseService, ITourOperationService
     {
         private readonly ILogger<TourOperationService> _logger;
+        private readonly ICurrentUserService _currentUserService;
 
         public TourOperationService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
-            ILogger<TourOperationService> logger) : base(mapper, unitOfWork)
+            ILogger<TourOperationService> logger,
+            ICurrentUserService currentUserService) : base(mapper, unitOfWork)
         {
             _logger = logger;
+            _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -100,7 +103,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     GuideId = request.GuideId,
                     Notes = request.Notes,
                     IsActive = request.IsActive,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = _currentUserService.GetCurrentUserId()
                 };
 
                 await _unitOfWork.TourOperationRepository.AddAsync(operation);

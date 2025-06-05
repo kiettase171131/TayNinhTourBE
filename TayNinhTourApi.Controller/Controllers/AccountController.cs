@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using MySqlX.XDevAPI.Common;
+
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
@@ -28,19 +28,22 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IBlogReactionService _reactionService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<AccountController> _logger;
+        private readonly ICurrentUserService _currentUserService;
 
         public AccountController(
             IAccountService accountService,
             ITourGuideApplicationService tourGuideApplicationService,
             IBlogReactionService blogReactionService,
             IUnitOfWork unitOfWork,
-            ILogger<AccountController> logger)
+            ILogger<AccountController> logger,
+            ICurrentUserService currentUserService)
         {
             _accountService = accountService;
             _tourGuideApplicationService = tourGuideApplicationService;
             _reactionService = blogReactionService;
             _unitOfWork = unitOfWork;
             _logger = logger;
+            _currentUserService = currentUserService;
         }
 
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -250,6 +253,40 @@ namespace TayNinhTourApi.Controller.Controllers
                     IsSuccess = false,
                     Message = "Lỗi hệ thống khi lấy danh sách hướng dẫn viên"
                 });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint để test CurrentUserService
+        /// </summary>
+        [HttpGet("debug/current-user")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult> DebugCurrentUser()
+        {
+            try
+            {
+                var userId = _currentUserService.GetCurrentUserId();
+                var isAuthenticated = _currentUserService.IsAuthenticated();
+                var userEmail = _currentUserService.GetCurrentUserEmail();
+                var userName = _currentUserService.GetCurrentUserName();
+                var roleId = _currentUserService.GetCurrentUserRoleId();
+
+                var currentUser = await _currentUserService.GetCurrentUserAsync();
+
+                return Ok(new
+                {
+                    UserId = userId,
+                    IsAuthenticated = isAuthenticated,
+                    Email = userEmail,
+                    Name = userName,
+                    RoleId = roleId,
+                    CurrentUser = currentUser,
+                    Claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = ex.Message, StackTrace = ex.StackTrace });
             }
         }
     }

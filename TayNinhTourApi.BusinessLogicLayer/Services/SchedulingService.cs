@@ -231,8 +231,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var dayOfWeek = date.DayOfWeek;
 
-            return (scheduleDays.HasFlag(ScheduleDay.Saturday) && dayOfWeek == DayOfWeek.Saturday) ||
-                   (scheduleDays.HasFlag(ScheduleDay.Sunday) && dayOfWeek == DayOfWeek.Sunday);
+            // Chỉ check exact match với scheduleDays (không dùng HasFlag vì ScheduleDay không phải Flags enum)
+            return (scheduleDays == ScheduleDay.Saturday && dayOfWeek == DayOfWeek.Saturday) ||
+                   (scheduleDays == ScheduleDay.Sunday && dayOfWeek == DayOfWeek.Sunday);
         }
 
         /// <summary>
@@ -302,8 +303,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         private bool IsValidScheduleDay(ScheduleDay scheduleDay)
         {
-            // Check if it's a valid enum value and not empty
-            return Enum.IsDefined(typeof(ScheduleDay), scheduleDay) && scheduleDay != 0;
+            // Check if it's a valid enum value (Sunday = 0 is valid!)
+            return Enum.IsDefined(typeof(ScheduleDay), scheduleDay);
         }
 
         #endregion
