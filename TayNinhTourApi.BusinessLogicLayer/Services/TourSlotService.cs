@@ -7,6 +7,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourSlot;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
@@ -56,8 +57,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return response;
                 }
 
-                // Validate input using SchedulingService
-                var validation = _schedulingService.ValidateScheduleInput(request.Year, request.Month, request.ScheduleDays);
+                // Validate template has valid ScheduleDays
+                var templateValidation = TourTemplateScheduleValidator.ValidateScheduleDay(tourTemplate.ScheduleDays);
+                if (!templateValidation.IsValid)
+                {
+                    response.IsSuccess = false;
+                    response.Message = $"Template có ngày không hợp lệ: {templateValidation.ErrorMessage}";
+                    return response;
+                }
+
+                // Validate input using SchedulingService with template's ScheduleDays
+                var validation = _schedulingService.ValidateScheduleInput(request.Year, request.Month, tourTemplate.ScheduleDays);
                 if (!validation.IsValid)
                 {
                     response.IsSuccess = false;
@@ -66,8 +76,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return response;
                 }
 
-                // Calculate weekend dates for the month using SchedulingService
-                var weekendDates = _schedulingService.CalculateWeekendDates(request.Year, request.Month, request.ScheduleDays);
+                // Calculate weekend dates for the month using template's ScheduleDays
+                var weekendDates = _schedulingService.CalculateWeekendDates(request.Year, request.Month, tourTemplate.ScheduleDays);
+
+                // Log để debug
+                _logger.LogInformation("Generating slots for template {TemplateId} on {ScheduleDay} for {Month}/{Year}",
+                    tourTemplate.Id, tourTemplate.ScheduleDays, request.Month, request.Year);
 
                 if (!weekendDates.Any())
                 {
@@ -204,8 +218,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return response;
                 }
 
-                // Validate input using SchedulingService
-                var validation = _schedulingService.ValidateScheduleInput(request.Year, request.Month, request.ScheduleDays);
+                // Validate template has valid ScheduleDays
+                var templateValidation = TourTemplateScheduleValidator.ValidateScheduleDay(tourTemplate.ScheduleDays);
+                if (!templateValidation.IsValid)
+                {
+                    response.IsSuccess = false;
+                    response.Message = $"Template có ngày không hợp lệ: {templateValidation.ErrorMessage}";
+                    return response;
+                }
+
+                // Validate input using SchedulingService with template's ScheduleDays
+                var validation = _schedulingService.ValidateScheduleInput(request.Year, request.Month, tourTemplate.ScheduleDays);
                 if (!validation.IsValid)
                 {
                     response.IsSuccess = false;
@@ -213,8 +236,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return response;
                 }
 
-                // Calculate weekend dates for the month using SchedulingService
-                var weekendDates = _schedulingService.CalculateWeekendDates(request.Year, request.Month, request.ScheduleDays);
+                // Calculate weekend dates for the month using template's ScheduleDays
+                var weekendDates = _schedulingService.CalculateWeekendDates(request.Year, request.Month, tourTemplate.ScheduleDays);
 
                 if (!weekendDates.Any())
                 {

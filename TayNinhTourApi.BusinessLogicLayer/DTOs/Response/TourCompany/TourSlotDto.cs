@@ -56,7 +56,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// <summary>
         /// Thông tin operation của slot (nếu có)
         /// </summary>
-        public TourOperationDto? Operation { get; set; }
+        public TourOperationSummaryDto? Operation { get; set; }
 
         /// <summary>
         /// Thời gian tạo slot
@@ -70,9 +70,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     }
 
     /// <summary>
-    /// DTO cho thông tin operation của tour slot
+    /// DTO cho thông tin operation của tour slot (summary view)
     /// </summary>
-    public class TourOperationDto
+    public class TourOperationSummaryDto
     {
         /// <summary>
         /// ID của tour operation

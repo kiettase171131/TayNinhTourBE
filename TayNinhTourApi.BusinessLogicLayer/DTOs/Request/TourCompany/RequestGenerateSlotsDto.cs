@@ -14,12 +14,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         [Required(ErrorMessage = "TourTemplateId là bắt buộc")]
         public Guid TourTemplateId { get; set; }
 
-        /// <summary>
-        /// Ngày trong tuần để tạo slots (Saturday hoặc Sunday)
-        /// Phải match với ScheduleDays của TourTemplate
-        /// </summary>
-        [Required(ErrorMessage = "ScheduleDay là bắt buộc")]
-        public ScheduleDay ScheduleDay { get; set; }
+        // ScheduleDay đã được loại bỏ - sẽ lấy từ TourTemplate.ScheduleDays
 
         /// <summary>
         /// Tháng để tạo slots (1-12)

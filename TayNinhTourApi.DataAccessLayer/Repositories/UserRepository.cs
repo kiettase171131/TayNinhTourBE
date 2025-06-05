@@ -46,5 +46,13 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                              .Where(u => u.Role!.Name == "Admin")
                              .ToListAsync();
         }
+
+        public async Task<IEnumerable<User>> GetUsersByRoleAsync(string roleName)
+        {
+            return await _context.Users
+                             .Include(u => u.Role)       // include Role để có Role.Name
+                             .Where(u => u.Role!.Name == roleName)
+                             .ToListAsync();
+        }
     }
 }

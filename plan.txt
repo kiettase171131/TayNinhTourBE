@@ -173,49 +173,1079 @@ public async Task<ActionResult<List<GuideDto>>> GetAvailableGuidesForDate(DateOn
 
 ---
 
-## 📋 PRIORITY CẢI THIỆN
+## 📋 TASK BREAKDOWN CHI TIẾT
 
-### 🔥 HIGH PRIORITY (Cần làm ngay):
-1. **Sửa logic Generate Slots** - loại bỏ ScheduleDays từ request
-   - Cập nhật RequestGenerateSlotsDto
-   - Sửa TourSlotService.GenerateSlotsAsync()
-   - Cập nhật validation logic
+### 🔥 TASK 1: Sửa RequestGenerateSlotsDto (15 phút)
+**Mục tiêu:** Loại bỏ ScheduleDays từ request DTO
 
-2. **Tạo TourOperationController** với CRUD APIs
-   - Tạo controller mới
-   - Implement 4 endpoints cơ bản
-   - Tạo DTOs tương ứng
+**Files cần sửa:**
+- `TayNinhTourApi.BusinessLogicLayer\DTOs\Request\TourSlot\RequestGenerateSlotsDto.cs`
 
-3. **Thêm Guide selection APIs**
-   - Extend AccountController hoặc tạo UserController
-   - Implement guide listing endpoints
-   - Tạo GuideDto
+**Thay đổi:**
+```csharp
+// XÓA dòng này:
+public ScheduleDay ScheduleDays { get; set; } = ScheduleDay.Saturday | ScheduleDay.Sunday;
+```
 
-### 🔶 MEDIUM PRIORITY:
-4. **Cải thiện API documentation**
-   - Cập nhật OpenAPI specs
-   - Sửa documentation files
-   - Update README
+**Test:** Compile project thành công
 
-5. **Thống nhất DTOs** (loại bỏ duplicate)
-   - Merge các RequestGenerateSlotsDto
-   - Standardize naming convention
-   - Remove redundant DTOs
+---
 
-### 🔵 LOW PRIORITY:
-6. **Cải thiện error messages**
-   - Standardize error responses
-   - Add more descriptive messages
-   - Improve validation messages
+### 🔥 TASK 2: Sửa TourSlotService Logic (30 phút)
+**Mục tiêu:** Lấy ScheduleDays từ Template thay vì request
 
-7. **Thêm validation rules**
-   - Enhanced business logic validation
-   - Cross-field validation
-   - Date range validation
+**Context:** Hiện tại client phải gửi ScheduleDays trong request, nhưng theo requirement thì ngày đã được định sẵn trong Template. Logic này sai và gây confusion.
+
+**Files cần sửa:**
+- `TayNinhTourApi.BusinessLogicLayer\Services\TourSlotService.cs`
+
+**Logic chi tiết:**
+1. **Validate Template tồn tại** trước khi generate
+2. **Lấy ScheduleDays từ Template** thay vì request
+3. **Validate Template.ScheduleDays** phải là Saturday hoặc Sunday
+4. **Generate slots** dựa trên ngày cố định từ template
+
+**Thay đổi trong GenerateSlotsAsync():**
+```csharp
+// THÊM: Validate template tồn tại
+var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(request.TourTemplateId);
+if (template == null)
+{
+    return new ResponseGenerateSlotsDto
+    {
+        IsSuccess = false,
+        Message = "Template không tồn tại"
+    };
+}
+
+// THÊM: Validate template có ScheduleDays hợp lệ
+var validationResult = TourTemplateScheduleValidator.ValidateScheduleDay(template.ScheduleDays);
+if (!validationResult.IsValid)
+{
+    return new ResponseGenerateSlotsDto
+    {
+        IsSuccess = false,
+        Message = $"Template có ngày không hợp lệ: {validationResult.ErrorMessage}"
+    };
+}
+
+// SỬA: Dùng template.ScheduleDays thay vì request.ScheduleDays
+var weekendDates = _schedulingService.CalculateWeekendDates(
+    request.Year,
+    request.Month,
+    template.ScheduleDays  // ← Từ template, không từ request
+);
+
+// THÊM: Log để debug
+_logger.LogInformation("Generating slots for template {TemplateId} on {ScheduleDay} for {Month}/{Year}",
+    template.Id, template.ScheduleDays, request.Month, request.Year);
+```
+
+**Business Logic:**
+- Template với ScheduleDays = Saturday → Chỉ tạo slots vào các thứ 7
+- Template với ScheduleDays = Sunday → Chỉ tạo slots vào các chủ nhật
+- Tối đa 4 slots per month (4 tuần)
+- Skip các ngày đã qua nếu tạo cho tháng hiện tại
+
+**Test:**
+1. API POST /api/TourSlot/generate không cần ScheduleDays trong request
+2. Slots được tạo đúng ngày theo template
+3. Error message rõ ràng khi template không tồn tại
+
+---
+
+### 🔥 TASK 3: Tạo TourOperation DTOs (20 phút)
+**Mục tiêu:** Tạo DTOs cho TourOperation CRUD
+
+**Context:** TourOperation lưu thông tin vận hành cho mỗi TourSlot cụ thể: hướng dẫn viên, giá, số ghế, mô tả. Đây là bước cuối để TourSlot sẵn sàng cho khách đặt.
+
+**Business Logic:**
+- **1 TourSlot = 1 TourOperation** (one-to-one relationship)
+- **GuideId optional** (có thể chưa assign guide)
+- **Price override** template price (có thể điều chỉnh giá theo slot cụ thể)
+- **MaxSeats** không được vượt quá template.MaxGuests
+- **Status tracking** (Draft, Active, Cancelled)
+
+**Files cần tạo:**
+
+**1. RequestCreateOperationDto.cs:**
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+public class RequestCreateOperationDto
+{
+    [Required(ErrorMessage = "TourSlotId là bắt buộc")]
+    public Guid TourSlotId { get; set; }
+
+    [Required(ErrorMessage = "Giá tour là bắt buộc")]
+    [Range(0, double.MaxValue, ErrorMessage = "Giá phải >= 0")]
+    public decimal Price { get; set; }
+
+    [Required(ErrorMessage = "Số ghế tối đa là bắt buộc")]
+    [Range(1, 100, ErrorMessage = "Số ghế phải từ 1-100")]
+    public int MaxSeats { get; set; }
+
+    [StringLength(1000, ErrorMessage = "Mô tả không quá 1000 ký tự")]
+    public string? Description { get; set; }
+
+    public Guid? GuideId { get; set; }
+
+    [StringLength(500, ErrorMessage = "Ghi chú không quá 500 ký tự")]
+    public string? Notes { get; set; }
+
+    public bool IsActive { get; set; } = true;
+}
+```
+
+**2. RequestUpdateOperationDto.cs:**
+```csharp
+public class RequestUpdateOperationDto
+{
+    [Range(0, double.MaxValue, ErrorMessage = "Giá phải >= 0")]
+    public decimal? Price { get; set; }
+
+    [Range(1, 100, ErrorMessage = "Số ghế phải từ 1-100")]
+    public int? MaxSeats { get; set; }
+
+    [StringLength(1000, ErrorMessage = "Mô tả không quá 1000 ký tự")]
+    public string? Description { get; set; }
+
+    public Guid? GuideId { get; set; }
+
+    [StringLength(500, ErrorMessage = "Ghi chú không quá 500 ký tự")]
+    public string? Notes { get; set; }
+
+    public bool? IsActive { get; set; }
+}
+```
+
+**3. TourOperationDto.cs:**
+```csharp
+public class TourOperationDto
+{
+    public Guid Id { get; set; }
+    public Guid TourSlotId { get; set; }
+    public decimal Price { get; set; }
+    public int MaxSeats { get; set; }
+    public int BookedSeats { get; set; } = 0;
+    public string? Description { get; set; }
+    public Guid? GuideId { get; set; }
+    public string? GuideName { get; set; }
+    public string? GuidePhone { get; set; }
+    public string? Notes { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+
+    // Navigation properties
+    public TourSlotDto? TourSlot { get; set; }
+}
+```
+
+**4. ResponseCreateOperationDto.cs:**
+```csharp
+public class ResponseCreateOperationDto : BaseResponseDto
+{
+    public TourOperationDto? Operation { get; set; }
+    public string? ValidationErrors { get; set; }
+}
+```
+
+**Validation Logic:**
+- TourSlot phải tồn tại và chưa có Operation
+- MaxSeats <= Template.MaxGuests
+- GuideId phải tồn tại trong hệ thống (nếu có)
+- Price >= 0
+
+**Test:** Compile project thành công, DTOs có validation attributes đầy đủ
+
+---
+
+### 🔥 TASK 4: Tạo TourOperationService Interface (15 phút)
+**Mục tiêu:** Tạo service interface cho TourOperation
+
+**Context:** Interface định nghĩa contract cho TourOperation business logic. Cần cover đầy đủ CRUD operations và business rules.
+
+**Files cần tạo:**
+- `TayNinhTourApi.BusinessLogicLayer\Services\Interfaces\ITourOperationService.cs`
+
+**Interface đầy đủ:**
+```csharp
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourOperation;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
+
+namespace TayNinhTourApi.BusinessLogicLayer.Services.Interfaces
+{
+    /// <summary>
+    /// Service interface cho quản lý TourOperation
+    /// TourOperation chứa thông tin vận hành cụ thể cho mỗi TourSlot
+    /// </summary>
+    public interface ITourOperationService
+    {
+        /// <summary>
+        /// Tạo operation mới cho TourSlot
+        /// Business Rules:
+        /// - TourSlot phải tồn tại và chưa có Operation
+        /// - MaxSeats <= Template.MaxGuests
+        /// - GuideId phải valid (nếu có)
+        /// - Price >= 0
+        /// </summary>
+        Task<ResponseCreateOperationDto> CreateOperationAsync(RequestCreateOperationDto request);
+
+        /// <summary>
+        /// Lấy operation theo TourSlot ID
+        /// Return null nếu slot chưa có operation
+        /// </summary>
+        Task<TourOperationDto?> GetOperationBySlotAsync(Guid slotId);
+
+        /// <summary>
+        /// Lấy operation theo Operation ID
+        /// </summary>
+        Task<TourOperationDto?> GetOperationByIdAsync(Guid operationId);
+
+        /// <summary>
+        /// Cập nhật operation
+        /// Business Rules:
+        /// - Không được update nếu có booking active
+        /// - MaxSeats >= BookedSeats hiện tại
+        /// - GuideId phải valid (nếu thay đổi)
+        /// </summary>
+        Task<ResponseUpdateOperationDto> UpdateOperationAsync(Guid id, RequestUpdateOperationDto request);
+
+        /// <summary>
+        /// Xóa operation
+        /// Business Rules:
+        /// - Không được xóa nếu có booking
+        /// - Soft delete (set IsActive = false)
+        /// </summary>
+        Task<BaseResponseDto> DeleteOperationAsync(Guid id);
+
+        /// <summary>
+        /// Lấy danh sách operations với filtering
+        /// </summary>
+        Task<List<TourOperationDto>> GetOperationsAsync(
+            Guid? tourTemplateId = null,
+            Guid? guideId = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            bool includeInactive = false);
+
+        /// <summary>
+        /// Validate business rules cho operation
+        /// </summary>
+        Task<(bool IsValid, string ErrorMessage)> ValidateOperationAsync(RequestCreateOperationDto request);
+
+        /// <summary>
+        /// Check xem slot có thể tạo operation không
+        /// </summary>
+        Task<bool> CanCreateOperationForSlotAsync(Guid slotId);
+    }
+}
+```
+
+**Business Logic cần implement:**
+1. **One-to-One relationship**: 1 TourSlot chỉ có 1 TourOperation
+2. **Capacity validation**: MaxSeats <= Template.MaxGuests
+3. **Guide validation**: GuideId phải tồn tại và available
+4. **Booking protection**: Không được sửa/xóa nếu có booking
+5. **Price validation**: Price >= 0, có thể override template price
+
+**Test:** Compile project thành công, interface methods đầy đủ
+
+---
+
+### � TASK 5: Implement TourOperationService (45 phút)
+**Mục tiêu:** Implement service logic cho TourOperation
+
+**Context:** Core business logic cho TourOperation management. Cần implement đầy đủ validation, error handling, và integration với các services khác.
+
+**Files cần tạo:**
+- `TayNinhTourApi.BusinessLogicLayer\Services\TourOperationService.cs`
+
+**Dependencies cần inject:**
+```csharp
+private readonly IUnitOfWork _unitOfWork;
+private readonly IMapper _mapper;
+private readonly ILogger<TourOperationService> _logger;
+```
+
+**Key Methods Implementation:**
+
+**1. CreateOperationAsync() Logic:**
+```csharp
+public async Task<ResponseCreateOperationDto> CreateOperationAsync(RequestCreateOperationDto request)
+{
+    // 1. Validate TourSlot exists
+    var tourSlot = await _unitOfWork.TourSlotRepository.GetByIdAsync(request.TourSlotId);
+    if (tourSlot == null)
+        return Error("TourSlot không tồn tại");
+
+    // 2. Check slot chưa có operation
+    var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourSlotIdAsync(request.TourSlotId);
+    if (existingOperation != null)
+        return Error("TourSlot đã có operation");
+
+    // 3. Validate với Template constraints
+    var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourSlot.TourTemplateId);
+    if (request.MaxSeats > template.MaxGuests)
+        return Error($"Số ghế không được vượt quá {template.MaxGuests}");
+
+    // 4. Validate Guide (nếu có)
+    if (request.GuideId.HasValue)
+    {
+        var guide = await _unitOfWork.UserRepository.GetByIdAsync(request.GuideId.Value);
+        if (guide == null || guide.Role.Name != "Guide")
+            return Error("Guide không hợp lệ");
+    }
+
+    // 5. Create operation
+    var operation = _mapper.Map<TourOperation>(request);
+    operation.Id = Guid.NewGuid();
+    operation.CreatedAt = DateTime.UtcNow;
+
+    await _unitOfWork.TourOperationRepository.AddAsync(operation);
+    await _unitOfWork.SaveChangesAsync();
+
+    // 6. Return response
+    var operationDto = _mapper.Map<TourOperationDto>(operation);
+    return new ResponseCreateOperationDto
+    {
+        IsSuccess = true,
+        Message = "Tạo operation thành công",
+        Operation = operationDto
+    };
+}
+```
+
+**2. GetOperationBySlotAsync() Logic:**
+```csharp
+public async Task<TourOperationDto?> GetOperationBySlotAsync(Guid slotId)
+{
+    var operation = await _unitOfWork.TourOperationRepository.GetByTourSlotIdAsync(slotId);
+    if (operation == null) return null;
+
+    // Include related data
+    var operationWithIncludes = await _unitOfWork.TourOperationRepository
+        .GetByIdWithIncludesAsync(operation.Id,
+            include: o => o.Include(x => x.TourSlot)
+                          .Include(x => x.Guide));
+
+    return _mapper.Map<TourOperationDto>(operationWithIncludes);
+}
+```
+
+**3. UpdateOperationAsync() Logic:**
+```csharp
+public async Task<ResponseUpdateOperationDto> UpdateOperationAsync(Guid id, RequestUpdateOperationDto request)
+{
+    // 1. Get existing operation
+    var operation = await _unitOfWork.TourOperationRepository.GetByIdAsync(id);
+    if (operation == null)
+        return Error("Operation không tồn tại");
+
+    // 2. Check có booking không (business rule)
+    var bookingCount = await _unitOfWork.BookingRepository.CountByOperationIdAsync(id);
+    if (bookingCount > 0 && request.MaxSeats.HasValue && request.MaxSeats < operation.MaxSeats)
+        return Error("Không thể giảm số ghế khi đã có booking");
+
+    // 3. Validate constraints
+    if (request.MaxSeats.HasValue)
+    {
+        var tourSlot = await _unitOfWork.TourSlotRepository.GetByIdAsync(operation.TourSlotId);
+        var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourSlot.TourTemplateId);
+
+        if (request.MaxSeats > template.MaxGuests)
+            return Error($"Số ghế không được vượt quá {template.MaxGuests}");
+    }
+
+    // 4. Update fields
+    if (request.Price.HasValue) operation.Price = request.Price.Value;
+    if (request.MaxSeats.HasValue) operation.MaxSeats = request.MaxSeats.Value;
+    if (request.Description != null) operation.Description = request.Description;
+    if (request.GuideId.HasValue) operation.GuideId = request.GuideId;
+    if (request.Notes != null) operation.Notes = request.Notes;
+    if (request.IsActive.HasValue) operation.IsActive = request.IsActive.Value;
+
+    operation.UpdatedAt = DateTime.UtcNow;
+
+    await _unitOfWork.TourOperationRepository.UpdateAsync(operation);
+    await _unitOfWork.SaveChangesAsync();
+
+    return Success("Cập nhật operation thành công");
+}
+```
+
+**4. DeleteOperationAsync() Logic:**
+```csharp
+public async Task<BaseResponseDto> DeleteOperationAsync(Guid id)
+{
+    var operation = await _unitOfWork.TourOperationRepository.GetByIdAsync(id);
+    if (operation == null)
+        return Error("Operation không tồn tại");
+
+    // Check có booking không
+    var bookingCount = await _unitOfWork.BookingRepository.CountByOperationIdAsync(id);
+    if (bookingCount > 0)
+        return Error("Không thể xóa operation đã có booking");
+
+    // Soft delete
+    operation.IsActive = false;
+    operation.UpdatedAt = DateTime.UtcNow;
+
+    await _unitOfWork.TourOperationRepository.UpdateAsync(operation);
+    await _unitOfWork.SaveChangesAsync();
+
+    return Success("Xóa operation thành công");
+}
+```
+
+**Error Handling Pattern:**
+```csharp
+private ResponseCreateOperationDto Error(string message) => new()
+{
+    IsSuccess = false,
+    Message = message
+};
+
+private ResponseUpdateOperationDto Success(string message) => new()
+{
+    IsSuccess = true,
+    Message = message
+};
+```
+
+**Test:**
+1. Service methods compile và inject đúng dependencies
+2. Validation logic hoạt động đúng
+3. Repository calls được thực hiện
+4. AutoMapper mapping thành công
+
+---
+
+### 🔥 TASK 6: Tạo TourOperationController (30 phút)
+**Mục tiêu:** Tạo controller với 4 endpoints
+
+**Context:** REST API controller cho TourOperation management. Cần follow chuẩn RESTful và có đầy đủ documentation, authorization, validation.
+
+**Files cần tạo:**
+- `TayNinhTourApi.Controller\Controllers\TourOperationController.cs`
+
+**Controller Implementation:**
+```csharp
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using TayNinhTourApi.BusinessLogicLayer.Services.Interfaces;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourOperation;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
+using TayNinhTourApi.DataAccessLayer.Constants;
+
+namespace TayNinhTourApi.Controller.Controllers
+{
+    /// <summary>
+    /// Controller quản lý TourOperation - thông tin vận hành cho TourSlot
+    /// </summary>
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize(Roles = Constants.RoleTourCompanyName)]
+    public class TourOperationController : ControllerBase
+    {
+        private readonly ITourOperationService _tourOperationService;
+        private readonly ILogger<TourOperationController> _logger;
+
+        public TourOperationController(
+            ITourOperationService tourOperationService,
+            ILogger<TourOperationController> logger)
+        {
+            _tourOperationService = tourOperationService;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Tạo operation mới cho TourSlot
+        /// </summary>
+        /// <param name="request">Thông tin operation</param>
+        /// <returns>Operation được tạo</returns>
+        [HttpPost]
+        [ProducesResponseType(typeof(ResponseCreateOperationDto), 200)]
+        [ProducesResponseType(typeof(BaseResponseDto), 400)]
+        public async Task<ActionResult<ResponseCreateOperationDto>> CreateOperation(
+            [FromBody] RequestCreateOperationDto request)
+        {
+            try
+            {
+                _logger.LogInformation("Creating operation for slot {SlotId}", request.TourSlotId);
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new BaseResponseDto
+                    {
+                        IsSuccess = false,
+                        Message = "Dữ liệu không hợp lệ",
+                        Data = ModelState
+                    });
+                }
+
+                var result = await _tourOperationService.CreateOperationAsync(request);
+
+                if (!result.IsSuccess)
+                {
+                    return BadRequest(result);
+                }
+
+                _logger.LogInformation("Operation created successfully for slot {SlotId}", request.TourSlotId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating operation for slot {SlotId}", request.TourSlotId);
+                return StatusCode(500, new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    Message = "Lỗi hệ thống khi tạo operation"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Lấy operation theo TourSlot ID
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <returns>Operation của slot</returns>
+        [HttpGet("slot/{slotId:guid}")]
+        [ProducesResponseType(typeof(TourOperationDto), 200)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult<TourOperationDto>> GetOperationBySlot(Guid slotId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting operation for slot {SlotId}", slotId);
+
+                var operation = await _tourOperationService.GetOperationBySlotAsync(slotId);
+
+                if (operation == null)
+                {
+                    return NotFound(new BaseResponseDto
+                    {
+                        IsSuccess = false,
+                        Message = "Slot chưa có operation"
+                    });
+                }
+
+                return Ok(operation);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting operation for slot {SlotId}", slotId);
+                return StatusCode(500, new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    Message = "Lỗi hệ thống khi lấy operation"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật operation
+        /// </summary>
+        /// <param name="id">ID của operation</param>
+        /// <param name="request">Thông tin cập nhật</param>
+        /// <returns>Kết quả cập nhật</returns>
+        [HttpPatch("{id:guid}")]
+        [ProducesResponseType(typeof(ResponseUpdateOperationDto), 200)]
+        [ProducesResponseType(typeof(BaseResponseDto), 400)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult<ResponseUpdateOperationDto>> UpdateOperation(
+            Guid id,
+            [FromBody] RequestUpdateOperationDto request)
+        {
+            try
+            {
+                _logger.LogInformation("Updating operation {OperationId}", id);
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new BaseResponseDto
+                    {
+                        IsSuccess = false,
+                        Message = "Dữ liệu không hợp lệ",
+                        Data = ModelState
+                    });
+                }
+
+                var result = await _tourOperationService.UpdateOperationAsync(id, request);
+
+                if (!result.IsSuccess)
+                {
+                    if (result.Message.Contains("không tồn tại"))
+                        return NotFound(result);
+                    return BadRequest(result);
+                }
+
+                _logger.LogInformation("Operation {OperationId} updated successfully", id);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating operation {OperationId}", id);
+                return StatusCode(500, new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    Message = "Lỗi hệ thống khi cập nhật operation"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Xóa operation (soft delete)
+        /// </summary>
+        /// <param name="id">ID của operation</param>
+        /// <returns>Kết quả xóa</returns>
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(typeof(BaseResponseDto), 200)]
+        [ProducesResponseType(typeof(BaseResponseDto), 400)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult<BaseResponseDto>> DeleteOperation(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("Deleting operation {OperationId}", id);
+
+                var result = await _tourOperationService.DeleteOperationAsync(id);
+
+                if (!result.IsSuccess)
+                {
+                    if (result.Message.Contains("không tồn tại"))
+                        return NotFound(result);
+                    return BadRequest(result);
+                }
+
+                _logger.LogInformation("Operation {OperationId} deleted successfully", id);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting operation {OperationId}", id);
+                return StatusCode(500, new BaseResponseDto
+                {
+                    IsSuccess = false,
+                    Message = "Lỗi hệ thống khi xóa operation"
+                });
+            }
+        }
+    }
+}
+```
+
+**API Endpoints:**
+- `POST /api/TourOperation` - Tạo operation mới
+- `GET /api/TourOperation/slot/{slotId}` - Lấy operation theo slot
+- `PATCH /api/TourOperation/{id}` - Cập nhật operation
+- `DELETE /api/TourOperation/{id}` - Xóa operation (soft delete)
+
+**Authorization:** Chỉ TourCompany role được phép truy cập
+
+**Error Handling:**
+- 400 Bad Request: Validation errors, business rule violations
+- 404 Not Found: Operation/Slot không tồn tại
+- 500 Internal Server Error: System errors
+
+**Test:**
+1. Swagger hiển thị 4 endpoints mới với documentation đầy đủ
+2. Authorization middleware hoạt động
+3. Model validation được trigger
+4. Error responses có format nhất quán
+
+---
+
+### 🔥 TASK 7: Đăng ký DI cho TourOperation (10 phút)
+**Mục tiêu:** Đăng ký services trong Program.cs
+
+**Files cần sửa:**
+- `TayNinhTourApi.Controller\Program.cs`
+
+**Thêm:**
+```csharp
+builder.Services.AddScoped<ITourOperationService, TourOperationService>();
+```
+
+**Test:** Application start thành công
+
+---
+
+### � TASK 8: Tạo Guide DTOs (15 phút)
+**Mục tiêu:** Tạo DTOs cho Guide selection
+
+**Context:** DTOs cho việc hiển thị và chọn hướng dẫn viên trong dropdown khi tạo TourOperation. Cần thông tin cơ bản và trạng thái available.
+
+**Files cần tạo:**
+- `TayNinhTourApi.BusinessLogicLayer\DTOs\Response\User\GuideDto.cs`
+
+**GuideDto Implementation:**
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.User
+{
+    /// <summary>
+    /// DTO cho thông tin hướng dẫn viên
+    /// Sử dụng trong dropdown selection và display
+    /// </summary>
+    public class GuideDto
+    {
+        /// <summary>
+        /// ID của hướng dẫn viên
+        /// </summary>
+        public Guid Id { get; set; }
+
+        /// <summary>
+        /// Họ tên đầy đủ
+        /// </summary>
+        public string FullName { get; set; } = null!;
+
+        /// <summary>
+        /// Email liên hệ
+        /// </summary>
+        public string Email { get; set; } = null!;
+
+        /// <summary>
+        /// Số điện thoại
+        /// </summary>
+        public string? PhoneNumber { get; set; }
+
+        /// <summary>
+        /// Trạng thái hoạt động
+        /// </summary>
+        public bool IsActive { get; set; }
+
+        /// <summary>
+        /// Có available cho assignment không
+        /// (không bị conflict với tour khác cùng thời gian)
+        /// </summary>
+        public bool IsAvailable { get; set; }
+
+        /// <summary>
+        /// Số năm kinh nghiệm
+        /// </summary>
+        public int? ExperienceYears { get; set; }
+
+        /// <summary>
+        /// Chuyên môn/khu vực
+        /// </summary>
+        public string? Specialization { get; set; }
+
+        /// <summary>
+        /// Rating trung bình từ khách hàng
+        /// </summary>
+        public decimal? AverageRating { get; set; }
+
+        /// <summary>
+        /// Số tour đã dẫn
+        /// </summary>
+        public int CompletedTours { get; set; }
+
+        /// <summary>
+        /// Ngày tham gia
+        /// </summary>
+        public DateTime JoinedDate { get; set; }
+
+        /// <summary>
+        /// Trạng thái hiện tại (Available, Busy, OnLeave)
+        /// </summary>
+        public string CurrentStatus { get; set; } = "Available";
+    }
+}
+```
+
+**Business Logic cho IsAvailable:**
+- Check guide không có tour conflict cùng thời gian
+- Check guide không trong trạng thái nghỉ phép
+- Check guide có active trong hệ thống
+
+**Use Cases:**
+1. **Dropdown selection**: Hiển thị danh sách guides available
+2. **Operation display**: Hiển thị thông tin guide đã assign
+3. **Guide management**: Quản lý thông tin guides
+
+**Test:**
+1. Compile project thành công
+2. DTO có đầy đủ properties cần thiết
+3. Nullable fields được mark đúng
+
+---
+
+### 🔥 TASK 9: Thêm Guide endpoints vào AccountController (25 phút)
+**Mục tiêu:** Thêm 2 endpoints cho Guide selection
+
+**Context:** Extend AccountController để support guide selection cho TourOperation. Cần logic để check availability và filter guides phù hợp.
+
+**Files cần sửa:**
+- `TayNinhTourApi.Controller\Controllers\AccountController.cs`
+
+**Endpoints Implementation:**
+
+**1. GET /api/Account/guides - Lấy tất cả guides:**
+```csharp
+/// <summary>
+/// Lấy danh sách tất cả hướng dẫn viên
+/// </summary>
+/// <param name="includeInactive">Có bao gồm guides không active không</param>
+/// <returns>Danh sách guides</returns>
+[HttpGet("guides")]
+[Authorize(Roles = Constants.RoleTourCompanyName)]
+[ProducesResponseType(typeof(List<GuideDto>), 200)]
+public async Task<ActionResult<List<GuideDto>>> GetGuides(
+    [FromQuery] bool includeInactive = false)
+{
+    try
+    {
+        _logger.LogInformation("Getting guides list, includeInactive: {IncludeInactive}", includeInactive);
+
+        // Lấy users có role Guide
+        var guides = await _unitOfWork.UserRepository.GetUsersByRoleAsync("Guide");
+
+        if (!includeInactive)
+        {
+            guides = guides.Where(g => g.IsActive).ToList();
+        }
+
+        var guideDtos = guides.Select(guide => new GuideDto
+        {
+            Id = guide.Id,
+            FullName = guide.FullName,
+            Email = guide.Email,
+            PhoneNumber = guide.PhoneNumber,
+            IsActive = guide.IsActive,
+            IsAvailable = true, // Default, sẽ check chi tiết ở endpoint khác
+            ExperienceYears = guide.ExperienceYears,
+            Specialization = guide.Specialization,
+            AverageRating = guide.AverageRating,
+            CompletedTours = guide.CompletedTours,
+            JoinedDate = guide.CreatedAt,
+            CurrentStatus = guide.IsActive ? "Available" : "Inactive"
+        }).OrderBy(g => g.FullName).ToList();
+
+        _logger.LogInformation("Found {Count} guides", guideDtos.Count);
+        return Ok(guideDtos);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error getting guides list");
+        return StatusCode(500, new BaseResponseDto
+        {
+            IsSuccess = false,
+            Message = "Lỗi hệ thống khi lấy danh sách hướng dẫn viên"
+        });
+    }
+}
+```
+
+**2. GET /api/Account/guides/available - Lấy guides available cho ngày cụ thể:**
+```csharp
+/// <summary>
+/// Lấy danh sách hướng dẫn viên available cho ngày cụ thể
+/// </summary>
+/// <param name="date">Ngày cần check availability</param>
+/// <param name="excludeOperationId">Loại trừ operation ID (khi update)</param>
+/// <returns>Danh sách guides available</returns>
+[HttpGet("guides/available")]
+[Authorize(Roles = Constants.RoleTourCompanyName)]
+[ProducesResponseType(typeof(List<GuideDto>), 200)]
+[ProducesResponseType(typeof(BaseResponseDto), 400)]
+public async Task<ActionResult<List<GuideDto>>> GetAvailableGuides(
+    [FromQuery] DateOnly date,
+    [FromQuery] Guid? excludeOperationId = null)
+{
+    try
+    {
+        _logger.LogInformation("Getting available guides for date {Date}", date);
+
+        if (date < DateOnly.FromDateTime(DateTime.Today))
+        {
+            return BadRequest(new BaseResponseDto
+            {
+                IsSuccess = false,
+                Message = "Không thể chọn ngày trong quá khứ"
+            });
+        }
+
+        // 1. Lấy tất cả guides active
+        var allGuides = await _unitOfWork.UserRepository.GetUsersByRoleAsync("Guide");
+        var activeGuides = allGuides.Where(g => g.IsActive).ToList();
+
+        // 2. Lấy các operations đã có trong ngày đó
+        var existingOperations = await _unitOfWork.TourOperationRepository
+            .GetOperationsByDateAsync(date);
+
+        // 3. Loại trừ operation đang update (nếu có)
+        if (excludeOperationId.HasValue)
+        {
+            existingOperations = existingOperations
+                .Where(op => op.Id != excludeOperationId.Value)
+                .ToList();
+        }
+
+        // 4. Lấy danh sách guide IDs đã busy
+        var busyGuideIds = existingOperations
+            .Where(op => op.GuideId.HasValue)
+            .Select(op => op.GuideId.Value)
+            .ToHashSet();
+
+        // 5. Filter available guides
+        var availableGuides = activeGuides
+            .Where(guide => !busyGuideIds.Contains(guide.Id))
+            .Select(guide => new GuideDto
+            {
+                Id = guide.Id,
+                FullName = guide.FullName,
+                Email = guide.Email,
+                PhoneNumber = guide.PhoneNumber,
+                IsActive = guide.IsActive,
+                IsAvailable = true,
+                ExperienceYears = guide.ExperienceYears,
+                Specialization = guide.Specialization,
+                AverageRating = guide.AverageRating,
+                CompletedTours = guide.CompletedTours,
+                JoinedDate = guide.CreatedAt,
+                CurrentStatus = "Available"
+            })
+            .OrderBy(g => g.FullName)
+            .ToList();
+
+        _logger.LogInformation("Found {Count} available guides for {Date}", availableGuides.Count, date);
+        return Ok(availableGuides);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error getting available guides for date {Date}", date);
+        return StatusCode(500, new BaseResponseDto
+        {
+            IsSuccess = false,
+            Message = "Lỗi hệ thống khi lấy danh sách hướng dẫn viên"
+        });
+    }
+}
+```
+
+**Business Logic:**
+1. **Role-based filtering**: Chỉ lấy users có role "Guide"
+2. **Active status**: Filter theo IsActive status
+3. **Date availability**: Check conflicts với operations khác cùng ngày
+4. **Exclude current operation**: Khi update, không tính operation hiện tại
+
+**Dependencies cần thêm:**
+```csharp
+// Thêm vào constructor nếu chưa có
+private readonly IUnitOfWork _unitOfWork;
+```
+
+**Repository methods cần có:**
+- `GetUsersByRoleAsync(string roleName)`
+- `GetOperationsByDateAsync(DateOnly date)`
+
+**Test:**
+1. Swagger hiển thị 2 endpoints mới với documentation
+2. Authorization middleware hoạt động
+3. Date validation hoạt động
+4. Business logic filter đúng guides available
+
+---
+
+### 🔶 TASK 10: Cập nhật OpenAPI Documentation (20 phút)
+**Mục tiêu:** Cập nhật documentation cho APIs mới
+
+**Files cần sửa:**
+- `TayNinhTourApi.Controller\Documentation\TourTemplate_OpenAPI.yaml`
+
+**Thêm schemas cho:**
+- TourOperation endpoints
+- Guide endpoints
+- Updated GenerateSlots request
+
+**Test:** Documentation chính xác
+
+---
+
+### 🔶 TASK 11: Thống nhất DTOs (30 phút)
+**Mục tiêu:** Loại bỏ duplicate RequestGenerateSlotsDto
+
+**Files cần xử lý:**
+- Merge 3 DTOs thành 1
+- Update references
+- Remove unused files
+
+**Test:** Không có compile errors
+
+---
+
+### 🔵 TASK 12: Cải thiện Error Messages (15 phút)
+**Mục tiêu:** Standardize error responses
+
+**Files cần sửa:**
+- Update error messages trong services
+- Consistent error format
+
+**Test:** Error responses nhất quán
+
+---
+
+## 📊 TỔNG KẾT TASKS
+
+### 🔥 HIGH PRIORITY TASKS (9 tasks - ~3.5 giờ):
+- **TASK 1-2**: Sửa Generate Slots Logic (45 phút)
+- **TASK 3-7**: Implement TourOperation System (2 giờ)
+- **TASK 8-9**: Implement Guide Selection (40 phút)
+
+### 🔶 MEDIUM PRIORITY TASKS (2 tasks - ~50 phút):
+- **TASK 10-11**: Documentation & DTO cleanup
+
+### 🔵 LOW PRIORITY TASKS (1 task - ~15 phút):
+- **TASK 12**: Error message improvements
+
+### 📋 EXECUTION ORDER:
+1. **Bắt đầu với TASK 1-2** (sửa logic cốt lõi)
+2. **Tiếp tục TASK 3-7** (hoàn thiện TourOperation)
+3. **Thực hiện TASK 8-9** (Guide selection)
+4. **Kết thúc với TASK 10-12** (polish & cleanup)
+
+### ⏱️ ESTIMATED TIME:
+- **Total**: ~5 giờ
+- **Critical Path**: TASK 1-9 (~4 giờ)
+- **Optional**: TASK 10-12 (~1 giờ)
 
 ---
 
 ## 🎯 KẾT LUẬN
+
+### Trước khi thực hiện tasks (85% hoàn thành):
+- ✅ Template CRUD hoàn chỉnh
+- ✅ Timeline management hoàn chỉnh
+- ✅ Shop integration hoàn chỉnh
+- ✅ Slot generation hoàn chỉnh (nhưng logic sai)
+- ✅ Scheduling algorithm hoàn chỉnh
+- ✅ Template copy functionality
+- ❌ TourOperation CRUD APIs
+- ❌ Guide/User selection APIs
+
+### Sau khi hoàn thành tasks (100% hoàn thành):
+- ✅ Template CRUD hoàn chỉnh
+- ✅ Timeline management hoàn chỉnh
+- ✅ Shop integration hoàn chỉnh
+- ✅ Slot generation với logic ĐÚNG (lấy ngày từ template)
+- ✅ Scheduling algorithm hoàn chỉnh
+- ✅ Template copy functionality
+- ✅ TourOperation CRUD APIs
+- ✅ Guide/User selection APIs
+
+**Với 12 tasks này, project sẽ đạt 100% requirement và logic sẽ hoàn toàn đúng theo yêu cầu ban đầu: Template định nghĩa ngày cố định, chỉ cần chọn tháng/năm khi generate slots.**
+
+---
+
+**Ngày tạo**: 06/06/2025
+**Tác giả**: Task breakdown từ phân tích requirement
+**Trạng thái**: Ready to execute - 12 tasks chi tiết
+**Ước tính thời gian**: 5 giờ (4 giờ critical + 1 giờ optional)
 
 ### Trước khi cải thiện (85% hoàn thành):
 - ✅ Template CRUD hoàn chỉnh

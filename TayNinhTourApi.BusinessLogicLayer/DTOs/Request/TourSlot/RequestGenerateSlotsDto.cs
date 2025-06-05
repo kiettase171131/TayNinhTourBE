@@ -28,11 +28,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourSlot
         [Range(2024, 2030, ErrorMessage = "Năm phải từ 2024 đến 2030")]
         public int Year { get; set; }
 
-        /// <summary>
-        /// Các ngày trong tuần muốn tạo slots (Saturday, Sunday hoặc cả hai)
-        /// Mặc định là cả Saturday và Sunday
-        /// </summary>
-        public ScheduleDay ScheduleDays { get; set; } = ScheduleDay.Saturday | ScheduleDay.Sunday;
+
 
         /// <summary>
         /// Có ghi đè các slots đã tồn tại không

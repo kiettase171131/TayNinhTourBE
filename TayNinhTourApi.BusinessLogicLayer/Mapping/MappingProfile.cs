@@ -5,6 +5,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 
@@ -21,7 +22,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
             #region Tour Mapping
             CreateMap<RequestCreateTourCmsDto, Tour>().ForMember(dest => dest.Images, otp => otp.Ignore());
-            CreateMap<Tour, TourDto >().ForMember(dest => dest.Images, otp => otp.MapFrom(src => src.Images.Select(x => x.Url).ToList()));
+            CreateMap<Tour, TourDto>().ForMember(dest => dest.Images, otp => otp.MapFrom(src => src.Images.Select(x => x.Url).ToList()));
             #endregion
 
             #region Blog Mapping
@@ -68,21 +69,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #endregion
 
             #region TourOperation Mapping
-            CreateMap<RequestCreateOperationDto, TourOperation>();
+            CreateMap<RequestCreateOperationDto, TourOperation>()
+                .ForMember(dest => dest.MaxGuests, opt => opt.MapFrom(src => src.MaxSeats));
             CreateMap<RequestUpdateOperationDto, TourOperation>()
+                .ForMember(dest => dest.MaxGuests, opt => opt.MapFrom(src => src.MaxSeats))
                 .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
-            CreateMap<TourOperation, TourOperationDto>()
-                .ForMember(dest => dest.ActualPrice, opt => opt.MapFrom(src => src.Price))
-                .ForMember(dest => dest.StatusName, opt => opt.MapFrom(src => GetTourOperationStatusName(src.Status)))
-                .ForMember(dest => dest.Guide, opt => opt.MapFrom(src => src.Guide))
-                .ForMember(dest => dest.MaxCapacity, opt => opt.MapFrom(src => src.MaxGuests));
+            CreateMap<TourOperation, TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>()
+                .ForMember(dest => dest.MaxSeats, opt => opt.MapFrom(src => src.MaxGuests))
+                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
+                .ForMember(dest => dest.GuidePhone, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null));
             CreateMap<TourOperation, OperationSummaryDto>()
                 .ForMember(dest => dest.TourDate, opt => opt.MapFrom(src => src.TourSlot.TourDate))
-                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide.Name))
-                .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.Guide.Email))
-                .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.Guide.PhoneNumber))
-                .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price))
-                .ForMember(dest => dest.StatusName, opt => opt.MapFrom(src => GetTourOperationStatusName(src.Status)));
+                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
+                .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Email : null))
+                .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null))
+                .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price));
             #endregion
         }
 

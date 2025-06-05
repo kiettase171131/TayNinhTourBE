@@ -78,8 +78,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(to => to.Guide)
                 .Include(to => to.CreatedBy)
                 .Include(to => to.UpdatedBy)
-                .Where(to => to.GuideId == guideId && 
-                            to.TourSlot.TourDate >= startDate && 
+                .Where(to => to.GuideId == guideId &&
+                            to.TourSlot.TourDate >= startDate &&
                             to.TourSlot.TourDate <= endDate);
 
             if (!includeInactive)
@@ -93,9 +93,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         public async Task<bool> IsGuideBusyOnDateAsync(Guid guideId, DateOnly tourDate, Guid? excludeOperationId = null)
         {
             var query = _context.TourOperations
-                .Where(to => to.GuideId == guideId && 
-                            to.TourSlot.TourDate == tourDate && 
-                            to.IsActive && 
+                .Where(to => to.GuideId == guideId &&
+                            to.TourSlot.TourDate == tourDate &&
+                            to.IsActive &&
                             !to.IsDeleted);
 
             if (excludeOperationId.HasValue)
@@ -109,16 +109,16 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         public async Task<IEnumerable<TourOperation>> GetUpcomingOperationsByGuideAsync(Guid guideId, int top = 10)
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
-            
+
             return await _context.TourOperations
                 .Include(to => to.TourSlot)
                     .ThenInclude(ts => ts.TourTemplate)
                 .Include(to => to.Guide)
                 .Include(to => to.CreatedBy)
                 .Include(to => to.UpdatedBy)
-                .Where(to => to.GuideId == guideId && 
-                            to.TourSlot.TourDate >= today && 
-                            to.IsActive && 
+                .Where(to => to.GuideId == guideId &&
+                            to.TourSlot.TourDate >= today &&
+                            to.IsActive &&
                             !to.IsDeleted)
                 .OrderBy(to => to.TourSlot.TourDate)
                 .Take(top)
@@ -165,8 +165,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var endDate = startDate.AddMonths(1).AddDays(-1);
 
             var query = _context.TourOperations
-                .Where(to => to.GuideId == guideId && 
-                            to.TourSlot.TourDate >= startDate && 
+                .Where(to => to.GuideId == guideId &&
+                            to.TourSlot.TourDate >= startDate &&
                             to.TourSlot.TourDate <= endDate);
 
             if (!includeInactive)
@@ -192,7 +192,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 return false;
 
             // Check if operation is already completed or cancelled
-            if (operation.Status == TourOperationStatus.Completed || 
+            if (operation.Status == TourOperationStatus.Completed ||
                 operation.Status == TourOperationStatus.Cancelled)
                 return false;
 
@@ -273,6 +273,60 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await query
                 .Where(to => to.IsActive && !to.IsDeleted)
                 .OrderBy(to => to.TourSlot.TourDate)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<TourOperation>> GetOperationsAsync(
+            Guid? tourTemplateId = null,
+            Guid? guideId = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            bool includeInactive = false)
+        {
+            var query = _context.TourOperations
+                .Include(to => to.TourSlot)
+                    .ThenInclude(ts => ts.TourTemplate)
+                .Include(to => to.Guide)
+                .Include(to => to.CreatedBy)
+                .Include(to => to.UpdatedBy)
+                .AsQueryable();
+
+            if (!includeInactive)
+            {
+                query = query.Where(to => to.IsActive && !to.IsDeleted);
+            }
+
+            if (tourTemplateId.HasValue)
+            {
+                query = query.Where(to => to.TourSlot.TourTemplateId == tourTemplateId.Value);
+            }
+
+            if (guideId.HasValue)
+            {
+                query = query.Where(to => to.GuideId == guideId.Value);
+            }
+
+            if (fromDate.HasValue)
+            {
+                var fromDateOnly = DateOnly.FromDateTime(fromDate.Value);
+                query = query.Where(to => to.TourSlot.TourDate >= fromDateOnly);
+            }
+
+            if (toDate.HasValue)
+            {
+                var toDateOnly = DateOnly.FromDateTime(toDate.Value);
+                query = query.Where(to => to.TourSlot.TourDate <= toDateOnly);
+            }
+
+            return await query.OrderBy(to => to.TourSlot.TourDate).ToListAsync();
+        }
+
+        public async Task<IEnumerable<TourOperation>> GetOperationsByDateAsync(DateOnly date)
+        {
+            return await _context.TourOperations
+                .Include(to => to.TourSlot)
+                .Include(to => to.Guide)
+                .Where(to => to.TourSlot.TourDate == date && to.IsActive && !to.IsDeleted)
                 .ToListAsync();
         }
 

@@ -115,5 +115,20 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="id">ID của tour operation</param>
         /// <returns>True nếu có thể xóa</returns>
         Task<bool> CanDeleteOperationAsync(Guid id);
+
+        /// <summary>
+        /// Lấy danh sách operations với filtering
+        /// </summary>
+        Task<IEnumerable<TourOperation>> GetOperationsAsync(
+            Guid? tourTemplateId = null,
+            Guid? guideId = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            bool includeInactive = false);
+
+        /// <summary>
+        /// Lấy operations theo ngày cụ thể
+        /// </summary>
+        Task<IEnumerable<TourOperation>> GetOperationsByDateAsync(DateOnly date);
     }
 }

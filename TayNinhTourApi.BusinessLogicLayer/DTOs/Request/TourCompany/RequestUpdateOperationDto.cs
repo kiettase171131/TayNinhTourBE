@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
 {
@@ -18,27 +17,28 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         /// Giá tour cho operation này
         /// Có thể khác với giá gốc trong TourTemplate tùy theo điều kiện thực tế
         /// </summary>
-        [Range(0.01, double.MaxValue, ErrorMessage = "Giá tour phải lớn hơn 0")]
+        [Range(0, double.MaxValue, ErrorMessage = "Giá phải >= 0")]
         public decimal? Price { get; set; }
 
         /// <summary>
-        /// Số lượng khách tối đa cho tour operation này
+        /// Số lượng ghế tối đa cho tour operation này
         /// Có thể khác với MaxGuests trong TourTemplate tùy theo điều kiện thực tế
         /// </summary>
-        [Range(1, 1000, ErrorMessage = "Số lượng khách phải từ 1 đến 1000")]
-        public int? MaxGuests { get; set; }
+        [Range(1, 100, ErrorMessage = "Số ghế phải từ 1-100")]
+        public int? MaxSeats { get; set; }
 
         /// <summary>
         /// Mô tả bổ sung cho tour operation
         /// Ví dụ: ghi chú về thời tiết, điều kiện đặc biệt, thay đổi lịch trình
         /// </summary>
-        [StringLength(1000, ErrorMessage = "Mô tả không được vượt quá 1000 ký tự")]
+        [StringLength(1000, ErrorMessage = "Mô tả không quá 1000 ký tự")]
         public string? Description { get; set; }
 
         /// <summary>
-        /// Trạng thái của tour operation
+        /// Ghi chú bổ sung
         /// </summary>
-        public TourOperationStatus? Status { get; set; }
+        [StringLength(500, ErrorMessage = "Ghi chú không quá 500 ký tự")]
+        public string? Notes { get; set; }
 
         /// <summary>
         /// Trạng thái hoạt động của tour operation

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreateFixed : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -313,6 +313,46 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "BlogComments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Content = table.Column<string>(type: "longtext", nullable: false),
+                    BlogId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    ParentCommentId = table.Column<Guid>(type: "char(36)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BlogComments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BlogComments_BlogComments_ParentCommentId",
+                        column: x => x.ParentCommentId,
+                        principalTable: "BlogComments",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_BlogComments_Blogs_BlogId",
+                        column: x => x.BlogId,
+                        principalTable: "Blogs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_BlogComments_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "BlogImages",
                 columns: table => new
                 {
@@ -334,6 +374,40 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         name: "FK_BlogImages_Blogs_BlogId",
                         column: x => x.BlogId,
                         principalTable: "Blogs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySQL:Charset", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "BlogReactions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false),
+                    BlogId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false),
+                    Reaction = table.Column<int>(type: "int", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BlogReactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BlogReactions_Blogs_BlogId",
+                        column: x => x.BlogId,
+                        principalTable: "Blogs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_BlogReactions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -546,10 +620,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false),
                     TourSlotId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourSlot mà operation này thuộc về"),
-                    GuideId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của User làm hướng dẫn viên cho tour này"),
+                    GuideId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của User làm hướng dẫn viên cho tour này (optional)"),
                     Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Giá tour cho operation này"),
                     MaxGuests = table.Column<int>(type: "int", nullable: false, comment: "Số lượng khách tối đa cho tour operation này"),
                     Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true, comment: "Mô tả bổ sung cho tour operation"),
+                    Notes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Ghi chú bổ sung cho tour operation"),
                     Status = table.Column<int>(type: "int", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true, comment: "Trạng thái hoạt động của tour operation"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
@@ -592,9 +667,35 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySQL:Charset", "utf8mb4");
 
             migrationBuilder.CreateIndex(
+                name: "IX_BlogComments_BlogId",
+                table: "BlogComments",
+                column: "BlogId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BlogComments_ParentCommentId",
+                table: "BlogComments",
+                column: "ParentCommentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BlogComments_UserId",
+                table: "BlogComments",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_BlogImages_BlogId",
                 table: "BlogImages",
                 column: "BlogId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BlogReactions_BlogId_UserId",
+                table: "BlogReactions",
+                columns: new[] { "BlogId", "UserId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BlogReactions_UserId",
+                table: "BlogReactions",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Blogs_UserId",
@@ -854,7 +955,13 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "BlogComments");
+
+            migrationBuilder.DropTable(
                 name: "BlogImages");
+
+            migrationBuilder.DropTable(
+                name: "BlogReactions");
 
             migrationBuilder.DropTable(
                 name: "ImageTour");

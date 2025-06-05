@@ -98,6 +98,57 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.ToTable("Blogs");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("BlogId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid?>("ParentCommentId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlogId");
+
+                    b.HasIndex("ParentCommentId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("BlogComments");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogImage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -137,6 +188,52 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.HasIndex("BlogId");
 
                     b.ToTable("BlogImages");
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("BlogId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("Reaction")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BlogId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("BlogReactions");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Image", b =>
@@ -660,9 +757,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("varchar(1000)")
                         .HasComment("Mô tả bổ sung cho tour operation");
 
-                    b.Property<Guid>("GuideId")
+                    b.Property<Guid?>("GuideId")
                         .HasColumnType("char(36)")
-                        .HasComment("ID của User làm hướng dẫn viên cho tour này");
+                        .HasComment("ID của User làm hướng dẫn viên cho tour này (optional)");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -676,6 +773,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<int>("MaxGuests")
                         .HasColumnType("int")
                         .HasComment("Số lượng khách tối đa cho tour operation này");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Ghi chú bổ sung cho tour operation");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(18, 2)
@@ -1039,6 +1141,31 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogComment", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Blog", "Blog")
+                        .WithMany("BlogComments")
+                        .HasForeignKey("BlogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.BlogComment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentId");
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
+                        .WithMany("BlogComments")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Blog");
+
+                    b.Navigation("ParentComment");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogImage", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Blog", "Blog")
@@ -1048,6 +1175,25 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .IsRequired();
 
                     b.Navigation("Blog");
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogReaction", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Blog", "Blog")
+                        .WithMany("BlogReactions")
+                        .HasForeignKey("BlogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
+                        .WithMany("BlogReactions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Blog");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Shop", b =>
@@ -1268,7 +1414,16 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Blog", b =>
                 {
+                    b.Navigation("BlogComments");
+
                     b.Navigation("BlogImages");
+
+                    b.Navigation("BlogReactions");
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogComment", b =>
+                {
+                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Role", b =>
@@ -1302,6 +1457,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.User", b =>
                 {
+                    b.Navigation("BlogComments");
+
+                    b.Navigation("BlogReactions");
+
                     b.Navigation("Blogs");
 
                     b.Navigation("ShopsCreated");
