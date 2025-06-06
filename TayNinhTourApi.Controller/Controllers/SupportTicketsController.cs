@@ -21,7 +21,7 @@ namespace TayNinhTourApi.Controller.Controllers
             _service = service;
         }
 
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme,Roles ="User")]    
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]    
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] RequestCreateTicketDto dto)
         {
@@ -29,7 +29,7 @@ namespace TayNinhTourApi.Controller.Controllers
             var response = await _service.CreateTicketAsync(dto , currentUserObject);
             return StatusCode(response.StatusCode, response);
         }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme,Roles = "User")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         // GET: api/SupportTickets
         [HttpGet("User")]
         public async Task<IActionResult> ListForUser()
@@ -47,7 +47,7 @@ namespace TayNinhTourApi.Controller.Controllers
             var tickets = await _service.GetTicketsForAdminAsync(currentUserObject.Id);
             return Ok(tickets);
         }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         // GET: api/SupportTickets/{id}
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)

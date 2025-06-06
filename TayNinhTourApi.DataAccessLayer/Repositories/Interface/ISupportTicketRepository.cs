@@ -10,7 +10,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
     
     public interface ISupportTicketRepository : IGenericRepository<SupportTicket>
     {
-        Task<SupportTicket?> GetWithCommentsAsync(Guid ticketId);
+        Task<SupportTicket?> GetDetail(Guid ticketId);
         Task<IEnumerable<SupportTicket>> ListByUserAsync(Guid userId);
         Task<IEnumerable<SupportTicket>> ListByAdminAsync(Guid adminId);
     }

@@ -28,6 +28,9 @@
         public virtual ICollection<Blog> Blogs { get; set; } = new List<Blog>();
         public virtual ICollection<BlogReaction> BlogReactions { get; set; } = new List<BlogReaction>();
         public virtual ICollection<BlogComment> BlogComments { get; set; } = new List<BlogComment>();
+        public virtual ICollection<SupportTicket> TicketsCreated { get; set; } = new List<SupportTicket>();
+        public virtual ICollection<SupportTicket> TicketsAssigned { get; set; } = new List<SupportTicket>();
+        public virtual ICollection<SupportTicketComment> TicketComments { get; set; } = new List<SupportTicketComment>();
 
         public virtual ICollection<TourOperation> TourOperationsAsGuide { get; set; } = new List<TourOperation>();
     }

@@ -16,22 +16,31 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
         }
 
-        public async Task<SupportTicket?> GetWithCommentsAsync(Guid ticketId)
+        public async Task<SupportTicket?> GetDetail(Guid ticketId)
         {
-           return await _context.SupportTickets
-                  .Include(t => t.Comments)
-                    .ThenInclude(c => c.CreatedBy)
-                  .SingleOrDefaultAsync(t => t.Id == ticketId);
+            return await _context.SupportTickets
+             .Where(t => t.Id == ticketId && !t.IsDeleted)
+             .Include(t => t.Images)
+             .Include(t => t.Comments)
+             .FirstOrDefaultAsync();
         }
 
-        public Task<IEnumerable<SupportTicket>> ListByAdminAsync(Guid adminId)
+        public async Task<IEnumerable<SupportTicket>> ListByAdminAsync(Guid adminId)
         {
-           return Task.FromResult(_context.SupportTickets.Where(t => t.AdminId == adminId).AsEnumerable());
+            return await _context.SupportTickets
+         .Where(t => t.AdminId == adminId && !t.IsDeleted)
+         .Include(t => t.Images)
+         .Include(t => t.Comments)
+         .ToListAsync();
         }
 
-        public Task<IEnumerable<SupportTicket>> ListByUserAsync(Guid userId)
+        public async Task<IEnumerable<SupportTicket>> ListByUserAsync(Guid userId)
         {
-            return Task.FromResult(_context.SupportTickets.Where(t => t.UserId == userId).AsEnumerable());
+            return await _context.SupportTickets
+        .Where(t => t.UserId == userId && !t.IsDeleted)
+        .Include(t => t.Images)
+        .Include(t => t.Comments)
+        .ToListAsync();
         }
     }
 }

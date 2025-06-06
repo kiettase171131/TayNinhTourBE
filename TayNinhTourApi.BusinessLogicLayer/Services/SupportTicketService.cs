@@ -149,31 +149,113 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
 
 
-        public async Task<IEnumerable<SupportTicket>> GetTicketsForUserAsync(Guid userid)
+        public async Task<IEnumerable<SupportTicketDto>> GetTicketsForUserAsync(Guid userid)
         {
-
-            var tickets = await _ticketRepo.ListByUserAsync(userid);
-            return tickets
-                .Where(t => t != null && !t.IsDeleted);
-        }
-
-
-        public async Task<IEnumerable<SupportTicket>> GetTicketsForAdminAsync(Guid adminId)
-        {
-            var tickets = await _ticketRepo.ListByAdminAsync(adminId);
-            return tickets
-                .Where(t => t != null && !t.IsDeleted);
-        }
-
-        public async Task<SupportTicket?> GetTicketDetailsAsync(Guid ticketId)
-        {
-            var tickets = await _ticketRepo.GetWithCommentsAsync(ticketId);
-            if (tickets == null || tickets.IsDeleted)
+            var entities = await _ticketRepo.ListByUserAsync(userid);
+            if (entities == null || !entities.Any())
             {
-                throw new KeyNotFoundException("Support ticket not found");
+                throw new KeyNotFoundException("No tickets found for this user.");
             }
-            return tickets;
+
+            var dtos = entities.Select(t => new SupportTicketDto
+            {
+                Id = t.Id,
+                UserId = t.UserId,
+                Title = t.Title,
+                Content = t.Content,
+                Status = t.Status.ToString(),
+                CreatedAt = t.CreatedAt,
+                AdminId = t.AdminId,
+
+                Images = t.Images.Select(i => new SupportTicketImageDto
+                {
+                    Id = i.Id,
+                    Url = i.Url
+                }).ToList(),
+
+                Comments = t.Comments.Select(c => new SupportTicketCommentDto
+                {
+                    Id = c.Id,
+                    CreatedById = c.CreatedById,
+                    CommentText = c.CommentText,
+                    CreatedAt = c.CreatedAt
+                }).ToList()
+            });
+
+            return dtos;
         }
+
+
+        public async Task<IEnumerable<SupportTicketDto>> GetTicketsForAdminAsync(Guid adminId)
+        {
+            var entities = await _ticketRepo.ListByAdminAsync(adminId);
+            if (entities == null || !entities.Any())
+            {
+                throw new KeyNotFoundException("No tickets found for this admin.");
+            }
+
+            var dtos = entities.Select(t => new SupportTicketDto
+            {
+                Id = t.Id,
+                UserId = t.UserId,
+                Title = t.Title,
+                Content = t.Content,
+                Status = t.Status.ToString(),
+                CreatedAt = t.CreatedAt,
+                AdminId = t.AdminId,
+
+                Images = t.Images.Select(i => new SupportTicketImageDto
+                {
+                    Id = i.Id,
+                    Url = i.Url
+                }).ToList(),
+
+                Comments = t.Comments.Select(c => new SupportTicketCommentDto
+                {
+                    Id = c.Id,
+                    CreatedById = c.CreatedById,
+                    CommentText = c.CommentText,
+                    CreatedAt = c.CreatedAt
+                }).ToList()
+            });
+
+            return dtos;
+        }
+
+        public async Task<SupportTicketDto?> GetTicketDetailsAsync(Guid ticketId)
+        {
+            var entity = await _ticketRepo.GetDetail(ticketId);
+            if (entity == null)
+            {
+                throw new KeyNotFoundException("Ticket not found");
+            }
+
+            var dto = new SupportTicketDto
+            {
+                Id = entity.Id,
+                UserId = entity.UserId,
+                AdminId = entity.AdminId,
+                Title = entity.Title,
+                Content = entity.Content,
+                Status = entity.Status.ToString(),
+                CreatedAt = entity.CreatedAt,
+                Images = entity.Images.Select(i => new SupportTicketImageDto
+                {
+                    Id = i.Id,
+                    Url = i.Url
+                }).ToList(),
+                Comments = entity.Comments.Select(c => new SupportTicketCommentDto
+                {
+                    Id = c.Id,
+                    CreatedById = c.CreatedById,
+                    CommentText = c.CommentText,
+                    CreatedAt = c.CreatedAt
+                }).ToList()
+            };
+
+            return dto;
+        }
+        
 
         public async Task<BaseResposeDto> ReplyAsync(Guid ticketId, Guid replierId, string comment)
         {

@@ -14,9 +14,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
     public interface ISupportTicketService
     {
         Task<ResponseSpTicketDto> CreateTicketAsync(RequestCreateTicketDto request, CurrentUserObject currentUserObject);
-        Task<IEnumerable<SupportTicket>> GetTicketsForUserAsync(Guid userId);
-        Task<IEnumerable<SupportTicket>> GetTicketsForAdminAsync(Guid adminId);
-        Task<SupportTicket?> GetTicketDetailsAsync(Guid ticketId);
+        Task<IEnumerable<SupportTicketDto>> GetTicketsForUserAsync(Guid userId);
+        Task<IEnumerable<SupportTicketDto>> GetTicketsForAdminAsync(Guid adminId);
+        Task<SupportTicketDto?> GetTicketDetailsAsync(Guid ticketId);
         Task<BaseResposeDto> ReplyAsync(Guid ticketId, Guid replierId, string comment);
         Task<BaseResposeDto> ChangeStatusAsync(Guid ticketId, TicketStatus newStatus);
         Task<BaseResposeDto> DeleteTicketAsync(Guid ticketId, Guid requestorId);
