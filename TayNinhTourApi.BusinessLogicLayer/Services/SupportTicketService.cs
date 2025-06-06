@@ -268,6 +268,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = "Support ticket not found"
                 };
             }
+            if (ticket.Status != 0)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "Cannot reply this ticket, it's closed"
+                };
+            }
             var reply = new SupportTicketComment
             {
                 Id = Guid.NewGuid(),

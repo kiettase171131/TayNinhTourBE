@@ -8,8 +8,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 {
     public enum TicketStatus
     {
-        Open ,
-        InProgress ,
+        Open ,       
         Closed
     }
 

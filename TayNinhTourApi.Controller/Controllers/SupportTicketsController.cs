@@ -34,27 +34,48 @@ namespace TayNinhTourApi.Controller.Controllers
         [HttpGet("User")]
         public async Task<IActionResult> ListForUser()
         {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var tickets = await _service.GetTicketsForUserAsync(currentUserObject.Id);
-            return Ok(tickets);
+            try
+            {
+                CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var tickets = await _service.GetTicketsForUserAsync(currentUserObject.Id);
+                return Ok(tickets);
+            }
+            catch (KeyNotFoundException ex)
+            { 
+                return NotFound(new { message = ex.Message });
+            }
         }
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         // GET: api/SupportTickets/Admin
         [HttpGet("Admin")]
         public async Task<IActionResult> ListForAdmin()
         {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var tickets = await _service.GetTicketsForAdminAsync(currentUserObject.Id);
-            return Ok(tickets);
+            try
+            {
+                CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var tickets = await _service.GetTicketsForAdminAsync(currentUserObject.Id);
+                return Ok(tickets);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
         // GET: api/SupportTickets/{id}
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var ticket = await _service.GetTicketDetailsAsync(id);
-            if (ticket == null) return NotFound();
-            return Ok(ticket);
+            try
+            {
+                var ticket = await _service.GetTicketDetailsAsync(id);
+                if (ticket == null) return NotFound();
+                return Ok(ticket);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         // POST: api/SupportTickets/{id}/comments
