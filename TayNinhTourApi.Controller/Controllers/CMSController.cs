@@ -4,13 +4,16 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.SupTicketDTO;
 using TayNinhTourApi.BusinessLogicLayer.Services;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.Controller.Helper;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -21,11 +24,13 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         private readonly ICmsService _cmsService;
         private readonly ITourGuideApplicationService _tourGuideApplicationService;
+        private readonly ISupportTicketService _supportTicketService;
 
-        public CmsController(ICmsService cmsService, ITourGuideApplicationService tourGuideApplicationService)
+        public CmsController(ICmsService cmsService, ITourGuideApplicationService tourGuideApplicationService, ISupportTicketService supportTicketService)
         {
             _cmsService = cmsService;
             _tourGuideApplicationService = tourGuideApplicationService;
+            _supportTicketService = supportTicketService;
         }
 
         [HttpGet("tour")]
@@ -103,6 +108,27 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             var response = await _tourGuideApplicationService.RejectAsync(id, dto.Reason);
 
+            return StatusCode(response.StatusCode, response);
+        }
+        [HttpGet("SupportTicket")]
+        public async Task<IActionResult> ListForAdmin()
+        {
+            try
+            {
+                CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var tickets = await _supportTicketService.GetTicketsForAdminAsync(currentUserObject.Id);
+                return Ok(tickets);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+        [HttpPost("{id:guid}/Reply-SupportTicket")]
+        public async Task<IActionResult> Reply(Guid id, [FromBody] CreateCommentDto dto)
+        {
+            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var response = await _supportTicketService.ReplyAsync(id, currentUserObject.Id, dto.CommentText);
             return StatusCode(response.StatusCode, response);
         }
     }

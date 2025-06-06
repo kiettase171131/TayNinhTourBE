@@ -74,6 +74,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     };
 });
 
+builder.Services.AddAuthorization(options =>
+{
+    // Policy “ExcludeAdmin”: cho phép m?i user ?ã auth, mi?n tr? role = "Admin"
+    options.AddPolicy("ExcludeAdmin", policy =>
+        policy.RequireAssertion(context =>
+            // user ph?i authenticated và KHÔNG có role "Admin"
+            context.User.Identity != null
+            && context.User.Identity.IsAuthenticated
+            && !context.User.IsInRole("Admin")
+        )
+    );
+});
+
+
 // Config Forwarded Headers
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

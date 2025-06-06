@@ -102,22 +102,7 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
 
         }
-        [HttpPost("{blogId}/reaction")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> ReactToBlog(Guid blogId, [FromBody] RequestBlogReactionDto dto)
-        {
-            // 1. Kiểm tra DTO hợp lệ
-            if (dto == null || (dto.Reaction != BlogStatusEnum.Like && dto.Reaction != BlogStatusEnum.Dislike))
-            {
-                return BadRequest(new { Message = "Invalid upload data" });
-            }
-            // đảm bảo blogId trong route khớp dto.BlogId hoặc ignore dto.BlogId và gán:
-            dto.BlogId = blogId;
-            // 2. Lấy thông tin user hiện tại từ JWT
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _reactionService.ToggleReactionAsync(dto, currentUserObject);
-            return StatusCode(result.StatusCode, result);
-        }
+        
 
         /// <summary>
         /// Lấy danh sách tất cả hướng dẫn viên

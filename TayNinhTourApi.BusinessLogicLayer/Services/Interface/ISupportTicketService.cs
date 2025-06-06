@@ -18,7 +18,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<IEnumerable<SupportTicketDto>> GetTicketsForAdminAsync(Guid adminId);
         Task<SupportTicketDto?> GetTicketDetailsAsync(Guid ticketId);
         Task<BaseResposeDto> ReplyAsync(Guid ticketId, Guid replierId, string comment);
-        Task<BaseResposeDto> ChangeStatusAsync(Guid ticketId, TicketStatus newStatus);
+        //Task<BaseResposeDto> ChangeStatusAsync(Guid ticketId, TicketStatus newStatus);
         Task<BaseResposeDto> DeleteTicketAsync(Guid ticketId, Guid requestorId);
     }
 }

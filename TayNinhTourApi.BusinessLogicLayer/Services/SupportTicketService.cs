@@ -283,8 +283,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 CreatedById = replierId,
                 CommentText = comment,
                 CreatedAt = DateTime.UtcNow,
+
                 //CreatedById = replierId
             };
+            ticket.Status = TicketStatus.Closed;
             await _commentRepo.AddAsync(reply);
             await _commentRepo.SaveChangesAsync();
             return new BaseResposeDto
@@ -294,26 +296,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
         }
 
-        public async Task<BaseResposeDto> ChangeStatusAsync(Guid ticketId, TicketStatus newStatus)
-        {
-            var ticket = await _ticketRepo.GetByIdAsync(ticketId);
-            if (ticket == null || ticket.IsDeleted)
-            {
-                return new BaseResposeDto
-                {
-                    StatusCode = 404,
-                    Message = "Support ticket not found"
-                };
-            }
-            ticket.Status = newStatus;
-            ticket.UpdatedAt = DateTime.UtcNow;
-            await _ticketRepo.SaveChangesAsync();
-            return new BaseResposeDto
-            {
-                StatusCode = 200,
-                Message = "Status update successful"
-            };
-        }
+        //public async Task<BaseResposeDto> ChangeStatusAsync(Guid ticketId, TicketStatus newStatus)
+        //{
+        //    var ticket = await _ticketRepo.GetByIdAsync(ticketId);
+        //    if (ticket == null || ticket.IsDeleted)
+        //    {
+        //        return new BaseResposeDto
+        //        {
+        //            StatusCode = 404,
+        //            Message = "Support ticket not found"
+        //        };
+        //    }
+        //    ticket.Status = newStatus;
+        //    ticket.UpdatedAt = DateTime.UtcNow;
+        //    await _ticketRepo.SaveChangesAsync();
+        //    return new BaseResposeDto
+        //    {
+        //        StatusCode = 200,
+        //        Message = "Status update successful"
+        //    };
+        //}
 
         public async Task<BaseResposeDto> DeleteTicketAsync(Guid ticketId, Guid requestorId)
         {

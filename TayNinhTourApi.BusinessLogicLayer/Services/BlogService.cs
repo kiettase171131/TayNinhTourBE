@@ -19,6 +19,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork;
@@ -55,7 +56,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Content = request.Content,
                 AuthorName = currentUserObject.Name,
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true
+                IsActive = true,
+                Status = (byte)BlogStatus.Pending,
+                CreatedById = currentUserObject.Id,
             };
             var uploadedUrls = new List<string>();
             // 3. Xử lý upload file tương tự avatar
@@ -244,6 +247,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             blog.AuthorName = currentUserObject.Name;
             blog.UpdatedAt = DateTime.UtcNow;
             blog.UpdatedById = currentUserObject.Id;
+            blog.Status = (byte)BlogStatus.Pending;
 
 
             // 4. Xử lý ảnh nếu client gửi Files

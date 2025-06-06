@@ -27,14 +27,17 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         private readonly IBlogService _blogService;
         private readonly IBlogCommentService _commentService;
+        private readonly IBlogReactionService _reactionService;
 
 
-        public BloggerController(IBlogService blogService, IBlogCommentService commentService)
+        public BloggerController(IBlogService blogService, IBlogCommentService commentService, IBlogReactionService reactionService)
         {
             _blogService = blogService;
             _commentService = commentService;
+            _reactionService = reactionService;
         }
         [HttpGet("blog")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Blogger")]
         public async Task<ActionResult<ResponseGetBlogsDto>> GetBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
             var response = await _blogService.GetBlogsAsync(pageIndex, pageSize, textSearch, status);
@@ -104,6 +107,22 @@ namespace TayNinhTourApi.Controller.Controllers
             var response = await _commentService.CreateReplyAsync(blogId, parentCommentId, currentUser.Id, dto);
             return StatusCode(response.StatusCode, response);
 
+        }
+        [HttpPost("{blogId}/reaction")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> ReactToBlog(Guid blogId, [FromBody] RequestBlogReactionDto dto)
+        {
+            // 1. Kiểm tra DTO hợp lệ
+            if (dto == null || (dto.Reaction != BlogStatusEnum.Like && dto.Reaction != BlogStatusEnum.Dislike))
+            {
+                return BadRequest(new { Message = "Invalid upload data" });
+            }
+            // đảm bảo blogId trong route khớp dto.BlogId hoặc ignore dto.BlogId và gán:
+            dto.BlogId = blogId;
+            // 2. Lấy thông tin user hiện tại từ JWT
+            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _reactionService.ToggleReactionAsync(dto, currentUserObject);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }
