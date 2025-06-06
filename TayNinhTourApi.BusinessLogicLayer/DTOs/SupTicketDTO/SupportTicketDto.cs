@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.SupTicketDTO
 {
@@ -10,6 +11,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.SupTicketDTO
     {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
+        public string UserEmail { get; set; } = null!;
         public string Title { get; set; } = null!;
         public string Content { get; set; } = null!;
         public string Status { get; set; } = null!; // hoặc enum string

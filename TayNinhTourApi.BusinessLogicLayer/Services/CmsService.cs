@@ -2,12 +2,15 @@
 using LinqKit;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
@@ -18,12 +21,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IUserRepository _userRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IBlogRepository _blogRepository;
 
-        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork)
+        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo)
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _blogRepository = repo;
         }
 
         public async Task<BaseResposeDto> DeleteUserAsync(Guid id)
@@ -50,6 +55,43 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "User deleted successfully"
+            };
+        }
+
+        public async Task<ResponseGetBlogsDto> GetBlogsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
+        {
+            var include = new string[] { nameof(Blog.BlogImages) };
+            // Default values for pagination
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+            // Create a predicate for filtering
+            var predicate = PredicateBuilder.New<Blog>(x => !x.IsDeleted);
+
+            // Check if textSearch is null or empty
+            if (!string.IsNullOrEmpty(textSearch))
+            {
+                predicate = predicate.And(x => (x.Title != null && x.Title.Contains(textSearch, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            // Check if status is null or empty
+            if (status.HasValue)
+            {
+                predicate = predicate.And(x => x.IsActive == status);
+            }
+
+            // Get tours from repository
+            var blogs = await _blogRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate, include);
+
+            var totalblogs = blogs.Count();
+            var totalPages = (int)Math.Ceiling((double)totalblogs / pageSizeValue);
+
+            return new ResponseGetBlogsDto
+            {
+                StatusCode = 200,
+                Data = _mapper.Map<List<BlogDto>>(blogs),
+                TotalRecord = totalblogs,
+                TotalPages = totalPages,
             };
         }
 
@@ -169,6 +211,62 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Data = _mapper.Map<UserCmsDto>(user)
+            };
+        }
+
+        public async Task<BaseResposeDto> UpdateBlogAsync(RequestUpdateBlogCmsDto request, Guid id, Guid updatedById)
+        {
+            var blog = await _blogRepository.GetByIdAsync(id);
+
+            if (blog == null || blog.IsDeleted)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "Blog not found"
+                };
+            }
+            if (blog.Status == (byte)BlogStatus.Accepted)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Blog Accepted"
+                };
+            }
+            if (blog.Status == (byte)BlogStatus.Rejected)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Blog Rejected"
+                };
+            }
+            // Update 
+            blog.Status = request.Status ?? blog.Status;
+            blog.CommentOfAdmin = request.CommentOfAdmin ?? blog.CommentOfAdmin;
+            blog.UpdatedById = updatedById;
+            // Get user by id
+            var user = await _userRepository.GetByIdAsync(updatedById);
+            if (user == null || user.IsDeleted)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "User not found"
+                };
+            }
+
+            // Set the updated by user
+            blog.UpdatedById = updatedById;
+
+            // Save changes to database
+            await _unitOfWork.SaveChangesAsync();
+
+            return new BaseResposeDto
+            {
+                StatusCode = 200,
+                Message = "Blog updated successfully"
             };
         }
 

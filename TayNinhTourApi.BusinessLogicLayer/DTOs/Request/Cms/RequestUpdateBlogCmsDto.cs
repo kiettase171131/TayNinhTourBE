@@ -8,7 +8,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms
 {
     public class RequestUpdateBlogCmsDto
     {
-        public byte Status { get; set; }
+        public byte? Status { get; set; }
         public string CommentOfAdmin { get; set; } = null!;
     }
 }

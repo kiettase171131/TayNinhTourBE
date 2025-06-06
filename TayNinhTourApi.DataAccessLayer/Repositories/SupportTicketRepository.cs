@@ -29,6 +29,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             return await _context.SupportTickets
          .Where(t => t.AdminId == adminId && !t.IsDeleted)
+         .Include(t => t.User)
          .Include(t => t.Images)
          .Include(t => t.Comments)
          .ToListAsync();
@@ -38,6 +39,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             return await _context.SupportTickets
         .Where(t => t.UserId == userId && !t.IsDeleted)
+        .Include(t => t.User)
         .Include(t => t.Images)
         .Include(t => t.Comments)
         .ToListAsync();

@@ -157,10 +157,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 throw new KeyNotFoundException("No tickets found for this user.");
             }
 
-            var dtos = entities.Select(t => new SupportTicketDto
+            var dtos = entities
+                .Where(t => !t.IsDeleted)
+                .Select(t => new SupportTicketDto
             {
                 Id = t.Id,
                 UserId = t.UserId,
+                UserEmail = t.User.Email,
                 Title = t.Title,
                 Content = t.Content,
                 Status = t.Status.ToString(),
@@ -194,10 +197,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 throw new KeyNotFoundException("No tickets found for this admin.");
             }
 
-            var dtos = entities.Select(t => new SupportTicketDto
+            var dtos = entities
+                .Where(t => !t.IsDeleted)
+                .Select(t => new SupportTicketDto
             {
                 Id = t.Id,
                 UserId = t.UserId,
+                UserEmail = t.User.Email,
                 Title = t.Title,
                 Content = t.Content,
                 Status = t.Status.ToString(),
@@ -234,6 +240,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 Id = entity.Id,
                 UserId = entity.UserId,
+                UserEmail = entity.User.Email,
                 AdminId = entity.AdminId,
                 Title = entity.Title,
                 Content = entity.Content,

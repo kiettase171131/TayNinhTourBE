@@ -1,6 +1,8 @@
 ﻿using TayNinhTourApi.BusinessLogicLayer.DTOs;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 
@@ -14,6 +16,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<ResponseGetUsersCmsDto> GetUserAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status);
         Task<ResponseGetUserByIdCmsDto> GetUserByIdAsync(Guid id);
         Task<BaseResposeDto> UpdateTourAsync(RequestUpdateTourCmsDto request, Guid id, Guid updatedBy);
+        Task<ResponseGetBlogsDto> GetBlogsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status);
+        Task<BaseResposeDto> UpdateBlogAsync(RequestUpdateBlogCmsDto request, Guid id, Guid updatedById);
         Task<BaseResposeDto> UpdateUserAsync(RequestUpdateUserCmsDto request, Guid id);
     }
 }

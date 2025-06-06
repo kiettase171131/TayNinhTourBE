@@ -1,4 +1,5 @@
 ﻿using Azure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -8,6 +9,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.SupTicketDTO;
@@ -129,6 +131,26 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             var response = await _supportTicketService.ReplyAsync(id, currentUserObject.Id, dto.CommentText);
+            return StatusCode(response.StatusCode, response);
+        }
+        [HttpPut("Update-blog/{id}")]
+        public async Task<ActionResult<BaseResposeDto>> UpdateBlog(RequestUpdateBlogCmsDto request, Guid id)
+        {
+            // Get current user id from claims
+            var userId = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return BadRequest("User ID not found in claims.");
+            }
+
+            var response = await _cmsService.UpdateBlogAsync(request, id, Guid.Parse(userId));
+            return StatusCode(response.StatusCode, response);
+        }
+        [HttpGet("Blog")]    
+        public async Task<ActionResult<ResponseGetBlogsDto>> GetBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
+        {
+            var response = await _cmsService.GetBlogsAsync(pageIndex, pageSize, textSearch, status);
             return StatusCode(response.StatusCode, response);
         }
     }

@@ -36,16 +36,23 @@ namespace TayNinhTourApi.Controller.Controllers
             _commentService = commentService;
             _reactionService = reactionService;
         }
-        [HttpGet("blog")]
+        [HttpGet("Blog-Blogger")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Blogger")]
         public async Task<ActionResult<ResponseGetBlogsDto>> GetBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
-            var response = await _blogService.GetBlogsAsync(pageIndex, pageSize, textSearch, status);
+            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var response = await _blogService.GetBlogsAsync(pageIndex, pageSize, textSearch, status, currentUser);
+            return StatusCode(response.StatusCode, response);
+        }
+        [HttpGet("Blog-User")]
+        public async Task<ActionResult<ResponseGetBlogsDto>> GetAcceptedBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
+        {
+            var response = await _blogService.GetAcceptedBlogsAsync(pageIndex, pageSize, textSearch, status);
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpGet("blog/{id}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles ="Blogger")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseGetBlogByIdDto>> GetBlogById(Guid id)
         {
             var response = await _blogService.GetBlogByIdAsync(id);
