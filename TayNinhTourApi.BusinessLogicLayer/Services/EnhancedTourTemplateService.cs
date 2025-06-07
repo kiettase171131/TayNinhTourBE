@@ -331,23 +331,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Id = Guid.NewGuid(),
                     Title = newTitle,
                     Description = originalTemplate.Description,
-                    Price = originalTemplate.Price,
-                    MaxGuests = originalTemplate.MaxGuests,
-                    Duration = originalTemplate.Duration,
                     TemplateType = originalTemplate.TemplateType,
                     ScheduleDays = originalTemplate.ScheduleDays,
                     StartLocation = originalTemplate.StartLocation,
                     EndLocation = originalTemplate.EndLocation,
-                    SpecialRequirements = originalTemplate.SpecialRequirements,
-                    MinGuests = originalTemplate.MinGuests,
-                    ChildPrice = originalTemplate.ChildPrice,
-                    ChildMaxAge = originalTemplate.ChildMaxAge,
-                    Transportation = originalTemplate.Transportation,
-                    MealsIncluded = originalTemplate.MealsIncluded,
-                    AccommodationInfo = originalTemplate.AccommodationInfo,
-                    IncludedServices = originalTemplate.IncludedServices,
-                    ExcludedServices = originalTemplate.ExcludedServices,
-                    CancellationPolicy = originalTemplate.CancellationPolicy,
+                    Month = originalTemplate.Month,
+                    Year = originalTemplate.Year,
                     CreatedById = createdById,
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
@@ -504,16 +493,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (templateType.HasValue)
                 {
                     query = query.Where(t => t.TemplateType == templateType.Value);
-                }
-
-                if (minPrice.HasValue)
-                {
-                    query = query.Where(t => t.Price >= minPrice.Value);
-                }
-
-                if (maxPrice.HasValue)
-                {
-                    query = query.Where(t => t.Price <= maxPrice.Value);
                 }
 
                 if (!string.IsNullOrWhiteSpace(startLocation))
@@ -679,9 +658,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         .Where(t => !t.IsDeleted && !string.IsNullOrEmpty(t.StartLocation))
                         .GroupBy(t => t.StartLocation)
                         .ToDictionary(g => g.Key, g => g.Count()),
-                    AveragePrice = activeTemplates.Any() ? activeTemplates.Average(t => t.Price) : 0,
-                    MinPrice = activeTemplates.Any() ? activeTemplates.Min(t => t.Price) : 0,
-                    MaxPrice = activeTemplates.Any() ? activeTemplates.Max(t => t.Price) : 0
+                    TemplatesByMonth = allTemplates
+                        .Where(t => !t.IsDeleted)
+                        .GroupBy(t => $"Tháng {t.Month}")
+                        .ToDictionary(g => g.Key, g => g.Count()),
+                    TemplatesByYear = allTemplates
+                        .Where(t => !t.IsDeleted)
+                        .GroupBy(t => t.Year.ToString())
+                        .ToDictionary(g => g.Key, g => g.Count())
                 };
 
                 // TODO: Add booking and revenue statistics

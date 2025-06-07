@@ -16,7 +16,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly ILogger<TourMigrationService> _logger;
 
         public TourMigrationService(
-            IMapper mapper, 
+            IMapper mapper,
             IUnitOfWork unitOfWork,
             ILogger<TourMigrationService> logger) : base(mapper, unitOfWork)
         {
@@ -117,7 +117,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 // Determine TourTemplateType based on TourType
                 var templateType = DetermineTourTemplateType(tour.TourType);
-                
+
                 // Determine default ScheduleDay (Saturday for now, can be customized later)
                 var scheduleDay = ScheduleDay.Saturday;
 
@@ -127,14 +127,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Id = Guid.NewGuid(),
                     Title = tour.Title,
                     Description = tour.Description,
-                    Price = tour.Price,
-                    MaxGuests = tour.MaxGuests,
-                    MinGuests = 1, // Default value
-                    Duration = 1, // Default 1 day
                     TemplateType = templateType,
                     ScheduleDays = scheduleDay,
                     StartLocation = "TP.HCM", // Default start location
                     EndLocation = "Tây Ninh", // Default end location
+                    Month = DateTime.Now.Month, // Default to current month
+                    Year = DateTime.Now.Year, // Default to current year
                     IsActive = tour.IsActive,
                     CreatedById = tour.CreatedById,
                     CreatedAt = tour.CreatedAt,
@@ -167,7 +165,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     tour.Description = $"[MIGRATED TO TEMPLATE {tourTemplate.Id}] {tour.Description}";
                     tour.UpdatedById = migratedById;
                     tour.UpdatedAt = DateTime.UtcNow;
-                    
+
                     await _unitOfWork.TourRepository.Update(tour);
                 }
                 else
@@ -205,8 +203,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var lowerTourType = tourType.ToLower();
 
             // Mapping logic based on tour type keywords
-            if (lowerTourType.Contains("vui chơi") || 
-                lowerTourType.Contains("công viên") || 
+            if (lowerTourType.Contains("vui chơi") ||
+                lowerTourType.Contains("công viên") ||
                 lowerTourType.Contains("giải trí") ||
                 lowerTourType.Contains("paid") ||
                 lowerTourType.Contains("phí"))

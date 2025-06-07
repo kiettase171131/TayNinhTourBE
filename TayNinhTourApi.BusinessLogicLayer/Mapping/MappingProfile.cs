@@ -54,7 +54,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.TotalDuration, opt => opt.Ignore()) // Will be calculated in service
                 .ForMember(dest => dest.StartLocation, opt => opt.MapFrom(src => src.StartLocation))
                 .ForMember(dest => dest.EndLocation, opt => opt.MapFrom(src => src.EndLocation))
-                .ForMember(dest => dest.Duration, opt => opt.MapFrom(src => src.Duration))
+                .ForMember(dest => dest.Duration, opt => opt.Ignore()) // Duration field removed from TourTemplate
                 .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
                 .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => src.UpdatedAt));
             #endregion

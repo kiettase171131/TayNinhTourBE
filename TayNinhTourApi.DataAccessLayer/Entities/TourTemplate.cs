@@ -22,26 +22,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [StringLength(2000)]
         public string? Description { get; set; }
 
-        /// <summary>
-        /// Giá cơ bản của tour (có thể được điều chỉnh cho từng slot cụ thể)
-        /// </summary>
-        [Required]
-        [Range(0, double.MaxValue, ErrorMessage = "Giá tour phải lớn hơn hoặc bằng 0")]
-        public decimal Price { get; set; }
 
-        /// <summary>
-        /// Số lượng khách tối đa cho mỗi tour slot được tạo từ template này
-        /// </summary>
-        [Required]
-        [Range(1, 1000, ErrorMessage = "Số lượng khách phải từ 1 đến 1000")]
-        public int MaxGuests { get; set; }
-
-        /// <summary>
-        /// Thời lượng tour tính bằng giờ
-        /// </summary>
-        [Required]
-        [Range(0.5, 720, ErrorMessage = "Thời lượng tour phải từ 0.5 giờ đến 720 giờ (30 ngày)")]
-        public decimal Duration { get; set; }
 
         /// <summary>
         /// Loại tour template (Standard, Premium, Custom, Group, Private)
@@ -71,64 +52,18 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string EndLocation { get; set; } = null!;
 
         /// <summary>
-        /// Ghi chú đặc biệt hoặc yêu cầu cho tour
+        /// Tháng áp dụng template (1-12)
         /// </summary>
-        [StringLength(1000)]
-        public string? SpecialRequirements { get; set; }
+        [Required]
+        [Range(1, 12, ErrorMessage = "Tháng phải từ 1 đến 12")]
+        public int Month { get; set; }
 
         /// <summary>
-        /// Số lượng tối thiểu khách để tour có thể được tổ chức
+        /// Năm áp dụng template
         /// </summary>
-        [Range(1, int.MaxValue, ErrorMessage = "Số lượng khách tối thiểu phải lớn hơn 0")]
-        public int MinGuests { get; set; } = 1;
-
-        /// <summary>
-        /// Giá cho trẻ em (nếu khác với giá người lớn)
-        /// </summary>
-        [Range(0, double.MaxValue, ErrorMessage = "Giá trẻ em phải lớn hơn hoặc bằng 0")]
-        public decimal? ChildPrice { get; set; }
-
-        /// <summary>
-        /// Độ tuổi tối đa được tính là trẻ em
-        /// </summary>
-        [Range(0, 18, ErrorMessage = "Độ tuổi trẻ em phải từ 0 đến 18")]
-        public int? ChildMaxAge { get; set; }
-
-        /// <summary>
-        /// Thông tin về phương tiện di chuyển
-        /// </summary>
-        [StringLength(200)]
-        public string? Transportation { get; set; }
-
-        /// <summary>
-        /// Thông tin về bữa ăn được bao gồm
-        /// </summary>
-        [StringLength(500)]
-        public string? MealsIncluded { get; set; }
-
-        /// <summary>
-        /// Thông tin về chỗ ở (nếu tour qua đêm)
-        /// </summary>
-        [StringLength(500)]
-        public string? AccommodationInfo { get; set; }
-
-        /// <summary>
-        /// Thông tin về những gì được bao gồm trong giá tour
-        /// </summary>
-        [StringLength(1000)]
-        public string? IncludedServices { get; set; }
-
-        /// <summary>
-        /// Thông tin về những gì không được bao gồm trong giá tour
-        /// </summary>
-        [StringLength(1000)]
-        public string? ExcludedServices { get; set; }
-
-        /// <summary>
-        /// Chính sách hủy tour
-        /// </summary>
-        [StringLength(1000)]
-        public string? CancellationPolicy { get; set; }
+        [Required]
+        [Range(2024, 2030, ErrorMessage = "Năm phải từ 2024 đến 2030")]
+        public int Year { get; set; }
 
         // Navigation Properties
 

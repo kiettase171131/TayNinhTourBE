@@ -4,24 +4,19 @@ using TayNinhTourApi.DataAccessLayer.Enums;
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
 {
     /// <summary>
-    /// DTO cho response của TourTemplate
+    /// DTO cho response của TourTemplate (đã đơn giản hóa)
     /// </summary>
     public class TourTemplateDto
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = null!;
         public string? Description { get; set; }
-        public decimal Price { get; set; }
-        public int MaxGuests { get; set; }
-        public decimal Duration { get; set; }
         public string TemplateType { get; set; } = null!;
         public string ScheduleDays { get; set; } = null!;
         public string StartLocation { get; set; } = null!;
         public string EndLocation { get; set; } = null!;
-        public string? SpecialRequirements { get; set; }
-        public int MinGuests { get; set; }
-        public decimal? ChildPrice { get; set; }
-        public int? ChildMaxAge { get; set; }
+        public int Month { get; set; }
+        public int Year { get; set; }
         public string? Transportation { get; set; }
         public string? MealsIncluded { get; set; }
         public string? AccommodationInfo { get; set; }
@@ -37,30 +32,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     }
 
     /// <summary>
-    /// DTO cho response chi tiết của TourTemplate
+    /// DTO cho response chi tiết của TourTemplate (đã đơn giản hóa)
     /// </summary>
     public class TourTemplateDetailDto
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = null!;
         public string? Description { get; set; }
-        public decimal Price { get; set; }
-        public int MaxGuests { get; set; }
-        public decimal Duration { get; set; }
         public TourTemplateType TemplateType { get; set; }
         public ScheduleDay ScheduleDays { get; set; }
         public string StartLocation { get; set; } = null!;
         public string EndLocation { get; set; } = null!;
-        public string? SpecialRequirements { get; set; }
-        public int MinGuests { get; set; }
-        public decimal? ChildPrice { get; set; }
-        public int? ChildMaxAge { get; set; }
-        public string? Transportation { get; set; }
-        public string? MealsIncluded { get; set; }
-        public string? AccommodationInfo { get; set; }
-        public string? IncludedServices { get; set; }
-        public string? ExcludedServices { get; set; }
-        public string? CancellationPolicy { get; set; }
+        public int Month { get; set; }
+        public int Year { get; set; }
         public bool IsActive { get; set; }
         public List<string> Images { get; set; } = new List<string>();
         public UserCmsDto? CreatedBy { get; set; }
@@ -70,18 +54,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     }
 
     /// <summary>
-    /// DTO cho response summary của TourTemplate (dùng cho listing)
+    /// DTO cho response summary của TourTemplate (dùng cho listing - đã đơn giản hóa)
     /// </summary>
     public class TourTemplateSummaryDto
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = null!;
-        public decimal Price { get; set; }
-        public int MaxGuests { get; set; }
-        public decimal Duration { get; set; }
         public string TemplateType { get; set; } = null!;
         public string StartLocation { get; set; } = null!;
         public string EndLocation { get; set; } = null!;
+        public int Month { get; set; }
+        public int Year { get; set; }
         public bool IsActive { get; set; }
         public List<string> Images { get; set; } = new List<string>();
         public DateTime CreatedAt { get; set; }

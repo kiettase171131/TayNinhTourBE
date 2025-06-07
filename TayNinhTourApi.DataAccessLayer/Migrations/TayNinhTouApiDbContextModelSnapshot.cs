@@ -62,6 +62,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("CommentOfAdmin")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -80,6 +83,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<byte>("Status")
+                        .HasColumnType("tinyint unsigned");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -912,20 +918,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("AccommodationInfo")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("CancellationPolicy")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<int?>("ChildMaxAge")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("ChildPrice")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -936,24 +928,13 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("varchar(2000)");
-
-                    b.Property<decimal>("Duration")
-                        .HasColumnType("decimal(5,2)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("EndLocation")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
-
-                    b.Property<string>("ExcludedServices")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("IncludedServices")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
@@ -961,27 +942,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<int>("MaxGuests")
+                    b.Property<int>("Month")
                         .HasColumnType("int");
-
-                    b.Property<string>("MealsIncluded")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<int>("MinGuests")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("ScheduleDays")
                         .HasColumnType("int");
-
-                    b.Property<string>("SpecialRequirements")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("StartLocation")
                         .IsRequired()
@@ -996,15 +961,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
-                    b.Property<string>("Transportation")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("char(36)");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -1025,11 +989,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.HasIndex("Price", "IsActive")
-                        .HasDatabaseName("IX_TourTemplate_Price_IsActive");
+                    b.HasIndex("Month", "Year")
+                        .HasDatabaseName("IX_TourTemplate_Month_Year");
 
                     b.HasIndex("TemplateType", "IsActive")
                         .HasDatabaseName("IX_TourTemplate_TemplateType_IsActive");
+
+                    b.HasIndex("Year", "Month", "IsActive")
+                        .HasDatabaseName("IX_TourTemplate_Year_Month_IsActive");
 
                     b.ToTable("TourTemplates", (string)null);
                 });
@@ -1220,13 +1187,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.SupportTicket", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Admin")
-                        .WithMany()
-                        .HasForeignKey("AdminId");
+                        .WithMany("TicketsAssigned")
+                        .HasForeignKey("AdminId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
-                        .WithMany()
+                        .WithMany("TicketsCreated")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Admin");
@@ -1237,9 +1205,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.SupportTicketComment", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
-                        .WithMany()
+                        .WithMany("TicketComments")
                         .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.SupportTicket", "SupportTicket")
@@ -1469,6 +1437,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("ShopsCreated");
 
                     b.Navigation("ShopsUpdated");
+
+                    b.Navigation("TicketComments");
+
+                    b.Navigation("TicketsAssigned");
+
+                    b.Navigation("TicketsCreated");
 
                     b.Navigation("TourDetailsCreated");
 

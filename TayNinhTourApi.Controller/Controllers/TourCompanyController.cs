@@ -25,13 +25,20 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ITourTemplateService _tourTemplateService;
         private readonly ITourGuideApplicationService _tourGuideApplicationService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ITourSlotService _tourSlotService;
 
-        public TourCompanyController(ITourCompanyService tourCompanyService, ITourTemplateService tourTemplateService, ITourGuideApplicationService tourGuideApplicationService, ICurrentUserService currentUserService)
+        public TourCompanyController(
+            ITourCompanyService tourCompanyService,
+            ITourTemplateService tourTemplateService,
+            ITourGuideApplicationService tourGuideApplicationService,
+            ICurrentUserService currentUserService,
+            ITourSlotService tourSlotService)
         {
             _tourCompanyService = tourCompanyService;
             _tourTemplateService = tourTemplateService;
             _tourGuideApplicationService = tourGuideApplicationService;
             _currentUserService = currentUserService;
+            _tourSlotService = tourSlotService;
         }
 
         [HttpGet("tour")]
@@ -92,8 +99,6 @@ namespace TayNinhTourApi.Controller.Controllers
             int pageIndex = 1,
             int pageSize = 10,
             string? templateType = null,
-            decimal? minPrice = null,
-            decimal? maxPrice = null,
             string? startLocation = null,
             bool includeInactive = false)
         {
@@ -106,7 +111,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
             // Convert 1-based pageIndex to 0-based for service
             var response = await _tourTemplateService.GetTourTemplatesPaginatedAsync(
-                pageIndex - 1, pageSize, parsedTemplateType, minPrice, maxPrice, startLocation, includeInactive);
+                pageIndex - 1, pageSize, parsedTemplateType, null, null, startLocation, includeInactive);
             return StatusCode(response.StatusCode, response);
         }
 
@@ -129,6 +134,40 @@ namespace TayNinhTourApi.Controller.Controllers
             }
 
             var response = await _tourTemplateService.CreateTourTemplateAsync(request, userId);
+
+            // Nếu tạo template thành công, tự động generate slots cho tháng đã chọn
+            if (response.StatusCode == 201 && response.Data != null)
+            {
+                try
+                {
+                    var generateSlotsRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourSlot.RequestGenerateSlotsDto
+                    {
+                        TourTemplateId = response.Data.Id,
+                        Month = request.Month,
+                        Year = request.Year,
+                        OverwriteExisting = false,
+                        AutoActivate = true
+                    };
+
+                    var slotsResponse = await _tourSlotService.GenerateSlotsAsync(generateSlotsRequest);
+
+                    // Thêm thông tin về slots vào response message
+                    if (slotsResponse.IsSuccess)
+                    {
+                        response.Message += $" và đã tạo {slotsResponse.CreatedSlotsCount} slots cho tháng {request.Month}/{request.Year}";
+                    }
+                    else
+                    {
+                        response.Message += $" nhưng không thể tạo slots: {slotsResponse.Message}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log error nhưng không fail toàn bộ request
+                    response.Message += " nhưng có lỗi khi tạo slots tự động";
+                }
+            }
+
             return StatusCode(response.StatusCode, response);
         }
 

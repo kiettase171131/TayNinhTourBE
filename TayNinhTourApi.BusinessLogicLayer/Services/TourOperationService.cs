@@ -69,14 +69,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                if (request.MaxSeats > template.MaxGuests)
-                {
-                    return new ResponseCreateOperationDto
-                    {
-                        IsSuccess = false,
-                        Message = $"Số ghế không được vượt quá {template.MaxGuests}"
-                    };
-                }
+                // MaxGuests validation removed - now managed at operation level
 
                 // 4. Validate Guide (nếu có)
                 if (request.GuideId.HasValue)
@@ -201,14 +194,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var tourSlot = await _unitOfWork.TourSlotRepository.GetByIdAsync(operation.TourSlotId);
                     var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourSlot!.TourTemplateId);
 
-                    if (request.MaxSeats > template!.MaxGuests)
-                    {
-                        return new ResponseUpdateOperationDto
-                        {
-                            IsSuccess = false,
-                            Message = $"Số ghế không được vượt quá {template.MaxGuests}"
-                        };
-                    }
+                    // MaxGuests validation removed - now managed at operation level
                 }
 
                 // 3. Validate Guide (nếu thay đổi)
@@ -353,8 +339,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (template == null)
                     return (false, "Template không tồn tại");
 
-                if (request.MaxSeats > template.MaxGuests)
-                    return (false, $"Số ghế không được vượt quá {template.MaxGuests}");
+                // MaxGuests validation removed - now managed at operation level
 
                 // Check guide if provided
                 if (request.GuideId.HasValue)
