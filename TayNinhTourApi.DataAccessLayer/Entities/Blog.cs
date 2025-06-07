@@ -15,7 +15,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string Title { get; set; } = null!;
         public string Content { get; set; } = null!;
         public string AuthorName { get; set; } = null!;
-        public string CommentOfAdmin { get; set; } = null!;
+        public string? CommentOfAdmin { get; set; } 
 
 
         public virtual ICollection<BlogImage> BlogImages { get; set; } = new List<BlogImage>();

@@ -138,6 +138,7 @@ builder.Services.AddScoped<IShopService, ShopService>();
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
+builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
 
 
 // Register repositories layer

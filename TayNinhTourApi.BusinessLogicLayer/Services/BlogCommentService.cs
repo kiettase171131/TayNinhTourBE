@@ -7,6 +7,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -32,6 +33,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 404,
                     Message = "Blog not found"
+                };
+            }
+            if (blog.Status != (byte)BlogStatus.Accepted)
+            {
+                return new ResponseCommentDto
+                {
+                    StatusCode = 404,
+                    Message = "Blog isn't acceepted, cannot comment"
                 };
             }
 
