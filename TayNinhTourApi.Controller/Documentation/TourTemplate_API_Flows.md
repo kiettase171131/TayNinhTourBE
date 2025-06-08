@@ -32,14 +32,16 @@ Authorization: Bearer {jwt-token}
    - Verify user has `TOURCOMPANY` role
    - Check user status (active/inactive)
 
-**Step 2: Input Validation**
+**Step 2: Input Validation (Đã đơn giản hóa)**
 ```json
 {
   "title": "Tour Núi Bà Đen",
   "templateType": "FreeScenic",
   "scheduleDays": "Saturday",
-  "price": 0,
-  "maxGuests": 20
+  "startLocation": "TP.HCM",
+  "endLocation": "Tây Ninh",
+  "month": 6,
+  "year": 2025
 }
 ```
 
@@ -47,9 +49,10 @@ Authorization: Bearer {jwt-token}
 - `title`: Required, 1-200 chars
 - `templateType`: Must be `FreeScenic` or `PaidAttraction`
 - `scheduleDays`: Must be `Saturday` OR `Sunday` (not both)
-- `price`: >= 0, <= 100,000,000
-- `maxGuests`: > 0, <= 1000
-- `minGuests`: >= 1, <= maxGuests
+- `startLocation`: Required, 1-500 chars
+- `endLocation`: Required, 1-500 chars
+- `month`: Required, 1-12
+- `year`: Required, 2024-2030
 
 **Step 3: Business Rules Validation**
 ```csharp
@@ -452,20 +455,22 @@ tour.Description = $"[MIGRATED TO TEMPLATE {newTemplate.Id}] {tour.Description}"
 
 ### **Frontend Integration Flow**
 
-#### **Complete Tour Creation Workflow**
+#### **Complete Tour Creation Workflow (v2.0 - Simplified)**
 ```
-1. [Load Template Form] 
+1. [Load Simplified Template Form] → [9 fields only]
    ↓
-2. [Validate Input] → [Show Errors] 
+2. [Validate Input] → [Show Errors]
    ↓
-3. [Create Template] → [Success/Error Response]
+3. [Create Template] → [Success Response]
    ↓
-4. [Generate Initial Slots] → [4 Slots Created]
+4. [AUTO: Generate 4 Slots] → [For selected Month/Year]
    ↓
 5. [Add Timeline Items] → [Shop Integration]
    ↓
 6. [Template Ready] → [Redirect to Management]
 ```
+
+**✨ New Feature**: Tự động generate slots sau khi tạo template thành công
 
 #### **Template Management Workflow**
 ```

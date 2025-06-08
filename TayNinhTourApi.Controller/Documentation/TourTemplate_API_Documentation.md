@@ -38,12 +38,10 @@ GET /api/TourCompany/template
 | `pageIndex` | integer | No | Trang hiện tại (default: 1) | `1` |
 | `pageSize` | integer | No | Số items per page (default: 10, max: 100) | `20` |
 | `templateType` | string | No | Loại template (`FreeScenic`, `PaidAttraction`) | `FreeScenic` |
-| `minPrice` | decimal | No | Giá tối thiểu | `0` |
-| `maxPrice` | decimal | No | Giá tối đa | `1000000` |
 | `startLocation` | string | No | Điểm khởi hành | `TP.HCM` |
-| `endLocation` | string | No | Điểm kết thúc | `Tây Ninh` |
 | `includeInactive` | boolean | No | Bao gồm templates không active (default: false) | `true` |
-| `searchKeyword` | string | No | Tìm kiếm theo title/description | `núi bà đen` |
+
+**⚠️ Đã xóa**: `minPrice`, `maxPrice`, `endLocation`, `searchKeyword` filters (Price field đã bị xóa khỏi TourTemplate)
 
 #### Response
 
@@ -203,45 +201,39 @@ Tạo tour template mới.
 POST /api/TourCompany/template
 ```
 
-#### Request Body
+#### Request Body (Đã đơn giản hóa)
 
 ```json
 {
   "title": "Tour Núi Bà Đen",
   "description": "Tour khám phá núi Bà Đen với cảnh đẹp thiên nhiên",
-  "price": 0,
-  "childPrice": null,
-  "childMaxAge": null,
-  "maxGuests": 20,
-  "minGuests": 5,
-  "duration": 1,
   "templateType": "FreeScenic",
   "scheduleDays": "Saturday",
   "startLocation": "TP.HCM",
   "endLocation": "Tây Ninh",
-  "specialRequirements": "Mang giày thể thao",
+  "month": 6,
+  "year": 2025,
   "images": ["image1.jpg", "image2.jpg"]
 }
 ```
+
+**⚠️ Đã xóa**: `price`, `childPrice`, `childMaxAge`, `maxGuests`, `minGuests`, `duration`, `specialRequirements` (Các thông tin chi tiết sẽ được quản lý ở TourDetails level)
 
 #### Request Body Schema
 
 | Field | Type | Required | Constraints | Description |
 |-------|------|----------|-------------|-------------|
-| `title` | string | Yes | 1-200 chars | Tiêu đề tour template |
-| `description` | string | Yes | 1-2000 chars | Mô tả chi tiết |
-| `price` | decimal | Yes | >= 0, <= 100,000,000 | Giá tour (VND) |
-| `childPrice` | decimal | No | >= 0, <= price | Giá trẻ em (VND) |
-| `childMaxAge` | integer | No | 1-17 | Tuổi tối đa trẻ em |
-| `maxGuests` | integer | Yes | 1-1000 | Số khách tối đa |
-| `minGuests` | integer | Yes | 1-maxGuests | Số khách tối thiểu |
-| `duration` | integer | Yes | 1-30 | Thời gian tour (ngày) |
+| `title` | string | Yes | 1-200 chars | Tên tour template |
+| `description` | string | No | max 1000 chars | Mô tả chi tiết |
 | `templateType` | string | Yes | `FreeScenic`, `PaidAttraction` | Loại tour template |
 | `scheduleDays` | string | Yes | `Saturday`, `Sunday` | Ngày trong tuần (chỉ 1 ngày) |
-| `startLocation` | string | Yes | 1-100 chars | Điểm khởi hành |
-| `endLocation` | string | Yes | 1-100 chars | Điểm kết thúc |
-| `specialRequirements` | string | No | max 500 chars | Yêu cầu đặc biệt |
-| `images` | array[string] | No | max 10 items | Danh sách tên file ảnh |
+| `startLocation` | string | Yes | 1-500 chars | Điểm bắt đầu |
+| `endLocation` | string | Yes | 1-500 chars | Điểm kết thúc |
+| `month` | integer | Yes | 1-12 | Tháng áp dụng |
+| `year` | integer | Yes | 2024-2030 | Năm áp dụng |
+| `images` | array[string] | No | max 10 items | Danh sách URL ảnh |
+
+**✨ Tính năng mới**: Tự động generate 4 slots cho tháng đã chọn sau khi tạo template thành công
 
 #### Response
 
@@ -295,13 +287,14 @@ PATCH /api/TourCompany/template/{id}
 |-----------|------|----------|-------------|
 | `id` | string (UUID) | Yes | ID của tour template |
 
-#### Request Body
+#### Request Body (Đã đơn giản hóa)
 
 ```json
 {
   "title": "Tour Núi Bà Đen - Cập nhật",
-  "price": 50000,
-  "description": "Mô tả mới"
+  "description": "Mô tả mới",
+  "templateType": "PaidAttraction",
+  "images": ["new_image1.jpg"]
 }
 ```
 
@@ -488,7 +481,7 @@ POST /api/TourCompany/template/{id}/copy
 
 ### cURL Examples
 
-#### Create Tour Template
+#### Create Tour Template (Đã đơn giản hóa)
 ```bash
 curl -X POST "https://api.tayninhour.com/api/TourCompany/template" \
   -H "Authorization: Bearer your-jwt-token" \
@@ -496,20 +489,19 @@ curl -X POST "https://api.tayninhour.com/api/TourCompany/template" \
   -d '{
     "title": "Tour Núi Bà Đen",
     "description": "Tour khám phá núi Bà Đen",
-    "price": 0,
-    "maxGuests": 20,
-    "minGuests": 5,
-    "duration": 1,
     "templateType": "FreeScenic",
     "scheduleDays": "Saturday",
     "startLocation": "TP.HCM",
-    "endLocation": "Tây Ninh"
+    "endLocation": "Tây Ninh",
+    "month": 6,
+    "year": 2025,
+    "images": ["image1.jpg", "image2.jpg"]
   }'
 ```
 
-#### Get Templates with Filter
+#### Get Templates with Filter (Đã cập nhật)
 ```bash
-curl -X GET "https://api.tayninhour.com/api/TourCompany/template?templateType=FreeScenic&pageSize=20" \
+curl -X GET "https://api.tayninhour.com/api/TourCompany/template?templateType=FreeScenic&startLocation=TP.HCM&pageSize=20" \
   -H "Authorization: Bearer your-jwt-token"
 ```
 

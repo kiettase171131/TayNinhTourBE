@@ -85,24 +85,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<TourDetails>> GetByDurationRangeAsync(int minDuration, int maxDuration, bool includeInactive = false)
-        {
-            var query = _context.TourDetails
-                .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
-                .Include(td => td.CreatedBy)
-                .Include(td => td.UpdatedBy)
-                .Where(td => td.TourTemplate.Duration >= minDuration && td.TourTemplate.Duration <= maxDuration);
 
-            if (!includeInactive)
-            {
-                query = query.Where(td => td.IsActive && !td.IsDeleted);
-            }
-
-            return await query
-                .OrderBy(td => td.TourTemplate.Duration)
-                .ToListAsync();
-        }
 
         public async Task<TourDetails?> GetByTemplateAndSortOrderAsync(Guid tourTemplateId, int sortOrder)
         {
@@ -111,8 +94,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(td => td.Shop)
                 .Include(td => td.CreatedBy)
                 .Include(td => td.UpdatedBy)
-                .FirstOrDefaultAsync(td => td.TourTemplateId == tourTemplateId && 
-                                          td.SortOrder == sortOrder && 
+                .FirstOrDefaultAsync(td => td.TourTemplateId == tourTemplateId &&
+                                          td.SortOrder == sortOrder &&
                                           !td.IsDeleted);
         }
 
@@ -141,8 +124,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         public async Task UpdateSortOrdersAsync(Guid tourTemplateId, int fromSortOrder, int increment)
         {
             var detailsToUpdate = await _context.TourDetails
-                .Where(td => td.TourTemplateId == tourTemplateId && 
-                            td.SortOrder >= fromSortOrder && 
+                .Where(td => td.TourTemplateId == tourTemplateId &&
+                            td.SortOrder >= fromSortOrder &&
                             !td.IsDeleted)
                 .ToListAsync();
 

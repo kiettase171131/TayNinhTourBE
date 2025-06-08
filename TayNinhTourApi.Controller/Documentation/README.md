@@ -228,6 +228,16 @@ Xem trong [TourTemplate_API_Documentation.md](./TourTemplate_API_Documentation.m
 
 ## 📝 Changelog
 
+### **v2.0.0** (June 7, 2025) - Simplified TourTemplate API
+- ✅ **BREAKING CHANGE**: Đơn giản hóa RequestCreateTourTemplateDto (chỉ còn 9 fields)
+- ✅ **Xóa fields**: Price, MaxGuests, MinGuests, Duration, ChildPrice, ChildMaxAge, Transportation, MealsIncluded, AccommodationInfo, IncludedServices, ExcludedServices, CancellationPolicy, SpecialRequirements
+- ✅ **Thêm fields**: Month, Year cho template scheduling
+- ✅ **Tự động generate slots**: Sau khi tạo template thành công
+- ✅ **Cập nhật Response DTOs**: TourTemplateDto, TourTemplateDetailDto, TourTemplateSummaryDto
+- ✅ **Xóa Price filters**: Từ GET templates API
+- ✅ **Database migration**: SimplifyTourTemplate migration
+- ✅ **Cập nhật documentation**: API docs, flows, examples
+
 ### **v1.0.0** (June 3, 2025)
 - ✅ Initial TourTemplate API release
 - ✅ Saturday OR Sunday constraint implementation

@@ -25,14 +25,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <returns>Danh sách tour templates</returns>
         Task<IEnumerable<TourTemplate>> GetByCreatedByAsync(Guid createdById, bool includeInactive = false);
 
-        /// <summary>
-        /// Lấy danh sách tour templates theo khoảng giá
-        /// </summary>
-        /// <param name="minPrice">Giá tối thiểu</param>
-        /// <param name="maxPrice">Giá tối đa</param>
-        /// <param name="includeInactive">Có bao gồm templates không active không</param>
-        /// <returns>Danh sách tour templates</returns>
-        Task<IEnumerable<TourTemplate>> GetByPriceRangeAsync(decimal minPrice, decimal maxPrice, bool includeInactive = false);
+
 
         /// <summary>
         /// Lấy danh sách tour templates theo điểm khởi hành
@@ -99,8 +92,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="includeInactive">Có bao gồm templates không active không</param>
         /// <returns>Danh sách tour templates với pagination</returns>
         Task<(IEnumerable<TourTemplate> Templates, int TotalCount)> GetPaginatedAsync(
-            int pageIndex, 
-            int pageSize, 
+            int pageIndex,
+            int pageSize,
             TourTemplateType? templateType = null,
             decimal? minPrice = null,
             decimal? maxPrice = null,

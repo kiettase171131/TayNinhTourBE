@@ -48,21 +48,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await query.OrderByDescending(t => t.CreatedAt).ToListAsync();
         }
 
-        public async Task<IEnumerable<TourTemplate>> GetByPriceRangeAsync(decimal minPrice, decimal maxPrice, bool includeInactive = false)
-        {
-            var query = _context.TourTemplates
-                .Include(t => t.CreatedBy)
-                .Include(t => t.UpdatedBy)
-                .Include(t => t.Images)
-                .Where(t => t.Price >= minPrice && t.Price <= maxPrice);
 
-            if (!includeInactive)
-            {
-                query = query.Where(t => t.IsActive && !t.IsDeleted);
-            }
-
-            return await query.OrderBy(t => t.Price).ToListAsync();
-        }
 
         public async Task<IEnumerable<TourTemplate>> GetByStartLocationAsync(string startLocation, bool includeInactive = false)
         {
@@ -118,7 +104,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(t => t.CreatedBy)
                 .Include(t => t.UpdatedBy)
                 .Include(t => t.Images)
-                .Where(t => t.Title.Contains(keyword) || 
+                .Where(t => t.Title.Contains(keyword) ||
                            (t.Description != null && t.Description.Contains(keyword)) ||
                            t.StartLocation.Contains(keyword) ||
                            t.EndLocation.Contains(keyword));
@@ -190,15 +176,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 query = query.Where(t => t.TemplateType == templateType.Value);
             }
 
-            if (minPrice.HasValue)
-            {
-                query = query.Where(t => t.Price >= minPrice.Value);
-            }
 
-            if (maxPrice.HasValue)
-            {
-                query = query.Where(t => t.Price <= maxPrice.Value);
-            }
 
             if (!string.IsNullOrEmpty(startLocation))
             {

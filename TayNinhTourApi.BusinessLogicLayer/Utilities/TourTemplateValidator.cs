@@ -24,56 +24,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             // Title validation
             if (string.IsNullOrWhiteSpace(request.Title))
             {
-                AddFieldError(result, nameof(request.Title), "Tiêu đề tour template là bắt buộc");
+                AddFieldError(result, nameof(request.Title), "Tên template là bắt buộc");
             }
             else if (request.Title.Length > 200)
             {
-                AddFieldError(result, nameof(request.Title), "Tiêu đề không được vượt quá 200 ký tự");
-            }
-
-            // Price validation
-            if (request.Price < 0)
-            {
-                AddFieldError(result, nameof(request.Price), "Giá tour phải lớn hơn hoặc bằng 0");
-            }
-            else if (request.Price > 100000000) // 100 million VND
-            {
-                AddFieldError(result, nameof(request.Price), "Giá tour không được vượt quá 100,000,000 VND");
-            }
-
-            // Guests validation
-            if (request.MaxGuests <= 0)
-            {
-                AddFieldError(result, nameof(request.MaxGuests), "Số lượng khách tối đa phải lớn hơn 0");
-            }
-            else if (request.MaxGuests > 1000)
-            {
-                AddFieldError(result, nameof(request.MaxGuests), "Số lượng khách tối đa không được vượt quá 1000");
-            }
-
-            if (request.MinGuests < 1)
-            {
-                AddFieldError(result, nameof(request.MinGuests), "Số lượng khách tối thiểu phải ít nhất là 1");
-            }
-            else if (request.MinGuests > request.MaxGuests)
-            {
-                AddFieldError(result, nameof(request.MinGuests), "Số lượng khách tối thiểu không được lớn hơn số lượng khách tối đa");
-            }
-
-            // Duration validation
-            if (request.Duration <= 0)
-            {
-                AddFieldError(result, nameof(request.Duration), "Thời gian tour phải lớn hơn 0");
-            }
-            else if (request.Duration > 30) // Max 30 days
-            {
-                AddFieldError(result, nameof(request.Duration), "Thời gian tour không được vượt quá 30 ngày");
+                AddFieldError(result, nameof(request.Title), "Tên template không được vượt quá 200 ký tự");
             }
 
             // Location validation
             if (string.IsNullOrWhiteSpace(request.StartLocation))
             {
-                AddFieldError(result, nameof(request.StartLocation), "Điểm khởi hành là bắt buộc");
+                AddFieldError(result, nameof(request.StartLocation), "Điểm bắt đầu là bắt buộc");
             }
 
             if (string.IsNullOrWhiteSpace(request.EndLocation))
@@ -81,22 +42,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
                 AddFieldError(result, nameof(request.EndLocation), "Điểm kết thúc là bắt buộc");
             }
 
-            // Child price validation
-            if (request.ChildPrice.HasValue)
+            // Month validation
+            if (request.Month < 1 || request.Month > 12)
             {
-                if (request.ChildPrice < 0)
-                {
-                    AddFieldError(result, nameof(request.ChildPrice), "Giá trẻ em phải lớn hơn hoặc bằng 0");
-                }
-                else if (request.ChildPrice > request.Price)
-                {
-                    AddFieldError(result, nameof(request.ChildPrice), "Giá trẻ em không được lớn hơn giá người lớn");
-                }
+                AddFieldError(result, nameof(request.Month), "Tháng phải từ 1 đến 12");
+            }
 
-                if (request.ChildMaxAge.HasValue && (request.ChildMaxAge < 1 || request.ChildMaxAge > 17))
-                {
-                    AddFieldError(result, nameof(request.ChildMaxAge), "Độ tuổi tối đa trẻ em phải từ 1 đến 17");
-                }
+            // Year validation
+            if (request.Year < 2024 || request.Year > 2030)
+            {
+                AddFieldError(result, nameof(request.Year), "Năm phải từ 2024 đến 2030");
+            }
+
+            // ScheduleDay validation (Saturday OR Sunday only)
+            var scheduleValidation = TourTemplateScheduleValidator.ValidateScheduleDay(request.ScheduleDays);
+            if (!scheduleValidation.IsValid)
+            {
+                AddFieldError(result, nameof(request.ScheduleDays), scheduleValidation.ErrorMessage ?? "Chỉ được chọn Thứ 7 hoặc Chủ nhật");
             }
 
             // Set validation result
@@ -127,83 +89,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             {
                 if (request.Title.Length > 200)
                 {
-                    AddFieldError(result, nameof(request.Title), "Tiêu đề không được vượt quá 200 ký tự");
+                    AddFieldError(result, nameof(request.Title), "Tên template không được vượt quá 200 ký tự");
                 }
             }
 
-            if (request.Price.HasValue)
+            // Validate ScheduleDay if being updated
+            if (request.ScheduleDays.HasValue)
             {
-                if (request.Price < 0)
+                var scheduleValidation = TourTemplateScheduleValidator.ValidateScheduleDay(request.ScheduleDays.Value);
+                if (!scheduleValidation.IsValid)
                 {
-                    AddFieldError(result, nameof(request.Price), "Giá tour phải lớn hơn hoặc bằng 0");
+                    AddFieldError(result, nameof(request.ScheduleDays), scheduleValidation.ErrorMessage ?? "Chỉ được chọn Thứ 7 hoặc Chủ nhật");
                 }
-                else if (request.Price > 100000000)
-                {
-                    AddFieldError(result, nameof(request.Price), "Giá tour không được vượt quá 100,000,000 VND");
-                }
-            }
-
-            if (request.MaxGuests.HasValue)
-            {
-                if (request.MaxGuests <= 0)
-                {
-                    AddFieldError(result, nameof(request.MaxGuests), "Số lượng khách tối đa phải lớn hơn 0");
-                }
-                else if (request.MaxGuests > 1000)
-                {
-                    AddFieldError(result, nameof(request.MaxGuests), "Số lượng khách tối đa không được vượt quá 1000");
-                }
-
-                var minGuests = request.MinGuests ?? existingTemplate.MinGuests;
-                if (minGuests > request.MaxGuests)
-                {
-                    AddFieldError(result, nameof(request.MaxGuests), "Số lượng khách tối đa không được nhỏ hơn số lượng khách tối thiểu");
-                }
-            }
-
-            if (request.MinGuests.HasValue)
-            {
-                if (request.MinGuests < 1)
-                {
-                    AddFieldError(result, nameof(request.MinGuests), "Số lượng khách tối thiểu phải ít nhất là 1");
-                }
-
-                var maxGuests = request.MaxGuests ?? existingTemplate.MaxGuests;
-                if (request.MinGuests > maxGuests)
-                {
-                    AddFieldError(result, nameof(request.MinGuests), "Số lượng khách tối thiểu không được lớn hơn số lượng khách tối đa");
-                }
-            }
-
-            if (request.Duration.HasValue)
-            {
-                if (request.Duration <= 0)
-                {
-                    AddFieldError(result, nameof(request.Duration), "Thời gian tour phải lớn hơn 0");
-                }
-                else if (request.Duration > 30)
-                {
-                    AddFieldError(result, nameof(request.Duration), "Thời gian tour không được vượt quá 30 ngày");
-                }
-            }
-
-            if (request.ChildPrice.HasValue)
-            {
-                if (request.ChildPrice < 0)
-                {
-                    AddFieldError(result, nameof(request.ChildPrice), "Giá trẻ em phải lớn hơn hoặc bằng 0");
-                }
-
-                var adultPrice = request.Price ?? existingTemplate.Price;
-                if (request.ChildPrice > adultPrice)
-                {
-                    AddFieldError(result, nameof(request.ChildPrice), "Giá trẻ em không được lớn hơn giá người lớn");
-                }
-            }
-
-            if (request.ChildMaxAge.HasValue && (request.ChildMaxAge < 1 || request.ChildMaxAge > 17))
-            {
-                AddFieldError(result, nameof(request.ChildMaxAge), "Độ tuổi tối đa trẻ em phải từ 1 đến 17");
             }
 
             // Set validation result
@@ -229,23 +126,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
                 StatusCode = 200
             };
 
-            // NEW CONSTRAINT: Validate Saturday OR Sunday only (not both)
+            // Validate Saturday OR Sunday only (not both)
             var scheduleValidation = TourTemplateScheduleValidator.ValidateScheduleDay(template.ScheduleDays);
             if (!scheduleValidation.IsValid)
             {
                 AddFieldError(result, "ScheduleDays", scheduleValidation.ErrorMessage ?? "Lỗi validation schedule day");
             }
 
-            // Check price consistency
-            if (template.ChildPrice.HasValue && template.ChildPrice > template.Price)
+            // Validate Month/Year combination
+            if (template.Month < 1 || template.Month > 12)
             {
-                AddFieldError(result, "ChildPrice", "Giá trẻ em không được lớn hơn giá người lớn");
+                AddFieldError(result, "Month", "Tháng phải từ 1 đến 12");
             }
 
-            // Check guest capacity
-            if (template.MinGuests > template.MaxGuests)
+            if (template.Year < 2024 || template.Year > 2030)
             {
-                AddFieldError(result, "MinGuests", "Số lượng khách tối thiểu không được lớn hơn số lượng khách tối đa");
+                AddFieldError(result, "Year", "Năm phải từ 2024 đến 2030");
             }
 
             // Set validation result

@@ -21,18 +21,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasMaxLength(200);
 
             builder.Property(t => t.Description)
-                .HasMaxLength(2000);
-
-            builder.Property(t => t.Price)
-                .IsRequired()
-                .HasColumnType("decimal(18,2)");
-
-            builder.Property(t => t.MaxGuests)
-                .IsRequired();
-
-            builder.Property(t => t.Duration)
-                .IsRequired()
-                .HasColumnType("decimal(5,2)");
+                .HasMaxLength(1000);
 
             builder.Property(t => t.TemplateType)
                 .IsRequired()
@@ -50,38 +39,14 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired()
                 .HasMaxLength(500);
 
-            builder.Property(t => t.SpecialRequirements)
-                .HasMaxLength(1000);
+            builder.Property(t => t.Month)
+                .IsRequired();
 
-            builder.Property(t => t.MinGuests)
-                .IsRequired()
-                .HasDefaultValue(1);
-
-            builder.Property(t => t.ChildPrice)
-                .HasColumnType("decimal(18,2)");
-
-            builder.Property(t => t.ChildMaxAge);
-
-            builder.Property(t => t.Transportation)
-                .HasMaxLength(200);
-
-            builder.Property(t => t.MealsIncluded)
-                .HasMaxLength(500);
-
-            builder.Property(t => t.AccommodationInfo)
-                .HasMaxLength(500);
-
-            builder.Property(t => t.IncludedServices)
-                .HasMaxLength(1000);
-
-            builder.Property(t => t.ExcludedServices)
-                .HasMaxLength(1000);
-
-            builder.Property(t => t.CancellationPolicy)
-                .HasMaxLength(1000);
+            builder.Property(t => t.Year)
+                .IsRequired();
 
             // Foreign Key Relationships
-            
+
             // CreatedBy relationship
             builder.HasOne(t => t.CreatedBy)
                 .WithMany(u => u.TourTemplatesCreated)
@@ -128,8 +93,11 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.HasIndex(t => new { t.TemplateType, t.IsActive })
                 .HasDatabaseName("IX_TourTemplate_TemplateType_IsActive");
 
-            builder.HasIndex(t => new { t.Price, t.IsActive })
-                .HasDatabaseName("IX_TourTemplate_Price_IsActive");
+            builder.HasIndex(t => new { t.Month, t.Year })
+                .HasDatabaseName("IX_TourTemplate_Month_Year");
+
+            builder.HasIndex(t => new { t.Year, t.Month, t.IsActive })
+                .HasDatabaseName("IX_TourTemplate_Year_Month_IsActive");
 
             // Table Configuration
             builder.ToTable("TourTemplates");

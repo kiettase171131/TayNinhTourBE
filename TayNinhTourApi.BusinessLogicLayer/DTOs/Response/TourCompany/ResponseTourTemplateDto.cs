@@ -60,7 +60,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     }
 
     /// <summary>
-    /// DTO cho thống kê tour templates
+    /// DTO cho thống kê tour templates (đã đơn giản hóa)
     /// </summary>
     public class TourTemplateStatistics
     {
@@ -70,9 +70,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public int DeletedTemplates { get; set; }
         public Dictionary<string, int> TemplatesByType { get; set; } = new Dictionary<string, int>();
         public Dictionary<string, int> TemplatesByLocation { get; set; } = new Dictionary<string, int>();
-        public decimal AveragePrice { get; set; }
-        public decimal MinPrice { get; set; }
-        public decimal MaxPrice { get; set; }
+        public Dictionary<string, int> TemplatesByMonth { get; set; } = new Dictionary<string, int>();
+        public Dictionary<string, int> TemplatesByYear { get; set; } = new Dictionary<string, int>();
         public int TotalBookings { get; set; }
         public decimal TotalRevenue { get; set; }
     }
