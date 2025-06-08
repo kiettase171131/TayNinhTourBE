@@ -11,6 +11,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
@@ -22,13 +23,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IBlogRepository _blogRepository;
+        private readonly IBlogCommentRepository _blogCommentRepository;
+        private readonly IBlogReactionRepository _blogReactionRepository;
 
-        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo)
+        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository)
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _blogRepository = repo;
+            _blogCommentRepository = blogCommentRepository;
+            _blogReactionRepository = blogReactionRepository;
         }
 
         public async Task<BaseResposeDto> DeleteUserAsync(Guid id)
@@ -82,14 +87,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             // Get tours from repository
             var blogs = await _blogRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate, include);
-
+            var blogIds = blogs.Select(b => b.Id).ToList();
+            var likeCounts = await _blogReactionRepository.GetLikeCountsAsync(blogIds);
+            var dislikeCounts = await _blogReactionRepository.GetDislikeCountsAsync(blogIds);
+            var commentCounts = await _blogCommentRepository.GetCommentCountsAsync(blogIds);
+            var dtos = _mapper.Map<List<BlogDto>>(blogs);
+            dtos.ForEach(dto =>
+            {
+                dto.TotalLikes = likeCounts.GetValueOrDefault(dto.Id, 0);
+                dto.TotalDislikes = dislikeCounts.GetValueOrDefault(dto.Id, 0);
+                dto.TotalComments = commentCounts.GetValueOrDefault(dto.Id, 0);
+            });
             var totalblogs = blogs.Count();
             var totalPages = (int)Math.Ceiling((double)totalblogs / pageSizeValue);
 
             return new ResponseGetBlogsDto
             {
                 StatusCode = 200,
-                Data = _mapper.Map<List<BlogDto>>(blogs),
+                Message = "Blog found successfully",
+                Data = dtos,
                 TotalRecord = totalblogs,
                 TotalPages = totalPages,
             };

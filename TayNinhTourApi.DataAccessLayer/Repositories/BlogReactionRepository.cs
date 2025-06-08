@@ -33,5 +33,23 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.BlogReactions
                  .FirstOrDefaultAsync(br => br.BlogId == blogId && br.UserId == userId);
         }
+
+        public async Task<Dictionary<Guid, int>> GetDislikeCountsAsync(IEnumerable<Guid> blogIds)
+        {
+            return await _context.BlogReactions
+            .Where(r => blogIds.Contains(r.BlogId) && r.Reaction == BlogStatusEnum.Dislike)
+            .GroupBy(r => r.BlogId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count);
+        }
+
+        public async Task<Dictionary<Guid, int>> GetLikeCountsAsync(IEnumerable<Guid> blogIds)
+        {
+            return await _context.BlogReactions
+           .Where(r => blogIds.Contains(r.BlogId) && r.Reaction == BlogStatusEnum.Like)
+           .GroupBy(r => r.BlogId)
+           .Select(g => new { g.Key, Count = g.Count() })
+           .ToDictionaryAsync(x => x.Key, x => x.Count);
+        }
     }
 }

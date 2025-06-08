@@ -16,5 +16,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog
         public string CommentOfAdmin { get; set; } = null!;
         public byte Status { get; set; }
         public List<string> ImageUrl { get; set; } =  new();
+        public int TotalLikes { get; set; }
+        public int TotalDislikes { get; set; }
+        public int TotalComments { get; set; }
     }
 }

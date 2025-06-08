@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -32,6 +34,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 404,
                     Message = "Blog not found"
+                };
+            }
+            if (blog.Status != (byte)BlogStatus.Accepted)
+            {
+                return new ResponseBlogReactionDto
+                {
+                    StatusCode = 400,
+                    Message = "Blog is not accepted, cannot reaction"
                 };
             }
 
