@@ -16,6 +16,15 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
         }
 
+        public async Task<Dictionary<Guid, int>> GetCommentCountsAsync(IEnumerable<Guid> blogIds)
+        {
+            return await _context.BlogComments
+           .Where(c => blogIds.Contains(c.BlogId))
+           .GroupBy(c => c.BlogId)
+           .Select(g => new { BlogId = g.Key, Count = g.Count() })
+           .ToDictionaryAsync(x => x.BlogId, x => x.Count);
+        }
+
         public async Task<IEnumerable<BlogComment>> ListByBlogAsync(Guid blogId)
         {
             return await _context.BlogComments

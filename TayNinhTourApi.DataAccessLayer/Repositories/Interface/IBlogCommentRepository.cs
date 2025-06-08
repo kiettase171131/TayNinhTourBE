@@ -10,5 +10,6 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
     public interface IBlogCommentRepository : IGenericRepository<BlogComment>
     {
         Task<IEnumerable<BlogComment>> ListByBlogAsync(Guid blogId);
+        Task<Dictionary<Guid, int>> GetCommentCountsAsync(IEnumerable<Guid> blogIds);
     }
 }
