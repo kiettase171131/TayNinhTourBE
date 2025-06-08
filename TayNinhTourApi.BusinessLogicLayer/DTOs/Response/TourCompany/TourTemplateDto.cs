@@ -17,12 +17,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string EndLocation { get; set; } = null!;
         public int Month { get; set; }
         public int Year { get; set; }
-        public string? Transportation { get; set; }
-        public string? MealsIncluded { get; set; }
-        public string? AccommodationInfo { get; set; }
-        public string? IncludedServices { get; set; }
-        public string? ExcludedServices { get; set; }
-        public string? CancellationPolicy { get; set; }
         public bool IsActive { get; set; }
         public List<string> Images { get; set; } = new List<string>();
         public string? CreatedBy { get; set; }
