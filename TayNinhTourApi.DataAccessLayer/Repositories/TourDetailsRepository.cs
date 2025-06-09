@@ -19,7 +19,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             var query = _context.TourDetails
                 .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
+                .Include(td => td.TourOperation)
+                .Include(td => td.Timeline)
+                .Include(td => td.AssignedSlots)
                 .Include(td => td.CreatedBy)
                 .Include(td => td.UpdatedBy)
                 .Where(td => td.TourTemplateId == tourTemplateId);
@@ -30,28 +32,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             }
 
             return await query
-                .OrderBy(td => td.SortOrder)
-                .ThenBy(td => td.TimeSlot)
-                .ToListAsync();
-        }
-
-        public async Task<IEnumerable<TourDetails>> GetByShopAsync(Guid shopId, bool includeInactive = false)
-        {
-            var query = _context.TourDetails
-                .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
-                .Include(td => td.CreatedBy)
-                .Include(td => td.UpdatedBy)
-                .Where(td => td.ShopId == shopId);
-
-            if (!includeInactive)
-            {
-                query = query.Where(td => td.IsActive && !td.IsDeleted);
-            }
-
-            return await query
-                .OrderBy(td => td.TourTemplate.Title)
-                .ThenBy(td => td.SortOrder)
+                .OrderBy(td => td.Title)
                 .ToListAsync();
         }
 
@@ -59,20 +40,23 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             return await _context.TourDetails
                 .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
+                .Include(td => td.TourOperation)
+                .Include(td => td.Timeline)
+                    .ThenInclude(ti => ti.Shop)
+                .Include(td => td.AssignedSlots)
                 .Include(td => td.CreatedBy)
                 .Include(td => td.UpdatedBy)
                 .FirstOrDefaultAsync(td => td.Id == id && !td.IsDeleted);
         }
 
-        public async Task<IEnumerable<TourDetails>> GetByTimeSlotAsync(TimeOnly timeSlot, bool includeInactive = false)
+        public async Task<IEnumerable<TourDetails>> SearchByTitleAsync(string title, bool includeInactive = false)
         {
             var query = _context.TourDetails
                 .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
-                .Include(td => td.CreatedBy)
-                .Include(td => td.UpdatedBy)
-                .Where(td => td.TimeSlot == timeSlot);
+                .Include(td => td.TourOperation)
+                .Include(td => td.Timeline)
+                .Include(td => td.AssignedSlots)
+                .Where(td => td.Title.Contains(title));
 
             if (!includeInactive)
             {
@@ -80,33 +64,11 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             }
 
             return await query
-                .OrderBy(td => td.TourTemplate.Title)
-                .ThenBy(td => td.SortOrder)
+                .OrderBy(td => td.Title)
                 .ToListAsync();
         }
 
 
-
-        public async Task<TourDetails?> GetByTemplateAndSortOrderAsync(Guid tourTemplateId, int sortOrder)
-        {
-            return await _context.TourDetails
-                .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
-                .Include(td => td.CreatedBy)
-                .Include(td => td.UpdatedBy)
-                .FirstOrDefaultAsync(td => td.TourTemplateId == tourTemplateId &&
-                                          td.SortOrder == sortOrder &&
-                                          !td.IsDeleted);
-        }
-
-        public async Task<int> GetMaxSortOrderAsync(Guid tourTemplateId)
-        {
-            var maxSortOrder = await _context.TourDetails
-                .Where(td => td.TourTemplateId == tourTemplateId && !td.IsDeleted)
-                .MaxAsync(td => (int?)td.SortOrder);
-
-            return maxSortOrder ?? 0;
-        }
 
         public async Task<int> CountByTourTemplateAsync(Guid tourTemplateId, bool includeInactive = false)
         {
@@ -121,33 +83,30 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await query.CountAsync();
         }
 
-        public async Task UpdateSortOrdersAsync(Guid tourTemplateId, int fromSortOrder, int increment)
+        public async Task<TourDetails?> GetByTitleAsync(Guid tourTemplateId, string title)
         {
-            var detailsToUpdate = await _context.TourDetails
-                .Where(td => td.TourTemplateId == tourTemplateId &&
-                            td.SortOrder >= fromSortOrder &&
-                            !td.IsDeleted)
-                .ToListAsync();
-
-            foreach (var detail in detailsToUpdate)
-            {
-                detail.SortOrder += increment;
-                detail.UpdatedAt = DateTime.UtcNow;
-            }
-
-            await _context.SaveChangesAsync();
+            return await _context.TourDetails
+                .Include(td => td.TourTemplate)
+                .Include(td => td.TourOperation)
+                .Include(td => td.Timeline)
+                .Include(td => td.AssignedSlots)
+                .FirstOrDefaultAsync(td => td.TourTemplateId == tourTemplateId &&
+                                          td.Title == title &&
+                                          !td.IsDeleted);
         }
 
         public async Task<(IEnumerable<TourDetails> Details, int TotalCount)> GetPaginatedAsync(
             int pageIndex,
             int pageSize,
             Guid? tourTemplateId = null,
-            Guid? shopId = null,
+            string? titleFilter = null,
             bool includeInactive = false)
         {
             var query = _context.TourDetails
                 .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
+                .Include(td => td.TourOperation)
+                .Include(td => td.Timeline)
+                .Include(td => td.AssignedSlots)
                 .Include(td => td.CreatedBy)
                 .Include(td => td.UpdatedBy)
                 .AsQueryable();
@@ -163,9 +122,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 query = query.Where(td => td.TourTemplateId == tourTemplateId.Value);
             }
 
-            if (shopId.HasValue)
+            if (!string.IsNullOrEmpty(titleFilter))
             {
-                query = query.Where(td => td.ShopId == shopId.Value);
+                query = query.Where(td => td.Title.Contains(titleFilter));
             }
 
             // Get total count
@@ -174,7 +133,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             // Apply pagination
             var details = await query
                 .OrderBy(td => td.TourTemplate.Title)
-                .ThenBy(td => td.SortOrder)
+                .ThenBy(td => td.Title)
                 .Skip((pageIndex - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -184,82 +143,25 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         public async Task<bool> CanDeleteDetailAsync(Guid id)
         {
-            // TODO: Check if detail is referenced by any TourOperations when that relationship is established
-            // For now, return true
-            return await Task.FromResult(true);
-        }
+            // Check if detail has assigned slots or operations
+            var hasAssignedSlots = await _context.TourSlots
+                .AnyAsync(ts => ts.TourDetailsId == id);
 
-        public async Task<TourDetails?> GetLastDetailAsync(Guid tourTemplateId)
-        {
-            return await _context.TourDetails
-                .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
-                .Include(td => td.CreatedBy)
-                .Include(td => td.UpdatedBy)
-                .Where(td => td.TourTemplateId == tourTemplateId && !td.IsDeleted)
-                .OrderByDescending(td => td.SortOrder)
-                .FirstOrDefaultAsync();
-        }
+            var hasOperation = await _context.TourOperations
+                .AnyAsync(to => to.TourDetailsId == id);
 
-        public async Task<TourDetails?> GetFirstDetailAsync(Guid tourTemplateId)
-        {
-            return await _context.TourDetails
-                .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
-                .Include(td => td.CreatedBy)
-                .Include(td => td.UpdatedBy)
-                .Where(td => td.TourTemplateId == tourTemplateId && !td.IsDeleted)
-                .OrderBy(td => td.SortOrder)
-                .FirstOrDefaultAsync();
-        }
-
-        public async Task<IEnumerable<TourDetails>> GetByTimeRangeAsync(Guid tourTemplateId, TimeOnly startTime, TimeOnly endTime, bool includeInactive = false)
-        {
-            var query = _context.TourDetails
-                .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
-                .Include(td => td.CreatedBy)
-                .Include(td => td.UpdatedBy)
-                .Where(td => td.TourTemplateId == tourTemplateId &&
-                            td.TimeSlot >= startTime &&
-                            td.TimeSlot <= endTime);
-
-            if (!includeInactive)
-            {
-                query = query.Where(td => td.IsActive && !td.IsDeleted);
-            }
-
-            return await query
-                .OrderBy(td => td.SortOrder)
-                .ThenBy(td => td.TimeSlot)
-                .ToListAsync();
-        }
-
-        public async Task<bool> ExistsBySortOrderAsync(Guid tourTemplateId, int sortOrder, Guid? excludeId = null)
-        {
-            var query = _context.TourDetails
-                .Where(td => td.TourTemplateId == tourTemplateId &&
-                            td.SortOrder == sortOrder &&
-                            !td.IsDeleted);
-
-            if (excludeId.HasValue)
-            {
-                query = query.Where(td => td.Id != excludeId.Value);
-            }
-
-            return await query.AnyAsync();
+            return !hasAssignedSlots && !hasOperation;
         }
 
         public async Task<IEnumerable<TourDetails>> SearchAsync(string keyword, Guid? tourTemplateId = null, bool includeInactive = false)
         {
             var query = _context.TourDetails
                 .Include(td => td.TourTemplate)
-                .Include(td => td.Shop)
-                .Include(td => td.CreatedBy)
-                .Include(td => td.UpdatedBy)
-                .Where(td => (td.Location != null && td.Location.Contains(keyword)) ||
-                           (td.Description != null && td.Description.Contains(keyword)) ||
-                           (td.Shop != null && td.Shop.Name.Contains(keyword)));
+                .Include(td => td.TourOperation)
+                .Include(td => td.Timeline)
+                .Include(td => td.AssignedSlots)
+                .Where(td => td.Title.Contains(keyword) ||
+                           (td.Description != null && td.Description.Contains(keyword)));
 
             if (tourTemplateId.HasValue)
             {
@@ -273,8 +175,23 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
             return await query
                 .OrderBy(td => td.TourTemplate.Title)
-                .ThenBy(td => td.SortOrder)
+                .ThenBy(td => td.Title)
                 .ToListAsync();
+        }
+
+        public async Task<bool> ExistsByTitleAsync(Guid tourTemplateId, string title, Guid? excludeId = null)
+        {
+            var query = _context.TourDetails
+                .Where(td => td.TourTemplateId == tourTemplateId &&
+                            td.Title == title &&
+                            !td.IsDeleted);
+
+            if (excludeId.HasValue)
+            {
+                query = query.Where(td => td.Id != excludeId.Value);
+            }
+
+            return await query.AnyAsync();
         }
     }
 }

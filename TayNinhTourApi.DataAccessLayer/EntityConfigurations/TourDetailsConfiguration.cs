@@ -18,33 +18,22 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.HasKey(td => td.Id);
 
             // Property Configurations
-            
+
             builder.Property(td => td.TourTemplateId)
                 .IsRequired()
                 .HasComment("ID của tour template mà chi tiết này thuộc về");
 
-            builder.Property(td => td.TimeSlot)
+            builder.Property(td => td.Title)
                 .IsRequired()
-                .HasComment("Thời gian trong ngày cho hoạt động này");
-
-            builder.Property(td => td.Location)
-                .HasMaxLength(500)
-                .HasComment("Địa điểm hoặc tên hoạt động");
+                .HasMaxLength(255)
+                .HasComment("Tiêu đề của lịch trình");
 
             builder.Property(td => td.Description)
                 .HasMaxLength(1000)
-                .HasComment("Mô tả chi tiết về hoạt động");
-
-            builder.Property(td => td.ShopId)
-                .IsRequired(false)
-                .HasComment("ID của shop liên quan (nếu có)");
-
-            builder.Property(td => td.SortOrder)
-                .IsRequired()
-                .HasComment("Thứ tự sắp xếp trong timeline");
+                .HasComment("Mô tả về lịch trình này");
 
             // Foreign Key Relationships
-            
+
             // TourTemplate relationship (Required)
             builder.HasOne(td => td.TourTemplate)
                 .WithMany(tt => tt.TourDetails)
@@ -52,12 +41,24 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
 
-            // Shop relationship (Optional)
-            builder.HasOne(td => td.Shop)
-                .WithMany(s => s.TourDetails)
-                .HasForeignKey(td => td.ShopId)
-                .OnDelete(DeleteBehavior.SetNull)
+            // TourOperation relationship (One-to-One)
+            builder.HasOne(td => td.TourOperation)
+                .WithOne(to => to.TourDetails)
+                .HasForeignKey<TourOperation>(to => to.TourDetailsId)
+                .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired(false);
+
+            // Timeline relationship (One-to-Many)
+            builder.HasMany(td => td.Timeline)
+                .WithOne(ti => ti.TourDetails)
+                .HasForeignKey(ti => ti.TourDetailsId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // AssignedSlots relationship (One-to-Many)
+            builder.HasMany(td => td.AssignedSlots)
+                .WithOne(ts => ts.TourDetails)
+                .HasForeignKey(ts => ts.TourDetailsId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // CreatedBy relationship
             builder.HasOne(td => td.CreatedBy)
@@ -74,33 +75,14 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false);
 
             // Indexes for Performance
-            
+
             // Index for TourTemplateId (most common query)
             builder.HasIndex(td => td.TourTemplateId)
                 .HasDatabaseName("IX_TourDetails_TourTemplateId");
 
-            // Composite index for TourTemplateId + SortOrder (for timeline ordering)
-            builder.HasIndex(td => new { td.TourTemplateId, td.SortOrder })
-                .HasDatabaseName("IX_TourDetails_TourTemplateId_SortOrder")
-                .IsUnique(); // Ensure unique sort order within each tour template
-
-            // Index for ShopId (for shop-related queries)
-            builder.HasIndex(td => td.ShopId)
-                .HasDatabaseName("IX_TourDetails_ShopId");
-
-            // Index for TimeSlot (for time-based queries)
-            builder.HasIndex(td => td.TimeSlot)
-                .HasDatabaseName("IX_TourDetails_TimeSlot");
-
-            // Composite index for TourTemplateId + TimeSlot (for timeline queries)
-            builder.HasIndex(td => new { td.TourTemplateId, td.TimeSlot })
-                .HasDatabaseName("IX_TourDetails_TourTemplateId_TimeSlot");
-
-            // Check Constraints
-            
-            // Ensure SortOrder is positive
-            builder.HasCheckConstraint("CK_TourDetails_SortOrder_Positive", 
-                "SortOrder > 0");
+            // Index for Title (for searching by title)
+            builder.HasIndex(td => td.Title)
+                .HasDatabaseName("IX_TourDetails_Title");
         }
     }
 }

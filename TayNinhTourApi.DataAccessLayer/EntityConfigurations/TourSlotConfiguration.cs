@@ -42,6 +42,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasDefaultValue(TourSlotStatus.Available)
                 .HasComment("Trạng thái của tour slot");
 
+            builder.Property(ts => ts.TourDetailsId)
+                .IsRequired(false)
+                .HasComment("ID của TourDetails được assign cho slot này");
+
             builder.Property(ts => ts.IsActive)
                 .IsRequired()
                 .HasDefaultValue(true)
@@ -55,6 +59,13 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasForeignKey(ts => ts.TourTemplateId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
+
+            // TourDetails relationship (Many-to-One, Optional)
+            builder.HasOne(ts => ts.TourDetails)
+                .WithMany(td => td.AssignedSlots)
+                .HasForeignKey(ts => ts.TourDetailsId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
 
             // TourOperation relationship (One-to-One, Optional)
             // Configured from TourOperation side to avoid circular dependency

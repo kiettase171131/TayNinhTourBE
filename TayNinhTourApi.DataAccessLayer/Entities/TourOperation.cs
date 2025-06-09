@@ -4,17 +4,17 @@ using TayNinhTourApi.DataAccessLayer.Enums;
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
     /// <summary>
-    /// Đại diện cho thông tin vận hành của một tour slot cụ thể
-    /// Mỗi TourOperation chứa thông tin về hướng dẫn viên, giá cả và capacity cho một TourSlot
+    /// Đại diện cho thông tin vận hành của một tour details cụ thể
+    /// Mỗi TourOperation chứa thông tin về hướng dẫn viên, giá cả và capacity cho một TourDetails
     /// </summary>
     public class TourOperation : BaseEntity
     {
         /// <summary>
-        /// ID của TourSlot mà operation này thuộc về
-        /// Relationship: One-to-One với TourSlot
+        /// ID của TourDetails mà operation này thuộc về
+        /// Relationship: One-to-One với TourDetails
         /// </summary>
         [Required]
-        public Guid TourSlotId { get; set; }
+        public Guid TourDetailsId { get; set; }
 
         /// <summary>
         /// ID của User làm hướng dẫn viên cho tour này (optional)
@@ -66,10 +66,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         // Navigation Properties
 
         /// <summary>
-        /// TourSlot mà operation này thuộc về
+        /// TourDetails mà operation này thuộc về
         /// Relationship: One-to-One
         /// </summary>
-        public virtual TourSlot TourSlot { get; set; } = null!;
+        public virtual TourDetails TourDetails { get; set; } = null!;
 
         /// <summary>
         /// User làm hướng dẫn viên cho tour này (optional)

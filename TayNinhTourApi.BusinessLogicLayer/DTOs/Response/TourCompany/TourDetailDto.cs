@@ -1,7 +1,7 @@
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
 {
     /// <summary>
-    /// DTO cho response tour detail (timeline item) với thông tin shop
+    /// DTO cho response tour detail (lịch trình template)
     /// </summary>
     public class TourDetailDto
     {
@@ -11,43 +11,36 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public Guid Id { get; set; }
 
         /// <summary>
-        /// ID của tour template mà chi tiết này thuộc về
+        /// ID của tour template mà lịch trình này thuộc về
         /// </summary>
         public Guid TourTemplateId { get; set; }
 
         /// <summary>
-        /// Thời gian trong ngày cho hoạt động này (giờ:phút)
-        /// Ví dụ: 08:30, 14:00, 16:45
+        /// Tiêu đề của lịch trình
+        /// Ví dụ: "Lịch trình VIP", "Lịch trình thường", "Lịch trình tiết kiệm"
         /// </summary>
-        public TimeOnly TimeSlot { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         /// <summary>
-        /// Địa điểm hoặc tên hoạt động
-        /// Ví dụ: "Núi Bà Đen", "Chùa Cao Đài", "Nhà hàng ABC"
-        /// </summary>
-        public string? Location { get; set; }
-
-        /// <summary>
-        /// Mô tả chi tiết về hoạt động tại điểm dừng này
-        /// Ví dụ: "Tham quan và chụp ảnh tại đỉnh núi", "Dùng bữa trưa đặc sản địa phương"
+        /// Mô tả về lịch trình này
+        /// Ví dụ: "Lịch trình cao cấp với các dịch vụ VIP"
         /// </summary>
         public string? Description { get; set; }
 
         /// <summary>
-        /// ID của shop liên quan (nếu có)
+        /// Danh sách timeline items thuộc về lịch trình này
         /// </summary>
-        public Guid? ShopId { get; set; }
+        public List<TimelineItemDto> Timeline { get; set; } = new List<TimelineItemDto>();
 
         /// <summary>
-        /// Thứ tự sắp xếp trong timeline (bắt đầu từ 1)
-        /// Dùng để sắp xếp các hoạt động theo đúng trình tự thời gian
+        /// Thông tin operation cho lịch trình này (nếu có)
         /// </summary>
-        public int SortOrder { get; set; }
+        public TourOperationDto? Operation { get; set; }
 
         /// <summary>
-        /// Thông tin shop liên quan (nếu có)
+        /// Số lượng slots được assign lịch trình này
         /// </summary>
-        public ShopDto? Shop { get; set; }
+        public int AssignedSlotsCount { get; set; }
 
         /// <summary>
         /// Thời gian tạo tour detail

@@ -76,10 +76,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 
 builder.Services.AddAuthorization(options =>
 {
-    // Policy “ExcludeAdmin”: cho phép m?i user ?ã auth, mi?n tr? role = "Admin"
+    // Policy ï¿½ExcludeAdminï¿½: cho phï¿½p m?i user ?ï¿½ auth, mi?n tr? role = "Admin"
     options.AddPolicy("ExcludeAdmin", policy =>
         policy.RequireAssertion(context =>
-            // user ph?i authenticated và KHÔNG có role "Admin"
+            // user ph?i authenticated vï¿½ KHï¿½NG cï¿½ role "Admin"
             context.User.Identity != null
             && context.User.Identity.IsAuthenticated
             && !context.User.IsInRole("Admin")

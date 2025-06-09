@@ -36,6 +36,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public TourSlotStatus Status { get; set; } = TourSlotStatus.Available;
 
         /// <summary>
+        /// ID của TourDetails được assign cho slot này (auto-assign khi tạo TourDetails)
+        /// Nullable - slot có thể chưa có lịch trình cụ thể
+        /// </summary>
+        public Guid? TourDetailsId { get; set; }
+
+        /// <summary>
         /// Trạng thái slot có sẵn sàng để booking không
         /// Khác với BaseEntity.IsActive (dùng cho soft delete)
         /// - true: Slot có thể được booking
@@ -50,6 +56,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Relationship: Many TourSlots to One TourTemplate
         /// </summary>
         public virtual TourTemplate TourTemplate { get; set; } = null!;
+
+        /// <summary>
+        /// TourDetails được assign cho slot này (nullable)
+        /// Relationship: Many TourSlots to One TourDetails
+        /// </summary>
+        public virtual TourDetails? TourDetails { get; set; }
 
         /// <summary>
         /// TourOperation cho slot này

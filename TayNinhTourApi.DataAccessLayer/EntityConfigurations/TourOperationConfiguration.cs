@@ -23,9 +23,9 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 
             // Property Configurations
 
-            builder.Property(to => to.TourSlotId)
+            builder.Property(to => to.TourDetailsId)
                 .IsRequired()
-                .HasComment("ID của TourSlot mà operation này thuộc về");
+                .HasComment("ID của TourDetails mà operation này thuộc về");
 
             builder.Property(to => to.GuideId)
                 .IsRequired(false)
@@ -57,10 +57,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 
             // Foreign Key Relationships
 
-            // TourSlot relationship (One-to-One)
-            builder.HasOne(to => to.TourSlot)
-                .WithOne(ts => ts.TourOperation) // One-to-One relationship with navigation property
-                .HasForeignKey<TourOperation>(to => to.TourSlotId)
+            // TourDetails relationship (One-to-One)
+            builder.HasOne(to => to.TourDetails)
+                .WithOne(td => td.TourOperation) // One-to-One relationship with navigation property
+                .HasForeignKey<TourOperation>(to => to.TourDetailsId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
 
@@ -87,10 +87,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 
             // Indexes for Performance
 
-            // Unique index for TourSlotId (ensures one-to-one relationship)
-            builder.HasIndex(to => to.TourSlotId)
+            // Unique index for TourDetailsId (ensures one-to-one relationship)
+            builder.HasIndex(to => to.TourDetailsId)
                 .IsUnique()
-                .HasDatabaseName("IX_TourOperations_TourSlotId_Unique");
+                .HasDatabaseName("IX_TourOperations_TourDetailsId_Unique");
 
             // Index for GuideId (for guide-related queries)
             builder.HasIndex(to => to.GuideId)

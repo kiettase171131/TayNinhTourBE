@@ -14,6 +14,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         ITourSlotRepository TourSlotRepository { get; }
         ITourDetailsRepository TourDetailsRepository { get; }
         ITourOperationRepository TourOperationRepository { get; }
+        ITimelineItemRepository TimelineItemRepository { get; }
         IBlogRepository BlogRepository { get; }
 
         Task<int> SaveChangesAsync();
