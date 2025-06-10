@@ -1,5 +1,6 @@
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
@@ -100,6 +101,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="createdById">ID của user tạo</param>
         /// <returns>Tour detail vừa được tạo</returns>
         Task<ResponseCreateTourDetailDto> AddTimelineItemAsync(RequestCreateTourDetailDto request, Guid createdById);
+
+        /// <summary>
+        /// Tạo timeline item mới cho TourDetails
+        /// </summary>
+        /// <param name="request">Thông tin timeline item cần tạo</param>
+        /// <param name="createdById">ID của user tạo</param>
+        /// <returns>Timeline item vừa được tạo</returns>
+        Task<BaseResposeDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById);
 
         /// <summary>
         /// Cập nhật thông tin timeline item

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
@@ -517,7 +518,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogInformation("Getting TourDetail by ID: {TourDetailsId}", tourDetailsId);
 
-                var tourDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                var tourDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailsId);
                 if (tourDetail == null || tourDetail.IsDeleted)
                 {
                     return new ResponseGetTourDetailDto
@@ -662,6 +663,64 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             // TODO: Implement getting timeline item by ID
             throw new NotImplementedException("This method will be implemented for getting timeline item");
+        }
+
+        public async Task<BaseResposeDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById)
+        {
+            try
+            {
+                // Validate TourDetails exists
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(request.TourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                // Create new timeline item
+                var timelineItem = new TimelineItem
+                {
+                    Id = Guid.NewGuid(),
+                    TourDetailsId = request.TourDetailsId,
+                    CheckInTime = TimeSpan.Parse(request.CheckInTime),
+                    Activity = request.Activity,
+                    ShopId = request.ShopId,
+                    SortOrder = await GetNextSortOrderAsync(request.TourDetailsId),
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = createdById
+                };
+
+                await _unitOfWork.TimelineItemRepository.AddAsync(timelineItem);
+                await _unitOfWork.SaveChangesAsync();
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 201,
+                    Message = "Tạo timeline item thành công",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi tạo timeline item",
+                    IsSuccess = false
+                };
+            }
+        }
+
+        private async Task<int> GetNextSortOrderAsync(Guid tourDetailsId)
+        {
+            var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
+                t => t.TourDetailsId == tourDetailsId);
+            return existingItems.Any() ? existingItems.Max(t => t.SortOrder) + 1 : 1;
         }
 
         #endregion

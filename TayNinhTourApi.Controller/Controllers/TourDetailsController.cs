@@ -361,8 +361,8 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogInformation("Creating timeline item for TourDetails {TourDetailsId} by user {UserId}",
                     request.TourDetailsId, userId);
 
-                // TODO: Fix method signature and implementation
-                throw new NotImplementedException("Timeline item creation will be implemented after TourDetails redesign");
+                var response = await _tourDetailsService.CreateTimelineItemAsync(request, userId);
+                return StatusCode(response.StatusCode, response);
             }
             catch (Exception ex)
             {

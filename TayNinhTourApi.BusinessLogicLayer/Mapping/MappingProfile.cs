@@ -40,7 +40,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.TourTemplateName, opt => opt.MapFrom(src => src.TourTemplate.Title))
                 .ForMember(dest => dest.AssignedSlotsCount, opt => opt.MapFrom(src => src.AssignedSlots.Count))
                 .ForMember(dest => dest.TimelineItemsCount, opt => opt.MapFrom(src => src.Timeline.Count))
+                .ForMember(dest => dest.Timeline, opt => opt.MapFrom(src => src.Timeline))
                 .ForMember(dest => dest.TourOperation, opt => opt.MapFrom(src => src.TourOperation));
+
+            CreateMap<TimelineItem, TimelineItemDto>()
+                .ForMember(dest => dest.CheckInTime, opt => opt.MapFrom(src => src.CheckInTime.ToString(@"hh\:mm")))
+                .ForMember(dest => dest.Shop, opt => opt.MapFrom(src => src.Shop));
+
+            CreateMap<Shop, ShopDto>();
+            CreateMap<TourOperation, TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany.TourOperationDto>();
 
             // Entity to DTO mappings for direct responses (simpler approach)
             // Service layer will handle response construction manually for better control
