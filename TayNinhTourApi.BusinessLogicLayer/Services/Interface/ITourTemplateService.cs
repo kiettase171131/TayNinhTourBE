@@ -86,8 +86,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="includeInactive">Có bao gồm templates không active không</param>
         /// <returns>Danh sách tour templates với pagination info</returns>
         Task<ResponseGetTourTemplatesDto> GetTourTemplatesPaginatedAsync(
-            int pageIndex, 
-            int pageSize, 
+            int pageIndex,
+            int pageSize,
             TourTemplateType? templateType = null,
             decimal? minPrice = null,
             decimal? maxPrice = null,
@@ -149,5 +149,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="request">Request data để validate</param>
         /// <returns>Response với kết quả validation</returns>
         Task<ResponseValidationDto> ValidateUpdateRequestAsync(Guid id, RequestUpdateTourTemplateDto request);
+
+        /// <summary>
+        /// Tự động tạo tour slots cho template
+        /// </summary>
+        /// <param name="templateId">ID của tour template</param>
+        /// <param name="month">Tháng</param>
+        /// <param name="year">Năm</param>
+        /// <param name="overwriteExisting">Có ghi đè slots đã tồn tại không</param>
+        /// <param name="autoActivate">Có tự động kích hoạt slots không</param>
+        /// <returns>Response với thông tin slots đã tạo</returns>
+        Task<(bool IsSuccess, string Message, int CreatedSlotsCount)> GenerateSlotsForTemplateAsync(
+            Guid templateId, int month, int year, bool overwriteExisting = false, bool autoActivate = true);
     }
 }

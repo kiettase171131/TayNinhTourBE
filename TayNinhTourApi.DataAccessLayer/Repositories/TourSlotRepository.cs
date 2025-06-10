@@ -16,102 +16,32 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
         }
 
-        public async Task<IEnumerable<TourSlot>> GetByTourTemplateAsync(Guid tourTemplateId, bool includeInactive = false)
-        {
-            var query = _context.TourSlots
-                .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                .Where(ts => ts.TourTemplateId == tourTemplateId);
-
-            if (!includeInactive)
-            {
-                query = query.Where(ts => ts.IsActive && !ts.IsDeleted);
-            }
-
-            return await query.OrderBy(ts => ts.TourDate).ToListAsync();
-        }
-
-        public async Task<IEnumerable<TourSlot>> GetByDateRangeAsync(DateOnly startDate, DateOnly endDate, bool includeInactive = false)
-        {
-            var query = _context.TourSlots
-                .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                .Where(ts => ts.TourDate >= startDate && ts.TourDate <= endDate);
-
-            if (!includeInactive)
-            {
-                query = query.Where(ts => ts.IsActive && !ts.IsDeleted);
-            }
-
-            return await query.OrderBy(ts => ts.TourDate).ToListAsync();
-        }
-
-        public async Task<IEnumerable<TourSlot>> GetByScheduleDayAsync(ScheduleDay scheduleDay, bool includeInactive = false)
-        {
-            var query = _context.TourSlots
-                .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                .Where(ts => ts.ScheduleDay == scheduleDay);
-
-            if (!includeInactive)
-            {
-                query = query.Where(ts => ts.IsActive && !ts.IsDeleted);
-            }
-
-            return await query.OrderBy(ts => ts.TourDate).ToListAsync();
-        }
-
-        public async Task<IEnumerable<TourSlot>> GetByStatusAsync(TourSlotStatus status, bool includeInactive = false)
-        {
-            var query = _context.TourSlots
-                .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                .Where(ts => ts.Status == status);
-
-            if (!includeInactive)
-            {
-                query = query.Where(ts => ts.IsActive && !ts.IsDeleted);
-            }
-
-            return await query.OrderBy(ts => ts.TourDate).ToListAsync();
-        }
-
-        public async Task<TourSlot?> GetByTemplateAndDateAsync(Guid tourTemplateId, DateOnly tourDate)
+        public async Task<IEnumerable<TourSlot>> GetByTourTemplateAsync(Guid tourTemplateId)
         {
             return await _context.TourSlots
                 .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                .FirstOrDefaultAsync(ts => ts.TourTemplateId == tourTemplateId && 
-                                          ts.TourDate == tourDate && 
-                                          !ts.IsDeleted);
+                .Include(ts => ts.TourDetails)
+                .Where(ts => ts.TourTemplateId == tourTemplateId)
+                .OrderBy(ts => ts.TourDate)
+                .ToListAsync();
         }
 
-        public async Task<TourSlot?> GetWithDetailsAsync(Guid id)
+        public async Task<IEnumerable<TourSlot>> GetByTourDetailsAsync(Guid tourDetailsId)
         {
             return await _context.TourSlots
                 .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                // TODO: Include TourOperations when relationship is established
-                // .Include(ts => ts.TourOperations)
-                .FirstOrDefaultAsync(ts => ts.Id == id && !ts.IsDeleted);
+                .Include(ts => ts.TourDetails)
+                .Where(ts => ts.TourDetailsId == tourDetailsId)
+                .OrderBy(ts => ts.TourDate)
+                .ToListAsync();
         }
 
-        public async Task<int> CountAvailableSlotsAsync(Guid tourTemplateId, DateOnly fromDate, DateOnly toDate)
+        public async Task<TourSlot?> GetByDateAsync(Guid tourTemplateId, DateOnly date)
         {
             return await _context.TourSlots
-                .Where(ts => ts.TourTemplateId == tourTemplateId &&
-                            ts.TourDate >= fromDate &&
-                            ts.TourDate <= toDate &&
-                            ts.Status == TourSlotStatus.Available &&
-                            ts.IsActive &&
-                            !ts.IsDeleted)
-                .CountAsync();
+                .Include(ts => ts.TourTemplate)
+                .Include(ts => ts.TourDetails)
+                .FirstOrDefaultAsync(ts => ts.TourTemplateId == tourTemplateId && ts.TourDate == date);
         }
 
         public async Task<IEnumerable<TourSlot>> GetAvailableSlotsAsync(
@@ -123,87 +53,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             var query = _context.TourSlots
                 .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                .Where(ts => ts.Status == TourSlotStatus.Available);
-
-            if (!includeInactive)
-            {
-                query = query.Where(ts => ts.IsActive && !ts.IsDeleted);
-            }
-
-            if (tourTemplateId.HasValue)
-            {
-                query = query.Where(ts => ts.TourTemplateId == tourTemplateId.Value);
-            }
-
-            if (scheduleDay.HasValue)
-            {
-                query = query.Where(ts => (ts.TourTemplate.ScheduleDays & scheduleDay.Value) == scheduleDay.Value);
-            }
-
-            if (fromDate.HasValue)
-            {
-                query = query.Where(ts => ts.TourDate >= fromDate.Value);
-            }
-
-            if (toDate.HasValue)
-            {
-                query = query.Where(ts => ts.TourDate <= toDate.Value);
-            }
-
-            return await query.OrderBy(ts => ts.TourDate).ToListAsync();
-        }
-
-        public async Task<IEnumerable<TourSlot>> GetUpcomingSlotsAsync(Guid? tourTemplateId = null, int top = 10)
-        {
-            var today = DateOnly.FromDateTime(DateTime.Today);
-            var query = _context.TourSlots
-                .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                .Where(ts => ts.TourDate >= today && 
-                            ts.IsActive && 
-                            !ts.IsDeleted);
-
-            if (tourTemplateId.HasValue)
-            {
-                query = query.Where(ts => ts.TourTemplateId == tourTemplateId.Value);
-            }
-
-            return await query
-                .OrderBy(ts => ts.TourDate)
-                .Take(top)
-                .ToListAsync();
-        }
-
-        public async Task<bool> HasTourOperationAsync(Guid id)
-        {
-            // TODO: Check if tour slot has any TourOperations when that relationship is established
-            // For now, return false
-            return await Task.FromResult(false);
-        }
-
-        public async Task<(IEnumerable<TourSlot> Slots, int TotalCount)> GetPaginatedAsync(
-            int pageIndex,
-            int pageSize,
-            Guid? tourTemplateId = null,
-            ScheduleDay? scheduleDay = null,
-            DateOnly? fromDate = null,
-            DateOnly? toDate = null,
-            bool includeInactive = false)
-        {
-            var query = _context.TourSlots
-                .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
+                .Include(ts => ts.TourDetails)
                 .AsQueryable();
-
-            // Apply filters
-            if (!includeInactive)
-            {
-                query = query.Where(ts => ts.IsActive && !ts.IsDeleted);
-            }
 
             if (tourTemplateId.HasValue)
             {
@@ -225,56 +76,34 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 query = query.Where(ts => ts.TourDate <= toDate.Value);
             }
 
-            // Get total count
-            var totalCount = await query.CountAsync();
-
-            // Apply pagination
-            var slots = await query
-                .OrderBy(ts => ts.TourDate)
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return (slots, totalCount);
-        }
-
-        public async Task<bool> CanDeleteSlotAsync(Guid id)
-        {
-            // TODO: Check if slot has any TourOperations or bookings when those relationships are established
-            // For now, return true
-            return await Task.FromResult(true);
-        }
-
-        public async Task<IEnumerable<TourSlot>> GetAvailableSlotsAsync(DateOnly? fromDate = null, DateOnly? toDate = null)
-        {
-            var query = _context.TourSlots
-                .Include(ts => ts.TourTemplate)
-                .Include(ts => ts.CreatedBy)
-                .Include(ts => ts.UpdatedBy)
-                .Where(ts => ts.Status == TourSlotStatus.Available &&
-                            ts.IsActive &&
-                            !ts.IsDeleted);
-
-            if (fromDate.HasValue)
+            if (!includeInactive)
             {
-                query = query.Where(ts => ts.TourDate >= fromDate.Value);
-            }
-
-            if (toDate.HasValue)
-            {
-                query = query.Where(ts => ts.TourDate <= toDate.Value);
+                query = query.Where(ts => ts.IsActive);
             }
 
             return await query.OrderBy(ts => ts.TourDate).ToListAsync();
         }
 
-        public async Task<bool> HasSlotsInDateRangeAsync(Guid tourTemplateId, DateOnly startDate, DateOnly endDate)
+        public async Task<bool> SlotExistsAsync(Guid tourTemplateId, DateOnly date)
         {
             return await _context.TourSlots
-                .AnyAsync(ts => ts.TourTemplateId == tourTemplateId &&
-                               ts.TourDate >= startDate &&
-                               ts.TourDate <= endDate &&
-                               !ts.IsDeleted);
+                .AnyAsync(ts => ts.TourTemplateId == tourTemplateId && ts.TourDate == date);
+        }
+
+        public async Task<int> BulkUpdateStatusAsync(IEnumerable<Guid> slotIds, TourSlotStatus status)
+        {
+            var slots = await _context.TourSlots
+                .Where(ts => slotIds.Contains(ts.Id))
+                .ToListAsync();
+
+            foreach (var slot in slots)
+            {
+                slot.Status = status;
+                slot.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return slots.Count;
         }
     }
 }

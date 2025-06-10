@@ -16,10 +16,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     public class EnhancedTourTemplateService : BaseService, ITourTemplateService
     {
         private readonly TourTemplateImageHandler _imageHandler;
+        private readonly ICurrentUserService _currentUserService;
 
-        public EnhancedTourTemplateService(IMapper mapper, IUnitOfWork unitOfWork) : base(mapper, unitOfWork)
+        public EnhancedTourTemplateService(IMapper mapper, IUnitOfWork unitOfWork, ICurrentUserService currentUserService) : base(mapper, unitOfWork)
         {
             _imageHandler = new TourTemplateImageHandler(unitOfWork);
+            _currentUserService = currentUserService;
         }
 
         #region Enhanced CRUD Operations
@@ -688,6 +690,119 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Data = null
                 };
             }
+        }
+
+        public async Task<(bool IsSuccess, string Message, int CreatedSlotsCount)> GenerateSlotsForTemplateAsync(
+            Guid templateId, int month, int year, bool overwriteExisting = false, bool autoActivate = true)
+        {
+            try
+            {
+                // Validate tour template exists
+                var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(templateId);
+                if (tourTemplate == null)
+                {
+                    return (false, "Tour template không tồn tại", 0);
+                }
+
+                // Validate template has valid ScheduleDays
+                var templateValidation = TourTemplateScheduleValidator.ValidateScheduleDay(tourTemplate.ScheduleDays);
+                if (!templateValidation.IsValid)
+                {
+                    return (false, $"Template có ngày không hợp lệ: {templateValidation.ErrorMessage}", 0);
+                }
+
+                // Get scheduling service from DI (we need to inject it)
+                // For now, we'll create a simple implementation inline
+                var weekendDates = CalculateWeekendDates(year, month, tourTemplate.ScheduleDays);
+
+                if (!weekendDates.Any())
+                {
+                    return (false, "Không có ngày weekend nào trong tháng được chọn", 0);
+                }
+
+                var createdSlots = new List<TourSlot>();
+                var currentUserId = _currentUserService.GetCurrentUserId();
+
+                foreach (var date in weekendDates)
+                {
+                    var dateOnly = DateOnly.FromDateTime(date);
+
+                    // Check if slot already exists
+                    var existingSlot = await _unitOfWork.TourSlotRepository.GetByDateAsync(templateId, dateOnly);
+
+                    if (existingSlot == null || overwriteExisting)
+                    {
+                        if (existingSlot != null && overwriteExisting)
+                        {
+                            // Update existing slot
+                            existingSlot.Status = TourSlotStatus.Available;
+                            existingSlot.IsActive = autoActivate;
+                            existingSlot.UpdatedAt = DateTime.UtcNow;
+                            existingSlot.UpdatedById = currentUserId;
+
+                            await _unitOfWork.TourSlotRepository.UpdateAsync(existingSlot);
+                            createdSlots.Add(existingSlot);
+                        }
+                        else
+                        {
+                            // Create new slot
+                            var newSlot = new TourSlot
+                            {
+                                Id = Guid.NewGuid(),
+                                TourTemplateId = templateId,
+                                TourDate = dateOnly,
+                                ScheduleDay = GetScheduleDay(date),
+                                Status = TourSlotStatus.Available,
+                                IsActive = autoActivate,
+                                CreatedAt = DateTime.UtcNow,
+                                CreatedById = currentUserId
+                            };
+
+                            await _unitOfWork.TourSlotRepository.AddAsync(newSlot);
+                            createdSlots.Add(newSlot);
+                        }
+                    }
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                return (true, $"Tạo thành công {createdSlots.Count} slots", createdSlots.Count);
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Có lỗi xảy ra khi tạo slots: {ex.Message}", 0);
+            }
+        }
+
+        private List<DateTime> CalculateWeekendDates(int year, int month, ScheduleDay scheduleDay)
+        {
+            var dates = new List<DateTime>();
+            var daysInMonth = DateTime.DaysInMonth(year, month);
+
+            for (int day = 1; day <= daysInMonth; day++)
+            {
+                var date = new DateTime(year, month, day);
+                var dayOfWeek = date.DayOfWeek;
+
+                if ((scheduleDay == ScheduleDay.Saturday && dayOfWeek == DayOfWeek.Saturday) ||
+                    (scheduleDay == ScheduleDay.Sunday && dayOfWeek == DayOfWeek.Sunday))
+                {
+                    dates.Add(date);
+                }
+            }
+
+            // Return maximum 4 dates (as per business requirement)
+            return dates.Take(4).ToList();
+        }
+
+        private ScheduleDay GetScheduleDay(DateTime date)
+        {
+            return date.DayOfWeek switch
+            {
+                DayOfWeek.Saturday => ScheduleDay.Saturday,
+                DayOfWeek.Sunday => ScheduleDay.Sunday,
+                _ => ScheduleDay.Saturday // Default fallback
+            };
         }
 
         #endregion

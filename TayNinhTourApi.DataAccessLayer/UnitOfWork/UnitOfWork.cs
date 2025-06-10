@@ -19,6 +19,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private ITourTemplateRepository _tourTemplateRepository = null!;
         private IShopRepository _shopRepository = null!;
         private ITourSlotRepository _tourSlotRepository = null!;
+
         private ITourDetailsRepository _tourDetailsRepository = null!;
         private ITourOperationRepository _tourOperationRepository = null!;
         private ITimelineItemRepository _timelineItemRepository = null!;
@@ -85,6 +86,8 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
                 return _tourSlotRepository ??= new TourSlotRepository(_context);
             }
         }
+
+
 
         public ITourDetailsRepository TourDetailsRepository
         {

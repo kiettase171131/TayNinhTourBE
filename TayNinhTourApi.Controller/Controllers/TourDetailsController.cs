@@ -358,15 +358,15 @@ namespace TayNinhTourApi.Controller.Controllers
                 }
 
                 var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                _logger.LogInformation("Creating timeline item for template {TemplateId} by user {UserId}",
-                    request.TourTemplateId, userId);
+                _logger.LogInformation("Creating timeline item for TourDetails {TourDetailsId} by user {UserId}",
+                    request.TourDetailsId, userId);
 
-                var response = await _tourDetailsService.AddTimelineItemAsync(request, userId);
-                return StatusCode(response.StatusCode, response);
+                // TODO: Fix method signature and implementation
+                throw new NotImplementedException("Timeline item creation will be implemented after TourDetails redesign");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating timeline item for template {TemplateId}", request.TourTemplateId);
+                _logger.LogError(ex, "Error creating timeline item for TourDetails {TourDetailsId}", request.TourDetailsId);
                 return StatusCode(500, new
                 {
                     StatusCode = 500,

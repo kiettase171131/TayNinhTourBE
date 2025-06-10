@@ -61,12 +61,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
 
 
-            #region TourSlot Mapping
-            CreateMap<RequestUpdateSlotDto, TourSlot>();
-            CreateMap<TourSlot, TourSlotDto>()
-                .ForMember(dest => dest.ScheduleDayName, opt => opt.MapFrom(src => src.ScheduleDay.GetVietnameseName()))
-                .ForMember(dest => dest.StatusName, opt => opt.MapFrom(src => GetTourSlotStatusName(src.Status)));
-            #endregion
+
 
             #region TourOperation Mapping
             CreateMap<RequestCreateOperationDto, TourOperation>()

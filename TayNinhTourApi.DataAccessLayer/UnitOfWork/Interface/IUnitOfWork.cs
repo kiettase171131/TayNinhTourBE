@@ -12,6 +12,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         ITourTemplateRepository TourTemplateRepository { get; }
         IShopRepository ShopRepository { get; }
         ITourSlotRepository TourSlotRepository { get; }
+
         ITourDetailsRepository TourDetailsRepository { get; }
         ITourOperationRepository TourOperationRepository { get; }
         ITimelineItemRepository TimelineItemRepository { get; }

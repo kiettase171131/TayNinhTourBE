@@ -13,89 +13,34 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// Lấy danh sách tour slots theo tour template
         /// </summary>
         /// <param name="tourTemplateId">ID của tour template</param>
-        /// <param name="includeInactive">Có bao gồm slots không active không</param>
         /// <returns>Danh sách tour slots</returns>
-        Task<IEnumerable<TourSlot>> GetByTourTemplateAsync(Guid tourTemplateId, bool includeInactive = false);
+        Task<IEnumerable<TourSlot>> GetByTourTemplateAsync(Guid tourTemplateId);
 
         /// <summary>
-        /// Lấy danh sách tour slots trong khoảng thời gian
+        /// Lấy danh sách tour slots theo tour details
         /// </summary>
-        /// <param name="startDate">Ngày bắt đầu</param>
-        /// <param name="endDate">Ngày kết thúc</param>
-        /// <param name="includeInactive">Có bao gồm slots không active không</param>
+        /// <param name="tourDetailsId">ID của tour details</param>
         /// <returns>Danh sách tour slots</returns>
-        Task<IEnumerable<TourSlot>> GetByDateRangeAsync(DateOnly startDate, DateOnly endDate, bool includeInactive = false);
+        Task<IEnumerable<TourSlot>> GetByTourDetailsAsync(Guid tourDetailsId);
 
         /// <summary>
-        /// Lấy danh sách tour slots theo ngày trong tuần
+        /// Lấy tour slot theo ngày cụ thể
         /// </summary>
-        /// <param name="scheduleDay">Ngày trong tuần (Saturday/Sunday)</param>
-        /// <param name="includeInactive">Có bao gồm slots không active không</param>
-        /// <returns>Danh sách tour slots</returns>
-        Task<IEnumerable<TourSlot>> GetByScheduleDayAsync(ScheduleDay scheduleDay, bool includeInactive = false);
+        /// <param name="tourTemplateId">ID của tour template</param>
+        /// <param name="date">Ngày tour</param>
+        /// <returns>Tour slot nếu tồn tại</returns>
+        Task<TourSlot?> GetByDateAsync(Guid tourTemplateId, DateOnly date);
 
         /// <summary>
-        /// Lấy danh sách tour slots available (có thể booking)
-        /// </summary>
-        /// <param name="fromDate">Từ ngày (optional)</param>
-        /// <param name="toDate">Đến ngày (optional)</param>
-        /// <returns>Danh sách tour slots available</returns>
-        Task<IEnumerable<TourSlot>> GetAvailableSlotsAsync(DateOnly? fromDate = null, DateOnly? toDate = null);
-
-        /// <summary>
-        /// Lấy danh sách tour slots available với filtering chi tiết
+        /// Lấy danh sách slots available với filtering
         /// </summary>
         /// <param name="tourTemplateId">ID của tour template (optional)</param>
         /// <param name="scheduleDay">Ngày trong tuần (optional)</param>
         /// <param name="fromDate">Từ ngày (optional)</param>
         /// <param name="toDate">Đến ngày (optional)</param>
         /// <param name="includeInactive">Có bao gồm slots không active không</param>
-        /// <returns>Danh sách tour slots available</returns>
+        /// <returns>Danh sách tour slots</returns>
         Task<IEnumerable<TourSlot>> GetAvailableSlotsAsync(
-            Guid? tourTemplateId,
-            ScheduleDay? scheduleDay,
-            DateOnly? fromDate,
-            DateOnly? toDate,
-            bool includeInactive);
-
-        /// <summary>
-        /// Lấy tour slot theo ngày cụ thể và tour template
-        /// </summary>
-        /// <param name="tourTemplateId">ID của tour template</param>
-        /// <param name="tourDate">Ngày tour</param>
-        /// <returns>Tour slot nếu tồn tại</returns>
-        Task<TourSlot?> GetByTemplateAndDateAsync(Guid tourTemplateId, DateOnly tourDate);
-
-        /// <summary>
-        /// Lấy tour slot với đầy đủ thông tin relationships
-        /// </summary>
-        /// <param name="id">ID của tour slot</param>
-        /// <returns>Tour slot với relationships</returns>
-        Task<TourSlot?> GetWithDetailsAsync(Guid id);
-
-        /// <summary>
-        /// Kiểm tra xem có tour slot nào trong khoảng thời gian không
-        /// </summary>
-        /// <param name="tourTemplateId">ID của tour template</param>
-        /// <param name="startDate">Ngày bắt đầu</param>
-        /// <param name="endDate">Ngày kết thúc</param>
-        /// <returns>True nếu có slot trong khoảng thời gian</returns>
-        Task<bool> HasSlotsInDateRangeAsync(Guid tourTemplateId, DateOnly startDate, DateOnly endDate);
-
-        /// <summary>
-        /// Lấy danh sách tour slots với pagination và filtering
-        /// </summary>
-        /// <param name="pageIndex">Trang hiện tại</param>
-        /// <param name="pageSize">Số items per page</param>
-        /// <param name="tourTemplateId">Filter theo tour template (optional)</param>
-        /// <param name="scheduleDay">Filter theo ngày trong tuần (optional)</param>
-        /// <param name="fromDate">Filter từ ngày (optional)</param>
-        /// <param name="toDate">Filter đến ngày (optional)</param>
-        /// <param name="includeInactive">Có bao gồm slots không active không</param>
-        /// <returns>Tuple chứa danh sách tour slots và tổng số records</returns>
-        Task<(IEnumerable<TourSlot> Slots, int TotalCount)> GetPaginatedAsync(
-            int pageIndex,
-            int pageSize,
             Guid? tourTemplateId = null,
             ScheduleDay? scheduleDay = null,
             DateOnly? fromDate = null,
@@ -103,27 +48,19 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
             bool includeInactive = false);
 
         /// <summary>
-        /// Lấy danh sách tour slots sắp tới (từ hôm nay trở đi)
-        /// </summary>
-        /// <param name="tourTemplateId">Filter theo tour template (optional)</param>
-        /// <param name="top">Số lượng slots lấy về</param>
-        /// <returns>Danh sách tour slots sắp tới</returns>
-        Task<IEnumerable<TourSlot>> GetUpcomingSlotsAsync(Guid? tourTemplateId = null, int top = 10);
-
-        /// <summary>
-        /// Kiểm tra xem tour slot có tour operation không
-        /// </summary>
-        /// <param name="id">ID của tour slot</param>
-        /// <returns>True nếu có tour operation</returns>
-        Task<bool> HasTourOperationAsync(Guid id);
-
-        /// <summary>
-        /// Đếm số lượng tour slots available trong khoảng thời gian
+        /// Kiểm tra xem slot có tồn tại không
         /// </summary>
         /// <param name="tourTemplateId">ID của tour template</param>
-        /// <param name="fromDate">Từ ngày</param>
-        /// <param name="toDate">Đến ngày</param>
-        /// <returns>Số lượng slots available</returns>
-        Task<int> CountAvailableSlotsAsync(Guid tourTemplateId, DateOnly fromDate, DateOnly toDate);
+        /// <param name="date">Ngày tour</param>
+        /// <returns>True nếu slot tồn tại</returns>
+        Task<bool> SlotExistsAsync(Guid tourTemplateId, DateOnly date);
+
+        /// <summary>
+        /// Cập nhật trạng thái của nhiều slots
+        /// </summary>
+        /// <param name="slotIds">Danh sách ID của slots</param>
+        /// <param name="status">Trạng thái mới</param>
+        /// <returns>Số lượng slots được cập nhật</returns>
+        Task<int> BulkUpdateStatusAsync(IEnumerable<Guid> slotIds, TourSlotStatus status);
     }
 }

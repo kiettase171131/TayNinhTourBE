@@ -74,9 +74,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation
         /// </summary>
         public DateTime? UpdatedAt { get; set; }
 
-        /// <summary>
-        /// Thông tin TourSlot (navigation property)
-        /// </summary>
-        public TourSlotDto? TourSlot { get; set; }
+
     }
 }

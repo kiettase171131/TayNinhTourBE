@@ -25,20 +25,18 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ITourTemplateService _tourTemplateService;
         private readonly ITourGuideApplicationService _tourGuideApplicationService;
         private readonly ICurrentUserService _currentUserService;
-        private readonly ITourSlotService _tourSlotService;
+
 
         public TourCompanyController(
             ITourCompanyService tourCompanyService,
             ITourTemplateService tourTemplateService,
             ITourGuideApplicationService tourGuideApplicationService,
-            ICurrentUserService currentUserService,
-            ITourSlotService tourSlotService)
+            ICurrentUserService currentUserService)
         {
             _tourCompanyService = tourCompanyService;
             _tourTemplateService = tourTemplateService;
             _tourGuideApplicationService = tourGuideApplicationService;
             _currentUserService = currentUserService;
-            _tourSlotService = tourSlotService;
         }
 
         [HttpGet("tour")]
@@ -128,6 +126,12 @@ namespace TayNinhTourApi.Controller.Controllers
             // Get current user id from ICurrentUserService
             var userId = _currentUserService.GetCurrentUserId();
 
+            // Debug logging
+            Console.WriteLine($"DEBUG: GetCurrentUserId() returned: {userId}");
+            Console.WriteLine($"DEBUG: User.Identity.IsAuthenticated: {User.Identity?.IsAuthenticated}");
+            Console.WriteLine($"DEBUG: NameIdentifier claim: {User.FindFirst(ClaimTypes.NameIdentifier)?.Value}");
+            Console.WriteLine($"DEBUG: Id claim: {User.FindFirst("Id")?.Value}");
+
             if (userId == Guid.Empty)
             {
                 return BadRequest("User ID not found in authentication context.");
@@ -140,25 +144,22 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 try
                 {
-                    var generateSlotsRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourSlot.RequestGenerateSlotsDto
-                    {
-                        TourTemplateId = response.Data.Id,
-                        Month = request.Month,
-                        Year = request.Year,
-                        OverwriteExisting = false,
-                        AutoActivate = true
-                    };
-
-                    var slotsResponse = await _tourSlotService.GenerateSlotsAsync(generateSlotsRequest);
+                    // Tự động tạo slots cho template vừa tạo
+                    var slotsResult = await _tourTemplateService.GenerateSlotsForTemplateAsync(
+                        response.Data.Id,
+                        request.Month,
+                        request.Year,
+                        overwriteExisting: false,
+                        autoActivate: true);
 
                     // Thêm thông tin về slots vào response message
-                    if (slotsResponse.IsSuccess)
+                    if (slotsResult.IsSuccess)
                     {
-                        response.Message += $" và đã tạo {slotsResponse.CreatedSlotsCount} slots cho tháng {request.Month}/{request.Year}";
+                        response.Message += $" và đã tạo {slotsResult.CreatedSlotsCount} slots cho tháng {request.Month}/{request.Year}";
                     }
                     else
                     {
-                        response.Message += $" nhưng không thể tạo slots: {slotsResponse.Message}";
+                        response.Message += $" nhưng không thể tạo slots: {slotsResult.Message}";
                     }
                 }
                 catch (Exception ex)
