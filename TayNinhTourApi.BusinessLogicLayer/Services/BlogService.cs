@@ -2,6 +2,7 @@
 using LinqKit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -217,7 +218,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Check if textSearch is null or empty
             if (!string.IsNullOrEmpty(textSearch))
             {
-                predicate = predicate.And(x => (x.Title != null && x.Title.Contains(textSearch, StringComparison.OrdinalIgnoreCase)));
+                predicate = predicate.And(b =>
+            EF.Functions.Like(b.Title, $"%{textSearch}%"));
             }
 
             // Check if status is null or empty
@@ -266,7 +268,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Check if textSearch is null or empty
             if (!string.IsNullOrEmpty(textSearch))
             {
-                predicate = predicate.And(x => (x.Title != null && x.Title.Contains(textSearch, StringComparison.OrdinalIgnoreCase)));
+                predicate = predicate.And(b =>
+            EF.Functions.Like(b.Title, $"%{textSearch}%"));
             }
 
             // Check if status is null or empty
