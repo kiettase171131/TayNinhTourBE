@@ -102,10 +102,12 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.HasIndex(ts => ts.IsActive)
                 .HasDatabaseName("IX_TourSlots_IsActive");
 
-            // Composite index for TourTemplateId + TourDate (for template-specific date queries)
-            builder.HasIndex(ts => new { ts.TourTemplateId, ts.TourDate })
-                .HasDatabaseName("IX_TourSlots_TourTemplateId_TourDate")
-                .IsUnique(); // Ensure one slot per template per date
+            // Composite index for TourTemplateId + TourDate + TourDetailsId (for clone logic support)
+            // This allows both template slots (TourDetailsId = null) and detail slots (TourDetailsId = X)
+            // to coexist for the same template and date
+            builder.HasIndex(ts => new { ts.TourTemplateId, ts.TourDate, ts.TourDetailsId })
+                .HasDatabaseName("IX_TourSlots_TourTemplateId_TourDate_TourDetailsId")
+                .IsUnique(); // Ensure unique combination of template, date, and details
 
             // Composite index for TourDate + IsActive (for available slots by date)
             builder.HasIndex(ts => new { ts.TourDate, ts.IsActive })

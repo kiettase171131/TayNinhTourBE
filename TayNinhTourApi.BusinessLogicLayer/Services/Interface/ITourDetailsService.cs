@@ -70,10 +70,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="includeInactive">Bao gồm inactive records</param>
         /// <returns>Danh sách TourDetails có phân trang</returns>
         Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
-            int pageIndex, 
-            int pageSize, 
-            Guid? tourTemplateId = null, 
-            string? titleFilter = null, 
+            int pageIndex,
+            int pageSize,
+            Guid? tourTemplateId = null,
+            string? titleFilter = null,
             bool includeInactive = false);
 
         // ===== TIMELINE OPERATIONS (EXISTING & NEW) =====

@@ -106,7 +106,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 }
 
                 var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                _logger.LogInformation("Creating TourDetail for template {TemplateId} by user {UserId}", 
+                _logger.LogInformation("Creating TourDetail for template {TemplateId} by user {UserId}",
                     request.TourTemplateId, userId);
 
                 var response = await _tourDetailsService.CreateTourDetailAsync(request, userId);
@@ -240,7 +240,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("Getting paginated TourDetails - Page: {PageIndex}, Size: {PageSize}", 
+                _logger.LogInformation("Getting paginated TourDetails - Page: {PageIndex}, Size: {PageSize}",
                     pageIndex, pageSize);
 
                 var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
@@ -343,7 +343,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin timeline item cần tạo</param>
         /// <returns>Timeline item vừa được tạo</returns>
         [HttpPost("timeline")]
-        public async Task<IActionResult> CreateTimelineItem([FromBody] RequestCreateTourDetailDto request)
+        public async Task<IActionResult> CreateTimelineItem([FromBody] RequestCreateTimelineItemDto request)
         {
             try
             {
@@ -358,7 +358,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 }
 
                 var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                _logger.LogInformation("Creating timeline item for template {TemplateId} by user {UserId}", 
+                _logger.LogInformation("Creating timeline item for template {TemplateId} by user {UserId}",
                     request.TourTemplateId, userId);
 
                 var response = await _tourDetailsService.AddTimelineItemAsync(request, userId);

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 
@@ -11,9 +12,11 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    partial class TayNinhTouApiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250610023105_FixTourSlotUniqueConstraintForCloneLogic")]
+    partial class FixTourSlotUniqueConstraintForCloneLogic
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -956,9 +959,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.HasIndex("TourDate", "IsActive")
                         .HasDatabaseName("IX_TourSlots_TourDate_IsActive");
 
-                    b.HasIndex("TourTemplateId", "TourDate", "TourDetailsId")
+                    b.HasIndex("TourTemplateId", "TourDate")
                         .IsUnique()
-                        .HasDatabaseName("IX_TourSlots_TourTemplateId_TourDate_TourDetailsId");
+                        .HasDatabaseName("IX_TourSlots_TourTemplateId_TourDate");
 
                     b.ToTable("TourSlots", (string)null);
                 });

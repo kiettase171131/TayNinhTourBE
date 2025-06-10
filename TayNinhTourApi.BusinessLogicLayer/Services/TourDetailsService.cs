@@ -119,18 +119,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // AUTO-CLONE: Clone tất cả TourSlots từ TourTemplate để tái sử dụng template
                 _logger.LogInformation("Cloning TourSlots from TourTemplate for TourDetails {TourDetailId}", tourDetail.Id);
-                
+
                 // Lấy tất cả template slots (TourDetailsId = null, là slots gốc READ-only)
                 var templateSlots = await _unitOfWork.TourSlotRepository
                     .GetByTourTemplateAsync(request.TourTemplateId);
-                
+
                 var templatesSlotsList = templateSlots.Where(slot => slot.TourDetailsId == null).ToList();
-                
+
                 if (templatesSlotsList.Any())
                 {
                     // CLONE template slots thành detail slots
                     var clonedSlots = new List<TourSlot>();
-                    
+
                     foreach (var templateSlot in templatesSlotsList)
                     {
                         var clonedSlot = new TourSlot
@@ -145,19 +145,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             CreatedById = createdById,
                             CreatedAt = DateTime.UtcNow
                         };
-                        
+
                         await _unitOfWork.TourSlotRepository.AddAsync(clonedSlot);
                         clonedSlots.Add(clonedSlot);
                     }
-                    
+
                     await _unitOfWork.SaveChangesAsync();
-                    
-                    _logger.LogInformation("Successfully cloned {SlotCount} TourSlots for TourDetails {TourDetailId}", 
+
+                    _logger.LogInformation("Successfully cloned {SlotCount} TourSlots for TourDetails {TourDetailId}",
                         clonedSlots.Count, tourDetail.Id);
                 }
                 else
                 {
-                    _logger.LogWarning("No template TourSlots found for TourTemplate {TourTemplateId}", 
+                    _logger.LogWarning("No template TourSlots found for TourTemplate {TourTemplateId}",
                         request.TourTemplateId);
                 }
 
