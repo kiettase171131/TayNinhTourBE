@@ -111,6 +111,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById);
 
         /// <summary>
+        /// Tạo nhiều timeline items cho TourDetails (bulk create)
+        /// </summary>
+        /// <param name="request">Thông tin timeline items cần tạo</param>
+        /// <param name="createdById">ID của user tạo</param>
+        /// <returns>Danh sách timeline items vừa được tạo</returns>
+        Task<ResponseCreateTimelineItemsDto> CreateTimelineItemsAsync(RequestCreateTimelineItemsDto request, Guid createdById);
+
+        /// <summary>
         /// Cập nhật thông tin timeline item
         /// </summary>
         /// <param name="tourDetailId">ID của tour detail cần cập nhật</param>

@@ -57,6 +57,32 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     }
 
     /// <summary>
+    /// Response DTO cho việc tạo bulk timeline items
+    /// </summary>
+    public class ResponseCreateTimelineItemsDto : BaseResposeDto
+    {
+        /// <summary>
+        /// Danh sách timeline items vừa tạo
+        /// </summary>
+        public List<TimelineItemDto> Data { get; set; } = new List<TimelineItemDto>();
+
+        /// <summary>
+        /// Số lượng timeline items đã tạo thành công
+        /// </summary>
+        public int CreatedCount { get; set; }
+
+        /// <summary>
+        /// Số lượng timeline items bị lỗi (nếu có)
+        /// </summary>
+        public int FailedCount { get; set; }
+
+        /// <summary>
+        /// Chi tiết lỗi cho từng item (nếu có)
+        /// </summary>
+        public List<string> Errors { get; set; } = new List<string>();
+    }
+
+    /// <summary>
     /// Response DTO cho việc sắp xếp lại timeline items
     /// </summary>
     public class ResponseReorderTimelineItemsDto : BaseResposeDto

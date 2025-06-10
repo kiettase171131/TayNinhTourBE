@@ -298,52 +298,15 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
 
-        /// <summary>
-        /// Lấy timeline đầy đủ của một tour template (DEPRECATED - dùng cho backward compatibility)
-        /// </summary>
-        /// <param name="templateId">ID của tour template</param>
-        /// <param name="includeInactive">Có bao gồm các items không active không (default: false)</param>
-        /// <param name="includeShopInfo">Có bao gồm thông tin shop không (default: true)</param>
-        /// <returns>Timeline với danh sách các tour details được sắp xếp theo thứ tự</returns>
-        [HttpGet("timeline/{templateId:guid}")]
-        [Obsolete("Use GetTimelineByTourDetails instead. This endpoint will be removed in future versions.")]
-        public async Task<IActionResult> GetTimeline(
-            [FromRoute] Guid templateId,
-            [FromQuery] bool includeInactive = false,
-            [FromQuery] bool includeShopInfo = true)
-        {
-            try
-            {
-                _logger.LogInformation("Getting timeline for template {TemplateId}", templateId);
 
-                var request = new RequestGetTimelineDto
-                {
-                    TourTemplateId = templateId,
-                    IncludeInactive = includeInactive,
-                    IncludeShopInfo = includeShopInfo
-                };
-
-                var response = await _tourDetailsService.GetTimelineAsync(request);
-                return StatusCode(response.StatusCode, response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting timeline for template {TemplateId}", templateId);
-                return StatusCode(500, new
-                {
-                    StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy timeline"
-                });
-            }
-        }
 
         /// <summary>
-        /// Tạo mới một timeline item
+        /// Tạo mới timeline items (single hoặc bulk)
         /// </summary>
-        /// <param name="request">Thông tin timeline item cần tạo</param>
-        /// <returns>Timeline item vừa được tạo</returns>
+        /// <param name="request">Thông tin timeline items cần tạo</param>
+        /// <returns>Timeline items vừa được tạo</returns>
         [HttpPost("timeline")]
-        public async Task<IActionResult> CreateTimelineItem([FromBody] RequestCreateTimelineItemDto request)
+        public async Task<IActionResult> CreateTimelineItems([FromBody] RequestCreateTimelineItemsDto request)
         {
             try
             {
@@ -358,7 +321,45 @@ namespace TayNinhTourApi.Controller.Controllers
                 }
 
                 var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-                _logger.LogInformation("Creating timeline item for TourDetails {TourDetailsId} by user {UserId}",
+                _logger.LogInformation("Creating {Count} timeline items for TourDetails {TourDetailsId} by user {UserId}",
+                    request.TimelineItems.Count, request.TourDetailsId, userId);
+
+                var response = await _tourDetailsService.CreateTimelineItemsAsync(request, userId);
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating timeline items for TourDetails {TourDetailsId}", request.TourDetailsId);
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi tạo timeline items"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Tạo mới một timeline item (backward compatibility)
+        /// </summary>
+        /// <param name="request">Thông tin timeline item cần tạo</param>
+        /// <returns>Timeline item vừa được tạo</returns>
+        [HttpPost("timeline/single")]
+        public async Task<IActionResult> CreateSingleTimelineItem([FromBody] RequestCreateTimelineItemDto request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "Dữ liệu không hợp lệ",
+                        Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                    });
+                }
+
+                var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                _logger.LogInformation("Creating single timeline item for TourDetails {TourDetailsId} by user {UserId}",
                     request.TourDetailsId, userId);
 
                 var response = await _tourDetailsService.CreateTimelineItemAsync(request, userId);

@@ -716,6 +716,141 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        public async Task<ResponseCreateTimelineItemsDto> CreateTimelineItemsAsync(RequestCreateTimelineItemsDto request, Guid createdById)
+        {
+            try
+            {
+                // Validate TourDetails exists
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(request.TourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new ResponseCreateTimelineItemsDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                // Validate sortOrder conflicts within request
+                var requestSortOrders = request.TimelineItems
+                    .Where(item => item.SortOrder.HasValue)
+                    .Select(item => item.SortOrder.Value)
+                    .ToList();
+
+                var duplicateSortOrders = requestSortOrders
+                    .GroupBy(x => x)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .ToList();
+
+                if (duplicateSortOrders.Any())
+                {
+                    return new ResponseCreateTimelineItemsDto
+                    {
+                        StatusCode = 400,
+                        Message = $"SortOrder bị trùng lặp trong request: {string.Join(", ", duplicateSortOrders)}",
+                        IsSuccess = false,
+                        Errors = new List<string> { $"Các sortOrder bị trùng: {string.Join(", ", duplicateSortOrders)}" }
+                    };
+                }
+
+                // Get existing timeline items and check for conflicts
+                var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
+                    t => t.TourDetailsId == request.TourDetailsId);
+                var existingSortOrders = existingItems.Select(t => t.SortOrder).ToHashSet();
+
+                var conflictingSortOrders = requestSortOrders
+                    .Where(sortOrder => existingSortOrders.Contains(sortOrder))
+                    .ToList();
+
+                if (conflictingSortOrders.Any())
+                {
+                    return new ResponseCreateTimelineItemsDto
+                    {
+                        StatusCode = 409,
+                        Message = $"SortOrder đã tồn tại: {string.Join(", ", conflictingSortOrders)}",
+                        IsSuccess = false,
+                        Errors = new List<string> { $"Các sortOrder đã tồn tại trong timeline: {string.Join(", ", conflictingSortOrders)}" }
+                    };
+                }
+
+                var createdItems = new List<TimelineItemDto>();
+                var errors = new List<string>();
+                int successCount = 0;
+                int failedCount = 0;
+
+                int currentMaxSortOrder = existingItems.Any() ? existingItems.Max(t => t.SortOrder) : 0;
+
+                foreach (var itemRequest in request.TimelineItems)
+                {
+                    try
+                    {
+                        // Validate time format
+                        if (!TimeSpan.TryParse(itemRequest.CheckInTime, out var checkInTime))
+                        {
+                            errors.Add($"Định dạng thời gian không hợp lệ: {itemRequest.CheckInTime}");
+                            failedCount++;
+                            continue;
+                        }
+
+                        // Create timeline item
+                        var timelineItem = new TimelineItem
+                        {
+                            Id = Guid.NewGuid(),
+                            TourDetailsId = request.TourDetailsId,
+                            CheckInTime = checkInTime,
+                            Activity = itemRequest.Activity,
+                            ShopId = itemRequest.ShopId,
+                            SortOrder = itemRequest.SortOrder.HasValue ? itemRequest.SortOrder.Value : (++currentMaxSortOrder),
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedById = createdById
+                        };
+
+                        await _unitOfWork.TimelineItemRepository.AddAsync(timelineItem);
+
+                        // Map to DTO
+                        var timelineItemDto = _mapper.Map<TimelineItemDto>(timelineItem);
+                        createdItems.Add(timelineItemDto);
+                        successCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"Lỗi tạo timeline item '{itemRequest.Activity}': {ex.Message}");
+                        failedCount++;
+                    }
+                }
+
+                // Save all changes
+                if (successCount > 0)
+                {
+                    await _unitOfWork.SaveChangesAsync();
+                }
+
+                return new ResponseCreateTimelineItemsDto
+                {
+                    StatusCode = successCount > 0 ? 201 : 400,
+                    Message = $"Tạo thành công {successCount}/{request.TimelineItems.Count} timeline items",
+                    IsSuccess = successCount > 0,
+                    Data = createdItems,
+                    CreatedCount = successCount,
+                    FailedCount = failedCount,
+                    Errors = errors
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResponseCreateTimelineItemsDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi tạo timeline items",
+                    IsSuccess = false,
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+        }
+
         private async Task<int> GetNextSortOrderAsync(Guid tourDetailsId)
         {
             var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
