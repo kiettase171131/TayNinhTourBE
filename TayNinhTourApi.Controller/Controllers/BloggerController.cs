@@ -52,7 +52,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpGet("blog/{id}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        
         public async Task<ActionResult<ResponseGetBlogByIdDto>> GetBlogById(Guid id)
         {
             var response = await _blogService.GetBlogByIdAsync(id);

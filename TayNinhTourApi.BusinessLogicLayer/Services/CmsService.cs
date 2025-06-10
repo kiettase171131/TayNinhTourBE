@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using LinqKit;
+using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
@@ -76,7 +77,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Check if textSearch is null or empty
             if (!string.IsNullOrEmpty(textSearch))
             {
-                predicate = predicate.And(x => (x.Title != null && x.Title.Contains(textSearch, StringComparison.OrdinalIgnoreCase)));
+                predicate = predicate.And(b =>
+             EF.Functions.Like(b.Title, $"%{textSearch}%"));
             }
 
             // Check if status is null or empty
