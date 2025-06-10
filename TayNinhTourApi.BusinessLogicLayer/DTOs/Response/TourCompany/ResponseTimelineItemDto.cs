@@ -5,7 +5,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     /// <summary>
     /// Response DTO cho việc tạo timeline item
     /// </summary>
-    public class ResponseCreateTimelineItemDto : BaseResponse
+    public class ResponseCreateTimelineItemDto : BaseResposeDto
     {
         /// <summary>
         /// Thông tin timeline item vừa tạo
@@ -16,7 +16,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     /// <summary>
     /// Response DTO cho việc cập nhật timeline item
     /// </summary>
-    public class ResponseUpdateTimelineItemDto : BaseResponse
+    public class ResponseUpdateTimelineItemDto : BaseResposeDto
     {
         /// <summary>
         /// Thông tin timeline item sau khi cập nhật
@@ -27,7 +27,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     /// <summary>
     /// Response DTO cho việc xóa timeline item
     /// </summary>
-    public class ResponseDeleteTimelineItemDto : BaseResponse
+    public class ResponseDeleteTimelineItemDto : BaseResposeDto
     {
         /// <summary>
         /// Kết quả xóa thành công hay không
@@ -43,7 +43,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     /// <summary>
     /// Response DTO cho việc lấy timeline items của một tour details
     /// </summary>
-    public class ResponseGetTimelineItemsDto : BaseResponse
+    public class ResponseGetTimelineItemsDto : BaseResposeDto
     {
         /// <summary>
         /// Danh sách timeline items
@@ -59,7 +59,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     /// <summary>
     /// Response DTO cho việc sắp xếp lại timeline items
     /// </summary>
-    public class ResponseReorderTimelineItemsDto : BaseResponse
+    public class ResponseReorderTimelineItemsDto : BaseResposeDto
     {
         /// <summary>
         /// Timeline items sau khi sắp xếp lại

@@ -6,14 +6,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     /// <summary>
     /// Service interface cho quản lý TourOperation
-    /// TourOperation chứa thông tin vận hành cụ thể cho mỗi TourSlot
+    /// TourOperation chứa thông tin vận hành cụ thể cho mỗi TourDetails
     /// </summary>
     public interface ITourOperationService
     {
         /// <summary>
-        /// Tạo operation mới cho TourSlot
+        /// Tạo operation mới cho TourDetails
         /// Business Rules:
-        /// - TourSlot phải tồn tại và chưa có Operation
+        /// - TourDetails phải tồn tại và chưa có Operation
         /// - MaxSeats <= Template.MaxGuests
         /// - GuideId phải valid (nếu có)
         /// - Price >= 0
@@ -21,10 +21,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<ResponseCreateOperationDto> CreateOperationAsync(RequestCreateOperationDto request);
 
         /// <summary>
-        /// Lấy operation theo TourSlot ID
-        /// Return null nếu slot chưa có operation
+        /// Lấy operation theo TourDetails ID
+        /// Return null nếu TourDetails chưa có operation
         /// </summary>
-        Task<TourOperationDto?> GetOperationBySlotAsync(Guid slotId);
+        Task<TourOperationDto?> GetOperationByTourDetailsAsync(Guid tourDetailsId);
 
         /// <summary>
         /// Lấy operation theo Operation ID
@@ -64,8 +64,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<(bool IsValid, string ErrorMessage)> ValidateOperationAsync(RequestCreateOperationDto request);
 
         /// <summary>
-        /// Check xem slot có thể tạo operation không
+        /// Check xem TourDetails có thể tạo operation không
         /// </summary>
-        Task<bool> CanCreateOperationForSlotAsync(Guid slotId);
+        Task<bool> CanCreateOperationForTourDetailsAsync(Guid tourDetailsId);
     }
 }

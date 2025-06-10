@@ -34,32 +34,32 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                _logger.LogInformation("Creating operation for slot {SlotId}", request.TourSlotId);
+                _logger.LogInformation("Creating operation for TourDetails {TourDetailsId}", request.TourDetailsId);
 
-                // 1. Validate TourSlot exists
-                var tourSlot = await _unitOfWork.TourSlotRepository.GetByIdAsync(request.TourSlotId);
-                if (tourSlot == null)
+                // 1. Validate TourDetails exists
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(request.TourDetailsId);
+                if (tourDetails == null)
                 {
                     return new ResponseCreateOperationDto
                     {
                         IsSuccess = false,
-                        Message = "TourSlot không tồn tại"
+                        Message = "TourDetails không tồn tại"
                     };
                 }
 
-                // 2. Check slot chưa có operation
-                var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourSlotAsync(request.TourSlotId);
+                // 2. Check TourDetails chưa có operation
+                var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(request.TourDetailsId);
                 if (existingOperation != null)
                 {
                     return new ResponseCreateOperationDto
                     {
                         IsSuccess = false,
-                        Message = "TourSlot đã có operation"
+                        Message = "TourDetails đã có operation"
                     };
                 }
 
                 // 3. Validate với Template constraints
-                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourSlot.TourTemplateId);
+                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourDetails.TourTemplateId);
                 if (template == null)
                 {
                     return new ResponseCreateOperationDto
@@ -89,7 +89,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var operation = new TourOperation
                 {
                     Id = Guid.NewGuid(),
-                    TourSlotId = request.TourSlotId,
+                    TourDetailsId = request.TourDetailsId,
                     Price = request.Price,
                     MaxGuests = request.MaxSeats,
                     Description = request.Description,
@@ -106,7 +106,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // 6. Return response
                 var operationDto = _mapper.Map<TourOperationDto>(operation);
 
-                _logger.LogInformation("Operation created successfully for slot {SlotId}", request.TourSlotId);
+                _logger.LogInformation("Operation created successfully for TourDetails {TourDetailsId}", request.TourDetailsId);
 
                 return new ResponseCreateOperationDto
                 {
@@ -117,7 +117,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating operation for slot {SlotId}", request.TourSlotId);
+                _logger.LogError(ex, "Error creating operation for TourDetails {TourDetailsId}", request.TourDetailsId);
                 return new ResponseCreateOperationDto
                 {
                     IsSuccess = false,
@@ -127,22 +127,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Lấy operation theo TourSlot ID
+        /// Lấy operation theo TourDetails ID
         /// </summary>
-        public async Task<TourOperationDto?> GetOperationBySlotAsync(Guid slotId)
+        public async Task<TourOperationDto?> GetOperationByTourDetailsAsync(Guid tourDetailsId)
         {
             try
             {
-                _logger.LogInformation("Getting operation for slot {SlotId}", slotId);
+                _logger.LogInformation("Getting operation for TourDetails {TourDetailsId}", tourDetailsId);
 
-                var operation = await _unitOfWork.TourOperationRepository.GetByTourSlotAsync(slotId);
+                var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
                 if (operation == null) return null;
 
                 return _mapper.Map<TourOperationDto>(operation);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting operation for slot {SlotId}", slotId);
+                _logger.LogError(ex, "Error getting operation for TourDetails {TourDetailsId}", tourDetailsId);
                 return null;
             }
         }
@@ -191,8 +191,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // 2. Validate constraints
                 if (request.MaxSeats.HasValue)
                 {
-                    var tourSlot = await _unitOfWork.TourSlotRepository.GetByIdAsync(operation.TourSlotId);
-                    var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourSlot!.TourTemplateId);
+                    var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(operation.TourDetailsId);
+                    var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourDetails!.TourTemplateId);
 
                     // MaxGuests validation removed - now managed at operation level
                 }
@@ -305,8 +305,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogInformation("Getting operations with filters");
 
-                var operations = await _unitOfWork.TourOperationRepository.GetOperationsAsync(
-                    tourTemplateId, guideId, fromDate, toDate, includeInactive);
+                var (operations, _) = await _unitOfWork.TourOperationRepository.GetPaginatedAsync(
+                    1, 1000, guideId, tourTemplateId, includeInactive);
 
                 return _mapper.Map<List<TourOperationDto>>(operations);
             }
@@ -324,18 +324,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                // Check TourSlot exists
-                var tourSlot = await _unitOfWork.TourSlotRepository.GetByIdAsync(request.TourSlotId);
-                if (tourSlot == null)
-                    return (false, "TourSlot không tồn tại");
+                // Check TourDetails exists
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(request.TourDetailsId);
+                if (tourDetails == null)
+                    return (false, "TourDetails không tồn tại");
 
-                // Check slot chưa có operation
-                var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourSlotAsync(request.TourSlotId);
+                // Check TourDetails chưa có operation
+                var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(request.TourDetailsId);
                 if (existingOperation != null)
-                    return (false, "TourSlot đã có operation");
+                    return (false, "TourDetails đã có operation");
 
                 // Check template constraints
-                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourSlot.TourTemplateId);
+                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourDetails.TourTemplateId);
                 if (template == null)
                     return (false, "Template không tồn tại");
 
@@ -359,21 +359,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Check xem slot có thể tạo operation không
+        /// Check xem TourDetails có thể tạo operation không
         /// </summary>
-        public async Task<bool> CanCreateOperationForSlotAsync(Guid slotId)
+        public async Task<bool> CanCreateOperationForTourDetailsAsync(Guid tourDetailsId)
         {
             try
             {
-                var tourSlot = await _unitOfWork.TourSlotRepository.GetByIdAsync(slotId);
-                if (tourSlot == null) return false;
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetails == null) return false;
 
-                var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourSlotAsync(slotId);
+                var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
                 return existingOperation == null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking if can create operation for slot {SlotId}", slotId);
+                _logger.LogError(ex, "Error checking if can create operation for TourDetails {TourDetailsId}", tourDetailsId);
                 return false;
             }
         }

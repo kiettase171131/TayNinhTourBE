@@ -15,6 +15,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
 
     /// <summary>
     /// Response DTO cho việc tạo tour detail
+    /// Bao gồm thông tin về clone logic cho TourSlots
     /// </summary>
     public class ResponseCreateTourDetailDto : BaseResposeDto
     {
@@ -22,6 +23,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// Thông tin tour detail vừa tạo
         /// </summary>
         public TourDetailDto? Data { get; set; }
+
+        /// <summary>
+        /// Số lượng TourSlots đã được clone từ template
+        /// </summary>
+        public int ClonedSlotsCount { get; set; }
+
+        /// <summary>
+        /// Thông tin bổ sung về clone process
+        /// </summary>
+        public string? CloneInfo { get; set; }
     }
 
     /// <summary>
@@ -41,14 +52,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     public class ResponseDeleteTourDetailDto : BaseResposeDto
     {
         /// <summary>
-        /// Kết quả xóa thành công hay không
-        /// </summary>
-        public bool Success { get; set; }
-
-        /// <summary>
         /// ID của tour detail đã xóa
         /// </summary>
-        public Guid DeletedId { get; set; }
+        public Guid DeletedTourDetailId { get; set; }
+
+        /// <summary>
+        /// Số lượng TourSlots đã được cleanup
+        /// </summary>
+        public int CleanedSlotsCount { get; set; }
+
+        /// <summary>
+        /// Số lượng TimelineItems đã được xóa
+        /// </summary>
+        public int CleanedTimelineItemsCount { get; set; }
+
+        /// <summary>
+        /// Thông tin bổ sung về cleanup process
+        /// </summary>
+        public string? CleanupInfo { get; set; }
     }
 
     /// <summary>
@@ -98,7 +119,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// <summary>
         /// Danh sách lỗi validation (nếu có)
         /// </summary>
-        public List<string> ValidationErrors { get; set; } = new List<string>();
+        public new List<string> ValidationErrors { get; set; } = new List<string>();
 
         /// <summary>
         /// Danh sách cảnh báo (nếu có)

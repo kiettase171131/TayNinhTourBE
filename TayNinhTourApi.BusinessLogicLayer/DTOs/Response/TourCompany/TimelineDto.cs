@@ -31,9 +31,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string EndLocation { get; set; } = null!;
 
         /// <summary>
-        /// Danh sách các tour details được sắp xếp theo thứ tự timeline
+        /// Danh sách các timeline items được sắp xếp theo thứ tự timeline
         /// </summary>
-        public List<TourDetailDto> Items { get; set; } = new List<TourDetailDto>();
+        public List<TimelineItemDto> Items { get; set; } = new List<TimelineItemDto>();
 
         /// <summary>
         /// Tổng số items trong timeline
@@ -53,17 +53,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// <summary>
         /// Thời gian bắt đầu sớm nhất trong timeline (computed property)
         /// </summary>
-        public TimeOnly? EarliestTime => Items.Any() ? Items.Min(td => td.TimeSlot) : null;
+        public string? EarliestTime => Items.Any() ? Items.Min(ti => ti.CheckInTime) : null;
 
         /// <summary>
         /// Thời gian kết thúc muộn nhất trong timeline (computed property)
         /// </summary>
-        public TimeOnly? LatestTime => Items.Any() ? Items.Max(td => td.TimeSlot) : null;
+        public string? LatestTime => Items.Any() ? Items.Max(ti => ti.CheckInTime) : null;
 
         /// <summary>
         /// Số lượng shops được ghé thăm trong tour (computed property)
         /// </summary>
-        public int ShopsCount => Items.Count(td => td.ShopId.HasValue);
+        public int ShopsCount => Items.Count(ti => ti.ShopId.HasValue);
 
         /// <summary>
         /// Thời gian tạo timeline

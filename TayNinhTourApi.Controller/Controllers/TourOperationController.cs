@@ -9,7 +9,7 @@ using TayNinhTourApi.BusinessLogicLayer.Common;
 namespace TayNinhTourApi.Controller.Controllers
 {
     /// <summary>
-    /// Controller quản lý TourOperation - thông tin vận hành cho TourSlot
+    /// Controller quản lý TourOperation - thông tin vận hành cho TourDetails
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
@@ -28,7 +28,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Tạo operation mới cho TourSlot
+        /// Tạo operation mới cho TourDetails
         /// </summary>
         /// <param name="request">Thông tin operation</param>
         /// <returns>Operation được tạo</returns>
@@ -40,7 +40,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("Creating operation for slot {SlotId}", request.TourSlotId);
+                _logger.LogInformation("Creating operation for TourDetails {TourDetailsId}", request.TourDetailsId);
 
                 if (!ModelState.IsValid)
                 {
@@ -58,12 +58,12 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(result);
                 }
 
-                _logger.LogInformation("Operation created successfully for slot {SlotId}", request.TourSlotId);
+                _logger.LogInformation("Operation created successfully for TourDetails {TourDetailsId}", request.TourDetailsId);
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating operation for slot {SlotId}", request.TourSlotId);
+                _logger.LogError(ex, "Error creating operation for TourDetails {TourDetailsId}", request.TourDetailsId);
                 return StatusCode(500, new BaseResposeDto
                 {
                     IsSuccess = false,
@@ -73,27 +73,27 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Lấy operation theo TourSlot ID
+        /// Lấy operation theo TourDetails ID
         /// </summary>
-        /// <param name="slotId">ID của TourSlot</param>
-        /// <returns>Operation của slot</returns>
-        [HttpGet("slot/{slotId:guid}")]
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <returns>Operation của TourDetails</returns>
+        [HttpGet("details/{tourDetailsId:guid}")]
         [ProducesResponseType(typeof(TourOperationDto), 200)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult<TourOperationDto>> GetOperationBySlot(Guid slotId)
+        public async Task<ActionResult<TourOperationDto>> GetOperationByTourDetails(Guid tourDetailsId)
         {
             try
             {
-                _logger.LogInformation("Getting operation for slot {SlotId}", slotId);
+                _logger.LogInformation("Getting operation for TourDetails {TourDetailsId}", tourDetailsId);
 
-                var operation = await _tourOperationService.GetOperationBySlotAsync(slotId);
+                var operation = await _tourOperationService.GetOperationByTourDetailsAsync(tourDetailsId);
 
                 if (operation == null)
                 {
                     return NotFound(new BaseResposeDto
                     {
                         IsSuccess = false,
-                        Message = "Slot chưa có operation"
+                        Message = "TourDetails chưa có operation"
                     });
                 }
 
@@ -101,7 +101,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting operation for slot {SlotId}", slotId);
+                _logger.LogError(ex, "Error getting operation for TourDetails {TourDetailsId}", tourDetailsId);
                 return StatusCode(500, new BaseResposeDto
                 {
                     IsSuccess = false,

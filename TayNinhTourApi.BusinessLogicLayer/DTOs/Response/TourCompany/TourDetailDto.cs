@@ -16,6 +16,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public Guid TourTemplateId { get; set; }
 
         /// <summary>
+        /// Tên của tour template mà lịch trình này thuộc về
+        /// </summary>
+        public string TourTemplateName { get; set; } = string.Empty;
+
+        /// <summary>
         /// Tiêu đề của lịch trình
         /// Ví dụ: "Lịch trình VIP", "Lịch trình thường", "Lịch trình tiết kiệm"
         /// </summary>
@@ -35,7 +40,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// <summary>
         /// Thông tin operation cho lịch trình này (nếu có)
         /// </summary>
-        public TourOperationDto? Operation { get; set; }
+        public TourOperationDto? TourOperation { get; set; }
+
+        /// <summary>
+        /// Số lượng timeline items thuộc về lịch trình này
+        /// </summary>
+        public int TimelineItemsCount { get; set; }
 
         /// <summary>
         /// Số lượng slots được assign lịch trình này

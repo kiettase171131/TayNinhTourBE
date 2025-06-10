@@ -30,11 +30,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #endregion
 
             #region TourDetails Mapping
+            // Request to Entity mappings
             CreateMap<RequestCreateTourDetailDto, TourDetails>();
             CreateMap<RequestUpdateTourDetailDto, TourDetails>()
                 .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
+
+            // Entity to DTO mappings
             CreateMap<TourDetails, TourDetailDto>()
-                .ForMember(dest => dest.Shop, opt => opt.MapFrom(src => src.Shop));
+                .ForMember(dest => dest.TourTemplateName, opt => opt.MapFrom(src => src.TourTemplate.Title))
+                .ForMember(dest => dest.AssignedSlotsCount, opt => opt.MapFrom(src => src.AssignedSlots.Count))
+                .ForMember(dest => dest.TimelineItemsCount, opt => opt.MapFrom(src => src.Timeline.Count))
+                .ForMember(dest => dest.TourOperation, opt => opt.MapFrom(src => src.TourOperation));
+
+            // Entity to DTO mappings for direct responses (simpler approach)
+            // Service layer will handle response construction manually for better control
             #endregion
 
             #region Shop Mapping
@@ -46,17 +55,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #endregion
 
             #region Timeline Mapping
-            CreateMap<TourTemplate, TimelineDto>()
-                .ForMember(dest => dest.TourTemplateId, opt => opt.MapFrom(src => src.Id))
-                .ForMember(dest => dest.TourTemplateTitle, opt => opt.MapFrom(src => src.Title))
-                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.TourDetails.OrderBy(td => td.SortOrder)))
-                .ForMember(dest => dest.TotalItems, opt => opt.MapFrom(src => src.TourDetails.Count))
-                .ForMember(dest => dest.TotalDuration, opt => opt.Ignore()) // Will be calculated in service
-                .ForMember(dest => dest.StartLocation, opt => opt.MapFrom(src => src.StartLocation))
-                .ForMember(dest => dest.EndLocation, opt => opt.MapFrom(src => src.EndLocation))
-                .ForMember(dest => dest.Duration, opt => opt.Ignore()) // Duration field removed from TourTemplate
-                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
-                .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => src.UpdatedAt));
+            // TODO: Update timeline mapping for new design
+            // CreateMap<TourTemplate, TimelineDto>() - Will be handled in service manually
             #endregion
 
 
@@ -79,7 +79,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
                 .ForMember(dest => dest.GuidePhone, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null));
             CreateMap<TourOperation, OperationSummaryDto>()
-                .ForMember(dest => dest.TourDate, opt => opt.MapFrom(src => src.TourSlot.TourDate))
+                .ForMember(dest => dest.TourDate, opt => opt.Ignore()) // Will set in service
                 .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
                 .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Email : null))
                 .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null))

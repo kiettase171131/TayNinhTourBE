@@ -3,19 +3,55 @@
 ## 📋 TÌNH TRẠNG IMPLEMENTATION - 100% HOÀN THÀNH ✅
 
 **🎯 TourTemplate System đã được implement hoàn chỉnh với 50+ API endpoints**
+**🔄 ĐÃ CẬP NHẬT THEO LOGIC MỚI: TourOperation 1:1 với TourDetails**
 
-**📅 Cập nhật lần cuối**: 07/06/2025
-**🔍 Phân tích dựa trên**: Codebase thực tế trong project TayNinhTourBE
+**📅 Cập nhật lần cuối**: 10/06/2025
+**🔍 Phân tích dựa trên**: Codebase thực tế trong project TayNinhTourBE sau khi refactor theo TourTemplate_Redesign_Plan.md
 
 ## 📋 PHÂN TÍCH REQUIREMENT VÀ FLOW ĐÃ THỰC HIỆN
 
-### 🎯 Core Requirements:
-1. **TourTemplate System**: Tạo template để tái sử dụng
+### 🎯 Core Requirements (ĐÃ CẬP NHẬT THEO LOGIC MỚI):
+1. **TourTemplate System**: Tạo template để tái sử dụng với clone logic
 2. **Scheduling**: Chỉ T7 hoặc CN, 4 lần/tháng, tự động theo tháng/năm
 3. **Tour Types**: 2 loại (Free Scenic vs Paid Attraction)
-4. **Timeline Management**: Thêm/sửa mốc thời gian linh hoạt
-5. **Shop Integration**: Chọn shop tự động điền vào lịch trình
-6. **Image Management**: Thêm hình ảnh vào template
+4. **TourDetails System**: Quản lý lịch trình cụ thể cho template (1:N relationship)
+5. **TourOperation System**: Quản lý guide + giá + capacity (1:1 với TourDetails)
+6. **Clone Logic**: Template slots → Detail slots khi tạo TourDetails
+7. **TimelineItem Management**: Lịch trình chi tiết + shop selection
+8. **Shop Integration**: Chọn shop cho từng timeline item
+9. **Image Management**: Thêm hình ảnh vào template
+
+---
+
+## 🔄 LOGIC MỚI - CLONE SYSTEM VÀ RELATIONSHIPS
+
+### 🎯 **KIẾN TRÚC MỚI:**
+
+```
+TourTemplate (Gốc)
+├── Auto-generate TourSlots: 15/6, 22/6, 29/6... (TourDetailsId = null)
+├── TourDetails "Lịch trình VIP":
+│   ├── AUTO-CLONE slots → TourDetailsId = VIP_123
+│   ├── TourOperation: Guide A + 500k + 25 ghế (1:1 relationship)
+│   └── TimelineItem: 5h khởi hành, 7h ăn sáng (shop A)...
+└── TourDetails "Lịch trình thường":
+    ├── AUTO-CLONE slots → TourDetailsId = THUONG_456
+    ├── TourOperation: Guide B + 300k + 35 ghế (1:1 relationship)
+    └── TimelineItem: 6h khởi hành, 8h ăn sáng (shop C)...
+```
+
+### 🔗 **RELATIONSHIPS:**
+- **TourTemplate (1:N) → TourSlot** (template slots với TourDetailsId = null)
+- **TourTemplate (1:N) → TourDetails** (các version lịch trình khác nhau)
+- **TourDetails (1:1) → TourOperation** (guide + giá + capacity)
+- **TourDetails (1:N) → TourSlot** (detail slots với TourDetailsId = X)
+- **TourDetails (1:N) → TimelineItem** (lịch trình chi tiết)
+
+### ⚡ **CLONE LOGIC:**
+1. **Template Slots**: `TourDetailsId = null` (có thể tái sử dụng vô hạn)
+2. **Detail Slots**: `TourDetailsId = X` (bản sao riêng cho từng TourDetails)
+3. **Auto-Clone**: Khi tạo TourDetails mới → AUTO-CLONE tất cả template slots thành detail slots
+4. **Inheritance**: Tất cả detail slots tự động inherit timeline và operation từ TourDetails
 
 ---
 
@@ -74,7 +110,7 @@
 - ✅ POST /api/TourDetails/timeline/reorder - Reorder timeline
 - ✅ GET /api/TourDetails/shops - Get shops dropdown
 
-### FLOW 3: Tạo Tour Slots (Scheduling)
+### FLOW 3: Tạo Tour Slots (Scheduling) - LOGIC MỚI
 ```
 [Chọn Template]
     ↓
@@ -88,39 +124,57 @@
     ↓
 [Xác nhận tạo slots]
     ↓
-[4 TourSlots được tạo tự động]
+[4 Template TourSlots được tạo (TourDetailsId = null)]
+    ↓
+[Template slots có thể được clone vô hạn cho TourDetails khác nhau]
 ```
 
 **APIs cần thiết:**
 - ✅ POST /api/TourSlot/preview - Preview slots
-- ✅ POST /api/TourSlot/generate - Generate 4 slots
+- ✅ POST /api/TourSlot/generate - Generate 4 template slots (TourDetailsId = null)
 - ✅ GET /api/Scheduling/weekend-dates/{year}/{month} - Get weekend dates
 - ✅ POST /api/Scheduling/generate-slot-dates - Generate optimal dates
+- ✅ GET /api/TourSlot/template/{templateId} - Get template slots
+- ✅ GET /api/TourSlot/details/{tourDetailsId} - Get detail slots (cloned)
 
-### FLOW 4: Quản lý Tour Operations
+### FLOW 4: Tạo TourDetails và TourOperation (LOGIC MỚI)
 ```
-[Chọn TourSlot đã tạo]
+[Chọn TourTemplate đã tạo]
     ↓
-[Thêm thông tin vận hành]
+[Tạo TourDetails mới]
+- Title cho version này (VD: "Lịch trình VIP", "Lịch trình thường")
+- Description chi tiết
+- Chọn template để reuse
+    ↓
+[Hệ thống AUTO-CLONE template slots]
+- Template slots (TourDetailsId = null) → Detail slots (TourDetailsId = X)
+- Tất cả slots của template được clone thành slots riêng
+    ↓
+[Tạo TourOperation cho TourDetails]
 - Chọn hướng dẫn viên
 - Đặt giá tour
 - Số ghế tối đa
 - Description bổ sung
     ↓
-[Lưu TourOperation]
+[Tạo Timeline cho TourDetails]
+- Thêm các mốc thời gian
+- Chọn shops cho từng timeline item
     ↓
-[Tour sẵn sàng cho khách đặt]
+[TourDetails hoàn chỉnh với Operation và Timeline]
+    ↓
+[Tất cả detail slots tự động inherit timeline và operation]
 ```
 
-**APIs cần thiết:**
-- ✅ POST /api/TourOperation - Create operation
-- ✅ GET /api/TourOperation/slot/{slotId} - Get operation by slot
+**APIs cần thiết (ĐÃ CẬP NHẬT):**
+- ✅ POST /api/TourDetails - Create TourDetails (auto-clone slots)
+- ✅ POST /api/TourOperation - Create operation (cho TourDetails)
+- ✅ GET /api/TourOperation/details/{tourDetailsId} - Get operation by TourDetails
 - ✅ PATCH /api/TourOperation/{id} - Update operation
 - ✅ DELETE /api/TourOperation/{id} - Delete operation
 - ✅ GET /api/Account/guides - Get danh sách hướng dẫn viên
 - ✅ GET /api/Account/guides/available - Get guides available cho ngày cụ thể
 
-### FLOW 5: Copy và Tái sử dụng Template
+### FLOW 5: Copy và Tái sử dụng Template (KHÔNG THAY ĐỔI)
 ```
 [Vào danh sách Templates]
     ↓
@@ -130,9 +184,9 @@
     ↓
 [Điền tên mới cho template]
     ↓
-[Template mới được tạo với timeline giống hệt]
+[Template mới được tạo với slots giống hệt]
     ↓
-[Có thể edit timeline của template mới]
+[Có thể tạo TourDetails khác nhau cho template mới]
 ```
 
 **APIs cần thiết:**
@@ -140,18 +194,64 @@
 - ✅ POST /api/TourCompany/template/{id}/copy - Copy template
 - ✅ PATCH /api/TourCompany/template/{id} - Edit copied template
 
-### FLOW 6: Quản lý Shop cho Timeline
+### FLOW 6: TourSlot Clone Logic (LOGIC MỚI)
 ```
-[Admin/TourCompany tạo shops]
+[Template có 4 template slots: 15/6, 22/6, 29/6, 6/7]
+- TourDetailsId = null (có thể tái sử dụng)
     ↓
-[Shops hiển thị trong dropdown khi tạo timeline]
+[Tạo TourDetails "Lịch trình VIP"]
     ↓
-[Chọn shop tự động điền "Ghé + Tên Shop"]
+[Hệ thống AUTO-CLONE template slots]
+- 4 detail slots mới: 15/6, 22/6, 29/6, 6/7
+- TourDetailsId = VIP_123
     ↓
-[Shop info được lưu trong timeline item]
+[Tạo TourDetails "Lịch trình thường"]
+    ↓
+[Hệ thống AUTO-CLONE template slots lần nữa]
+- 4 detail slots mới: 15/6, 22/6, 29/6, 6/7
+- TourDetailsId = THUONG_456
+    ↓
+[Kết quả: 1 template có 12 slots total]
+- 4 template slots (TourDetailsId = null)
+- 4 VIP detail slots (TourDetailsId = VIP_123)
+- 4 thường detail slots (TourDetailsId = THUONG_456)
+```
+
+**APIs cho Clone Logic:**
+- ✅ GET /api/TourSlot/template/{templateId} - Lấy template slots
+- ✅ GET /api/TourSlot/details/{tourDetailsId} - Lấy detail slots
+- ✅ POST /api/TourDetails - Tạo TourDetails (auto-clone slots)
+
+### FLOW 7: Quản lý TimelineItem cho TourDetails (LOGIC MỚI)
+```
+[Chọn TourDetails đã tạo]
+    ↓
+[Vào Timeline Editor]
+    ↓
+[Thêm TimelineItem]
+- TimeSlot (10:00, 11:00...)
+- Location/Activity
+- Description HOẶC chọn Shop
+    ↓
+[Nếu chọn Shop]
+    ↓
+[Hiển thị dropdown shops]
+    ↓
+[Auto-fill "Ghé + Tên Shop"]
+    ↓
+[Sắp xếp lại thứ tự timeline]
+    ↓
+[Lưu timeline cho TourDetails]
+    ↓
+[Tất cả slots của TourDetails tự động inherit timeline này]
 ```
 
 **APIs cần thiết:**
+- ✅ GET /api/TourDetails/timeline/{tourDetailsId} - Get timeline cho TourDetails
+- ✅ POST /api/TourDetails/timeline - Add timeline item
+- ✅ PATCH /api/TourDetails/timeline/{id} - Update timeline item
+- ✅ DELETE /api/TourDetails/timeline/{id} - Delete timeline item
+- ✅ POST /api/TourDetails/timeline/reorder - Reorder timeline
 - ✅ GET /api/Shop - List shops
 - ✅ POST /api/Shop - Create shop
 - ✅ PATCH /api/Shop/{id} - Update shop
@@ -159,28 +259,55 @@
 
 ---
 
-## ✅ CÁC API ĐÃ HOÀN THÀNH CHO FLOW
+## ✅ CÁC API ĐÃ HOÀN THÀNH CHO FLOW (CẬP NHẬT THEO LOGIC MỚI)
 
-### 1. TourOperation Management APIs (ĐÃ HOÀN THÀNH):
+### 1. TourOperation Management APIs (ĐÃ CẬP NHẬT):
 ```
-✅ POST /api/TourOperation - Create operation
-✅ GET /api/TourOperation/slot/{slotId} - Get operation by slot
+✅ POST /api/TourOperation - Create operation (cho TourDetails)
+✅ GET /api/TourOperation/details/{tourDetailsId} - Get operation by TourDetails
 ✅ PATCH /api/TourOperation/{id} - Update operation
 ✅ DELETE /api/TourOperation/{id} - Delete operation
 ```
 
-### 2. User/Guide Management APIs (ĐÃ HOÀN THÀNH):
+### 2. TourDetails Management APIs (MỚI):
+```
+✅ POST /api/TourDetails - Create TourDetails (auto-clone template slots)
+✅ GET /api/TourDetails/{id} - Get TourDetails details
+✅ PATCH /api/TourDetails/{id} - Update TourDetails
+✅ DELETE /api/TourDetails/{id} - Delete TourDetails
+```
+
+### 3. TimelineItem Management APIs (MỚI):
+```
+✅ GET /api/TourDetails/timeline/{tourDetailsId} - Get timeline
+✅ POST /api/TourDetails/timeline - Add timeline item
+✅ PATCH /api/TourDetails/timeline/{id} - Update timeline item
+✅ DELETE /api/TourDetails/timeline/{id} - Delete timeline item
+✅ POST /api/TourDetails/timeline/reorder - Reorder timeline
+```
+
+### 4. User/Guide Management APIs (ĐÃ HOÀN THÀNH):
 ```
 ✅ GET /api/Account/guides - Lấy danh sách hướng dẫn viên
 ✅ GET /api/Account/guides/available - Lấy guides available cho ngày cụ thể
 ```
 
-### 3. Template với Slot Integration:
+### 5. Template với Slot Integration (CẬP NHẬT LOGIC MỚI):
 ```
-✅ GET /api/TourSlot/template/{templateId} - Lấy slots theo template (ĐÃ CÓ)
+✅ GET /api/TourSlot/template/{templateId} - Lấy template slots (TourDetailsId = null)
+✅ GET /api/TourSlot/details/{tourDetailsId} - Lấy detail slots (TourDetailsId = X)
+✅ POST /api/TourSlot/clone - Clone template slots thành detail slots (auto khi tạo TourDetails)
 ```
 
-### 4. Booking/Customer APIs (cho tương lai):
+### 6. Shop Management APIs:
+```
+✅ GET /api/Shop - List shops với pagination
+✅ POST /api/Shop - Create shop
+✅ PATCH /api/Shop/{id} - Update shop
+✅ GET /api/Shop/active - Get active shops dropdown
+```
+
+### 7. Booking/Customer APIs (cho tương lai):
 ```
 ❌ POST /api/Booking/slot/{slotId} - Đặt tour (CHƯA CẦN)
 ❌ GET /api/Booking/customer/{customerId} - Lịch sử đặt tour (CHƯA CẦN)
@@ -188,22 +315,26 @@
 
 ---
 
-## ✅ ĐÁNH GIÁ TỔNG QUAN
+## ✅ ĐÁNH GIÁ TỔNG QUAN (CẬP NHẬT THEO LOGIC MỚI)
 
-### Đã có đầy đủ (100%):
+### Đã có đầy đủ (100%) - LOGIC MỚI:
 - ✅ Template CRUD hoàn chỉnh
-- ✅ Timeline management hoàn chỉnh
+- ✅ TourDetails system với clone logic hoàn chỉnh
+- ✅ TimelineItem management hoàn chỉnh
 - ✅ Shop integration hoàn chỉnh
-- ✅ Slot generation hoàn chỉnh
+- ✅ **TourSlot system với 2 loại slots**: Template slots (TourDetailsId = null) và Detail slots (TourDetailsId = X)
+- ✅ **Auto-clone mechanism**: Template slots → Detail slots khi tạo TourDetails
 - ✅ Scheduling algorithm hoàn chỉnh
 - ✅ Template copy functionality
-- ✅ TourOperation CRUD APIs hoàn chỉnh
+- ✅ TourOperation CRUD APIs (1:1 với TourDetails)
 - ✅ Guide/User selection APIs hoàn chỉnh
-- ✅ Slot-Operation integration hoàn chỉnh
+- ✅ TourDetails-Operation integration hoàn chỉnh
+- ✅ **Slot filtering**: APIs để lấy template slots vs detail slots riêng biệt
+- ✅ Timeline inheritance cho tất cả slots của TourDetails
 
 ### Kết luận:
-Project đã thực hiện **100% các API cần thiết** cho flow hoàn chỉnh.
-TourTemplate system đã sẵn sàng cho production với đầy đủ chức năng từ tạo template đến quản lý operations.
+Project đã thực hiện **100% các API cần thiết** cho flow hoàn chỉnh theo logic mới.
+TourTemplate system với TourDetails và clone logic đã sẵn sàng cho production với đầy đủ chức năng từ tạo template đến quản lý operations.
 
 ---
 
@@ -217,11 +348,13 @@ TourTemplate system đã sẵn sàng cho production với đầy đủ chức n�
 - ✅ DELETE /api/TourCompany/template/{id} - Delete template
 - ✅ POST /api/TourCompany/template/{id}/copy - Copy template
 
-### ✅ TourSlotController (/api/TourSlot) - 8 endpoints:
-- ✅ POST /api/TourSlot/generate - Generate slots
+### ✅ TourSlotController (/api/TourSlot) - 10 endpoints (CẬP NHẬT LOGIC MỚI):
+- ✅ POST /api/TourSlot/generate - Generate template slots (TourDetailsId = null)
 - ✅ POST /api/TourSlot/preview - Preview slots
-- ✅ GET /api/TourSlot - Get slots với filtering
+- ✅ GET /api/TourSlot - Get slots với filtering (template + detail slots)
 - ✅ GET /api/TourSlot/{id} - Get slot details
+- ✅ GET /api/TourSlot/template/{templateId} - Get template slots (TourDetailsId = null)
+- ✅ GET /api/TourSlot/details/{tourDetailsId} - Get detail slots (TourDetailsId = X)
 - ✅ PUT /api/TourSlot/{id} - Update slot
 - ✅ DELETE /api/TourSlot/{id} - Delete slot
 - ✅ POST /api/TourSlot/check-conflicts - Check conflicts
@@ -258,9 +391,9 @@ TourTemplate system đã sẵn sàng cho production với đầy đủ chức n�
 - ✅ POST /api/TourMigration/rollback - Rollback migration
 - ✅ GET /api/TourMigration/status - Get migration status
 
-### ✅ TourOperationController (/api/TourOperation) - 4 endpoints:
-- ✅ POST /api/TourOperation - Create operation
-- ✅ GET /api/TourOperation/slot/{slotId} - Get operation by slot
+### ✅ TourOperationController (/api/TourOperation) - 4 endpoints (CẬP NHẬT):
+- ✅ POST /api/TourOperation - Create operation (cho TourDetails)
+- ✅ GET /api/TourOperation/details/{tourDetailsId} - Get operation by TourDetails
 - ✅ PATCH /api/TourOperation/{id} - Update operation
 - ✅ DELETE /api/TourOperation/{id} - Delete operation (soft delete)
 
@@ -296,16 +429,21 @@ TourTemplate system đã sẵn sàng cho production với đầy đủ chức n�
 - **Sẵn sàng production** với đầy đủ chức năng
 - **Documentation hoàn chỉnh** với OpenAPI spec và examples
 
-### 🔄 **BUSINESS FLOWS ĐÃ HOÀN THÀNH (VERIFIED):**
-1. ✅ Tạo và quản lý TourTemplate (với auto slot generation)
-2. ✅ Timeline management với shop integration
-3. ✅ Tự động generate TourSlots (4 slots/tháng với optimal distribution)
-4. ✅ Quản lý TourOperations với guide assignment và availability check
-5. ✅ Copy và tái sử dụng templates
-6. ✅ Shop management cho timeline với active/inactive status
-7. ✅ Migration từ Tour cũ sang TourTemplate system với preview/rollback
-8. ✅ Health monitoring và system status checks
-9. ✅ Guide management với availability checking
+### 🔄 **BUSINESS FLOWS ĐÃ HOÀN THÀNH (VERIFIED - LOGIC MỚI):**
+1. ✅ Tạo và quản lý TourTemplate (với auto template slot generation)
+2. ✅ **TourSlot system với 2 loại**: Template slots (TourDetailsId = null) và Detail slots (TourDetailsId = X)
+3. ✅ **Auto-clone mechanism**: Template slots → Detail slots khi tạo TourDetails
+4. ✅ TourDetails system với clone logic hoàn chỉnh
+5. ✅ TimelineItem management cho TourDetails với shop integration
+6. ✅ Tự động generate TourSlots (4 template slots/tháng với optimal distribution)
+7. ✅ Quản lý TourOperations (1:1 với TourDetails) với guide assignment
+8. ✅ Copy và tái sử dụng templates
+9. ✅ Shop management cho timeline với active/inactive status
+10. ✅ Migration từ Tour cũ sang TourTemplate system với preview/rollback
+11. ✅ Health monitoring và system status checks
+12. ✅ Guide management với availability checking
+13. ✅ **Slot filtering APIs**: Lấy template slots vs detail slots riêng biệt
+14. ✅ Auto-inheritance: Tất cả detail slots inherit timeline và operation từ TourDetails
 
 ### 🏗️ **ARCHITECTURE FEATURES IMPLEMENTED:**
 - ✅ 3-Layer Architecture (Controller → BLL → DAL)
@@ -354,11 +492,12 @@ TourTemplate system đã sẵn sàng cho production với đầy đủ chức n�
 
 ---
 
-**Ngày cập nhật**: 07/06/2025
-**Phương pháp**: Code analysis và verification thực tế
-**Trạng thái**: 100% hoàn thành và verified - TourTemplate system production-ready
-**Tổng endpoints**: 46 API endpoints across 9 controllers
+**Ngày cập nhật**: 10/06/2025
+**Phương pháp**: Code analysis và verification thực tế sau refactor theo TourTemplate_Redesign_Plan.md
+**Trạng thái**: 100% hoàn thành và verified - TourTemplate system production-ready với logic mới
+**Tổng endpoints**: 46+ API endpoints across 9 controllers (đã cập nhật TourOperation endpoints)
 **Code quality**: High với comprehensive error handling và logging
+**Logic mới**: TourOperation 1:1 với TourDetails, clone logic hoàn chỉnh, TimelineItem system
 
 ---
 
@@ -382,5 +521,14 @@ TourTemplate system đã sẵn sàng cho production với đầy đủ chức n�
 - **ImageController** - Image upload/management
 - **SupportTicketsController** - Support system
 
-### 🎯 **KẾT LUẬN:**
-TourTemplate system đã được implement **100% hoàn chỉnh** với tất cả controllers và endpoints cần thiết. Project sẵn sàng cho production deployment với đầy đủ chức năng từ tạo template đến quản lý operations.
+### 🎯 **KẾT LUẬN (CẬP NHẬT THEO LOGIC MỚI):**
+TourTemplate system đã được implement **100% hoàn chỉnh** với tất cả controllers và endpoints cần thiết theo logic mới.
+
+**Điểm nổi bật của logic mới:**
+- ✅ **TourOperation 1:1 với TourDetails** (thay vì TourSlot)
+- ✅ **Clone logic hoàn chỉnh**: Template slots → Detail slots
+- ✅ **TimelineItem system** cho lịch trình chi tiết
+- ✅ **Auto-inheritance**: Slots inherit timeline và operation từ TourDetails
+- ✅ **Reusability**: Một template có thể có nhiều TourDetails versions
+
+Project sẵn sàng cho production deployment với đầy đủ chức năng từ tạo template đến quản lý operations theo kiến trúc mới.

@@ -4,16 +4,93 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     /// <summary>
-    /// Service interface cho quản lý timeline chi tiết của tour template
-    /// Cung cấp các operations để thêm, sửa, xóa và sắp xếp lại timeline items
+    /// Service interface cho quản lý TourDetails và timeline chi tiết của tour template
+    /// Cung cấp các operations để tạo, sửa, xóa TourDetails và quản lý timeline items
     /// </summary>
     public interface ITourDetailsService
     {
+        // ===== TOURDETAILS CRUD OPERATIONS (NEW) =====
+
         /// <summary>
-        /// Lấy full timeline cho tour template với sort order
+        /// Lấy danh sách TourDetails của một tour template
+        /// </summary>
+        /// <param name="tourTemplateId">ID của tour template</param>
+        /// <param name="includeInactive">Có bao gồm TourDetails không active không</param>
+        /// <returns>Danh sách TourDetails của template</returns>
+        Task<ResponseGetTourDetailsDto> GetTourDetailsAsync(Guid tourTemplateId, bool includeInactive = false);
+
+        /// <summary>
+        /// Lấy chi tiết TourDetails theo ID
+        /// </summary>
+        /// <param name="tourDetailId">ID của TourDetails</param>
+        /// <returns>Thông tin chi tiết TourDetails</returns>
+        Task<ResponseGetTourDetailDto> GetTourDetailByIdAsync(Guid tourDetailId);
+
+        /// <summary>
+        /// Tạo TourDetails mới (trigger clone logic cho TourSlots)
+        /// </summary>
+        /// <param name="request">Thông tin TourDetails cần tạo</param>
+        /// <param name="createdById">ID của user tạo</param>
+        /// <returns>TourDetails vừa được tạo</returns>
+        Task<ResponseCreateTourDetailDto> CreateTourDetailAsync(RequestCreateTourDetailDto request, Guid createdById);
+
+        /// <summary>
+        /// Cập nhật thông tin TourDetails
+        /// </summary>
+        /// <param name="tourDetailId">ID của TourDetails cần cập nhật</param>
+        /// <param name="request">Thông tin cập nhật</param>
+        /// <param name="updatedById">ID của user cập nhật</param>
+        /// <returns>TourDetails sau khi cập nhật</returns>
+        Task<ResponseUpdateTourDetailDto> UpdateTourDetailAsync(Guid tourDetailId, RequestUpdateTourDetailDto request, Guid updatedById);
+
+        /// <summary>
+        /// Xóa TourDetails và cleanup related data
+        /// </summary>
+        /// <param name="tourDetailId">ID của TourDetails cần xóa</param>
+        /// <param name="deletedById">ID của user thực hiện xóa</param>
+        /// <returns>Kết quả xóa</returns>
+        Task<ResponseDeleteTourDetailDto> DeleteTourDetailAsync(Guid tourDetailId, Guid deletedById);
+
+        /// <summary>
+        /// Tìm kiếm TourDetails theo keyword
+        /// </summary>
+        /// <param name="keyword">Từ khóa tìm kiếm</param>
+        /// <param name="tourTemplateId">ID template để lọc (optional)</param>
+        /// <param name="includeInactive">Bao gồm inactive records</param>
+        /// <returns>Kết quả tìm kiếm</returns>
+        Task<ResponseSearchTourDetailsDto> SearchTourDetailsAsync(string keyword, Guid? tourTemplateId = null, bool includeInactive = false);
+
+        /// <summary>
+        /// Lấy TourDetails với phân trang
+        /// </summary>
+        /// <param name="pageIndex">Chỉ số trang (0-based)</param>
+        /// <param name="pageSize">Kích thước trang</param>
+        /// <param name="tourTemplateId">Filter theo template (optional)</param>
+        /// <param name="titleFilter">Filter theo title (optional)</param>
+        /// <param name="includeInactive">Bao gồm inactive records</param>
+        /// <returns>Danh sách TourDetails có phân trang</returns>
+        Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
+            int pageIndex, 
+            int pageSize, 
+            Guid? tourTemplateId = null, 
+            string? titleFilter = null, 
+            bool includeInactive = false);
+
+        // ===== TIMELINE OPERATIONS (EXISTING & NEW) =====
+
+        /// <summary>
+        /// Lấy timeline cho TourDetails cụ thể (NEW - theo design mới)
+        /// </summary>
+        /// <param name="request">Request chứa TourDetailsId và các options</param>
+        /// <returns>Timeline của TourDetails với thông tin shop</returns>
+        Task<ResponseGetTimelineDto> GetTimelineByTourDetailsAsync(RequestGetTimelineByTourDetailsDto request);
+
+        /// <summary>
+        /// Lấy full timeline cho tour template với sort order (DEPRECATED - backward compatibility)
         /// </summary>
         /// <param name="request">Request chứa TourTemplateId và các options</param>
         /// <returns>Timeline đầy đủ với thông tin shop</returns>
+        [Obsolete("Use GetTimelineByTourDetailsAsync instead. This method will be removed in future versions.")]
         Task<ResponseGetTimelineDto> GetTimelineAsync(RequestGetTimelineDto request);
 
         /// <summary>

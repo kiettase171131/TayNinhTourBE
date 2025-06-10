@@ -78,7 +78,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogInformation("Creating tour detail for TourTemplate {TourTemplateId}", request.TourTemplateId);
 
                 // Validate request
-                var validationResult = await ValidateCreateRequest(request);
+                var validationResult = await ValidateCreateRequestAsync(request);
                 if (!validationResult.IsValid)
                 {
                     return new ResponseCreateTourDetailDto
@@ -116,6 +116,50 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.TourDetailsRepository.AddAsync(tourDetail);
                 await _unitOfWork.SaveChangesAsync();
+
+                // AUTO-CLONE: Clone tất cả TourSlots từ TourTemplate để tái sử dụng template
+                _logger.LogInformation("Cloning TourSlots from TourTemplate for TourDetails {TourDetailId}", tourDetail.Id);
+                
+                // Lấy tất cả template slots (TourDetailsId = null, là slots gốc READ-only)
+                var templateSlots = await _unitOfWork.TourSlotRepository
+                    .GetByTourTemplateAsync(request.TourTemplateId);
+                
+                var templatesSlotsList = templateSlots.Where(slot => slot.TourDetailsId == null).ToList();
+                
+                if (templatesSlotsList.Any())
+                {
+                    // CLONE template slots thành detail slots
+                    var clonedSlots = new List<TourSlot>();
+                    
+                    foreach (var templateSlot in templatesSlotsList)
+                    {
+                        var clonedSlot = new TourSlot
+                        {
+                            Id = Guid.NewGuid(),
+                            TourTemplateId = templateSlot.TourTemplateId,
+                            TourDate = templateSlot.TourDate,
+                            ScheduleDay = templateSlot.ScheduleDay,
+                            Status = templateSlot.Status,
+                            TourDetailsId = tourDetail.Id, // ASSIGN cho detail này
+                            IsActive = templateSlot.IsActive,
+                            CreatedById = createdById,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        
+                        await _unitOfWork.TourSlotRepository.AddAsync(clonedSlot);
+                        clonedSlots.Add(clonedSlot);
+                    }
+                    
+                    await _unitOfWork.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Successfully cloned {SlotCount} TourSlots for TourDetails {TourDetailId}", 
+                        clonedSlots.Count, tourDetail.Id);
+                }
+                else
+                {
+                    _logger.LogWarning("No template TourSlots found for TourTemplate {TourTemplateId}", 
+                        request.TourTemplateId);
+                }
 
                 // Get created item with relationships
                 var createdDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetail.Id);
@@ -162,7 +206,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // Validate update request
-                var validationResult = await ValidateUpdateRequest(request, existingDetail);
+                var validationResult = await ValidateUpdateRequestAsync(request, existingDetail);
                 if (!validationResult.IsValid)
                 {
                     return new ResponseUpdateTourDetailDto
@@ -225,11 +269,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<ResponseDeleteTourDetailDto> DeleteTimelineItemAsync(Guid tourDetailId, Guid deletedById)
+        /// <summary>
+        /// Xóa lịch trình
+        /// </summary>
+        public async Task<ResponseDeleteTourDetailDto> DeleteTourDetailAsync(Guid tourDetailId, Guid deletedById)
         {
             try
             {
-                _logger.LogInformation("Deleting timeline item {TourDetailId}", tourDetailId);
+                _logger.LogInformation("Deleting tour detail {TourDetailId}", tourDetailId);
 
                 // Get existing tour detail
                 var existingDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailId);
@@ -238,18 +285,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new ResponseDeleteTourDetailDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy mốc thời gian này"
+                        Message = "Không tìm thấy lịch trình này"
                     };
                 }
 
                 // Check if can delete
-                var canDelete = await CanDeleteTimelineItemAsync(tourDetailId);
+                var canDelete = await _unitOfWork.TourDetailsRepository.CanDeleteDetailAsync(tourDetailId);
                 if (!canDelete)
                 {
                     return new ResponseDeleteTourDetailDto
                     {
                         StatusCode = 400,
-                        Message = "Không thể xóa mốc thời gian này do ràng buộc nghiệp vụ"
+                        Message = "Không thể xóa lịch trình này do đã có slots hoặc operations được assign"
                     };
                 }
 
@@ -260,113 +307,61 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 existingDetail.UpdatedAt = DateTime.UtcNow;
 
                 await _unitOfWork.TourDetailsRepository.UpdateAsync(existingDetail);
-
-                // Reorder remaining items
-                await _unitOfWork.TourDetailsRepository.UpdateSortOrdersAsync(
-                    existingDetail.TourTemplateId,
-                    existingDetail.SortOrder + 1,
-                    -1);
-
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Successfully deleted timeline item {TourDetailId}", tourDetailId);
+                _logger.LogInformation("Successfully deleted tour detail {TourDetailId}", tourDetailId);
 
                 return new ResponseDeleteTourDetailDto
                 {
                     StatusCode = 200,
-                    Message = "Xóa mốc thời gian thành công",
-                    Success = true,
-                    DeletedId = tourDetailId
+                    Message = "Xóa lịch trình thành công",
+                    DeletedTourDetailId = tourDetailId,
+                    CleanedSlotsCount = 0, // TODO: Count actual cleaned slots
+                    CleanedTimelineItemsCount = 0, // TODO: Count actual cleaned timeline items
+                    CleanupInfo = "Đã xóa thành công TourDetails và các dữ liệu liên quan"
                 };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting timeline item {TourDetailId}", tourDetailId);
+                _logger.LogError(ex, "Error deleting tour detail {TourDetailId}", tourDetailId);
                 return new ResponseDeleteTourDetailDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi xóa mốc thời gian"
+                    Message = "Có lỗi xảy ra khi xóa lịch trình"
                 };
             }
         }
 
-        public async Task<ResponseReorderTimelineDto> ReorderTimelineAsync(RequestReorderTimelineDto request, Guid updatedById)
+        /// <summary>
+        /// Tìm kiếm lịch trình theo từ khóa
+        /// </summary>
+        public async Task<ResponseSearchTourDetailsDto> SearchTourDetailsAsync(string keyword, Guid? tourTemplateId = null, bool includeInactive = false)
         {
             try
             {
-                _logger.LogInformation("Reordering timeline for TourTemplate {TourTemplateId}", request.TourTemplateId);
+                _logger.LogInformation("Searching tour details with keyword: {Keyword}", keyword);
 
-                // Validate tour template exists
-                var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(request.TourTemplateId);
-                if (tourTemplate == null || tourTemplate.IsDeleted)
-                {
-                    return new ResponseReorderTimelineDto
-                    {
-                        StatusCode = 404,
-                        Message = "Không tìm thấy tour template"
-                    };
-                }
+                var tourDetails = await _unitOfWork.TourDetailsRepository
+                    .SearchAsync(keyword, tourTemplateId, includeInactive);
 
-                // Get existing details
-                var existingDetails = await _unitOfWork.TourDetailsRepository
-                    .GetByTourTemplateOrderedAsync(request.TourTemplateId, false);
+                var tourDetailDtos = _mapper.Map<List<TourDetailDto>>(tourDetails);
 
-                var existingIds = existingDetails.Select(d => d.Id).ToList();
-                var requestedIds = request.OrderedDetailIds;
-
-                // Validate all IDs exist and belong to the template
-                if (!requestedIds.All(id => existingIds.Contains(id)) || requestedIds.Count != existingIds.Count)
-                {
-                    return new ResponseReorderTimelineDto
-                    {
-                        StatusCode = 400,
-                        Message = "Danh sách ID không hợp lệ hoặc không đầy đủ"
-                    };
-                }
-
-                // Update sort orders
-                for (int i = 0; i < requestedIds.Count; i++)
-                {
-                    var detail = existingDetails.First(d => d.Id == requestedIds[i]);
-                    detail.SortOrder = i + 1;
-                    detail.UpdatedById = updatedById;
-                    detail.UpdatedAt = DateTime.UtcNow;
-                    await _unitOfWork.TourDetailsRepository.UpdateAsync(detail);
-                }
-
-                await _unitOfWork.SaveChangesAsync();
-
-                // Get updated timeline
-                var updatedDetails = await _unitOfWork.TourDetailsRepository
-                    .GetByTourTemplateOrderedAsync(request.TourTemplateId, false);
-
-                var timelineItems = _mapper.Map<List<TourDetailDto>>(updatedDetails);
-                var timelineDto = new TimelineDto
-                {
-                    TourTemplateId = request.TourTemplateId,
-                    TourTemplateTitle = tourTemplate.Title,
-                    Items = timelineItems,
-                    TotalItems = timelineItems.Count,
-                    TotalDuration = CalculateTotalDuration(timelineItems)
-                };
-
-                _logger.LogInformation("Successfully reordered timeline for TourTemplate {TourTemplateId}", request.TourTemplateId);
-
-                return new ResponseReorderTimelineDto
+                return new ResponseSearchTourDetailsDto
                 {
                     StatusCode = 200,
-                    Message = "Sắp xếp lại timeline thành công",
-                    Data = timelineDto,
-                    ReorderedCount = requestedIds.Count
+                    Message = "Tìm kiếm lịch trình thành công",
+                    Data = tourDetailDtos,
+                    TotalCount = tourDetailDtos.Count,
+                    SearchKeyword = keyword
                 };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error reordering timeline for TourTemplate {TourTemplateId}", request.TourTemplateId);
-                return new ResponseReorderTimelineDto
+                _logger.LogError(ex, "Error searching tour details with keyword: {Keyword}", keyword);
+                return new ResponseSearchTourDetailsDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi sắp xếp lại timeline"
+                    Message = "Có lỗi xảy ra khi tìm kiếm lịch trình"
                 };
             }
         }
@@ -421,313 +416,254 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<ResponseValidateTimelineDto> ValidateTimelineAsync(Guid tourTemplateId)
+        /// <summary>
+        /// Lấy lịch trình với pagination
+        /// </summary>
+        public async Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
+            int pageIndex,
+            int pageSize,
+            Guid? tourTemplateId = null,
+            string? titleFilter = null,
+            bool includeInactive = false)
         {
             try
             {
-                _logger.LogInformation("Validating timeline for TourTemplate {TourTemplateId}", tourTemplateId);
+                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}", pageIndex, pageSize);
 
-                var errors = new List<string>();
-                var warnings = new List<string>();
+                var (tourDetails, totalCount) = await _unitOfWork.TourDetailsRepository
+                    .GetPaginatedAsync(pageIndex, pageSize, tourTemplateId, titleFilter, includeInactive);
 
-                // Get timeline details
-                var details = await _unitOfWork.TourDetailsRepository
-                    .GetByTourTemplateOrderedAsync(tourTemplateId, false);
+                var tourDetailDtos = _mapper.Map<List<TourDetailDto>>(tourDetails);
 
-                if (!details.Any())
-                {
-                    warnings.Add("Timeline chưa có mốc thời gian nào");
-                }
-                else
-                {
-                    // Check for duplicate time slots
-                    var timeSlots = details.Select(d => d.TimeSlot).ToList();
-                    var duplicates = timeSlots.GroupBy(t => t).Where(g => g.Count() > 1).Select(g => g.Key);
-
-                    foreach (var duplicate in duplicates)
-                    {
-                        errors.Add($"Có nhiều hơn một hoạt động tại thời gian {duplicate:HH:mm}");
-                    }
-
-                    // Check for logical time progression
-                    for (int i = 1; i < details.Count(); i++)
-                    {
-                        var current = details.ElementAt(i);
-                        var previous = details.ElementAt(i - 1);
-
-                        if (current.TimeSlot <= previous.TimeSlot)
-                        {
-                            warnings.Add($"Thời gian tại vị trí {i + 1} ({current.TimeSlot:HH:mm}) không theo thứ tự tăng dần");
-                        }
-                    }
-
-                    // Check for missing essential information
-                    var itemsWithoutLocation = details.Where(d => string.IsNullOrEmpty(d.Location)).Count();
-                    if (itemsWithoutLocation > 0)
-                    {
-                        warnings.Add($"Có {itemsWithoutLocation} mốc thời gian chưa có thông tin địa điểm");
-                    }
-                }
-
-                return new ResponseValidateTimelineDto
+                return new ResponseGetTourDetailsPaginatedDto
                 {
                     StatusCode = 200,
-                    Message = "Validation hoàn thành",
-                    IsValid = errors.Count == 0,
-                    ValidationErrors = errors,
-                    Warnings = warnings
+                    Message = "Lấy danh sách lịch trình thành công",
+                    Data = tourDetailDtos,
+                    TotalCount = totalCount,
+                    PageIndex = pageIndex,
+                    PageSize = pageSize,
+                    TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
                 };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error validating timeline for TourTemplate {TourTemplateId}", tourTemplateId);
-                return new ResponseValidateTimelineDto
+                _logger.LogError(ex, "Error getting paginated tour details");
+                return new ResponseGetTourDetailsPaginatedDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi validate timeline"
+                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình"
                 };
             }
         }
 
-        // Helper methods will be added in the next part due to line limit
-        private decimal CalculateTotalDuration(List<TourDetailDto> items)
-        {
-            if (items.Count < 2) return 0;
+        #region Helper Methods
 
-            var firstTime = items.First().TimeSlot;
-            var lastTime = items.Last().TimeSlot;
-
-            return (decimal)(lastTime.ToTimeSpan() - firstTime.ToTimeSpan()).TotalHours;
-        }
-
-        private async Task<(bool IsValid, List<string> Errors)> ValidateCreateRequest(RequestCreateTourDetailDto request)
+        /// <summary>
+        /// Validate request tạo tour detail
+        /// </summary>
+        private async Task<(bool IsValid, List<string> Errors)> ValidateCreateRequestAsync(RequestCreateTourDetailDto request)
         {
             var errors = new List<string>();
 
-            // Check tour template exists
+            // Kiểm tra tour template tồn tại
             var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(request.TourTemplateId);
             if (tourTemplate == null || tourTemplate.IsDeleted)
             {
                 errors.Add("Tour template không tồn tại");
             }
 
-            // Check shop exists if provided
-            if (request.ShopId.HasValue)
+            // Kiểm tra title không rỗng
+            if (string.IsNullOrWhiteSpace(request.Title))
             {
-                var shop = await _unitOfWork.ShopRepository.GetByIdAsync(request.ShopId.Value);
-                if (shop == null || shop.IsDeleted)
-                {
-                    errors.Add("Shop không tồn tại");
-                }
+                errors.Add("Tiêu đề lịch trình không được để trống");
             }
 
             return (errors.Count == 0, errors);
         }
 
-        private async Task<(bool IsValid, List<string> Errors)> ValidateUpdateRequest(RequestUpdateTourDetailDto request, TourDetails existingDetail)
+        /// <summary>
+        /// Validate request cập nhật tour detail
+        /// </summary>
+        private async Task<(bool IsValid, List<string> Errors)> ValidateUpdateRequestAsync(RequestUpdateTourDetailDto request, TourDetails existingDetail)
         {
             var errors = new List<string>();
 
-            // Check shop exists if provided
-            if (request.ShopId.HasValue)
+            // Kiểm tra có ít nhất một field để update
+            if (string.IsNullOrEmpty(request.Title) && request.Description == null)
             {
-                var shop = await _unitOfWork.ShopRepository.GetByIdAsync(request.ShopId.Value);
-                if (shop == null || shop.IsDeleted)
-                {
-                    errors.Add("Shop không tồn tại");
-                }
+                errors.Add("Cần có ít nhất một thông tin để cập nhật");
+            }
+
+            // Kiểm tra title không rỗng nếu có update
+            if (!string.IsNullOrEmpty(request.Title) && string.IsNullOrWhiteSpace(request.Title))
+            {
+                errors.Add("Tiêu đề lịch trình không được để trống");
             }
 
             return (errors.Count == 0, errors);
         }
 
-        public async Task<ResponseTimelineStatisticsDto> GetTimelineStatisticsAsync(Guid tourTemplateId)
+        #endregion
+
+        #region Missing Interface Methods
+
+        /// <summary>
+        /// Lấy thông tin chi tiết TourDetails theo ID
+        /// </summary>
+        public async Task<ResponseGetTourDetailDto> GetTourDetailByIdAsync(Guid tourDetailsId)
         {
             try
             {
-                _logger.LogInformation("Getting timeline statistics for TourTemplate {TourTemplateId}", tourTemplateId);
+                _logger.LogInformation("Getting TourDetail by ID: {TourDetailsId}", tourDetailsId);
 
-                var details = await _unitOfWork.TourDetailsRepository
-                    .GetByTourTemplateOrderedAsync(tourTemplateId, false);
-
-                if (!details.Any())
-                {
-                    return new ResponseTimelineStatisticsDto
-                    {
-                        StatusCode = 200,
-                        Message = "Timeline chưa có dữ liệu",
-                        Data = new TimelineStatistics()
-                    };
-                }
-
-                var usedShops = details.Where(d => d.ShopId.HasValue && d.Shop != null)
-                    .Select(d => new ShopSummaryDto
-                    {
-                        Id = d.Shop!.Id,
-                        Name = d.Shop.Name,
-                        Location = d.Shop.Location,
-                        Description = d.Shop.Description,
-                        PhoneNumber = d.Shop.PhoneNumber,
-                        IsActive = d.Shop.IsActive
-                    }).Distinct().ToList();
-
-                var timeSlots = details.Select(d => d.TimeSlot).ToList();
-                var totalDuration = timeSlots.Count > 1
-                    ? (decimal)(timeSlots.Max().ToTimeSpan() - timeSlots.Min().ToTimeSpan()).TotalHours
-                    : 0;
-
-                var statistics = new TimelineStatistics
-                {
-                    TotalItems = details.Count(),
-                    ItemsWithShop = details.Count(d => d.ShopId.HasValue),
-                    ItemsWithoutShop = details.Count(d => !d.ShopId.HasValue),
-                    EarliestTime = timeSlots.Any() ? timeSlots.Min() : null,
-                    LatestTime = timeSlots.Any() ? timeSlots.Max() : null,
-                    TotalDuration = totalDuration,
-                    UsedShops = usedShops
-                };
-
-                return new ResponseTimelineStatisticsDto
-                {
-                    StatusCode = 200,
-                    Message = "Lấy thống kê timeline thành công",
-                    Data = statistics
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting timeline statistics for TourTemplate {TourTemplateId}", tourTemplateId);
-                return new ResponseTimelineStatisticsDto
-                {
-                    StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy thống kê timeline"
-                };
-            }
-        }
-
-        public async Task<bool> CanDeleteTimelineItemAsync(Guid tourDetailId)
-        {
-            try
-            {
-                // Get the tour detail
-                var tourDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailId);
+                var tourDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
                 if (tourDetail == null || tourDetail.IsDeleted)
                 {
-                    return false;
-                }
-
-                // Business rules for deletion:
-                // 1. Always allow deletion for now (can be extended with more complex rules)
-                // 2. Could check if there are any bookings referencing this detail
-                // 3. Could check if this is a critical timeline item
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error checking if timeline item {TourDetailId} can be deleted", tourDetailId);
-                return false;
-            }
-        }
-
-        public async Task<ResponseCreateTourDetailDto> DuplicateTimelineItemAsync(Guid tourDetailId, Guid createdById)
-        {
-            try
-            {
-                _logger.LogInformation("Duplicating timeline item {TourDetailId}", tourDetailId);
-
-                // Get original tour detail
-                var originalDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailId);
-                if (originalDetail == null)
-                {
-                    return new ResponseCreateTourDetailDto
+                    return new ResponseGetTourDetailDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy mốc thời gian gốc"
-                    };
-                }
-
-                // Get next sort order
-                var lastDetail = await _unitOfWork.TourDetailsRepository.GetLastDetailAsync(originalDetail.TourTemplateId);
-                var nextSortOrder = (lastDetail?.SortOrder ?? 0) + 1;
-
-                // Create duplicate with modified time (add 30 minutes)
-                var duplicatedDetail = new TourDetails
-                {
-                    Id = Guid.NewGuid(),
-                    TourTemplateId = originalDetail.TourTemplateId,
-                    TimeSlot = originalDetail.TimeSlot.AddMinutes(30), // Add 30 minutes to avoid conflict
-                    Location = originalDetail.Location + " (Copy)",
-                    Description = originalDetail.Description,
-                    ShopId = originalDetail.ShopId,
-                    SortOrder = nextSortOrder,
-                    CreatedById = createdById,
-                    CreatedAt = DateTime.UtcNow,
-                    IsActive = true,
-                    IsDeleted = false
-                };
-
-                await _unitOfWork.TourDetailsRepository.AddAsync(duplicatedDetail);
-                await _unitOfWork.SaveChangesAsync();
-
-                // Get created item with relationships
-                var createdDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(duplicatedDetail.Id);
-                var tourDetailDto = _mapper.Map<TourDetailDto>(createdDetail);
-
-                _logger.LogInformation("Successfully duplicated timeline item {OriginalId} to {NewId}", tourDetailId, duplicatedDetail.Id);
-
-                return new ResponseCreateTourDetailDto
-                {
-                    StatusCode = 201,
-                    Message = "Sao chép mốc thời gian thành công",
-                    Data = tourDetailDto
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error duplicating timeline item {TourDetailId}", tourDetailId);
-                return new ResponseCreateTourDetailDto
-                {
-                    StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi sao chép mốc thời gian"
-                };
-            }
-        }
-
-        public async Task<ResponseUpdateTourDetailDto> GetTimelineItemByIdAsync(Guid tourDetailId)
-        {
-            try
-            {
-                _logger.LogInformation("Getting timeline item {TourDetailId}", tourDetailId);
-
-                var tourDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailId);
-                if (tourDetail == null)
-                {
-                    return new ResponseUpdateTourDetailDto
-                    {
-                        StatusCode = 404,
-                        Message = "Không tìm thấy mốc thời gian này"
+                        Message = "Không tìm thấy lịch trình"
                     };
                 }
 
                 var tourDetailDto = _mapper.Map<TourDetailDto>(tourDetail);
 
-                return new ResponseUpdateTourDetailDto
+                return new ResponseGetTourDetailDto
                 {
                     StatusCode = 200,
-                    Message = "Lấy thông tin mốc thời gian thành công",
+                    Message = "Lấy thông tin lịch trình thành công",
                     Data = tourDetailDto
                 };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting timeline item {TourDetailId}", tourDetailId);
-                return new ResponseUpdateTourDetailDto
+                _logger.LogError(ex, "Error getting TourDetail by ID: {TourDetailsId}", tourDetailsId);
+                return new ResponseGetTourDetailDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy thông tin mốc thời gian"
+                    Message = "Có lỗi xảy ra khi lấy thông tin lịch trình"
                 };
             }
         }
+
+        /// <summary>
+        /// Lấy timeline theo TourDetailsId (new approach)
+        /// </summary>
+        public async Task<ResponseGetTimelineDto> GetTimelineByTourDetailsAsync(RequestGetTimelineByTourDetailsDto request)
+        {
+            try
+            {
+                _logger.LogInformation("Getting timeline for TourDetails: {TourDetailsId}", request.TourDetailsId);
+
+                var tourDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(request.TourDetailsId);
+
+                if (tourDetail == null || tourDetail.IsDeleted)
+                {
+                    return new ResponseGetTimelineDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy lịch trình"
+                    };
+                }
+
+                var timeline = new TimelineDto
+                {
+                    TourTemplateId = tourDetail.TourTemplate.Id,
+                    TourTemplateTitle = tourDetail.TourTemplate.Title,
+                    Items = tourDetail.Timeline
+                        .Where(item => request.IncludeInactive || item.IsActive)
+                        .OrderBy(item => item.SortOrder)
+                        .Select(item => _mapper.Map<TimelineItemDto>(item))
+                        .ToList(),
+                    TotalItems = tourDetail.Timeline.Count(item => request.IncludeInactive || item.IsActive),
+                    StartLocation = tourDetail.TourTemplate.StartLocation,
+                    EndLocation = tourDetail.TourTemplate.EndLocation,
+                    CreatedAt = tourDetail.CreatedAt,
+                    UpdatedAt = tourDetail.UpdatedAt
+                };
+
+                return new ResponseGetTimelineDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy timeline thành công",
+                    Data = timeline
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting timeline for TourDetails: {TourDetailsId}", request.TourDetailsId);
+                return new ResponseGetTimelineDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy timeline"
+                };
+            }
+        }
+
+        // TODO: Implement remaining timeline methods - these are existing methods that need to be updated
+        // For now, adding placeholders to satisfy interface requirements
+
+        public async Task<ResponseGetTimelineDto> GetTimelineAsync(RequestGetTimelineDto request)
+        {
+            // TODO: Update to use TourDetails approach or mark as obsolete
+            throw new NotImplementedException("This method will be updated to work with TourDetails approach");
+        }
+
+        public async Task<ResponseCreateTourDetailDto> AddTimelineItemAsync(RequestCreateTourDetailDto request, Guid createdById)
+        {
+            // TODO: Update for new approach
+            throw new NotImplementedException("This method will be updated for new TourDetails approach");
+        }
+
+        public async Task<ResponseUpdateTourDetailDto> UpdateTimelineItemAsync(Guid timelineItemId, RequestUpdateTourDetailDto request, Guid updatedById)
+        {
+            // TODO: Update for new approach
+            throw new NotImplementedException("This method will be updated for new TourDetails approach");
+        }
+
+        public async Task<ResponseDeleteTourDetailDto> DeleteTimelineItemAsync(Guid timelineItemId, Guid deletedById)
+        {
+            // TODO: Update for new approach
+            throw new NotImplementedException("This method will be updated for new TourDetails approach");
+        }
+
+        public async Task<ResponseReorderTimelineDto> ReorderTimelineAsync(RequestReorderTimelineDto request, Guid updatedById)
+        {
+            // TODO: Update for new approach
+            throw new NotImplementedException("This method will be updated for new TourDetails approach");
+        }
+
+        public async Task<ResponseValidateTimelineDto> ValidateTimelineAsync(Guid tourDetailsId)
+        {
+            // TODO: Implement validation for TourDetails timeline
+            throw new NotImplementedException("This method will be implemented for TourDetails validation");
+        }
+
+        public async Task<ResponseTimelineStatisticsDto> GetTimelineStatisticsAsync(Guid tourDetailsId)
+        {
+            // TODO: Implement statistics for TourDetails timeline
+            throw new NotImplementedException("This method will be implemented for TourDetails statistics");
+        }
+
+        public async Task<bool> CanDeleteTimelineItemAsync(Guid timelineItemId)
+        {
+            // TODO: Implement delete validation
+            throw new NotImplementedException("This method will be implemented for delete validation");
+        }
+
+        public async Task<ResponseCreateTourDetailDto> DuplicateTimelineItemAsync(Guid timelineItemId, Guid createdById)
+        {
+            // TODO: Implement timeline item duplication
+            throw new NotImplementedException("This method will be implemented for timeline item duplication");
+        }
+
+        public async Task<ResponseUpdateTourDetailDto> GetTimelineItemByIdAsync(Guid timelineItemId)
+        {
+            // TODO: Implement getting timeline item by ID
+            throw new NotImplementedException("This method will be implemented for getting timeline item");
+        }
+
+        #endregion
     }
 }

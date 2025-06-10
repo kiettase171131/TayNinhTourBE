@@ -37,17 +37,19 @@ TourTemplate "Tour Núi Bà Đen"
     └── Tạo template mới hoặc override slots khác
 ```
 
-### **🎯 LOGIC CHÍNH:**
+### **🎯 LOGIC CHÍNH - ĐÃ TRIỂN KHAI CLONE LOGIC:**
 - **1 TourTemplate** → **nhiều TourDetails** (VIP, thường, tiết kiệm)
 - **1 TourDetails** → **1 TourOperation** (guide + giá + ghế riêng)
-- **1 TourDetails** → **nhiều TourSlot** (tất cả slots của template dùng cùng lịch trình)
-- **TourSlot.TourDetailsId**: Auto-assign khi tạo TourDetails, không cần assign thủ công
+- **1 TourDetails** → **nhiều TimelineItem** (lịch trình chi tiết + shop selection)
+- **CLONE Logic**: Khi tạo TourDetails → tự động CLONE tất cả template slots (TourDetailsId = null) thành detail slots (TourDetailsId = X)
+- **Reusability**: Template slots luôn giữ nguyên (TourDetailsId = null) để có thể clone vô hạn lần
 
 ## 🔄 **WORKFLOW:**
 
-1. **Tạo TourTemplate** → Auto-generate TourSlots
-2. **Tạo TourDetails** cho template → Auto-assign cho TẤT CẢ slots của template
+1. **Tạo TourTemplate** → Auto-generate TourSlots (TourDetailsId = null)
+2. **Tạo TourDetails** cho template → AUTO-CLONE template slots thành detail slots (TourDetailsId = X)
 3. **TourOperation** tự động tạo cho TourDetails
+4. **TimelineItem** quản lý lịch trình chi tiết + shop selection
 
 ## 🎯 **ENTITIES DESIGN**
 
@@ -69,7 +71,7 @@ public class TourTemplate
 }
 ```
 
-### **2. TourSlot (Thêm TourDetailsId)**
+### **2. TourSlot (ĐÃ CÓ TourDetailsId) - ĐÃ TRIỂN KHAI**
 ```csharp
 public class TourSlot
 {
@@ -78,7 +80,7 @@ public class TourSlot
     public DateTime SlotDate { get; set; }
     public int Status { get; set; }
 
-    // AUTO-ASSIGN khi tạo TourDetails
+    // CLONE Logic: null = template slot, có giá trị = detail slot
     public Guid? TourDetailsId { get; set; }
 
     // Navigation
@@ -166,10 +168,11 @@ Template: "Tour Núi Bà Đen"
 - **TimelineItem**: Entity mới cho timeline + shop selection
 - **TourDetails**: Bỏ Guide/Price/Capacity fields (chuyển sang TourOperation)
 
-### **Business Logic:**
+### **Business Logic - ĐÃ TRIỂN KHAI CLONE LOGIC:**
 - **TourOperationService**: Đổi relationship từ TourSlot → TourDetails
-- **TourDetailsService**: Chỉ quản lý timeline + shop (bỏ guide/price logic)
-- **Auto-assign logic**: Khi tạo TourDetails → auto-assign cho tất cả slots của template
+- **TourDetailsService**: ĐÃ CÓ clone logic trong CreateTourDetailAsync()
+- **Clone Logic**: Khi tạo TourDetails → AUTO-CLONE template slots (TourDetailsId = null) thành detail slots (TourDetailsId = X)
+- **Template Reusability**: Template slots luôn được bảo toàn để có thể tái sử dụng
 
 ### **API:**
 - **TourOperationController**: Sửa endpoints từ slot-based → details-based
@@ -496,6 +499,42 @@ public class ResponseTourDetailDto
     public ResponseTourSlotDto? TourSlot { get; set; }  // NEW: include slot info
 }
 ```
+
+---
+
+## **PHASE 6: SERVICE LAYER UPDATES** 🔧 (Priority: MEDIUM) ✅ **CLONE LOGIC ĐÃ TRIỂN KHAI**
+
+### **🆕 Clone Logic đã implement trong `TourDetailsService.CreateTourDetailAsync()`:**
+
+```csharp
+// AUTO-CLONE LOGIC khi tạo TourDetails mới
+// 1. Lấy tất cả template slots (TourDetailsId = null)
+var templateSlots = await _unitOfWork.TourSlotRepository
+    .GetByTemplateIdAsync(request.TourTemplateId);
+var unassignedSlots = templateSlots.Where(slot => slot.TourDetailsId == null).ToList();
+
+// 2. Tạo cloned slots cho TourDetails mới
+foreach (var templateSlot in unassignedSlots)
+{
+    var clonedSlot = new TourSlot
+    {
+        Id = Guid.NewGuid(),
+        TourTemplateId = templateSlot.TourTemplateId,
+        SlotDate = templateSlot.SlotDate,
+        Status = templateSlot.Status,
+        TourDetailsId = tourDetail.Id, // LINK VỚI TOURDETAILS MỚI
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
+    await _unitOfWork.TourSlotRepository.AddAsync(clonedSlot);
+}
+```
+
+**✅ Kết quả:**
+- Template slots (TourDetailsId = null) được BẢO TOÀN 
+- Detail slots (TourDetailsId = X) được TẠO MỚI
+- Template có thể TÁI SỬ DỤNG vô hạn lần
+- Mỗi TourDetails có bộ slots RIÊNG BIỆT
 
 ---
 
@@ -940,7 +979,67 @@ public async Task GetTimelineBySlotId_ValidRequest_ReturnsOk()
 
 ---
 
-**Ngày tạo**: 07/06/2025
-**Tác giả**: Phân tích dựa trên yêu cầu sửa đổi thiết kế
-**Trạng thái**: Draft - Chờ approval để bắt đầu implementation
+---
+
+## 🆕 **CẬP NHẬT: CLONE LOGIC ĐÃ TRIỂN KHAI**
+
+### **📊 Ví dụ thực tế với Clone Logic:**
+
+**Trước khi tạo TourDetails:**
+```sql
+-- Template slots (có thể tái sử dụng)
+TourSlot: ID=slot1, TourTemplateId=template1, SlotDate=15/6, TourDetailsId=NULL
+TourSlot: ID=slot2, TourTemplateId=template1, SlotDate=22/6, TourDetailsId=NULL  
+TourSlot: ID=slot3, TourTemplateId=template1, SlotDate=29/6, TourDetailsId=NULL
+```
+
+**Sau khi tạo TourDetails "VIP":**
+```sql
+-- Template slots (vẫn giữ nguyên để tái sử dụng)
+TourSlot: ID=slot1, TourTemplateId=template1, SlotDate=15/6, TourDetailsId=NULL
+TourSlot: ID=slot2, TourTemplateId=template1, SlotDate=22/6, TourDetailsId=NULL
+TourSlot: ID=slot3, TourTemplateId=template1, SlotDate=29/6, TourDetailsId=NULL
+
+-- Detail slots cho VIP (bản sao riêng)  
+TourSlot: ID=new1, TourTemplateId=template1, SlotDate=15/6, TourDetailsId=VIP_123
+TourSlot: ID=new2, TourTemplateId=template1, SlotDate=22/6, TourDetailsId=VIP_123
+TourSlot: ID=new3, TourTemplateId=template1, SlotDate=29/6, TourDetailsId=VIP_123
+```
+
+**Sau khi tạo TourDetails "Thường":**
+```sql
+-- Template slots (vẫn giữ nguyên để tái sử dụng)
+TourSlot: ID=slot1, TourTemplateId=template1, SlotDate=15/6, TourDetailsId=NULL
+TourSlot: ID=slot2, TourTemplateId=template1, SlotDate=22/6, TourDetailsId=NULL
+TourSlot: ID=slot3, TourTemplateId=template1, SlotDate=29/6, TourDetailsId=NULL
+
+-- Detail slots cho VIP (không thay đổi)
+TourSlot: ID=new1, TourTemplateId=template1, SlotDate=15/6, TourDetailsId=VIP_123
+TourSlot: ID=new2, TourTemplateId=template1, SlotDate=22/6, TourDetailsId=VIP_123
+TourSlot: ID=new3, TourTemplateId=template1, SlotDate=29/6, TourDetailsId=VIP_123
+
+-- Detail slots cho Thường (bản sao mới)
+TourSlot: ID=new4, TourTemplateId=template1, SlotDate=15/6, TourDetailsId=THUONG_456
+TourSlot: ID=new5, TourTemplateId=template1, SlotDate=22/6, TourDetailsId=THUONG_456  
+TourSlot: ID=new6, TourTemplateId=template1, SlotDate=29/6, TourDetailsId=THUONG_456
+```
+
+### **🚀 Tại sao CLONE logic giải quyết vấn đề reusability:**
+
+1. **Template Reusability**: Template slots luôn có `TourDetailsId = null` → có thể tạo TourDetails mới vô hạn lần
+2. **Data Independence**: Mỗi TourDetails có bộ slots riêng → không ảnh hưởng lẫn nhau  
+3. **Scalability**: Có thể tạo "VIP", "Thường", "Tiết kiệm", "Premium"... từ cùng 1 template
+4. **Data Integrity**: Template gốc không bao giờ bị thay đổi → đảm bảo tính nhất quán
+
+### **📋 Status các PHASE:**
+- ✅ **PHASE 1-5**: Database, Entity, Configuration đã có sẵn và hỗ trợ clone logic
+- ✅ **PHASE 6**: Service Layer - Clone logic đã được triển khai
+- ⏳ **PHASE 7-12**: Các phase còn lại cần tiếp tục theo plan
+
+---
+
+**Ngày tạo**: 07/06/2025  
+**Ngày cập nhật**: 10/06/2025 - Thêm clone logic đã triển khai  
+**Tác giả**: Phân tích dựa trên yêu cầu sửa đổi thiết kế  
+**Trạng thái**: Clone logic đã triển khai (Phase 6) - Tiếp tục các phase 7-12
 ```

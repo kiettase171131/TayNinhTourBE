@@ -141,5 +141,25 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
             return (operations, totalCount);
         }
+
+        public async Task<IEnumerable<TourOperation>> GetOperationsByDateAsync(DateOnly date, bool includeInactive = false)
+        {
+            var query = _context.TourOperations
+                .Include(to => to.TourDetails)
+                    .ThenInclude(td => td.TourTemplate)
+                .Include(to => to.TourDetails)
+                    .ThenInclude(td => td.AssignedSlots)
+                .Include(to => to.Guide)
+                .Include(to => to.CreatedBy)
+                .Include(to => to.UpdatedBy)
+                .Where(to => to.TourDetails.AssignedSlots.Any(slot => slot.TourDate == date));
+
+            if (!includeInactive)
+            {
+                query = query.Where(to => to.IsActive && !to.IsDeleted);
+            }
+
+            return await query.OrderBy(to => to.TourDetails.Title).ToListAsync();
+        }
     }
 }

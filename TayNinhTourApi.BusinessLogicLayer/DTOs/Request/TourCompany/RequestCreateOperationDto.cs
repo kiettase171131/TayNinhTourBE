@@ -8,10 +8,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
     public class RequestCreateOperationDto
     {
         /// <summary>
-        /// ID của TourSlot mà operation này thuộc về
+        /// ID của TourDetails mà operation này thuộc về
         /// </summary>
-        [Required(ErrorMessage = "Vui lòng chọn tour slot")]
-        public Guid TourSlotId { get; set; }
+        [Required(ErrorMessage = "Vui lòng chọn tour details")]
+        public Guid TourDetailsId { get; set; }
 
         /// <summary>
         /// Giá tour cho operation này

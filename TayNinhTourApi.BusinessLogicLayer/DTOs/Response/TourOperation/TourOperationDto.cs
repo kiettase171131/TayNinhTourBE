@@ -15,9 +15,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation
         public Guid Id { get; set; }
 
         /// <summary>
-        /// ID của tour slot
+        /// ID của tour details
         /// </summary>
-        public Guid TourSlotId { get; set; }
+        public Guid TourDetailsId { get; set; }
 
         /// <summary>
         /// Giá tour cho operation này
