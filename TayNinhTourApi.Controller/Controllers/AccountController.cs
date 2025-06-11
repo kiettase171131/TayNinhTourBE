@@ -16,6 +16,8 @@ using TayNinhTourApi.Controller.Helper;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Shop;
+using TayNinhTourApi.BusinessLogicLayer.Services;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -29,6 +31,7 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<AccountController> _logger;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IShopApplicationService _shopApplicationService;
 
         public AccountController(
             IAccountService accountService,
@@ -36,7 +39,8 @@ namespace TayNinhTourApi.Controller.Controllers
             IBlogReactionService blogReactionService,
             IUnitOfWork unitOfWork,
             ILogger<AccountController> logger,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IShopApplicationService shopApplicationService)
         {
             _accountService = accountService;
             _tourGuideApplicationService = tourGuideApplicationService;
@@ -44,6 +48,7 @@ namespace TayNinhTourApi.Controller.Controllers
             _unitOfWork = unitOfWork;
             _logger = logger;
             _currentUserService = currentUserService;
+            _shopApplicationService = shopApplicationService;
         }
 
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -273,6 +278,23 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 return StatusCode(500, new { Error = ex.Message, StackTrace = ex.StackTrace });
             }
+        }
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpPost("shop-application")]
+
+        public async Task<IActionResult> ShopSubmit([FromForm] RequestShopSubmitDto requestShopSubmitDto)
+        {
+            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _shopApplicationService.SubmitAsync(requestShopSubmitDto, currentUserObject);
+            return StatusCode(result.StatusCode, result);
+        }
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("View-shopapplication")]
+        public async Task<IActionResult> ListMyShopApplications()
+        {
+            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var list = await _shopApplicationService.ListByUserAsync(currentUserObject.Id);
+            return Ok(list);
         }
     }
 }
