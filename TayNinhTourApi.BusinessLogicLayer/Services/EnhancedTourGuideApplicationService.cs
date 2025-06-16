@@ -82,7 +82,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     FullName = dto.FullName,
                     PhoneNumber = dto.PhoneNumber,
                     Email = dto.Email,
-                    Experience = dto.Experience,
+                    Experience = dto.Experience.ToString(), // Convert int to string for enhanced entity
                     Languages = dto.Languages,
                     CurriculumVitae = cvUrl,
                     Status = TourGuideApplicationStatus.Pending,
@@ -96,6 +96,73 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _applicationRepository.SaveChangesAsync();
 
                 // 5. Send confirmation email
+                await _emailSender.SendTourGuideApplicationSubmittedAsync(
+                    application.Email,
+                    application.FullName,
+                    application.SubmittedAt);
+
+                return new TourGuideApplicationSubmitResponseDto
+                {
+                    StatusCode = 200,
+                    Message = "Đơn đăng ký hướng dẫn viên đã được gửi thành công",
+                    ApplicationId = application.Id,
+                    FullName = application.FullName,
+                    CurriculumVitaeUrl = application.CurriculumVitae,
+                    SubmittedAt = application.SubmittedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                return new TourGuideApplicationSubmitResponseDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi gửi đơn đăng ký: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// User nộp đơn đăng ký TourGuide (JSON version for API testing)
+        /// </summary>
+        public async Task<TourGuideApplicationSubmitResponseDto> SubmitApplicationJsonAsync(
+            SubmitTourGuideApplicationJsonDto dto,
+            CurrentUserObject currentUser)
+        {
+            // 1. Validate user chưa có đơn active
+            var hasActiveApplication = await _applicationRepository.HasActiveApplicationAsync(currentUser.Id);
+            if (hasActiveApplication)
+            {
+                return new TourGuideApplicationSubmitResponseDto
+                {
+                    StatusCode = 400,
+                    Message = "Bạn đã có đơn đăng ký đang chờ xử lý hoặc đã được duyệt. Vui lòng liên hệ support nếu cần hỗ trợ."
+                };
+            }
+
+            try
+            {
+                // 2. Tạo application entity (không cần upload file, dùng URL)
+                var application = new TourGuideApplication
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = currentUser.Id,
+                    FullName = dto.FullName,
+                    PhoneNumber = dto.PhoneNumber,
+                    Email = dto.Email,
+                    Experience = dto.Experience, // Use experience description
+                    Languages = dto.Languages,
+                    CurriculumVitae = dto.CurriculumVitaeUrl, // Store URL directly
+                    Status = TourGuideApplicationStatus.Pending,
+                    SubmittedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = currentUser.Id
+                };
+
+                // 3. Lưu application
+                await _applicationRepository.AddAsync(application);
+                await _applicationRepository.SaveChangesAsync();
+
+                // 4. Send confirmation email
                 await _emailSender.SendTourGuideApplicationSubmittedAsync(
                     application.Email,
                     application.FullName,

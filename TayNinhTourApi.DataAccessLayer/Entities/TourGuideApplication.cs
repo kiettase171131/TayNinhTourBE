@@ -38,10 +38,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string Email { get; set; } = null!;
 
         /// <summary>
-        /// Số năm kinh nghiệm làm hướng dẫn viên
+        /// Mô tả kinh nghiệm làm hướng dẫn viên (Enhanced version)
         /// </summary>
         [Required]
-        public int Experience { get; set; }
+        [StringLength(1000)]
+        public string Experience { get; set; } = null!;
 
         /// <summary>
         /// Ngôn ngữ có thể sử dụng (VN, EN, CN...)

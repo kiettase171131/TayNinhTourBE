@@ -22,6 +22,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
             CurrentUserObject currentUser);
 
         /// <summary>
+        /// User nộp đơn đăng ký TourGuide (JSON version for API testing)
+        /// </summary>
+        /// <param name="dto">Thông tin đăng ký (JSON format)</param>
+        /// <param name="currentUser">User hiện tại</param>
+        /// <returns>Response với thông tin đơn đã nộp</returns>
+        Task<TourGuideApplicationSubmitResponseDto> SubmitApplicationJsonAsync(
+            SubmitTourGuideApplicationJsonDto dto,
+            CurrentUserObject currentUser);
+
+        /// <summary>
         /// User xem danh sách đơn đăng ký của mình
         /// </summary>
         /// <param name="userId">ID của user</param>
@@ -44,8 +54,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="status">Filter theo status (optional)</param>
         /// <returns>Danh sách đơn đăng ký với pagination</returns>
         Task<(IEnumerable<TourGuideApplicationSummaryDto> Applications, int TotalCount)> GetAllApplicationsAsync(
-            int page = 1, 
-            int pageSize = 10, 
+            int page = 1,
+            int pageSize = 10,
             int? status = null);
 
         /// <summary>
@@ -72,8 +82,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="adminUser">Admin thực hiện từ chối</param>
         /// <returns>Kết quả từ chối</returns>
         Task<BaseResposeDto> RejectApplicationAsync(
-            Guid applicationId, 
-            RejectTourGuideApplicationDto dto, 
+            Guid applicationId,
+            RejectTourGuideApplicationDto dto,
             CurrentUserObject adminUser);
 
         /// <summary>

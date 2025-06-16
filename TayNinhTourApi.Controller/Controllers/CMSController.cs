@@ -7,7 +7,9 @@ using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
@@ -25,16 +27,20 @@ namespace TayNinhTourApi.Controller.Controllers
     public class CmsController : ControllerBase
     {
         private readonly ICmsService _cmsService;
-        private readonly ITourGuideApplicationService _tourGuideApplicationService;
+        // private readonly ITourGuideApplicationService _tourGuideApplicationService; // Old service removed
+        private readonly IEnhancedTourGuideApplicationService _enhancedTourGuideApplicationService;
         private readonly ISupportTicketService _supportTicketService;
         private readonly IShopApplicationService _shopApplicationService;
+        private readonly ITourDetailsService _tourDetailsService;
 
-        public CmsController(ICmsService cmsService, ITourGuideApplicationService tourGuideApplicationService, ISupportTicketService supportTicketService, IShopApplicationService shopApplicationService)
+        public CmsController(ICmsService cmsService, /* ITourGuideApplicationService tourGuideApplicationService, */ IEnhancedTourGuideApplicationService enhancedTourGuideApplicationService, ISupportTicketService supportTicketService, IShopApplicationService shopApplicationService, ITourDetailsService tourDetailsService)
         {
             _cmsService = cmsService;
-            _tourGuideApplicationService = tourGuideApplicationService;
+            // _tourGuideApplicationService = tourGuideApplicationService; // Old service removed
+            _enhancedTourGuideApplicationService = enhancedTourGuideApplicationService;
             _supportTicketService = supportTicketService;
             _shopApplicationService = shopApplicationService;
+            _tourDetailsService = tourDetailsService;
         }
 
         [HttpGet("tour")]
@@ -93,27 +99,25 @@ namespace TayNinhTourApi.Controller.Controllers
             var response = await _cmsService.UpdateTourAsync(request, id, Guid.Parse(userId));
             return StatusCode(response.StatusCode, response);
         }
-        [HttpGet("tour-guide-application")]
-        public async Task<IActionResult> GetPending()
-        {
-            var list = await _tourGuideApplicationService.GetPendingAsync();
-            return Ok(list);
-        }
-        [HttpPut("{id:guid}/approve-application")]
-        public async Task<IActionResult> Approve(Guid id)
-        {
-            var response = await _tourGuideApplicationService.ApproveAsync(id);
-            return StatusCode(response.StatusCode, response);
-        }
-
-        [HttpPut("{id:guid}/reject-application")]
-
-        public async Task<IActionResult> Reject(Guid id, [FromBody] RejectApplicationDto dto)
-        {
-            var response = await _tourGuideApplicationService.RejectAsync(id, dto.Reason);
-
-            return StatusCode(response.StatusCode, response);
-        }
+        // OLD TOUR GUIDE ENDPOINTS - REPLACED BY ENHANCED VERSIONS
+        // [HttpGet("tour-guide-application")]
+        // public async Task<IActionResult> GetPending()
+        // {
+        //     var list = await _tourGuideApplicationService.GetPendingAsync();
+        //     return Ok(list);
+        // }
+        // [HttpPut("{id:guid}/approve-application")]
+        // public async Task<IActionResult> Approve(Guid id)
+        // {
+        //     var response = await _tourGuideApplicationService.ApproveAsync(id);
+        //     return StatusCode(response.StatusCode, response);
+        // }
+        // [HttpPut("{id:guid}/reject-application")]
+        // public async Task<IActionResult> Reject(Guid id, [FromBody] TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO.RejectApplicationDto dto)
+        // {
+        //     var response = await _tourGuideApplicationService.RejectAsync(id, dto.Reason);
+        //     return StatusCode(response.StatusCode, response);
+        // }
         [HttpGet("SupportTicket")]
         public async Task<IActionResult> ListForAdmin()
         {
@@ -170,11 +174,135 @@ namespace TayNinhTourApi.Controller.Controllers
 
         [HttpPut("{id:guid}/reject-Shop-application")]
 
-        public async Task<IActionResult> RejectShop(Guid id, [FromBody] RejectApplicationDto dto)
+        public async Task<IActionResult> RejectShop(Guid id, [FromBody] TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO.RejectApplicationDto dto)
         {
             var response = await _shopApplicationService.RejectAsync(id, dto.Reason);
 
             return StatusCode(response.StatusCode, response);
+        }
+
+        // ===== ENHANCED TOUR GUIDE APPLICATION ENDPOINTS =====
+
+        /// <summary>
+        /// Admin xem danh sách tất cả đơn đăng ký TourGuide với pagination (ENHANCED VERSION)
+        /// </summary>
+        [HttpGet("enhanced-tourguide-applications")]
+        public async Task<IActionResult> GetEnhancedTourGuideApplications(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] int? status = null)
+        {
+            try
+            {
+                var (applications, totalCount) = await _enhancedTourGuideApplicationService.GetAllApplicationsAsync(page, pageSize, status);
+
+                return Ok(new ApiResponse<object>
+                {
+                    IsSuccess = true,
+                    Message = "Tour guide applications retrieved successfully",
+                    Data = new
+                    {
+                        Applications = applications,
+                        TotalCount = totalCount,
+                        Page = page,
+                        PageSize = pageSize,
+                        TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = "An error occurred while retrieving applications", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Admin xem chi tiết đơn đăng ký TourGuide (ENHANCED VERSION)
+        /// </summary>
+        [HttpGet("enhanced-tourguide-applications/{applicationId}")]
+        public async Task<IActionResult> GetEnhancedTourGuideApplication(Guid applicationId)
+        {
+            try
+            {
+                var application = await _enhancedTourGuideApplicationService.GetApplicationByIdAsync(applicationId);
+
+                if (application == null)
+                {
+                    return NotFound(new ApiResponse<object>
+                    {
+                        IsSuccess = false,
+                        Message = "Tour guide application not found",
+                        Data = null
+                    });
+                }
+
+                return Ok(new ApiResponse<TourGuideApplicationDto>
+                {
+                    IsSuccess = true,
+                    Message = "Tour guide application retrieved successfully",
+                    Data = application
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = "An error occurred while retrieving application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Admin duyệt đơn đăng ký TourGuide (ENHANCED VERSION)
+        /// </summary>
+        [HttpPut("enhanced-tourguide-applications/{applicationId}/approve")]
+        public async Task<IActionResult> ApproveEnhancedTourGuideApplication(Guid applicationId)
+        {
+            try
+            {
+                CurrentUserObject adminUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _enhancedTourGuideApplicationService.ApproveApplicationAsync(applicationId, adminUser);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = "An error occurred while approving application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Admin từ chối đơn đăng ký TourGuide (ENHANCED VERSION)
+        /// </summary>
+        [HttpPut("enhanced-tourguide-applications/{applicationId}/reject")]
+        public async Task<IActionResult> RejectEnhancedTourGuideApplication(Guid applicationId, [FromBody] RejectTourGuideApplicationDto dto)
+        {
+            try
+            {
+                CurrentUserObject adminUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _enhancedTourGuideApplicationService.RejectApplicationAsync(applicationId, dto, adminUser);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = "An error occurred while rejecting application", Details = ex.Message });
+            }
+        }
+
+        // ===== TOUR DETAILS APPROVAL ENDPOINTS =====
+
+        /// <summary>
+        /// Admin duyệt hoặc từ chối tour details
+        /// </summary>
+        [HttpPost("tourdetails/{id}/approve-reject")]
+        public async Task<ActionResult<BaseResposeDto>> ApproveRejectTourDetail(Guid id, [FromBody] RequestApprovalTourDetailDto request)
+        {
+            try
+            {
+                CurrentUserObject adminUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _tourDetailsService.ApproveRejectTourDetailAsync(id, request, adminUser.Id);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = "An error occurred while processing tour detail approval", Details = ex.Message });
+            }
         }
     }
 }

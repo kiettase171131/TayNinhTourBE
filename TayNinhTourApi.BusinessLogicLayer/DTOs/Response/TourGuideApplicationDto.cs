@@ -29,9 +29,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         public string Email { get; set; } = null!;
 
         /// <summary>
-        /// Số năm kinh nghiệm
+        /// Mô tả kinh nghiệm (Enhanced version)
         /// </summary>
-        public int Experience { get; set; }
+        public string Experience { get; set; } = null!;
 
         /// <summary>
         /// Ngôn ngữ có thể sử dụng

@@ -30,7 +30,8 @@ namespace TayNinhTourApi.Controller.Controllers
     public class AccountController : ControllerBase
     {
         private readonly IAccountService _accountService;
-        private readonly ITourGuideApplicationService _tourGuideApplicationService;
+        // private readonly ITourGuideApplicationService _tourGuideApplicationService; // Old service removed
+        private readonly IEnhancedTourGuideApplicationService _enhancedTourGuideApplicationService;
         private readonly IBlogReactionService _reactionService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<AccountController> _logger;
@@ -40,7 +41,8 @@ namespace TayNinhTourApi.Controller.Controllers
 
         public AccountController(
             IAccountService accountService,
-            ITourGuideApplicationService tourGuideApplicationService,
+            // ITourGuideApplicationService tourGuideApplicationService, // Old service removed
+            IEnhancedTourGuideApplicationService enhancedTourGuideApplicationService,
             IBlogReactionService blogReactionService,
             IUnitOfWork unitOfWork,
             ILogger<AccountController> logger,
@@ -49,7 +51,8 @@ namespace TayNinhTourApi.Controller.Controllers
             ISpecialtyShopApplicationService specialtyShopApplicationService)
         {
             _accountService = accountService;
-            _tourGuideApplicationService = tourGuideApplicationService;
+            // _tourGuideApplicationService = tourGuideApplicationService; // Old service removed
+            _enhancedTourGuideApplicationService = enhancedTourGuideApplicationService;
             _reactionService = blogReactionService;
             _unitOfWork = unitOfWork;
             _logger = logger;
@@ -87,23 +90,23 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
 
         }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
-        [HttpPost("tourguide-application")]
-
-        public async Task<IActionResult> Submit([FromForm] SubmitApplicationDto submitApplicationDto)
-        {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _tourGuideApplicationService.SubmitAsync(submitApplicationDto, currentUserObject);
-            return StatusCode(result.StatusCode, result);
-        }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        [HttpGet("View-tourguideapplication")]
-        public async Task<IActionResult> ListMyApplications()
-        {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var list = await _tourGuideApplicationService.ListByUserAsync(currentUserObject.Id);
-            return Ok(list);
-        }
+        // OLD TOUR GUIDE ENDPOINTS - REPLACED BY ENHANCED VERSIONS
+        // [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        // [HttpPost("tourguide-application")]
+        // public async Task<IActionResult> Submit([FromForm] SubmitApplicationDto submitApplicationDto)
+        // {
+        //     CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+        //     var result = await _tourGuideApplicationService.SubmitAsync(submitApplicationDto, currentUserObject);
+        //     return StatusCode(result.StatusCode, result);
+        // }
+        // [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        // [HttpGet("View-tourguideapplication")]
+        // public async Task<IActionResult> ListMyApplications()
+        // {
+        //     CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+        //     var list = await _tourGuideApplicationService.ListByUserAsync(currentUserObject.Id);
+        //     return Ok(list);
+        // }
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpPut("edit-Avatar")]
 
@@ -337,7 +340,7 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 var application = await _specialtyShopApplicationService.GetMyApplicationAsync(currentUser);
-                
+
                 if (application == null)
                 {
                     return Ok(new ApiResponse<object>
@@ -359,6 +362,116 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 _logger.LogError(ex, "Error retrieving specialty shop application");
                 return StatusCode(500, new { Error = "An error occurred while retrieving application", Details = ex.Message });
+            }
+        }
+
+        // ===== ENHANCED TOUR GUIDE APPLICATION ENDPOINTS =====
+
+        /// <summary>
+        /// User nộp đơn đăng ký TourGuide (ENHANCED VERSION)
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpPost("enhanced-tourguide-application")]
+        public async Task<IActionResult> SubmitEnhancedTourGuideApplication([FromBody] SubmitTourGuideApplicationJsonDto dto)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _enhancedTourGuideApplicationService.SubmitApplicationJsonAsync(dto, currentUser);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting enhanced tour guide application");
+                return StatusCode(500, new { Error = "An error occurred while submitting application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User xem danh sách đơn đăng ký TourGuide của mình (ENHANCED VERSION)
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("my-enhanced-tourguide-applications")]
+        public async Task<IActionResult> GetMyEnhancedTourGuideApplications()
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var applications = await _enhancedTourGuideApplicationService.GetMyApplicationsAsync(currentUser.Id);
+
+                return Ok(new ApiResponse<IEnumerable<TourGuideApplicationSummaryDto>>
+                {
+                    IsSuccess = true,
+                    Message = "Tour guide applications retrieved successfully",
+                    Data = applications
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving tour guide applications");
+                return StatusCode(500, new { Error = "An error occurred while retrieving applications", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User xem chi tiết đơn đăng ký TourGuide của mình (ENHANCED VERSION)
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("my-enhanced-tourguide-application/{applicationId}")]
+        public async Task<IActionResult> GetMyEnhancedTourGuideApplication(Guid applicationId)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var application = await _enhancedTourGuideApplicationService.GetMyApplicationByIdAsync(applicationId, currentUser.Id);
+
+                if (application == null)
+                {
+                    return NotFound(new ApiResponse<object>
+                    {
+                        IsSuccess = false,
+                        Message = "Tour guide application not found or you don't have permission to view it",
+                        Data = null
+                    });
+                }
+
+                return Ok(new ApiResponse<TourGuideApplicationDto>
+                {
+                    IsSuccess = true,
+                    Message = "Tour guide application retrieved successfully",
+                    Data = application
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving tour guide application {ApplicationId}", applicationId);
+                return StatusCode(500, new { Error = "An error occurred while retrieving application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Kiểm tra user có thể nộp đơn TourGuide mới không
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpGet("can-submit-tourguide-application")]
+        public async Task<IActionResult> CanSubmitTourGuideApplication()
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var canSubmit = await _enhancedTourGuideApplicationService.CanSubmitNewApplicationAsync(currentUser.Id);
+
+                return Ok(new ApiResponse<object>
+                {
+                    IsSuccess = true,
+                    Message = canSubmit ? "You can submit a new application" : "You already have an active application",
+                    Data = new { CanSubmit = canSubmit }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking tour guide application eligibility");
+                return StatusCode(500, new { Error = "An error occurred while checking eligibility", Details = ex.Message });
             }
         }
     }

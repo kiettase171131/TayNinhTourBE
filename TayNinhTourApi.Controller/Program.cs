@@ -131,7 +131,7 @@ builder.Services.AddScoped<ITourTemplateService, EnhancedTourTemplateService>();
 
 builder.Services.AddScoped<ITourDetailsService, TourDetailsService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
-// builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>(); // Temporarily disabled
+// builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>(); // Old service has enum conflicts
 builder.Services.AddScoped<IEnhancedTourGuideApplicationService, EnhancedTourGuideApplicationService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IBlogService, BlogService>();

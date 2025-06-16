@@ -5,6 +5,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -674,6 +675,69 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             throw new NotImplementedException("This method will be implemented for getting timeline item");
         }
 
+        /// <summary>
+        /// Admin duyệt hoặc từ chối tour details
+        /// </summary>
+        public async Task<BaseResposeDto> ApproveRejectTourDetailAsync(Guid tourDetailId, RequestApprovalTourDetailDto request, Guid adminId)
+        {
+            try
+            {
+                _logger.LogInformation("Admin {AdminId} processing approval for TourDetail {TourDetailId}", adminId, tourDetailId);
+
+                // Validate tour detail exists
+                var tourDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailId);
+                if (tourDetail == null || tourDetail.IsDeleted)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour detail",
+                        IsSuccess = false
+                    };
+                }
+
+                // Validate business rules
+                if (!request.IsApproved && string.IsNullOrWhiteSpace(request.Comment))
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Bình luận là bắt buộc khi từ chối tour detail",
+                        IsSuccess = false
+                    };
+                }
+
+                // Update status and comment
+                tourDetail.Status = request.IsApproved ? TourDetailsStatus.Approved : TourDetailsStatus.Rejected;
+                tourDetail.CommentApproved = request.Comment;
+                tourDetail.UpdatedById = adminId;
+                tourDetail.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetail);
+                await _unitOfWork.SaveChangesAsync();
+
+                var statusText = request.IsApproved ? "duyệt" : "từ chối";
+                _logger.LogInformation("Successfully {Action} TourDetail {TourDetailId} by Admin {AdminId}", statusText, tourDetailId, adminId);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = $"Đã {statusText} tour detail thành công",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing approval for TourDetail {TourDetailId} by Admin {AdminId}", tourDetailId, adminId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi xử lý duyệt tour detail",
+                    IsSuccess = false
+                };
+            }
+        }
+
         public async Task<BaseResposeDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById)
         {
             try
@@ -867,6 +931,84 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
                 t => t.TourDetailsId == tourDetailsId);
             return existingItems.Any() ? existingItems.Max(t => t.SortOrder) + 1 : 1;
+        }
+
+        /// <summary>
+        /// Lấy danh sách TourDetails với filter theo status và quyền user
+        /// </summary>
+        public async Task<ResponseGetTourDetailsDto> GetTourDetailsWithPermissionAsync(Guid tourTemplateId, Guid currentUserId, string userRole, bool includeInactive = false)
+        {
+            try
+            {
+                _logger.LogInformation("Getting tour details for TourTemplate {TourTemplateId} with permission for user {UserId} role {UserRole}",
+                    tourTemplateId, currentUserId, userRole);
+
+                // Kiểm tra tour template tồn tại
+                var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourTemplateId);
+                if (tourTemplate == null || tourTemplate.IsDeleted)
+                {
+                    return new ResponseGetTourDetailsDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour template"
+                    };
+                }
+
+                // Lấy danh sách tour details
+                var tourDetails = await _unitOfWork.TourDetailsRepository
+                    .GetByTourTemplateOrderedAsync(tourTemplateId, includeInactive);
+
+                // Filter theo quyền user
+                var filteredTourDetails = FilterTourDetailsByPermission(tourDetails, currentUserId, userRole);
+
+                // Map to DTOs
+                var tourDetailDtos = _mapper.Map<List<TourDetailDto>>(filteredTourDetails);
+
+                return new ResponseGetTourDetailsDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy danh sách lịch trình thành công",
+                    Data = tourDetailDtos,
+                    TotalCount = tourDetailDtos.Count
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tour details with permission for TourTemplate {TourTemplateId}", tourTemplateId);
+                return new ResponseGetTourDetailsDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Filter TourDetails theo quyền user
+        /// </summary>
+        private IEnumerable<TourDetails> FilterTourDetailsByPermission(IEnumerable<TourDetails> tourDetails, Guid currentUserId, string userRole)
+        {
+            switch (userRole.ToLower())
+            {
+                case "admin":
+                    // Admin thấy tất cả TourDetails
+                    return tourDetails;
+
+                case "tour guide":
+                case "specialty shop":
+                case "tour company":
+                    // Tour Guide/Shop/Company thấy:
+                    // - TourDetails của mình (tất cả status)
+                    // - TourDetails đã approved của người khác
+                    return tourDetails.Where(td =>
+                        td.CreatedById == currentUserId ||
+                        td.Status == TourDetailsStatus.Approved);
+
+                case "user":
+                default:
+                    // User thường chỉ thấy TourDetails đã approved
+                    return tourDetails.Where(td => td.Status == TourDetailsStatus.Approved);
+            }
         }
 
         #endregion

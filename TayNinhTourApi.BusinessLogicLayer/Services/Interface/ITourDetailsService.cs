@@ -173,6 +173,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<bool> CanDeleteTimelineItemAsync(Guid tourDetailId);
 
         /// <summary>
+        /// Admin duyệt hoặc từ chối tour details
+        /// </summary>
+        /// <param name="tourDetailId">ID của tour detail cần duyệt/từ chối</param>
+        /// <param name="request">Thông tin duyệt/từ chối</param>
+        /// <param name="adminId">ID của admin thực hiện</param>
+        /// <returns>Kết quả duyệt/từ chối</returns>
+        Task<BaseResposeDto> ApproveRejectTourDetailAsync(Guid tourDetailId, RequestApprovalTourDetailDto request, Guid adminId);
+
+        /// <summary>
+        /// Lấy danh sách TourDetails với filter theo status và quyền user
+        /// </summary>
+        /// <param name="tourTemplateId">ID của tour template</param>
+        /// <param name="currentUserId">ID của user hiện tại</param>
+        /// <param name="userRole">Role của user hiện tại</param>
+        /// <param name="includeInactive">Có bao gồm TourDetails không active không</param>
+        /// <returns>Danh sách TourDetails được filter theo quyền</returns>
+        Task<ResponseGetTourDetailsDto> GetTourDetailsWithPermissionAsync(Guid tourTemplateId, Guid currentUserId, string userRole, bool includeInactive = false);
+
+        /// <summary>
         /// Duplicate một timeline item
         /// </summary>
         /// <param name="tourDetailId">ID của tour detail cần duplicate</param>
