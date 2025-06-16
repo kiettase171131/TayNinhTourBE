@@ -10,7 +10,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = null!;
-        public string? Description { get; set; }
+
         public string TemplateType { get; set; } = null!;
         public string ScheduleDays { get; set; } = null!;
         public string StartLocation { get; set; } = null!;
@@ -32,7 +32,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = null!;
-        public string? Description { get; set; }
+
         public TourTemplateType TemplateType { get; set; }
         public ScheduleDay ScheduleDays { get; set; }
         public string StartLocation { get; set; } = null!;

@@ -12,8 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250610023211_UpdateTourSlotUniqueConstraintForCloneLogic")]
-    partial class UpdateTourSlotUniqueConstraintForCloneLogic
+    [Migration("20250616052554_RemoveDescriptionFromTourTemplateManual")]
+    partial class RemoveDescriptionFromTourTemplateManual
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -980,10 +980,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("EndLocation")
                         .IsRequired()

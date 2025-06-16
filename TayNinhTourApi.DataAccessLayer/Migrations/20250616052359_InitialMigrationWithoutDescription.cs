@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreateV2 : Migration
+    public partial class InitialMigrationWithoutDescription : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -304,8 +304,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     Title = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
                     TemplateType = table.Column<int>(type: "int", nullable: false),
                     ScheduleDays = table.Column<int>(type: "int", nullable: false),
                     StartLocation = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
@@ -561,13 +559,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     TourTemplateId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của tour template mà chi tiết này thuộc về", collation: "ascii_general_ci"),
-                    TimeSlot = table.Column<TimeOnly>(type: "time(6)", nullable: false, comment: "Thời gian trong ngày cho hoạt động này"),
-                    Location = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Địa điểm hoặc tên hoạt động")
+                    Title = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false, comment: "Tiêu đề của lịch trình")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true, comment: "Mô tả chi tiết về hoạt động")
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true, comment: "Mô tả về lịch trình này")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ShopId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của shop liên quan (nếu có)", collation: "ascii_general_ci"),
-                    SortOrder = table.Column<int>(type: "int", nullable: false, comment: "Thứ tự sắp xếp trong timeline"),
+                    ShopId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
@@ -579,13 +575,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_TourDetails", x => x.Id);
-                    table.CheckConstraint("CK_TourDetails_SortOrder_Positive", "SortOrder > 0");
                     table.ForeignKey(
                         name: "FK_TourDetails_Shops_ShopId",
                         column: x => x.ShopId,
                         principalTable: "Shops",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_TourDetails_TourTemplates_TourTemplateId",
                         column: x => x.TourTemplateId,
@@ -608,39 +602,47 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "TourSlots",
+                name: "TimelineItem",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    TourTemplateId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourTemplate mà slot này được tạo từ", collation: "ascii_general_ci"),
-                    TourDate = table.Column<DateOnly>(type: "date", nullable: false, comment: "Ngày tour cụ thể sẽ diễn ra"),
-                    ScheduleDay = table.Column<int>(type: "int", nullable: false, comment: "Ngày trong tuần của tour (Saturday hoặc Sunday)"),
-                    Status = table.Column<int>(type: "int", nullable: false, defaultValue: 1, comment: "Trạng thái của tour slot"),
-                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true, comment: "Trạng thái slot có sẵn sàng để booking không"),
+                    Id = table.Column<Guid>(type: "CHAR(36)", nullable: false, collation: "ascii_general_ci"),
+                    TourDetailsId = table.Column<Guid>(type: "CHAR(36)", nullable: false, collation: "ascii_general_ci"),
+                    CheckInTime = table.Column<TimeSpan>(type: "TIME", nullable: false),
+                    Activity = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ShopId = table.Column<Guid>(type: "CHAR(36)", nullable: true, collation: "ascii_general_ci"),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    CreatedById = table.Column<Guid>(type: "CHAR(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "CHAR(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "DATETIME", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "DATETIME", nullable: true),
                     DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TourSlots", x => x.Id);
+                    table.PrimaryKey("PK_TimelineItem", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_TourSlots_TourTemplates_TourTemplateId",
-                        column: x => x.TourTemplateId,
-                        principalTable: "TourTemplates",
+                        name: "FK_TimelineItem_Shops_ShopId",
+                        column: x => x.ShopId,
+                        principalTable: "Shops",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_TimelineItem_TourDetails_TourDetailsId",
+                        column: x => x.TourDetailsId,
+                        principalTable: "TourDetails",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_TourSlots_Users_CreatedById",
+                        name: "FK_TimelineItem_Users_CreatedById",
                         column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_TourSlots_Users_UpdatedById",
+                        name: "FK_TimelineItem_Users_UpdatedById",
                         column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -653,7 +655,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    TourSlotId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourSlot mà operation này thuộc về", collation: "ascii_general_ci"),
+                    TourDetailsId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourDetails mà operation này thuộc về", collation: "ascii_general_ci"),
                     GuideId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của User làm hướng dẫn viên cho tour này (optional)", collation: "ascii_general_ci"),
                     Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Giá tour cho operation này"),
                     MaxGuests = table.Column<int>(type: "int", nullable: false, comment: "Số lượng khách tối đa cho tour operation này"),
@@ -676,9 +678,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     table.CheckConstraint("CK_TourOperations_MaxGuests_Positive", "MaxGuests > 0");
                     table.CheckConstraint("CK_TourOperations_Price_Positive", "Price > 0");
                     table.ForeignKey(
-                        name: "FK_TourOperations_TourSlots_TourSlotId",
-                        column: x => x.TourSlotId,
-                        principalTable: "TourSlots",
+                        name: "FK_TourOperations_TourDetails_TourDetailsId",
+                        column: x => x.TourDetailsId,
+                        principalTable: "TourDetails",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
@@ -695,6 +697,54 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_TourOperations_Users_UpdatedById",
+                        column: x => x.UpdatedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "TourSlots",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    TourTemplateId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourTemplate mà slot này được tạo từ", collation: "ascii_general_ci"),
+                    TourDate = table.Column<DateOnly>(type: "date", nullable: false, comment: "Ngày tour cụ thể sẽ diễn ra"),
+                    ScheduleDay = table.Column<int>(type: "int", nullable: false, comment: "Ngày trong tuần của tour (Saturday hoặc Sunday)"),
+                    Status = table.Column<int>(type: "int", nullable: false, defaultValue: 1, comment: "Trạng thái của tour slot"),
+                    TourDetailsId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của TourDetails được assign cho slot này", collation: "ascii_general_ci"),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true, comment: "Trạng thái slot có sẵn sàng để booking không"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TourSlots", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TourSlots_TourDetails_TourDetailsId",
+                        column: x => x.TourDetailsId,
+                        principalTable: "TourDetails",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_TourSlots_TourTemplates_TourTemplateId",
+                        column: x => x.TourTemplateId,
+                        principalTable: "TourTemplates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TourSlots_Users_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TourSlots_Users_UpdatedById",
                         column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -814,6 +864,31 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_TimelineItem_CreatedById",
+                table: "TimelineItem",
+                column: "CreatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TimelineItem_ShopId",
+                table: "TimelineItem",
+                column: "ShopId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TimelineItem_TourDetailsId",
+                table: "TimelineItem",
+                column: "TourDetailsId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TimelineItem_TourDetailsId_SortOrder",
+                table: "TimelineItem",
+                columns: new[] { "TourDetailsId", "SortOrder" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TimelineItem_UpdatedById",
+                table: "TimelineItem",
+                column: "UpdatedById");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TourDetails_CreatedById",
                 table: "TourDetails",
                 column: "CreatedById");
@@ -824,25 +899,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 column: "ShopId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TourDetails_TimeSlot",
+                name: "IX_TourDetails_Title",
                 table: "TourDetails",
-                column: "TimeSlot");
+                column: "Title");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TourDetails_TourTemplateId",
                 table: "TourDetails",
                 column: "TourTemplateId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TourDetails_TourTemplateId_SortOrder",
-                table: "TourDetails",
-                columns: new[] { "TourTemplateId", "SortOrder" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TourDetails_TourTemplateId_TimeSlot",
-                table: "TourDetails",
-                columns: new[] { "TourTemplateId", "TimeSlot" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_TourDetails_UpdatedById",
@@ -875,9 +939,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 column: "IsActive");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TourOperations_TourSlotId_Unique",
+                name: "IX_TourOperations_TourDetailsId_Unique",
                 table: "TourOperations",
-                column: "TourSlotId",
+                column: "TourDetailsId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -926,14 +990,19 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 columns: new[] { "TourDate", "IsActive" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_TourSlots_TourDetailsId",
+                table: "TourSlots",
+                column: "TourDetailsId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TourSlots_TourTemplateId",
                 table: "TourSlots",
                 column: "TourTemplateId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TourSlots_TourTemplateId_TourDate",
+                name: "IX_TourSlots_TourTemplateId_TourDate_TourDetailsId",
                 table: "TourSlots",
-                columns: new[] { "TourTemplateId", "TourDate" },
+                columns: new[] { "TourTemplateId", "TourDate", "TourDetailsId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -1017,13 +1086,16 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "SupportTicketImages");
 
             migrationBuilder.DropTable(
-                name: "TourDetails");
+                name: "TimelineItem");
 
             migrationBuilder.DropTable(
                 name: "TourGuideApplications");
 
             migrationBuilder.DropTable(
                 name: "TourOperations");
+
+            migrationBuilder.DropTable(
+                name: "TourSlots");
 
             migrationBuilder.DropTable(
                 name: "Blogs");
@@ -1038,10 +1110,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "SupportTickets");
 
             migrationBuilder.DropTable(
-                name: "Shops");
+                name: "TourDetails");
 
             migrationBuilder.DropTable(
-                name: "TourSlots");
+                name: "Shops");
 
             migrationBuilder.DropTable(
                 name: "TourTemplates");

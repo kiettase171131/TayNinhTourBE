@@ -12,8 +12,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         [StringLength(200, ErrorMessage = "Tên template không được vượt quá 200 ký tự")]
         public string? Title { get; set; }
 
-        [StringLength(1000, ErrorMessage = "Mô tả không được vượt quá 1000 ký tự")]
-        public string? Description { get; set; }
+
 
         public TourTemplateType? TemplateType { get; set; }
 

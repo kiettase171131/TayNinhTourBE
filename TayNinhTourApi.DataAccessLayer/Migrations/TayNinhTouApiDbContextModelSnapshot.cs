@@ -978,10 +978,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
                     b.Property<string>("EndLocation")
                         .IsRequired()
                         .HasMaxLength(500)

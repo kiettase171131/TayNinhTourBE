@@ -332,7 +332,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     Id = Guid.NewGuid(),
                     Title = newTitle,
-                    Description = originalTemplate.Description,
                     TemplateType = originalTemplate.TemplateType,
                     ScheduleDays = originalTemplate.ScheduleDays,
                     StartLocation = originalTemplate.StartLocation,
@@ -471,7 +470,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
 
             var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
-                (t.Title.Contains(keyword) || t.Description.Contains(keyword) || t.StartLocation.Contains(keyword)) &&
+                (t.Title.Contains(keyword) || t.StartLocation.Contains(keyword)) &&
                 !t.IsDeleted &&
                 (includeInactive || t.IsActive));
             return templates;

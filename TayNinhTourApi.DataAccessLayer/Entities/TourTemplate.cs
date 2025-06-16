@@ -16,11 +16,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [StringLength(200)]
         public string Title { get; set; } = null!;
 
-        /// <summary>
-        /// Mô tả chi tiết về tour template
-        /// </summary>
-        [StringLength(2000)]
-        public string? Description { get; set; }
+
 
 
 
