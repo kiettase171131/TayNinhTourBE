@@ -27,12 +27,14 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ICmsService _cmsService;
         private readonly ITourGuideApplicationService _tourGuideApplicationService;
         private readonly ISupportTicketService _supportTicketService;
+        private readonly IShopApplicationService _shopApplicationService;
 
-        public CmsController(ICmsService cmsService, ITourGuideApplicationService tourGuideApplicationService, ISupportTicketService supportTicketService)
+        public CmsController(ICmsService cmsService, ITourGuideApplicationService tourGuideApplicationService, ISupportTicketService supportTicketService, IShopApplicationService shopApplicationService)
         {
             _cmsService = cmsService;
             _tourGuideApplicationService = tourGuideApplicationService;
             _supportTicketService = supportTicketService;
+            _shopApplicationService = shopApplicationService;
         }
 
         [HttpGet("tour")]
@@ -151,6 +153,27 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<ActionResult<ResponseGetBlogsDto>> GetBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
             var response = await _cmsService.GetBlogsAsync(pageIndex, pageSize, textSearch, status);
+            return StatusCode(response.StatusCode, response);
+        }
+        [HttpGet("Shop-application")]
+        public async Task<IActionResult> GetPendingShop()
+        {
+            var list = await _shopApplicationService.GetPendingAsync();
+            return Ok(list);
+        }
+        [HttpPut("{id:guid}/approve-Shop-application")]
+        public async Task<IActionResult> ApproveShop(Guid id)
+        {
+            var response = await _shopApplicationService.ApproveAsync(id);
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpPut("{id:guid}/reject-Shop-application")]
+
+        public async Task<IActionResult> RejectShop(Guid id, [FromBody] RejectApplicationDto dto)
+        {
+            var response = await _shopApplicationService.RejectAsync(id, dto.Reason);
+
             return StatusCode(response.StatusCode, response);
         }
     }

@@ -51,8 +51,7 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpGet("blog/{id}")]
-        
+        [HttpGet("blog/{id}")]    
         public async Task<ActionResult<ResponseGetBlogByIdDto>> GetBlogById(Guid id)
         {
             var response = await _blogService.GetBlogByIdAsync(id);

@@ -318,14 +318,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = "Blog not found"
                 };
             }
-            if(blog.Status == (byte)BlogStatus.Accepted)
-            {
-                return new BaseResposeDto
-                {
-                    StatusCode = 400,
-                    Message = "Blog accepted, cannot update"
-                };
-            }
+            
 
             // Update 
             blog.Title = request.Title ?? blog.Title;

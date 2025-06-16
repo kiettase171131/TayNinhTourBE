@@ -19,5 +19,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog
         public int TotalLikes { get; set; }
         public int TotalDislikes { get; set; }
         public int TotalComments { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 }
