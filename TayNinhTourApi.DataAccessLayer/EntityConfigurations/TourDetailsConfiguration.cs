@@ -43,6 +43,11 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false)
                 .HasComment("Bình luận từ admin khi duyệt/từ chối tour details");
 
+            builder.Property(td => td.SkillsRequired)
+                .HasMaxLength(500)
+                .IsRequired(false)
+                .HasComment("Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)");
+
             // Foreign Key Relationships
 
             // TourTemplate relationship (Required)

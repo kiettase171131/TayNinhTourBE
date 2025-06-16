@@ -215,14 +215,14 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Admin xem chi tiết đơn đăng ký TourGuide (ENHANCED VERSION)
+        /// Admin xem chi tiết đơn đăng ký TourGuide
         /// </summary>
-        [HttpGet("enhanced-tourguide-applications/{applicationId}")]
-        public async Task<IActionResult> GetEnhancedTourGuideApplication(Guid applicationId)
+        [HttpGet("tourguide-applications/{applicationId}")]
+        public async Task<IActionResult> GetTourGuideApplication(Guid applicationId)
         {
             try
             {
-                var application = await _enhancedTourGuideApplicationService.GetApplicationByIdAsync(applicationId);
+                var application = await _tourGuideApplicationService.GetApplicationByIdAsync(applicationId);
 
                 if (application == null)
                 {
@@ -248,15 +248,15 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Admin duyệt đơn đăng ký TourGuide (ENHANCED VERSION)
+        /// Admin duyệt đơn đăng ký TourGuide
         /// </summary>
-        [HttpPut("enhanced-tourguide-applications/{applicationId}/approve")]
-        public async Task<IActionResult> ApproveEnhancedTourGuideApplication(Guid applicationId)
+        [HttpPut("tourguide-applications/{applicationId}/approve")]
+        public async Task<IActionResult> ApproveTourGuideApplication(Guid applicationId)
         {
             try
             {
                 CurrentUserObject adminUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var result = await _enhancedTourGuideApplicationService.ApproveApplicationAsync(applicationId, adminUser);
+                var result = await _tourGuideApplicationService.ApproveApplicationAsync(applicationId, adminUser);
                 return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
@@ -266,15 +266,15 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Admin từ chối đơn đăng ký TourGuide (ENHANCED VERSION)
+        /// Admin từ chối đơn đăng ký TourGuide
         /// </summary>
-        [HttpPut("enhanced-tourguide-applications/{applicationId}/reject")]
-        public async Task<IActionResult> RejectEnhancedTourGuideApplication(Guid applicationId, [FromBody] RejectTourGuideApplicationDto dto)
+        [HttpPut("tourguide-applications/{applicationId}/reject")]
+        public async Task<IActionResult> RejectTourGuideApplication(Guid applicationId, [FromBody] RejectTourGuideApplicationDto dto)
         {
             try
             {
                 CurrentUserObject adminUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var result = await _enhancedTourGuideApplicationService.RejectApplicationAsync(applicationId, dto, adminUser);
+                var result = await _tourGuideApplicationService.RejectApplicationAsync(applicationId, dto, adminUser);
                 return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)

@@ -16,10 +16,10 @@ using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Enhanced TourGuide Application Service với clean implementation
-    /// Thay thế cho TourGuideApplicationService cũ
+    /// TourGuide Application Service Implementation
+    /// Comprehensive implementation for tour guide application management
     /// </summary>
-    public class EnhancedTourGuideApplicationService : IEnhancedTourGuideApplicationService
+    public class TourGuideApplicationService : ITourGuideApplicationService
     {
         private readonly ITourGuideApplicationRepository _applicationRepository;
         private readonly IUserRepository _userRepository;
@@ -29,7 +29,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly EmailSender _emailSender;
 
-        public EnhancedTourGuideApplicationService(
+        public TourGuideApplicationService(
             ITourGuideApplicationRepository applicationRepository,
             IUserRepository userRepository,
             IRoleRepository roleRepository,

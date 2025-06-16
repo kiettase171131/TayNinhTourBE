@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 
@@ -505,6 +506,87 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi lấy danh sách shops"
+                });
+            }
+        }
+
+        // ===== TOUR GUIDE ASSIGNMENT WORKFLOW ENDPOINTS =====
+
+        /// <summary>
+        /// Lấy trạng thái phân công hướng dẫn viên cho TourDetails
+        /// </summary>
+        /// <param name="id">ID của TourDetails</param>
+        /// <returns>Thông tin trạng thái assignment</returns>
+        [HttpGet("{id:guid}/guide-assignment-status")]
+        [Authorize(Roles = "TourCompany,Admin")]
+        public async Task<IActionResult> GetGuideAssignmentStatus([FromRoute] Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("Getting guide assignment status for TourDetails {TourDetailsId}", id);
+
+                var response = await _tourDetailsService.GetGuideAssignmentStatusAsync(id);
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting guide assignment status for TourDetails {TourDetailsId}", id);
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy trạng thái phân công hướng dẫn viên"
+                });
+            }
+        }
+
+        /// <summary>
+        /// TourCompany mời thủ công một TourGuide cụ thể
+        /// </summary>
+        /// <param name="id">ID của TourDetails</param>
+        /// <param name="request">Thông tin mời guide</param>
+        /// <returns>Kết quả gửi lời mời</returns>
+        [HttpPost("{id:guid}/manual-invite-guide")]
+        [Authorize(Roles = "TourCompany")]
+        public async Task<IActionResult> ManualInviteGuide(
+            [FromRoute] Guid id,
+            [FromBody] InviteTourGuideDto request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "Dữ liệu không hợp lệ",
+                        Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                    });
+                }
+
+                // Validate TourDetailsId matches URL parameter
+                if (request.TourDetailsId != id)
+                {
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "TourDetailsId trong URL và body không khớp"
+                    });
+                }
+
+                var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+                _logger.LogInformation("TourCompany {CompanyId} manually inviting Guide {GuideId} for TourDetails {TourDetailsId}",
+                    userId, request.GuideId, id);
+
+                var response = await _tourDetailsService.ManualInviteGuideAsync(id, request.GuideId, userId);
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating manual invitation for TourDetails {TourDetailsId}", id);
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi mời hướng dẫn viên"
                 });
             }
         }

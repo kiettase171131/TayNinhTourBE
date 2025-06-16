@@ -469,5 +469,192 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             }
         }
 
+        /// <summary>
+        /// Send invitation email to TourGuide for a TourDetails
+        /// </summary>
+        public async Task SendTourGuideInvitationAsync(string toEmail, string guideName, string tourTitle, string tourCompanyName, DateTime expiresAt, string invitationId)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(guideName, toEmail));
+            message.Subject = "Tour Guide Invitation - New Tour Assignment Available";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Hello {guideName},</h2>
+            <p>You have received a new tour assignment invitation!</p>
+            <div style=""background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;"">
+                <h3 style=""color: #2c3e50; margin-top: 0;"">Tour Details:</h3>
+                <p><strong>Tour:</strong> {tourTitle}</p>
+                <p><strong>Tour Company:</strong> {tourCompanyName}</p>
+                <p><strong>Invitation Expires:</strong> {expiresAt:dd/MM/yyyy HH:mm}</p>
+            </div>
+            <p><strong>What you can do:</strong></p>
+            <ul>
+                <li>Log in to your account to view full tour details</li>
+                <li>Accept or decline the invitation</li>
+                <li>View tour timeline and requirements</li>
+            </ul>
+            <p style=""color: #e74c3c;""><strong>Important:</strong> This invitation will expire on {expiresAt:dd/MM/yyyy} at {expiresAt:HH:mm}. Please respond before the deadline.</p>
+            <p>We look forward to your response!</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
+        /// <summary>
+        /// Send confirmation email when TourGuide is assigned to TourDetails
+        /// </summary>
+        public async Task SendGuideAssignmentConfirmationAsync(string toEmail, string guideName, string tourTitle, string tourCompanyName)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(guideName, toEmail));
+            message.Subject = "Tour Assignment Confirmed - You've Been Selected!";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Congratulations {guideName}!</h2>
+            <p>You have been successfully assigned as the tour guide for the following tour:</p>
+            <div style=""background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;"">
+                <h3 style=""color: #155724; margin-top: 0;"">Tour Assignment Details:</h3>
+                <p><strong>Tour:</strong> {tourTitle}</p>
+                <p><strong>Tour Company:</strong> {tourCompanyName}</p>
+                <p><strong>Status:</strong> Awaiting Admin Approval</p>
+            </div>
+            <p><strong>Next steps:</strong></p>
+            <ul>
+                <li>Your assignment is now pending admin approval</li>
+                <li>You will receive another notification once approved</li>
+                <li>Log in to your account to view tour details and timeline</li>
+                <li>Prepare for the tour according to the requirements</li>
+            </ul>
+            <p>Thank you for accepting this tour assignment!</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
+        /// <summary>
+        /// Send notification to admin when TourDetails needs approval
+        /// </summary>
+        public async Task SendAdminApprovalRequestAsync(string toEmail, string adminName, string tourTitle, string tourCompanyName, string guideName)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(adminName, toEmail));
+            message.Subject = "Admin Action Required - Tour Assignment Approval";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Hello {adminName},</h2>
+            <p>A new tour assignment requires your approval:</p>
+            <div style=""background-color: #fff3cd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;"">
+                <h3 style=""color: #856404; margin-top: 0;"">Tour Assignment Details:</h3>
+                <p><strong>Tour:</strong> {tourTitle}</p>
+                <p><strong>Tour Company:</strong> {tourCompanyName}</p>
+                <p><strong>Assigned Guide:</strong> {guideName}</p>
+                <p><strong>Status:</strong> Awaiting Admin Approval</p>
+            </div>
+            <p><strong>Action required:</strong></p>
+            <ul>
+                <li>Log in to the admin panel</li>
+                <li>Review the tour details and guide assignment</li>
+                <li>Approve or reject the assignment</li>
+                <li>Provide feedback if rejecting</li>
+            </ul>
+            <p>Please review this assignment at your earliest convenience.</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour System</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
+        /// <summary>
+        /// Send notification when TourDetails is cancelled due to no guide assignment
+        /// </summary>
+        public async Task SendTourDetailsCancellationAsync(string toEmail, string companyName, string tourTitle, string reason)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(companyName, toEmail));
+            message.Subject = "Tour Assignment Cancelled - No Guide Available";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Hello {companyName},</h2>
+            <p>We regret to inform you that your tour assignment has been cancelled:</p>
+            <div style=""background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;"">
+                <h3 style=""color: #721c24; margin-top: 0;"">Cancelled Tour Details:</h3>
+                <p><strong>Tour:</strong> {tourTitle}</p>
+                <p><strong>Reason:</strong> {reason}</p>
+                <p><strong>Status:</strong> Cancelled</p>
+            </div>
+            <p><strong>What happened:</strong></p>
+            <ul>
+                <li>No tour guide accepted the invitation within the required timeframe</li>
+                <li>The system automatically cancelled the assignment after 5 days</li>
+                <li>You can create a new tour assignment with different requirements</li>
+            </ul>
+            <p><strong>Suggestions for future assignments:</strong></p>
+            <ul>
+                <li>Consider adjusting the skills requirements</li>
+                <li>Offer competitive compensation</li>
+                <li>Provide more detailed tour information</li>
+                <li>Contact our support team for assistance</li>
+            </ul>
+            <p>We apologize for any inconvenience and look forward to helping you with future tour assignments.</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
     }
 }

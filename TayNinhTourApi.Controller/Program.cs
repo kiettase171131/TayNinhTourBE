@@ -131,8 +131,7 @@ builder.Services.AddScoped<ITourTemplateService, EnhancedTourTemplateService>();
 
 builder.Services.AddScoped<ITourDetailsService, TourDetailsService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
-// builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>(); // Old service has enum conflicts
-builder.Services.AddScoped<IEnhancedTourGuideApplicationService, EnhancedTourGuideApplicationService>();
+builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
@@ -144,6 +143,9 @@ builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
 builder.Services.AddScoped<IShopApplicationService, ShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
+
+// TourGuide Invitation Workflow Services
+builder.Services.AddScoped<ITourGuideInvitationService, TourGuideInvitationService>();
 
 
 // Register repositories layer
@@ -165,11 +167,19 @@ builder.Services.AddScoped<IShopApplicationRepository, ShopApplicationRepository
 builder.Services.AddScoped<ISpecialtyShopApplicationRepository, SpecialtyShopApplicationRepository>();
 builder.Services.AddScoped<ISpecialtyShopRepository, SpecialtyShopRepository>();
 
+// TourGuide Invitation Workflow Repositories
+builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRepository>();
+
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();
 builder.Services.AddScoped<DataSeeder>();
 builder.Services.AddScoped<JwtUtility>();
 builder.Services.AddScoped<EmailSender>();
+
+// TourGuide Invitation Workflow Utilities (Static utility - no registration needed for SkillsMatchingUtility)
+
+// Register Background Job Service as Hosted Service
+builder.Services.AddHostedService<BackgroundJobService>();
 
 // Register UnitOfWork
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

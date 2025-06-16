@@ -205,5 +205,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="tourDetailId">ID của tour detail</param>
         /// <returns>Thông tin chi tiết của timeline item</returns>
         Task<ResponseUpdateTourDetailDto> GetTimelineItemByIdAsync(Guid tourDetailId);
+
+        // ===== TOUR GUIDE ASSIGNMENT WORKFLOW =====
+
+        /// <summary>
+        /// Lấy trạng thái phân công hướng dẫn viên cho TourDetails
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <returns>Thông tin trạng thái assignment</returns>
+        Task<BaseResposeDto> GetGuideAssignmentStatusAsync(Guid tourDetailsId);
+
+        /// <summary>
+        /// TourCompany mời thủ công một TourGuide cụ thể
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="guideId">ID của TourGuide được mời</param>
+        /// <param name="companyId">ID của TourCompany</param>
+        /// <returns>Kết quả gửi lời mời</returns>
+        Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid companyId);
     }
 }

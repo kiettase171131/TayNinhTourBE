@@ -25,6 +25,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
 
         private ITourDetailsRepository _tourDetailsRepository = null!;
         private ITourOperationRepository _tourOperationRepository = null!;
+        private ITourGuideInvitationRepository _tourGuideInvitationRepository = null!;
         private ITimelineItemRepository _timelineItemRepository = null!;
         private IBlogRepository _blogRepository = null!;
 
@@ -124,6 +125,14 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             get
             {
                 return _tourOperationRepository ??= new TourOperationRepository(_context);
+            }
+        }
+
+        public ITourGuideInvitationRepository TourGuideInvitationRepository
+        {
+            get
+            {
+                return _tourGuideInvitationRepository ??= new TourGuideInvitationRepository(_context);
             }
         }
 
