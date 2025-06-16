@@ -19,7 +19,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             var query = _context.TimelineItems
                 .Include(ti => ti.TourDetails)
-                .Include(ti => ti.Shop)
+                .Include(ti => ti.SpecialtyShop)
                 .Include(ti => ti.CreatedBy)
                 .Include(ti => ti.UpdatedBy)
                 .Where(ti => ti.TourDetailsId == tourDetailsId);
@@ -40,19 +40,19 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TimelineItems
                 .Include(ti => ti.TourDetails)
                     .ThenInclude(td => td.TourTemplate)
-                .Include(ti => ti.Shop)
+                .Include(ti => ti.SpecialtyShop)
                 .Include(ti => ti.CreatedBy)
                 .Include(ti => ti.UpdatedBy)
                 .FirstOrDefaultAsync(ti => ti.Id == id && !ti.IsDeleted);
         }
 
-        public async Task<IEnumerable<TimelineItem>> GetByShopAsync(Guid shopId, bool includeInactive = false)
+        public async Task<IEnumerable<TimelineItem>> GetBySpecialtyShopAsync(Guid specialtyShopId, bool includeInactive = false)
         {
             var query = _context.TimelineItems
                 .Include(ti => ti.TourDetails)
                     .ThenInclude(td => td.TourTemplate)
-                .Include(ti => ti.Shop)
-                .Where(ti => ti.ShopId == shopId);
+                .Include(ti => ti.SpecialtyShop)
+                .Where(ti => ti.SpecialtyShopId == specialtyShopId);
 
             if (!includeInactive)
             {
@@ -111,9 +111,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var query = _context.TimelineItems
                 .Include(ti => ti.TourDetails)
                     .ThenInclude(td => td.TourTemplate)
-                .Include(ti => ti.Shop)
+                .Include(ti => ti.SpecialtyShop)
                 .Where(ti => ti.Activity.Contains(keyword) ||
-                           (ti.Shop != null && ti.Shop.Name.Contains(keyword)));
+                           (ti.SpecialtyShop != null && ti.SpecialtyShop.ShopName.Contains(keyword)));
 
             if (tourDetailsId.HasValue)
             {

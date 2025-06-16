@@ -367,6 +367,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        // TODO: Update to use SpecialtyShopRepository after merge
+        /*
         public async Task<ResponseGetAvailableShopsDto> GetAvailableShopsAsync(bool includeInactive = false, string? searchKeyword = null)
         {
             try
@@ -415,6 +417,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = "Có lỗi xảy ra khi lấy danh sách shops"
                 };
             }
+        }
+        */
+
+        public async Task<ResponseGetAvailableShopsDto> GetAvailableShopsAsync(bool includeInactive = false, string? searchKeyword = null)
+        {
+            // TODO: Implement with SpecialtyShopRepository after merge
+            throw new NotImplementedException("This method will be updated to use SpecialtyShopRepository");
         }
 
         /// <summary>
@@ -688,7 +697,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TourDetailsId = request.TourDetailsId,
                     CheckInTime = TimeSpan.Parse(request.CheckInTime),
                     Activity = request.Activity,
-                    ShopId = request.ShopId,
+                    // TODO: Update after DTO changes
+                    // SpecialtyShopId = request.SpecialtyShopId,
                     SortOrder = await GetNextSortOrderAsync(request.TourDetailsId),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
@@ -801,7 +811,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             TourDetailsId = request.TourDetailsId,
                             CheckInTime = checkInTime,
                             Activity = itemRequest.Activity,
-                            ShopId = itemRequest.ShopId,
+                            // TODO: Update after DTO changes
+                            // SpecialtyShopId = itemRequest.SpecialtyShopId,
                             SortOrder = itemRequest.SortOrder.HasValue ? itemRequest.SortOrder.Value : (++currentMaxSortOrder),
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,

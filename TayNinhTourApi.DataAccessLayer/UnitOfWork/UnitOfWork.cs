@@ -17,7 +17,9 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private IImageRepository _imageRepository = null!;
         private ITourRepository _tourRepository = null!;
         private ITourTemplateRepository _tourTemplateRepository = null!;
-        private IShopRepository _shopRepository = null!;
+        // TODO: Remove after Shop merge complete
+        // private IShopRepository _shopRepository = null!;
+        private ISpecialtyShopRepository _specialtyShopRepository = null!;
         private ITourSlotRepository _tourSlotRepository = null!;
 
         private ITourDetailsRepository _tourDetailsRepository = null!;
@@ -71,11 +73,22 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
+        // TODO: Remove after Shop merge complete
+        /*
         public IShopRepository ShopRepository
         {
             get
             {
                 return _shopRepository ??= new ShopRepository(_context);
+            }
+        }
+        */
+
+        public ISpecialtyShopRepository SpecialtyShopRepository
+        {
+            get
+            {
+                return _specialtyShopRepository ??= new SpecialtyShopRepository(_context);
             }
         }
 

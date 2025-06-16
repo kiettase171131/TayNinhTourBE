@@ -149,7 +149,7 @@ namespace TayNinhTourApi.Controller.Controllers
             var response = await _cmsService.UpdateBlogAsync(request, id, Guid.Parse(userId));
             return StatusCode(response.StatusCode, response);
         }
-        [HttpGet("Blog")]    
+        [HttpGet("Blog")]
         public async Task<ActionResult<ResponseGetBlogsDto>> GetBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
             var response = await _cmsService.GetBlogsAsync(pageIndex, pageSize, textSearch, status);

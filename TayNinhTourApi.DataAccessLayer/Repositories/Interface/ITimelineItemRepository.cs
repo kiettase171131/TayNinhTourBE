@@ -24,12 +24,12 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<TimelineItem?> GetWithDetailsAsync(Guid id);
 
         /// <summary>
-        /// Lấy danh sách timeline items theo Shop ID
+        /// Lấy danh sách timeline items theo SpecialtyShop ID
         /// </summary>
-        /// <param name="shopId">ID của Shop</param>
+        /// <param name="specialtyShopId">ID của SpecialtyShop</param>
         /// <param name="includeInactive">Có bao gồm items không active không</param>
-        /// <returns>Danh sách timeline items liên quan đến shop</returns>
-        Task<IEnumerable<TimelineItem>> GetByShopAsync(Guid shopId, bool includeInactive = false);
+        /// <returns>Danh sách timeline items liên quan đến specialty shop</returns>
+        Task<IEnumerable<TimelineItem>> GetBySpecialtyShopAsync(Guid specialtyShopId, bool includeInactive = false);
 
         /// <summary>
         /// Lấy SortOrder lớn nhất trong một TourDetails

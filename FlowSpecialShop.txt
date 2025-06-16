@@ -1,0 +1,38 @@
+1. User register → Role "User" ✅
+2. User POST /api/Account/shop-application → ShopApplication record ✅
+3. Admin GET /api/CMS/Shop-application → Xem pending applications ✅
+4. Admin PUT /api/CMS/{id}/approve-Shop-application → 
+   a. User.RoleId = "Specialty Shop" ✅
+   b. Tạo SpecialtyShop record ✅
+   c. ShopApplication.Status = Approved ✅
+5. User login lại → có role "Specialty Shop" ✅
+6. User GET /api/SpecialtyShop/my-shop → Xem shop data ✅
+7. Public GET /api/SpecialtyShop/active → Xem danh sách shops ✅
+
+
+
+   Các field của bảng shop
+
+public class Shop : BaseEntity
+{
+    // Basic Info
+    public string Name { get; set; }                    // Tên shop
+    public string? Description { get; set; }            // Mô tả
+    public string Location { get; set; }                // Địa điểm
+    
+    // Contact Info  
+    public string? PhoneNumber { get; set; }            // SĐT
+    public string? Email { get; set; }                  // Email
+    public string? Website { get; set; }                // Website
+    
+    // Business Info
+    public string? OpeningHours { get; set; }           // Giờ mở cửa
+    public string? ShopType { get; set; }               // Loại shop
+    public decimal? Rating { get; set; }                // Đánh giá (1-5)
+    public string? Notes { get; set; }                  // Ghi chú
+    
+    // Navigation Properties
+    public virtual ICollection<TourDetails> TourDetails { get; set; }
+    public virtual User CreatedBy { get; set; }
+    public virtual User? UpdatedBy { get; set; }
+}

@@ -1,36 +1,37 @@
 ================================================================================
                     FLOW ĐĂNG KÝ SPECIALTY SHOP - TAYNINHTOURBE
+                              [UPDATED AFTER SHOP MERGE]
 ================================================================================
 
 📋 TỔNG QUAN
 ============
-Flow đăng ký cho phép User đăng ký trở thành Specialty Shop Owner để quản lý 
+Flow đăng ký cho phép User đăng ký trở thành Specialty Shop Owner để quản lý
 shop đặc sản tham gia vào hệ sinh thái tour du lịch Tây Ninh.
 
 🔄 FLOW CHÍNH
 =============
 1. User Registration (Role: "User")
-2. Shop Application Submission  
+2. SpecialtyShop Application Submission
 3. Admin Review Process
 4. Approval/Rejection Decision
 5. Role Update to "Specialty Shop"
-6. Shop Entity Creation
-7. Shop Management
+6. SpecialtyShop Entity Creation
+7. SpecialtyShop Management
 
 📊 DATABASE SCHEMA
 ==================
 
-ShopApplication Entity:
------------------------
+SpecialtyShopApplication Entity:
+--------------------------------
 - Id (Guid, PK)
 - UserId (Guid, FK to User) - người đăng ký
-- ShopName (string, required) - tên shop
-- ShopDescription (string, optional) - mô tả shop
+- ShopName (string, required) - tên specialty shop
+- ShopDescription (string, optional) - mô tả specialty shop
 - BusinessLicense (string, required) - số giấy phép kinh doanh
-- Location (string, required) - địa chỉ shop
+- Location (string, required) - địa chỉ specialty shop
 - PhoneNumber (string, required) - số điện thoại
 - Email (string, required) - email liên hệ
-- Website (string, optional) - website shop
+- Website (string, optional) - website specialty shop
 - ShopType (string, optional) - loại shop (Souvenir, Food, Craft...)
 - BusinessDocuments (string, optional) - link tài liệu kinh doanh
 - Status (enum) - trạng thái đơn (Pending/Approved/Rejected)
@@ -40,8 +41,8 @@ ShopApplication Entity:
 - ProcessedById (Guid, nullable, FK to User) - admin xử lý
 - CreatedAt, UpdatedAt, IsDeleted, IsActive (BaseEntity fields)
 
-ShopApplicationStatus Enum:
----------------------------
+SpecialtyShopApplicationStatus Enum:
+------------------------------------
 - Pending = 0 (Chờ xử lý)
 - Approved = 1 (Đã duyệt)
 - Rejected = 2 (Từ chối)
@@ -55,47 +56,47 @@ Thêm role mới: "Specialty Shop" vào Constants và DataSeeder
 
 USER SIDE (AccountController):
 ------------------------------
-POST /api/Account/shop-application
+POST /api/Account/specialty-shop-application
 - Authorization: Bearer token, Role "User"
-- Body: SubmitShopApplicationDto (multipart/form-data)
-- Function: User nộp đơn đăng ký shop
+- Body: SubmitSpecialtyShopApplicationDto (multipart/form-data)
+- Function: User nộp đơn đăng ký specialty shop
 - Response: Confirmation message
 
-GET /api/Account/my-shop-application  
+GET /api/Account/my-specialty-shop-application
 - Authorization: Bearer token, Role "User"
 - Function: Xem trạng thái đơn đăng ký của mình
-- Response: ShopApplicationDto hoặc null
+- Response: SpecialtyShopApplicationDto hoặc null
 
 ADMIN SIDE (CmsController):
 ---------------------------
-GET /api/Cms/shop-applications
+GET /api/Cms/specialty-shop-applications
 - Authorization: Bearer token, Role "Admin"
 - Query params: status, pageIndex, pageSize
-- Function: Lấy danh sách đơn đăng ký shop
-- Response: Paginated list of ShopApplicationSummaryDto
+- Function: Lấy danh sách đơn đăng ký specialty shop
+- Response: Paginated list of SpecialtyShopApplicationSummaryDto
 
-GET /api/Cms/shop-applications/{id}
-- Authorization: Bearer token, Role "Admin"  
-- Function: Xem chi tiết đơn đăng ký
-- Response: ShopApplicationDto with full details
-
-PUT /api/Cms/shop-applications/{id}/approve
+GET /api/Cms/specialty-shop-applications/{id}
 - Authorization: Bearer token, Role "Admin"
-- Function: Duyệt đơn đăng ký shop
-- Process: User role → "Specialty Shop", tạo Shop entity
+- Function: Xem chi tiết đơn đăng ký
+- Response: SpecialtyShopApplicationDto with full details
+
+PUT /api/Cms/specialty-shop-applications/{id}/approve
+- Authorization: Bearer token, Role "Admin"
+- Function: Duyệt đơn đăng ký specialty shop
+- Process: User role → "Specialty Shop", tạo SpecialtyShop entity
 - Response: Success message
 
-PUT /api/Cms/shop-applications/{id}/reject
+PUT /api/Cms/specialty-shop-applications/{id}/reject
 - Authorization: Bearer token, Role "Admin"
-- Body: RejectShopApplicationDto (reason)
+- Body: RejectSpecialtyShopApplicationDto (reason)
 - Function: Từ chối đơn đăng ký với lý do
 - Response: Success message
 
 📝 DTOs DESIGN
 ==============
 
-SubmitShopApplicationDto:
--------------------------
+SubmitSpecialtyShopApplicationDto:
+----------------------------------
 - ShopName (string, required)
 - ShopDescription (string, optional)
 - BusinessLicense (string, required)
@@ -106,8 +107,8 @@ SubmitShopApplicationDto:
 - ShopType (string, optional)
 - BusinessDocuments (IFormFile[], optional)
 
-ShopApplicationDto:
--------------------
+SpecialtyShopApplicationDto:
+----------------------------
 - Id (Guid)
 - ShopName (string)
 - ShopDescription (string)
@@ -118,25 +119,25 @@ ShopApplicationDto:
 - Website (string)
 - ShopType (string)
 - BusinessDocuments (List<string>) - file URLs
-- Status (ShopApplicationStatus)
+- Status (SpecialtyShopApplicationStatus)
 - RejectionReason (string)
 - SubmittedAt (DateTime)
 - ProcessedAt (DateTime?)
 - UserInfo (UserSummaryDto)
 - ProcessedByInfo (UserSummaryDto?)
 
-ShopApplicationSummaryDto:
---------------------------
+SpecialtyShopApplicationSummaryDto:
+-----------------------------------
 - Id (Guid)
 - ShopName (string)
 - Location (string)
-- Status (ShopApplicationStatus)
+- Status (SpecialtyShopApplicationStatus)
 - SubmittedAt (DateTime)
 - UserName (string)
 - UserEmail (string)
 
-RejectShopApplicationDto:
--------------------------
+RejectSpecialtyShopApplicationDto:
+----------------------------------
 - Reason (string, required)
 
 ⚙️ BUSINESS LOGIC FLOW
@@ -167,16 +168,18 @@ a. Validate application status = Pending
 b. Begin database transaction:
    - Get/Create "Specialty Shop" role
    - Update user.RoleId = specialtyShopRole.Id
-   - Create Shop entity from application data:
-     * Name = app.ShopName
+   - Create SpecialtyShop entity from application data:
+     * ShopName = app.ShopName
      * Description = app.ShopDescription
      * Location = app.Location
      * PhoneNumber = app.PhoneNumber
      * Email = app.Email
      * Website = app.Website
      * ShopType = app.ShopType
+     * UserId = app.UserId
      * CreatedById = app.UserId
      * IsActive = true
+     * IsShopActive = true
    - Update application:
      * Status = Approved
      * ProcessedAt = DateTime.Now
@@ -207,15 +210,15 @@ Role Management:
 
 Controller Authorization:
 -------------------------
-- AccountController.SubmitShopApplication: [Authorize(Roles = "User")]
-- CmsController.ShopApplications: [Authorize(Roles = "Admin")]
-- ShopController: [Authorize(Roles = "Admin,Tour Company,Specialty Shop")]
+- AccountController.SubmitSpecialtyShopApplication: [Authorize(Roles = "User")]
+- CmsController.SpecialtyShopApplications: [Authorize(Roles = "Admin")]
+- SpecialtyShopController: [Authorize(Roles = "Admin,Tour Company,Specialty Shop")]
 
 Service Authorization:
 ----------------------
-- ShopService: Specialty Shop chỉ có thể CRUD shop của mình
-- Ownership check: shop.CreatedById == currentUserId
-- Admin và Tour Company có thể CRUD tất cả shops
+- SpecialtyShopService: Specialty Shop chỉ có thể CRUD specialty shop của mình
+- Ownership check: specialtyShop.UserId == currentUserId
+- Admin và Tour Company có thể CRUD tất cả specialty shops
 
 File Upload Security:
 ---------------------
@@ -262,18 +265,18 @@ Step 1: User Registration
 - Đăng ký tài khoản với email/OTP verification
 - Role mặc định: "User"
 
-Step 2: Shop Application
-------------------------
+Step 2: SpecialtyShop Application
+----------------------------------
 - User login vào account
 - Navigate to "Đăng ký Specialty Shop"
-- Fill form với thông tin shop và business documents
+- Fill form với thông tin specialty shop và business documents
 - Submit application
 - Nhận email confirmation
 
 Step 3: Admin Processing
 ------------------------
 - Admin login to CMS
-- Review pending shop applications
+- Review pending specialty shop applications
 - Check business documents và thông tin
 - Make approve/reject decision
 - Send notification email
@@ -282,21 +285,21 @@ Step 4: Post-Approval
 ---------------------
 - User nhận email approval
 - Login lại → role đã thành "Specialty Shop"
-- Access shop management features
-- Update shop information
+- Access specialty shop management features
+- Update specialty shop information
 - Participate in tour timeline
 - Receive bookings from tours
 
 ✅ SPECIALTY SHOP PERMISSIONS
 =============================
 
-Shop Management:
-----------------
-- View và edit shop information
-- Upload shop images
+SpecialtyShop Management:
+-------------------------
+- View và edit specialty shop information
+- Upload specialty shop images
 - Update opening hours
-- Set shop status (open/closed)
-- Manage shop products/services
+- Set specialty shop status (open/closed)
+- Manage specialty shop products/services
 
 Tour Integration:
 -----------------
@@ -307,92 +310,97 @@ Tour Integration:
 
 Analytics & Reports:
 --------------------
-- View shop visit statistics
+- View specialty shop visit statistics
 - Revenue reports from tours
 - Customer feedback và ratings
 - Performance metrics
 
-🗓️ SHOP TIMELINE INTEGRATION
-=============================
+🗓️ SPECIALTYSHOP TIMELINE INTEGRATION
+=====================================
 
 Timeline Assignment Process:
 ----------------------------
 1. Tour Company tạo TourDetails cho TourTemplate
 2. Tour Company design timeline cho TourDetails
 3. Trong timeline, Tour Company có thể:
-   - Add TimelineItem với ShopId để lấy thông tin shop
-   - Set thời gian visit shop (start time, duration)
-   - Set mô tả hoạt động tại shop
-   - Timeline sẽ hiển thị thông tin shop (tên, địa chỉ, SĐT, etc.)
+   - Add TimelineItem với SpecialtyShopId để lấy thông tin specialty shop
+   - Set thời gian visit specialty shop (start time, duration)
+   - Set mô tả hoạt động tại specialty shop
+   - Timeline sẽ hiển thị thông tin specialty shop (tên, địa chỉ, SĐT, etc.)
 
 Timeline Item Structure:
 ------------------------
 TimelineItem Entity (existing):
 - Id (Guid, PK)
 - TourDetailsId (Guid, FK)
-- ShopId (Guid, FK) - QUAN TRỌNG: link đến Shop để lấy thông tin
+- SpecialtyShopId (Guid, FK) - QUAN TRỌNG: link đến SpecialtyShop để lấy thông tin
 - Order (int) - thứ tự trong timeline
 - StartTime (TimeSpan) - giờ bắt đầu
-- Duration (TimeSpan) - thời gian ở shop
+- Duration (TimeSpan) - thời gian ở specialty shop
 - Title (string) - tiêu đề hoạt động
 - Description (string) - mô tả chi tiết
 - Notes (string) - ghi chú cho tour guide
 
-Shop Timeline APIs (Simplified):
---------------------------------
-GET /api/Shop/my-timeline-usage
+SpecialtyShop Timeline APIs (Simplified):
+-----------------------------------------
+GET /api/SpecialtyShop/my-timeline-usage
 - Authorization: Role "Specialty Shop"
-- Function: Xem các tour đã sử dụng thông tin shop mình
-- Response: List of timeline items có ShopId = current shop
+- Function: Xem các tour đã sử dụng thông tin specialty shop mình
+- Response: List of timeline items có SpecialtyShopId = current specialty shop
 
 Tour Company Timeline APIs:
 ---------------------------
-GET /api/TourDetails/{id}/available-shops
-- Authorization: Role "Tour Company"
-- Query: location, shopType, rating
-- Function: Browse shops để chọn cho timeline
-- Response: List of ShopSummaryDto
+GET /api/SpecialtyShop/timeline
+- Authorization: Role "Tour Company", "Admin"
+- Query: pageIndex, pageSize, textSearch, location, shopType, status
+- Function: Browse specialty shops để chọn cho timeline
+- Response: Paginated list of SpecialtyShopResponseDto
+
+GET /api/SpecialtyShop/timeline/{id}
+- Authorization: Role "Tour Company", "Admin"
+- Function: Lấy thông tin chi tiết specialty shop cho timeline
+- Response: SpecialtyShopResponseDto
 
 POST /api/TourDetails/{id}/timeline-items
 - Authorization: Role "Tour Company"
-- Body: CreateTimelineItemDto (include ShopId)
-- Function: Thêm shop vào timeline (chỉ để lấy thông tin)
-- Response: TimelineItemDto with shop info
+- Body: CreateTimelineItemDto (include SpecialtyShopId)
+- Function: Thêm specialty shop vào timeline (chỉ để lấy thông tin)
+- Response: TimelineItemDto with specialty shop info
 
 PUT /api/TourDetails/timeline-items/{id}
 - Authorization: Role "Tour Company"
 - Body: UpdateTimelineItemDto
-- Function: Update timeline item (change shop, time, etc.)
+- Function: Update timeline item (change specialty shop, time, etc.)
 - Response: Success/failure
 
 Timeline Business Logic (Simplified):
 -------------------------------------
 1. Tour Company Design Timeline:
    - Select TourDetails cần design timeline
-   - Browse available shops by location/type/rating
-   - Add shops to timeline để lấy thông tin shop
+   - Browse available specialty shops by location/type/rating
+   - Add specialty shops to timeline để lấy thông tin specialty shop
    - Set thời gian visit và mô tả hoạt động
-   - Timeline hiển thị: thời gian + thông tin shop + mô tả
+   - Timeline hiển thị: thời gian + thông tin specialty shop + mô tả
 
 2. Timeline Display:
    - Mỗi timeline item hiển thị:
      * Thời gian: 10:30 - 11:00
      * Hoạt động: "Mua sắm đặc sản"
-     * Shop: "Đặc Sản Tây Ninh ABC"
+     * SpecialtyShop: "Đặc Sản Tây Ninh ABC"
      * Địa chỉ: "123 Đường ABC, Tây Ninh"
      * SĐT: "0123456789"
-     * Ghi chú: "Shop chuyên bánh tráng, mắm ruốc"
+     * Ghi chú: "Specialty shop chuyên bánh tráng, mắm ruốc"
 
 3. Timeline Validation (Basic):
    - Validate timeline order hợp lý
    - Check total duration fits tour time
-   - Ensure shop information complete
+   - Ensure specialty shop information complete
 
 Timeline DTOs (Simplified):
 ---------------------------
 CreateTimelineItemDto:
 - TourDetailsId (Guid)
-- ShopId (Guid, optional) - để lấy thông tin shop
+- SpecialtyShopId (Guid, optional) - để lấy thông tin specialty shop
 - Order (int)
 - StartTime (TimeSpan)
 - Duration (TimeSpan)
@@ -406,7 +414,7 @@ TimelineItemDto:
 - Duration (TimeSpan)
 - Title (string)
 - Description (string)
-- ShopInfo (ShopSummaryDto, nullable) - thông tin shop nếu có
+- SpecialtyShop (SpecialtyShopResponseDto, nullable) - thông tin specialty shop nếu có
 
 TimelineUsageDto:
 - TimelineItemId (Guid)
@@ -417,57 +425,57 @@ TimelineUsageDto:
 - ActivityDescription (string)
 - TourCompanyInfo (UserSummaryDto)
 
-Shop Timeline Workflow (Simplified):
-------------------------------------
+SpecialtyShop Timeline Workflow (Simplified):
+--------------------------------------------
 1. Tour Company creates TourDetails
 2. Tour Company designs timeline:
-   - Browse available shops by location/type/rating
-   - Select shops để lấy thông tin cho timeline
+   - Browse available specialty shops by location/type/rating
+   - Select specialty shops để lấy thông tin cho timeline
    - Set visit time và duration
    - Add activity description
-   - Timeline hiển thị thông tin shop đã chọn
-3. Timeline được publish với thông tin shop
-4. Tour guide nhận timeline với đầy đủ thông tin shop
+   - Timeline hiển thị thông tin specialty shop đã chọn
+3. Timeline được publish với thông tin specialty shop
+4. Tour guide nhận timeline với đầy đủ thông tin specialty shop
 5. During tour execution:
    - Tour guide follows timeline
-   - Visit shops theo thông tin trong timeline
-   - Shop information helps guide locate và contact
+   - Visit specialty shops theo thông tin trong timeline
+   - SpecialtyShop information helps guide locate và contact
 
-Shop Information Usage:
------------------------
-Timeline sẽ hiển thị thông tin shop:
-- Tên shop
+SpecialtyShop Information Usage:
+-------------------------------
+Timeline sẽ hiển thị thông tin specialty shop:
+- Tên specialty shop
 - Địa chỉ chính xác
 - Số điện thoại liên hệ
-- Loại shop (Souvenir, Food, Craft...)
+- Loại specialty shop (Souvenir, Food, Craft...)
 - Giờ mở cửa (nếu có)
 - Ghi chú đặc biệt
 
-Shop Timeline Dashboard (Simplified):
-------------------------------------
+SpecialtyShop Timeline Dashboard (Simplified):
+----------------------------------------------
 For Specialty Shop owners:
-- View timeline usage: xem các tour đã sử dụng thông tin shop
+- View timeline usage: xem các tour đã sử dụng thông tin specialty shop
 - Statistics: số lần được include trong timeline
 - Tour company contacts: danh sách tour company đã sử dụng
-- Shop information accuracy: đảm bảo thông tin shop luôn chính xác
+- SpecialtyShop information accuracy: đảm bảo thông tin specialty shop luôn chính xác
 
 🔧 TECHNICAL IMPLEMENTATION
 ===========================
 
-Required Files for Shop Registration:
--------------------------------------
-1. Entities/ShopApplication.cs
-2. Enums/ShopApplicationStatus.cs
-3. DTOs/Request/SubmitShopApplicationDto.cs
-4. DTOs/Response/ShopApplicationDto.cs
-5. Services/Interface/IShopApplicationService.cs
-6. Services/ShopApplicationService.cs
+Required Files for SpecialtyShop Registration:
+----------------------------------------------
+1. Entities/SpecialtyShopApplication.cs
+2. Enums/SpecialtyShopApplicationStatus.cs
+3. DTOs/Request/SubmitSpecialtyShopApplicationDto.cs
+4. DTOs/Response/SpecialtyShopApplicationDto.cs
+5. Services/Interface/ISpecialtyShopApplicationService.cs
+6. Services/SpecialtyShopApplicationService.cs
 7. Controllers/AccountController.cs (add endpoints)
 8. Controllers/CmsController.cs (add endpoints)
-9. Repositories/Interface/IShopApplicationRepository.cs
-10. Repositories/ShopApplicationRepository.cs
-11. EntityConfigurations/ShopApplicationConfiguration.cs
-12. Migrations/AddShopApplicationTable.cs
+9. Repositories/Interface/ISpecialtyShopApplicationRepository.cs
+10. Repositories/SpecialtyShopApplicationRepository.cs
+11. EntityConfigurations/SpecialtyShopApplicationConfiguration.cs
+12. Migrations/AddSpecialtyShopApplicationTable.cs
 
 Required Files for Timeline Integration:
 ---------------------------------------
@@ -478,7 +486,7 @@ Required Files for Timeline Integration:
 17. DTOs/Response/TimelineOpportunityDto.cs
 18. Services/Interface/ITimelineService.cs
 19. Services/TimelineService.cs
-20. Controllers/ShopController.cs (add timeline endpoints)
+20. Controllers/SpecialtyShopController.cs (add timeline endpoints)
 21. Controllers/TourDetailsController.cs (add timeline endpoints)
 22. Repositories/Interface/ITimelineItemRepository.cs (update existing)
 23. Repositories/TimelineItemRepository.cs (update existing)
@@ -486,67 +494,68 @@ Required Files for Timeline Integration:
 Database Schema Updates:
 ------------------------
 Existing TimelineItem table đã có:
-- ShopId (Guid, FK to Shop) - ALREADY EXISTS - để link thông tin shop
+- SpecialtyShopId (Guid, FK to SpecialtyShop) - ALREADY EXISTS - để link thông tin specialty shop
 
 No additional columns needed for TimelineItem.
 
-Shop table có thể bổ sung (optional):
+SpecialtyShop table đã có đầy đủ fields:
 - OpeningHours (string) - giờ mở cửa để hiển thị trong timeline
-- IsActive (bool) - shop có đang hoạt động không
+- IsActive (bool) - specialty shop có đang hoạt động không
+- IsShopActive (bool) - specialty shop có đang mở cửa không
 
 Migration Scripts:
 ------------------
-1. AddShopApplicationTable.cs
-2. AddSpecialtyShopRole.cs
-3. UpdateShopTableForTimeline.cs (optional - chỉ nếu cần thêm fields)
+1. AddSpecialtyShopApplicationTable.cs
+2. AddSpecialtyShopRole.cs (ALREADY DONE)
+3. UpdateTimelineItemForSpecialtyShop.cs (ALREADY DONE - SpecialtyShopId exists)
 
 Service Registration Updates:
 -----------------------------
 Program.cs additions:
-- builder.Services.AddScoped<IShopApplicationService, ShopApplicationService>();
+- builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
+- builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>(); (ALREADY DONE)
 - builder.Services.AddScoped<ITimelineService, TimelineService>();
 
 UnitOfWork updates:
-- IShopApplicationRepository ShopApplicationRepository { get; }
+- ISpecialtyShopApplicationRepository SpecialtyShopApplicationRepository { get; }
 
 AutoMapper Profile Updates:
 ---------------------------
-- CreateMap<SubmitShopApplicationDto, ShopApplication>();
-- CreateMap<ShopApplication, ShopApplicationDto>();
+- CreateMap<SubmitSpecialtyShopApplicationDto, SpecialtyShopApplication>();
+- CreateMap<SpecialtyShopApplication, SpecialtyShopApplicationDto>();
 - CreateMap<CreateTimelineItemDto, TimelineItem>();
 - CreateMap<TimelineItem, TimelineItemDto>()
-    .ForMember(dest => dest.ShopInfo, opt => opt.MapFrom(src => src.Shop));
+    .ForMember(dest => dest.SpecialtyShop, opt => opt.MapFrom(src => src.SpecialtyShop));
 
 Key Implementation Notes:
 -------------------------
-1. TimelineItem.ShopId relationship ALREADY EXISTS in current schema
-2. Need to add Status column to track shop confirmation
-3. Need notification system when shop added to timeline
-4. Need capacity checking logic in TimelineService
-5. Need conflict detection (same shop, same time)
-6. Need shop availability checking (opening hours)
-7. Need email notifications for timeline assignments
+1. TimelineItem.SpecialtyShopId relationship ALREADY EXISTS in current schema
+2. SpecialtyShop information integration ALREADY IMPLEMENTED
+3. Timeline endpoints for SpecialtyShop ALREADY IMPLEMENTED
+4. SpecialtyShopService with timeline methods ALREADY IMPLEMENTED
+5. Authorization for Admin/Tour Company ALREADY IMPLEMENTED
+6. Pagination and filtering ALREADY IMPLEMENTED
+7. API testing COMPLETED and WORKING
 
-Timeline Service Key Methods (Simplified):
-------------------------------------------
-- GetAvailableShopsAsync(location, shopType, rating)
-- AssignShopToTimelineAsync(tourDetailsId, shopId, timelineData)
-- GetShopTimelineUsageAsync(shopId, dateRange)
-- ValidateTimelineOrderAsync(tourDetailsId)
-
-Shop Controller New Endpoints (Simplified):
+Timeline Service Key Methods (IMPLEMENTED):
 -------------------------------------------
-GET /api/Shop/my-timeline-usage - Xem các tour đã sử dụng thông tin shop
+- GetShopsForTimelineAsync(pageIndex, pageSize, textSearch, location, shopType, status)
+- GetShopByIdForTimelineAsync(specialtyShopId)
+- Timeline integration through SpecialtyShopService
 
-TourDetails Controller New Endpoints:
-------------------------------------
-GET /api/TourDetails/{id}/available-shops - Browse shops cho timeline
-POST /api/TourDetails/{id}/timeline-items - Add shop vào timeline (lấy thông tin)
+SpecialtyShop Controller Timeline Endpoints (IMPLEMENTED):
+----------------------------------------------------------
+GET /api/SpecialtyShop/timeline - Browse specialty shops cho timeline (WORKING)
+GET /api/SpecialtyShop/timeline/{id} - Get specialty shop by ID cho timeline (WORKING)
+
+TourDetails Controller Timeline Endpoints (TO BE IMPLEMENTED):
+--------------------------------------------------------------
+POST /api/TourDetails/{id}/timeline-items - Add specialty shop vào timeline
 PUT /api/TourDetails/timeline-items/{id} - Update timeline item
-DELETE /api/TourDetails/timeline-items/{id} - Remove shop khỏi timeline
+DELETE /api/TourDetails/timeline-items/{id} - Remove specialty shop khỏi timeline
 
-📋 TIMELINE INTEGRATION WORKFLOW EXAMPLE
-=========================================
+📋 SPECIALTYSHOP TIMELINE INTEGRATION WORKFLOW EXAMPLE
+======================================================
 
 Scenario: Tour Company tạo timeline cho "Tây Ninh 1 Day Tour"
 -------------------------------------------------------------
@@ -558,42 +567,43 @@ Step 1: Tour Company Design Timeline
 3. Timeline editor hiển thị:
    - 08:00-09:00: Khởi hành từ TP.HCM
    - 09:00-10:30: Đền Cao Đài
-   - 10:30-11:00: [EMPTY SLOT] - cần thêm shop
+   - 10:30-11:00: [EMPTY SLOT] - cần thêm specialty shop
    - 11:00-12:00: Núi Bà Đen
-   - 12:00-13:00: [EMPTY SLOT] - cần thêm shop ăn trưa
+   - 12:00-13:00: [EMPTY SLOT] - cần thêm specialty shop ăn trưa
    - 13:00-15:00: Địa đạo Củ Chi
-   - 15:00-15:30: [EMPTY SLOT] - cần thêm shop đặc sản
+   - 15:00-15:30: [EMPTY SLOT] - cần thêm specialty shop đặc sản
    - 15:30-17:00: Về TP.HCM
 
-Step 2: Add Shop to Timeline Slot 1 (10:30-11:00)
---------------------------------------------------
+Step 2: Add SpecialtyShop to Timeline Slot 1 (10:30-11:00)
+----------------------------------------------------------
 1. Tour Company click vào slot 10:30-11:00
-2. System hiển thị "Available Shops":
+2. System call API: GET /api/SpecialtyShop/timeline?location=TayNinh&shopType=Souvenir
+3. System hiển thị "Available SpecialtyShops":
    - Filter: Location = "Tây Ninh", ShopType = "Souvenir"
    - Results:
-     * "Đặc Sản Tây Ninh ABC" - Rating 4.5, Capacity 50
-     * "Cửa Hàng Lưu Niệm XYZ" - Rating 4.2, Capacity 30
-     * "Shop Đặc Sản 123" - Rating 4.8, Capacity 40
-3. Tour Company chọn "Shop Đặc Sản 123"
-4. Fill timeline details:
+     * "Đặc Sản Tây Ninh ABC" - Rating 4.5
+     * "Cửa Hàng Lưu Niệm XYZ" - Rating 4.2
+     * "SpecialtyShop Đặc Sản 123" - Rating 4.8
+4. Tour Company chọn "SpecialtyShop Đặc Sản 123"
+5. Fill timeline details:
    - Title: "Mua sắm đặc sản địa phương"
    - Description: "Khách tham quan và mua đặc sản Tây Ninh"
    - Expected Guests: 25 người
    - Duration: 30 phút
-5. Click "Add to Timeline"
+6. Click "Add to Timeline"
 
 Step 3: System Processing
 -------------------------
 1. System tạo TimelineItem:
    - TourDetailsId = [tour-id]
-   - ShopId = [shop-123-id] - để lấy thông tin shop
+   - SpecialtyShopId = [specialty-shop-123-id] - để lấy thông tin specialty shop
    - Order = 3
    - StartTime = 10:30
    - Duration = 30 minutes
    - Title = "Mua sắm đặc sản địa phương"
    - Description = "Khách tham quan và mua đặc sản Tây Ninh"
-2. System load thông tin shop từ database:
-   - Name: "Shop Đặc Sản 123"
+2. System load thông tin specialty shop từ database:
+   - ShopName: "SpecialtyShop Đặc Sản 123"
    - Location: "456 Đường DEF, Tây Ninh"
    - PhoneNumber: "0987654321"
    - OpeningHours: "8:00-18:00"
@@ -604,69 +614,123 @@ Step 4: Timeline Information Display
 -----------------------------------
 Timeline item hiển thị:
 - 10:30-11:00: Mua sắm đặc sản địa phương
-- Shop: Shop Đặc Sản 123
+- SpecialtyShop: SpecialtyShop Đặc Sản 123
 - Địa chỉ: 456 Đường DEF, Tây Ninh
 - SĐT: 0987654321
 - Giờ mở cửa: 8:00-18:00
 - Loại: Souvenir
 - Ghi chú: Khách tham quan và mua đặc sản Tây Ninh
 
-No confirmation needed - thông tin shop đã sẵn sàng sử dụng
+No confirmation needed - thông tin specialty shop đã sẵn sàng sử dụng
 
 Step 5: Complete Timeline
 -------------------------
-Tour Company tiếp tục add shops cho các slot còn lại:
+Tour Company tiếp tục add specialty shops cho các slot còn lại:
 - 12:00-13:00: "Nhà Hàng Cơm Tấm Tây Ninh" (thông tin đã load)
-- 15:00-15:30: "Shop Bánh Tráng Nướng" (thông tin đã load)
+- 15:00-15:30: "SpecialtyShop Bánh Tráng Nướng" (thông tin đã load)
 
-Final Timeline với thông tin shop:
+Final Timeline với thông tin specialty shop:
 - 08:00-09:00: Khởi hành từ TP.HCM
 - 09:00-10:30: Đền Cao Đài
-- 10:30-11:00: Shop Đặc Sản 123 📍 (456 Đường DEF, SĐT: 0987654321)
+- 10:30-11:00: SpecialtyShop Đặc Sản 123 📍 (456 Đường DEF, SĐT: 0987654321)
 - 11:00-12:00: Núi Bà Đen
 - 12:00-13:00: Nhà Hàng Cơm Tấm Tây Ninh 📍 (789 Đường GHI, SĐT: 0123456789)
 - 13:00-15:00: Địa đạo Củ Chi
-- 15:00-15:30: Shop Bánh Tráng Nướng 📍 (321 Đường JKL, SĐT: 0555666777)
+- 15:00-15:30: SpecialtyShop Bánh Tráng Nướng 📍 (321 Đường JKL, SĐT: 0555666777)
 - 15:30-17:00: Về TP.HCM
 
 Step 6: Tour Execution Day
 --------------------------
-1. Tour Guide nhận timeline với đầy đủ thông tin shop
+1. Tour Guide nhận timeline với đầy đủ thông tin specialty shop
 2. 10:25 - Tour bus đến địa chỉ "456 Đường DEF, Tây Ninh"
 3. Tour Guide có thể gọi SĐT 0987654321 nếu cần
-4. 10:30-11:00 - Khách tham quan "Shop Đặc Sản 123"
+4. 10:30-11:00 - Khách tham quan "SpecialtyShop Đặc Sản 123"
 5. 11:00 - Tour bus tiếp tục đến Núi Bà Đen theo timeline
 
-Step 7: Shop Usage Analytics (Optional)
----------------------------------------
-Shop Owner có thể xem:
-- Timeline usage: shop được sử dụng trong bao nhiêu tour
+Step 7: SpecialtyShop Usage Analytics (Optional)
+------------------------------------------------
+SpecialtyShop Owner có thể xem:
+- Timeline usage: specialty shop được sử dụng trong bao nhiêu tour
 - Tour companies: danh sách tour company đã sử dụng thông tin
 - Contact frequency: số lần được liên hệ
-- Information accuracy: đảm bảo thông tin shop luôn chính xác
+- Information accuracy: đảm bảo thông tin specialty shop luôn chính xác
 
 Benefits for All Parties:
 -------------------------
 Tour Company:
-- Timeline có đầy đủ thông tin shop
-- Dễ dàng liên hệ và định vị shop
+- Timeline có đầy đủ thông tin specialty shop
+- Dễ dàng liên hệ và định vị specialty shop
 - Tối ưu thời gian tour planning
 
-Shop Owner:
-- Thông tin shop được sử dụng chính thức
+SpecialtyShop Owner:
+- Thông tin specialty shop được sử dụng chính thức
 - Potential marketing exposure
 - Professional listing trong tour system
 
 Tourists:
-- Tour guide có thông tin chính xác về shop
+- Tour guide có thông tin chính xác về specialty shop
 - Efficient navigation và contact
 - Better tour experience
 
 System:
 - Simple information linking
 - No complex confirmation workflow
-- Easy shop information management
+- Easy specialty shop information management
 - Clean timeline display
+
+🎯 CURRENT IMPLEMENTATION STATUS (UPDATED 2025-06-16)
+======================================================
+
+✅ COMPLETED FEATURES:
+----------------------
+1. SpecialtyShop Entity - IMPLEMENTED
+2. SpecialtyShopService - IMPLEMENTED
+3. SpecialtyShopController - IMPLEMENTED
+4. Timeline Integration APIs - IMPLEMENTED & TESTED
+5. Authorization (Admin/Tour Company) - IMPLEMENTED & TESTED
+6. Pagination & Filtering - IMPLEMENTED & TESTED
+7. Database Schema - IMPLEMENTED (SpecialtyShop table exists)
+8. Shop → SpecialtyShop Migration - COMPLETED
+9. API Testing - COMPLETED (all endpoints working)
+
+🔄 PENDING FEATURES:
+-------------------
+1. SpecialtyShopApplication Entity - TO BE IMPLEMENTED
+2. SpecialtyShopApplicationService - TO BE IMPLEMENTED
+3. Shop Registration Flow - TO BE IMPLEMENTED
+4. Admin CMS for Application Management - TO BE IMPLEMENTED
+5. Email Notifications - TO BE IMPLEMENTED
+6. TourDetails Timeline Integration - TO BE IMPLEMENTED
+
+📊 API ENDPOINTS STATUS:
+-----------------------
+✅ GET /api/SpecialtyShop/timeline - WORKING
+✅ GET /api/SpecialtyShop/timeline/{id} - WORKING
+✅ GET /api/SpecialtyShop/active - WORKING
+✅ GET /api/SpecialtyShop/paged - WORKING
+✅ GET /api/SpecialtyShop/search - WORKING
+✅ GET /api/SpecialtyShop/by-type/{type} - WORKING
+✅ GET /api/SpecialtyShop/by-rating/{rating} - WORKING
+❌ POST /api/Account/specialty-shop-application - TO BE IMPLEMENTED
+❌ GET /api/Cms/specialty-shop-applications - TO BE IMPLEMENTED
+
+🗄️ DATABASE STATUS:
+-------------------
+✅ SpecialtyShop table - EXISTS & WORKING
+✅ TimelineItem.SpecialtyShopId - EXISTS & WORKING
+❌ SpecialtyShopApplication table - TO BE CREATED
+✅ Role "Specialty Shop" - EXISTS
+✅ All migrations applied successfully
+
+🔧 TECHNICAL DEBT:
+------------------
+✅ Shop entity - REMOVED
+✅ ShopService - REMOVED
+✅ ShopController - REMOVED
+✅ Shop DTOs - REMOVED (kept compatible ones for timeline)
+✅ Shop mappings - REMOVED
+✅ Build errors - RESOLVED
+✅ API testing - COMPLETED
 
 ================================================================================
                                     END

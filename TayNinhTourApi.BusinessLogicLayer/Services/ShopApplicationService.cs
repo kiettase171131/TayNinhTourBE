@@ -15,6 +15,8 @@ using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using Microsoft.AspNetCore.Hosting;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -26,11 +28,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IHostingEnvironment _env;
         private readonly EmailSender _emailSender;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IUnitOfWork _unitOfWork;
         public ShopApplicationService(
            IShopApplicationRepository appRepo,
            IUserRepository userRepo,
            IRoleRepository roleRepo,
-           IHostingEnvironment env, EmailSender emailSender, IHttpContextAccessor httpContextAccessor)
+           IHostingEnvironment env,
+           EmailSender emailSender,
+           IHttpContextAccessor httpContextAccessor,
+           IUnitOfWork unitOfWork)
         {
             _shopApplicationRepository = appRepo;
             _userRepo = userRepo;
@@ -38,60 +44,93 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _env = env;
             _emailSender = emailSender;
             _httpContextAccessor = httpContextAccessor;
-
+            _unitOfWork = unitOfWork;
         }
         public async Task<BaseResposeDto> ApproveAsync(Guid applicationId)
         {
-            var app = await _shopApplicationRepository.GetByIdAsync(applicationId);
-            if (app.Status != ShopStatus.Pending)
+            using var transaction = _unitOfWork.BeginTransaction();
+            try
             {
-                return new BaseResposeDto
+                var app = await _shopApplicationRepository.GetByIdAsync(applicationId);
+                if (app.Status != ShopStatus.Pending)
                 {
-                    StatusCode = 400,
-                    Message = "Application is not pending, cannot approve !"
-                };
-            }
-            var guiderole = await _roleRepo.GetRoleByNameAsync(Constants.RoleShopName);
-            if (guiderole == null)
-            {
-                guiderole = new Role
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Application is not pending, cannot approve!"
+                    };
+                }
+
+                // Get or create Specialty Shop role
+                var shopRole = await _roleRepo.GetRoleByNameAsync(Constants.RoleShopName);
+                if (shopRole == null)
+                {
+                    shopRole = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = Constants.RoleShopName,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _roleRepo.AddAsync(shopRole);
+                    await _roleRepo.SaveChangesAsync();
+                }
+
+                // Update user role
+                var user = await _userRepo.GetByIdAsync(app.UserId);
+                if (user == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "User not found"
+                    };
+                }
+
+                user.RoleId = shopRole.Id;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                // Create SpecialtyShop record
+                var specialtyShop = new SpecialtyShop
                 {
                     Id = Guid.NewGuid(),
-                    Name = Constants.RoleShopName,
-                    CreatedAt = DateTime.UtcNow
+                    UserId = app.UserId,
+                    ShopName = app.Name,
+                    Description = app.Description,
+                    Location = app.Location,
+                    RepresentativeName = app.RepresentativeName,
+                    Email = app.Email,
+                    Website = app.Website,
+                    BusinessLicenseUrl = app.BusinessLicenseUrl,
+                    LogoUrl = app.LogoUrl,
+                    ShopType = app.ShopType,
+                    IsShopActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = app.UserId
                 };
-                await _roleRepo.AddAsync(guiderole);
-                await _roleRepo.SaveChangesAsync();
-            }
-            var user = await _userRepo.GetByIdAsync(app.UserId);
-            if (user == null)
-            {
+
+                await _unitOfWork.SpecialtyShopRepository.AddAsync(specialtyShop);
+
+                // Update application status
+                app.Status = ShopStatus.Approved;
+                app.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Send approval email
+                await _emailSender.SendShopApprovalNotificationAsync(app.Email, user.Name);
+
                 return new BaseResposeDto
                 {
-                    StatusCode = 404,
-                    Message = "User not found"
+                    StatusCode = 200,
+                    Message = "Application approved successfully"
                 };
             }
-            user.RoleId = guiderole.Id;              // gán quan hệ FK thay vì user.Name
-            user.UpdatedAt = DateTime.UtcNow;
-            user.UpdatedById = app.CreatedById;
-
-            // update trạng thái hồ sơ
-            app.Status = ShopStatus.Approved;
-            app.UpdatedAt = DateTime.UtcNow;
-            app.UpdatedById = app.CreatedById;
-
-            await _shopApplicationRepository.SaveChangesAsync();
-            // --- Gửi email về địa chỉ app.Email, không phải user.Email ---
-            await _emailSender.SendShopApprovalNotificationAsync(
-                app.Email,            // dùng email đã nhập trong SubmitApplicationDto
-                user.Name         // giữ nguyên tên user
-            );
-            return new BaseResposeDto
+            catch (Exception ex)
             {
-                StatusCode = 200,
-                Message = "Application approved successfully"
-            };
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
         public async Task<BaseResposeDto> RejectAsync(Guid applicationId, string reason)
         {

@@ -134,19 +134,20 @@ builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationSer
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
-builder.Services.AddScoped<IShopService, ShopService>();
+// Shop service removed - merged into SpecialtyShopService
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
 builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
 builder.Services.AddScoped<IShopApplicationService, ShopApplicationService>();
+builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
 
 
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<ITourTemplateRepository, TourTemplateRepository>();
-builder.Services.AddScoped<IShopRepository, ShopRepository>();
+// Shop repository removed - merged into SpecialtyShopRepository
 builder.Services.AddScoped<ITourSlotRepository, TourSlotRepository>();
 builder.Services.AddScoped<ITourDetailsRepository, TourDetailsRepository>();
 builder.Services.AddScoped<ITourOperationRepository, TourOperationRepository>();
@@ -158,6 +159,7 @@ builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();
 builder.Services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
 builder.Services.AddScoped<IShopApplicationRepository, ShopApplicationRepository>();
+builder.Services.AddScoped<ISpecialtyShopRepository, SpecialtyShopRepository>();
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 
@@ -11,9 +12,11 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    partial class TayNinhTouApiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250616074311_AddSpecialtyShopTable")]
+    partial class AddSpecialtyShopTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -542,10 +545,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
                     b.Property<string>("OpeningHours")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
@@ -779,11 +778,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<Guid?>("ShopId")
+                        .HasColumnType("CHAR(36)");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
-
-                    b.Property<Guid?>("SpecialtyShopId")
-                        .HasColumnType("CHAR(36)");
 
                     b.Property<Guid>("TourDetailsId")
                         .HasColumnType("CHAR(36)");
@@ -798,8 +797,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("SpecialtyShopId")
-                        .HasDatabaseName("IX_TimelineItem_SpecialtyShopId");
+                    b.HasIndex("ShopId")
+                        .HasDatabaseName("IX_TimelineItem_ShopId");
 
                     b.HasIndex("TourDetailsId")
                         .HasDatabaseName("IX_TimelineItem_TourDetailsId");
@@ -1411,13 +1410,13 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Shop", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
-                        .WithMany()
+                        .WithMany("ShopsCreated")
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
-                        .WithMany()
+                        .WithMany("ShopsUpdated")
                         .HasForeignKey("UpdatedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -1504,9 +1503,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.SpecialtyShop", "SpecialtyShop")
-                        .WithMany("TimelineItems")
-                        .HasForeignKey("SpecialtyShopId")
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Shop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourDetails", "TourDetails")
@@ -1522,7 +1521,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("SpecialtyShop");
+                    b.Navigation("Shop");
 
                     b.Navigation("TourDetails");
 
@@ -1708,11 +1707,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("TourDetails");
                 });
 
-            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.SpecialtyShop", b =>
-                {
-                    b.Navigation("TimelineItems");
-                });
-
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.SupportTicket", b =>
                 {
                     b.Navigation("Comments");
@@ -1743,6 +1737,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("BlogReactions");
 
                     b.Navigation("Blogs");
+
+                    b.Navigation("ShopsCreated");
+
+                    b.Navigation("ShopsUpdated");
 
                     b.Navigation("SpecialtyShop");
 
