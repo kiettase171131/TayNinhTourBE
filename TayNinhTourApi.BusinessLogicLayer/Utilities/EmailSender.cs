@@ -229,5 +229,125 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             }
         }
 
+        /// <summary>
+        /// Send email confirmation khi user nộp đơn SpecialtyShop
+        /// </summary>
+        public async Task SendSpecialtyShopApplicationSubmittedAsync(string toEmail, string userName, string shopName)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(userName, toEmail));
+            message.Subject = "Tay Ninh Tour: Specialty Shop Application Received";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Hello {userName},</h2>
+            <p>Thank you for submitting your specialty shop application for <strong>{shopName}</strong>!</p>
+            <p>We have received your application and it is currently under review.</p>
+            <p><strong>What happens next:</strong></p>
+            <ul>
+                <li>Our team will review your application within 3-5 business days</li>
+                <li>We will verify your business license and shop information</li>
+                <li>You will receive an email notification once the review is complete</li>
+            </ul>
+            <p>If you have any questions, please contact our support team.</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
+        /// <summary>
+        /// Send email khi SpecialtyShop application được approve
+        /// </summary>
+        public async Task SendSpecialtyShopApprovalNotificationAsync(string toEmail, string userName, string shopName)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(userName, toEmail));
+            message.Subject = "Congratulations! Your Specialty Shop Application Has Been Approved";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Congratulations {userName}!</h2>
+            <p>We are pleased to inform you that your specialty shop application for <strong>{shopName}</strong> has been <strong>approved</strong>!</p>
+            <p><strong>What you can do now:</strong></p>
+            <ul>
+                <li>Log in to your account with your new ""Specialty Shop"" role</li>
+                <li>Access the specialty shop management dashboard</li>
+                <li>Update your shop information and opening hours</li>
+                <li>Your shop is now available for tour timeline integration</li>
+            </ul>
+            <p>Welcome to the Tay Ninh Tour specialty shop network!</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
+        /// <summary>
+        /// Send email khi SpecialtyShop application bị reject
+        /// </summary>
+        public async Task SendSpecialtyShopRejectionNotificationAsync(string toEmail, string userName, string shopName, string reason)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(userName, toEmail));
+            message.Subject = "Specialty Shop Application - Additional Information Required";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Hello {userName},</h2>
+            <p>Thank you for your interest in joining the Tay Ninh Tour specialty shop network.</p>
+            <p>After reviewing your application for <strong>{shopName}</strong>, we need some additional information before we can proceed:</p>
+            <div style=""background-color: #f8f9fa; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;"">
+                <strong>Reason:</strong> {reason}
+            </div>
+            <p><strong>Next steps:</strong></p>
+            <ul>
+                <li>Please address the concerns mentioned above</li>
+                <li>You can submit a new application once you have the required information</li>
+                <li>Contact our support team if you need clarification</li>
+            </ul>
+            <p>We appreciate your understanding and look forward to working with you.</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
     }
 }

@@ -7,6 +7,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 
@@ -70,6 +71,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.UserRole, opt => opt.MapFrom(src => src.User.Role.Name));
 
             // All Shop mappings removed - using SpecialtyShop only
+            #endregion
+
+            #region SpecialtyShopApplication Mapping
+            CreateMap<SpecialtyShopApplication, SpecialtyShopApplicationDto>()
+                .ForMember(dest => dest.UserInfo, opt => opt.MapFrom(src => src.User))
+                .ForMember(dest => dest.ProcessedByInfo, opt => opt.MapFrom(src => src.ProcessedBy));
+
+            CreateMap<SpecialtyShopApplication, SpecialtyShopApplicationSummaryDto>()
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
+                .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email));
+
+            CreateMap<User, UserSummaryDto>()
+                .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.PhoneNumber));
             #endregion
 
 

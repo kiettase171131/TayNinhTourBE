@@ -20,6 +20,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         // TODO: Remove after Shop merge complete
         // private IShopRepository _shopRepository = null!;
         private ISpecialtyShopRepository _specialtyShopRepository = null!;
+        private ISpecialtyShopApplicationRepository _specialtyShopApplicationRepository = null!;
         private ITourSlotRepository _tourSlotRepository = null!;
 
         private ITourDetailsRepository _tourDetailsRepository = null!;
@@ -89,6 +90,14 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             get
             {
                 return _specialtyShopRepository ??= new SpecialtyShopRepository(_context);
+            }
+        }
+
+        public ISpecialtyShopApplicationRepository SpecialtyShopApplicationRepository
+        {
+            get
+            {
+                return _specialtyShopApplicationRepository ??= new SpecialtyShopApplicationRepository(_context);
             }
         }
 

@@ -17,6 +17,10 @@ using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Shop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.Services;
 
 namespace TayNinhTourApi.Controller.Controllers
@@ -32,6 +36,7 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ILogger<AccountController> _logger;
         private readonly ICurrentUserService _currentUserService;
         private readonly IShopApplicationService _shopApplicationService;
+        private readonly ISpecialtyShopApplicationService _specialtyShopApplicationService;
 
         public AccountController(
             IAccountService accountService,
@@ -40,7 +45,8 @@ namespace TayNinhTourApi.Controller.Controllers
             IUnitOfWork unitOfWork,
             ILogger<AccountController> logger,
             ICurrentUserService currentUserService,
-            IShopApplicationService shopApplicationService)
+            IShopApplicationService shopApplicationService,
+            ISpecialtyShopApplicationService specialtyShopApplicationService)
         {
             _accountService = accountService;
             _tourGuideApplicationService = tourGuideApplicationService;
@@ -49,6 +55,7 @@ namespace TayNinhTourApi.Controller.Controllers
             _logger = logger;
             _currentUserService = currentUserService;
             _shopApplicationService = shopApplicationService;
+            _specialtyShopApplicationService = specialtyShopApplicationService;
         }
 
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -295,6 +302,64 @@ namespace TayNinhTourApi.Controller.Controllers
             CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             var list = await _shopApplicationService.ListByUserAsync(currentUserObject.Id);
             return Ok(list);
+        }
+
+        // ===== NEW SPECIALTY SHOP APPLICATION ENDPOINTS =====
+
+        /// <summary>
+        /// User nộp đơn đăng ký Specialty Shop (NEW FLOW)
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpPost("specialty-shop-application")]
+        public async Task<IActionResult> SubmitSpecialtyShopApplication([FromForm] SubmitSpecialtyShopApplicationDto dto)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _specialtyShopApplicationService.SubmitApplicationAsync(dto, currentUser);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting specialty shop application");
+                return StatusCode(500, new { Error = "An error occurred while submitting application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User xem trạng thái đơn đăng ký Specialty Shop của mình (NEW FLOW)
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("my-specialty-shop-application")]
+        public async Task<IActionResult> GetMySpecialtyShopApplication()
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var application = await _specialtyShopApplicationService.GetMyApplicationAsync(currentUser);
+                
+                if (application == null)
+                {
+                    return Ok(new ApiResponse<object>
+                    {
+                        IsSuccess = true,
+                        Message = "No specialty shop application found",
+                        Data = null
+                    });
+                }
+
+                return Ok(new ApiResponse<SpecialtyShopApplicationDto>
+                {
+                    IsSuccess = true,
+                    Message = "Specialty shop application retrieved successfully",
+                    Data = application
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving specialty shop application");
+                return StatusCode(500, new { Error = "An error occurred while retrieving application", Details = ex.Message });
+            }
         }
     }
 }

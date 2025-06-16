@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -20,14 +21,25 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         [Required]
         [StringLength(255)]
-        public string Title { get; set; } = string.Empty;
-
-        /// <summary>
+        public string Title { get; set; } = string.Empty;        /// <summary>
         /// Mô tả về lịch trình này
         /// Ví dụ: "Lịch trình cao cấp với các dịch vụ VIP"
         /// </summary>
         [StringLength(1000)]
         public string? Description { get; set; }
+
+        /// <summary>
+        /// Trạng thái duyệt của tour details
+        /// </summary>
+        [Required]
+        public TourDetailsStatus Status { get; set; } = TourDetailsStatus.Pending;
+
+        /// <summary>
+        /// Bình luận từ admin khi duyệt/từ chối tour details
+        /// Dùng để ghi lý do từ chối hoặc ghi chú khi duyệt
+        /// </summary>
+        [StringLength(1000)]
+        public string? CommentApproved { get; set; }
 
         // Navigation Properties
 

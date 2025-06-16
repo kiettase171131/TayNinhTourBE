@@ -1,0 +1,57 @@
+using Microsoft.AspNetCore.Http;
+using System.ComponentModel.DataAnnotations;
+
+namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
+{
+    public class SubmitSpecialtyShopApplicationDto
+    {
+        [Required(ErrorMessage = "Shop name is required")]
+        [StringLength(200, ErrorMessage = "Shop name cannot exceed 200 characters")]
+        public string ShopName { get; set; } = string.Empty;
+
+        [StringLength(1000, ErrorMessage = "Shop description cannot exceed 1000 characters")]
+        public string? ShopDescription { get; set; }
+
+        [Required(ErrorMessage = "Business license is required")]
+        [StringLength(100, ErrorMessage = "Business license cannot exceed 100 characters")]
+        public string BusinessLicense { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Location is required")]
+        [StringLength(500, ErrorMessage = "Location cannot exceed 500 characters")]
+        public string Location { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Phone number is required")]
+        [StringLength(20, ErrorMessage = "Phone number cannot exceed 20 characters")]
+        [Phone(ErrorMessage = "Invalid phone number format")]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required")]
+        [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = string.Empty;
+
+        [StringLength(200, ErrorMessage = "Website cannot exceed 200 characters")]
+        [Url(ErrorMessage = "Invalid website URL format")]
+        public string? Website { get; set; }
+
+        [StringLength(50, ErrorMessage = "Shop type cannot exceed 50 characters")]
+        public string? ShopType { get; set; }
+
+        [StringLength(100, ErrorMessage = "Opening hours cannot exceed 100 characters")]
+        public string? OpeningHours { get; set; }
+
+        [Required(ErrorMessage = "Representative name is required")]
+        [StringLength(100, ErrorMessage = "Representative name cannot exceed 100 characters")]
+        public string RepresentativeName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Business license document file upload
+        /// </summary>
+        public IFormFile? BusinessLicenseFile { get; set; }
+
+        /// <summary>
+        /// Shop logo file upload
+        /// </summary>
+        public IFormFile? Logo { get; set; }
+    }
+}

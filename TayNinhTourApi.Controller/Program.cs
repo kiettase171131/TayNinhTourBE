@@ -140,6 +140,7 @@ builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
 builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
 builder.Services.AddScoped<IShopApplicationService, ShopApplicationService>();
+builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
 
 
@@ -159,6 +160,7 @@ builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();
 builder.Services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
 builder.Services.AddScoped<IShopApplicationRepository, ShopApplicationRepository>();
+builder.Services.AddScoped<ISpecialtyShopApplicationRepository, SpecialtyShopApplicationRepository>();
 builder.Services.AddScoped<ISpecialtyShopRepository, SpecialtyShopRepository>();
 
 // Register utilities

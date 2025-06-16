@@ -13,6 +13,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         // TODO: Remove after Shop merge complete
         // IShopRepository ShopRepository { get; }
         ISpecialtyShopRepository SpecialtyShopRepository { get; }
+        ISpecialtyShopApplicationRepository SpecialtyShopApplicationRepository { get; }
         ITourSlotRepository TourSlotRepository { get; }
 
         ITourDetailsRepository TourDetailsRepository { get; }
