@@ -349,5 +349,125 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             }
         }
 
+        /// <summary>
+        /// Send email confirmation khi user nộp đơn TourGuide (Enhanced version)
+        /// </summary>
+        public async Task SendTourGuideApplicationSubmittedAsync(string toEmail, string fullName, DateTime submittedAt)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(fullName, toEmail));
+            message.Subject = "Tay Ninh Tour: Tour Guide Application Received";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Hello {fullName},</h2>
+            <p>Thank you for your interest in becoming a Tour Guide with Tay Ninh Tour!</p>
+            <p>We have successfully received your application submitted on <strong>{submittedAt:dd/MM/yyyy HH:mm}</strong>.</p>
+            <p><strong>What happens next:</strong></p>
+            <ul>
+                <li>Our team will review your application and CV</li>
+                <li>We will contact you within 3-5 business days</li>
+                <li>You can check your application status by logging into your account</li>
+            </ul>
+            <p>If you have any questions, please don't hesitate to contact our support team.</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
+        /// <summary>
+        /// Send email khi TourGuide application được approve (Enhanced version)
+        /// </summary>
+        public async Task SendTourGuideApplicationApprovedAsync(string toEmail, string fullName)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(fullName, toEmail));
+            message.Subject = "Congratulations! Your Tour Guide Application Has Been Approved";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Congratulations {fullName}!</h2>
+            <p>We are pleased to inform you that your Tour Guide application has been <strong>approved</strong>!</p>
+            <p><strong>What you can do now:</strong></p>
+            <ul>
+                <li>Log in to your account with your new ""Tour Guide"" role</li>
+                <li>Access the tour guide management dashboard</li>
+                <li>Start accepting tour assignments</li>
+                <li>Update your profile and availability</li>
+            </ul>
+            <p>Welcome to the Tay Ninh Tour guide team!</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
+        /// <summary>
+        /// Send email khi TourGuide application bị reject (Enhanced version)
+        /// </summary>
+        public async Task SendTourGuideApplicationRejectedAsync(string toEmail, string fullName, string reason)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(fullName, toEmail));
+            message.Subject = "Tour Guide Application - Additional Information Required";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Hello {fullName},</h2>
+            <p>Thank you for your interest in becoming a Tour Guide with Tay Ninh Tour.</p>
+            <p>After careful review, we need additional information regarding your application:</p>
+            <blockquote style=""margin: 10px 0; padding: 10px; border-left: 4px solid #ccc; background-color: #f9f9f9;"">
+                {reason}
+            </blockquote>
+            <p><strong>Next steps:</strong></p>
+            <ul>
+                <li>Please address the concerns mentioned above</li>
+                <li>You can submit a new application once you have the required information</li>
+                <li>Contact our support team if you need clarification</li>
+            </ul>
+            <p>We encourage you to apply again and appreciate your interest in joining our team.</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
+                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+        }
+
     }
 }

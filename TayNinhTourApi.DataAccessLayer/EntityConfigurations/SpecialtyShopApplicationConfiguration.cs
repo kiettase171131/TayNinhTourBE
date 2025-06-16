@@ -49,8 +49,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasDefaultValue(SpecialtyShopApplicationStatus.Pending);
 
             builder.Property(s => s.SubmittedAt)
-                .IsRequired()
-                .HasDefaultValueSql("GETUTCDATE()");
+                .IsRequired();
 
             // Optional Properties Configuration
             builder.Property(s => s.ShopDescription)

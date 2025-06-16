@@ -17,6 +17,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.SeedData;
+using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
@@ -130,7 +131,8 @@ builder.Services.AddScoped<ITourTemplateService, EnhancedTourTemplateService>();
 
 builder.Services.AddScoped<ITourDetailsService, TourDetailsService>();
 builder.Services.AddScoped<ISupportTicketService, SupportTicketService>();
-builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>();
+// builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationService>(); // Temporarily disabled
+builder.Services.AddScoped<IEnhancedTourGuideApplicationService, EnhancedTourGuideApplicationService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
@@ -198,9 +200,14 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Initialize seed data
+// Initialize database and seed data
 using (var scope = app.Services.CreateScope())
 {
+    var context = scope.ServiceProvider.GetRequiredService<TayNinhTouApiDbContext>();
+
+    // Ensure database is created
+    await context.Database.EnsureCreatedAsync();
+
     var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
     await seeder.SeedDataAsync();
 }

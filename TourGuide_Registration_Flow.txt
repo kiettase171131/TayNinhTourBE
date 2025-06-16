@@ -1,0 +1,310 @@
+🎯 TOURGUIDE REGISTRATION FLOW DOCUMENTATION
+===========================================
+
+📝 OVERVIEW
+===========
+Enhanced TourGuide registration system tương tự SpecialtyShop flow.
+Nâng cấp từ TourGuideApplication hiện tại để có đầy đủ tính năng professional.
+
+🏗️ SYSTEM ARCHITECTURE
+======================
+
+Current TourGuideApplication (Basic):
+------------------------------------
+- UserId, Email, CurriculumVitae, Status, RejectionReason
+- Chỉ 5 fields cơ bản, thiếu nhiều thông tin quan trọng
+
+Enhanced TourGuideApplication (Target):
+--------------------------------------
+- Personal Info: FullName, PhoneNumber, Email
+- Professional Info: Experience, Languages (optional)
+- Documents: CurriculumVitae (required)
+- Tracking: Status, RejectionReason, SubmittedAt, ProcessedAt, ProcessedById
+- BaseEntity fields: Id, CreatedAt, UpdatedAt, IsDeleted, IsActive
+
+📊 DATABASE SCHEMA
+==================
+
+Enhanced TourGuideApplication Entity:
+------------------------------------
+- Id (Guid, PK)
+- UserId (Guid, FK to User, required)
+- FullName (string, 100 chars, required)
+- PhoneNumber (string, 20 chars, required)
+- Email (string, 100 chars, required, email format)
+- Experience (int, years, required) - số năm kinh nghiệm
+- Languages (string, 200 chars, optional) - ngôn ngữ biết (VN, EN, CN...)
+- CurriculumVitae (string, 500 chars) - URL to CV file
+- Status (TourGuideApplicationStatus, required, default Pending)
+- RejectionReason (string, 500 chars, nullable)
+- SubmittedAt (DateTime, required)
+- ProcessedAt (DateTime, nullable)
+- ProcessedById (Guid, nullable, FK to User)
+- CreatedAt, UpdatedAt, IsDeleted, IsActive (BaseEntity fields)
+
+TourGuideApplicationStatus Enum:
+-------------------------------
+- Pending = 0 (Chờ xử lý)
+- Approved = 1 (Đã duyệt)
+- Rejected = 2 (Từ chối)
+
+Role Updates:
+-------------
+Sử dụng role "TourGuide" đã có trong Constants.RoleTourGuideName
+
+🌐 API ENDPOINTS
+================
+
+User Endpoints (Role: "User"):
+------------------------------
+POST /api/Account/tourguide-application
+- Authorization: Bearer token, Role "User"
+- Body: SubmitTourGuideApplicationDto (multipart/form-data)
+- Function: User nộp đơn đăng ký TourGuide với documents
+- Response: TourGuideApplicationSubmitResponseDto
+
+GET /api/Account/my-tourguide-applications
+- Authorization: Bearer token, Role "User"
+- Function: Xem danh sách đơn đăng ký của user
+- Response: List<TourGuideApplicationSummaryDto>
+
+GET /api/Account/tourguide-application/{id}
+- Authorization: Bearer token, Role "User"
+- Function: Xem chi tiết đơn đăng ký của user
+- Response: TourGuideApplicationDto
+
+Admin/CMS Endpoints (Role: "Admin"):
+-----------------------------------
+GET /api/Cms/tourguide-applications
+- Authorization: Bearer token, Role "Admin"
+- Query: status, page, pageSize, fromDate, toDate
+- Function: Admin xem danh sách tất cả đơn đăng ký
+- Response: PagedResult<TourGuideApplicationSummaryDto>
+
+GET /api/Cms/tourguide-applications/{id}
+- Authorization: Bearer token, Role "Admin"
+- Function: Admin xem chi tiết đơn đăng ký
+- Response: TourGuideApplicationDto
+
+PUT /api/Cms/tourguide-applications/{id}/approve
+- Authorization: Bearer token, Role "Admin"
+- Function: Duyệt đơn đăng ký, tự động cấp role "TourGuide"
+- Response: Success message
+
+PUT /api/Cms/tourguide-applications/{id}/reject
+- Authorization: Bearer token, Role "Admin"
+- Body: RejectTourGuideApplicationDto (reason)
+- Function: Từ chối đơn đăng ký với lý do
+- Response: Success message
+
+📝 DTOs DESIGN
+==============
+
+SubmitTourGuideApplicationDto:
+-----------------------------
+- FullName (string, required)
+- PhoneNumber (string, required)
+- Email (string, required, email format)
+- Experience (int, required, min 0)
+- Languages (string, optional)
+- CurriculumVitae (IFormFile, required) - PDF file
+
+TourGuideApplicationDto:
+-----------------------
+- Id (Guid)
+- FullName (string)
+- PhoneNumber (string)
+- Email (string)
+- Experience (int)
+- Languages (string)
+- CurriculumVitaeUrl (string)
+- Status (TourGuideApplicationStatus)
+- RejectionReason (string)
+- SubmittedAt (DateTime)
+- ProcessedAt (DateTime?)
+- UserInfo (UserSummaryDto)
+- ProcessedByInfo (UserSummaryDto?)
+
+TourGuideApplicationSummaryDto:
+------------------------------
+- Id (Guid)
+- FullName (string)
+- PhoneNumber (string)
+- Experience (int)
+- Status (TourGuideApplicationStatus)
+- SubmittedAt (DateTime)
+- UserName (string)
+- UserEmail (string)
+
+TourGuideApplicationSubmitResponseDto:
+-------------------------------------
+- StatusCode (int)
+- Message (string)
+- ApplicationId (Guid)
+- FullName (string)
+- CurriculumVitaeUrl (string)
+- SubmittedAt (DateTime)
+
+RejectTourGuideApplicationDto:
+-----------------------------
+- Reason (string, required)
+
+⚙️ BUSINESS LOGIC FLOW
+======================
+
+1. SUBMIT APPLICATION (User):
+-----------------------------
+a. Validate user role = "User"
+b. Validate input data (required fields, email format, age >= 18, etc.)
+c. Check duplicate: user chưa có đơn pending hoặc approved
+d. Upload documents to file storage:
+   - CV (PDF, max 5MB)
+   - ID Card (Image, max 2MB)
+   - Tour Guide License (PDF/Image, max 3MB, optional)
+   - Certificates (Multiple files, max 2MB each, optional)
+e. Create TourGuideApplication entity với status = Pending
+f. Send confirmation email to user
+g. Send notification email to admin
+h. Return success response với file URLs
+
+2. ADMIN REVIEW (Admin):
+-----------------------
+a. Admin xem danh sách đơn pending
+b. Admin xem chi tiết đơn + download documents
+c. Admin quyết định approve/reject
+
+3. APPROVE APPLICATION (Admin):
+------------------------------
+a. Validate application status = Pending
+b. Get "TourGuide" role (tạo nếu chưa có)
+c. Update user role = "TourGuide"
+d. Update application: status = Approved, ProcessedAt, ProcessedById
+e. Send approval email to user
+f. Return success response
+
+4. REJECT APPLICATION (Admin):
+-----------------------------
+a. Validate application status = Pending
+b. Update application: status = Rejected, RejectionReason, ProcessedAt, ProcessedById
+c. Send rejection email to user với lý do
+d. Return success response
+
+🔒 VALIDATION RULES
+===================
+
+Submit Application:
+------------------
+- User role = "User" (không phải Admin, TourGuide, etc.)
+- User chưa có đơn Pending hoặc Approved
+- FullName: required, 2-100 chars
+- PhoneNumber: required, valid phone format
+- Email: required, valid email format
+- Experience: required, >= 0 years
+- Languages: optional, max 200 chars
+- CV file: required, PDF, max 5MB
+
+File Upload:
+-----------
+- CV: .pdf only, max 5MB
+
+📧 EMAIL NOTIFICATIONS
+======================
+
+1. Application Submitted (to User):
+----------------------------------
+Subject: "Đơn đăng ký hướng dẫn viên du lịch đã được gửi thành công"
+Content: Xác nhận đơn đã nhận, thời gian xử lý dự kiến, thông tin liên hệ
+
+2. Application Submitted (to Admin):
+-----------------------------------
+Subject: "Đơn đăng ký hướng dẫn viên mới cần xử lý"
+Content: Thông tin cơ bản của đơn, link xem chi tiết
+
+3. Application Approved (to User):
+---------------------------------
+Subject: "Chúc mừng! Đơn đăng ký hướng dẫn viên đã được duyệt"
+Content: Thông báo duyệt, hướng dẫn sử dụng tài khoản TourGuide
+
+4. Application Rejected (to User):
+---------------------------------
+Subject: "Đơn đăng ký hướng dẫn viên không được duyệt"
+Content: Lý do từ chối, hướng dẫn nộp đơn mới
+
+🗂️ FILE STRUCTURE
+=================
+
+Required Files for Enhanced TourGuide Registration:
+--------------------------------------------------
+1. Entities/TourGuideApplication.cs (Enhanced)
+2. Enums/TourGuideApplicationStatus.cs (New)
+3. DTOs/Request/SubmitTourGuideApplicationDto.cs (Enhanced)
+4. DTOs/Response/TourGuideApplicationDto.cs (New)
+5. DTOs/Response/TourGuideApplicationSummaryDto.cs (New)
+6. DTOs/Response/TourGuideApplicationSubmitResponseDto.cs (New)
+7. DTOs/Request/RejectTourGuideApplicationDto.cs (New)
+8. Services/Interface/ITourGuideApplicationService.cs (Enhanced)
+9. Services/TourGuideApplicationService.cs (Enhanced)
+10. Controllers/AccountController.cs (Update endpoints)
+11. Controllers/CmsController.cs (Add TourGuide endpoints)
+12. Repositories/Interface/ITourGuideApplicationRepository.cs (Enhanced)
+13. Repositories/TourGuideApplicationRepository.cs (Enhanced)
+14. EntityConfigurations/TourGuideApplicationConfiguration.cs (Enhanced)
+15. Migrations/EnhanceTourGuideApplicationTable.cs (New)
+16. EmailTemplates for TourGuide notifications
+
+🔄 MIGRATION STRATEGY
+====================
+
+Phase 1: Backup & Schema Update
+------------------------------
+1. Backup existing TourGuideApplication data
+2. Create migration to add new columns
+3. Set default values for existing records
+4. Test migration in development
+
+Phase 2: Code Enhancement
+------------------------
+1. Update Entity with new fields
+2. Create enhanced DTOs
+3. Update Service methods
+4. Update Controller endpoints
+5. Add email templates
+
+Phase 3: Data Migration
+----------------------
+1. Migrate existing data to new format
+2. Update existing applications with default values
+3. Test all endpoints
+4. Deploy to production
+
+🎯 SUCCESS CRITERIA
+==================
+- ✅ Enhanced TourGuideApplication với đầy đủ fields
+- ✅ File upload handling cho multiple documents
+- ✅ Email notifications hoàn chỉnh
+- ✅ Admin CMS endpoints đầy đủ
+- ✅ Validation rules comprehensive
+- ✅ Migration existing data thành công
+- ✅ API testing 100% pass
+- ✅ Documentation đầy đủ
+
+📋 IMPLEMENTATION CHECKLIST
+===========================
+□ Create TourGuideApplicationStatus enum
+□ Enhance TourGuideApplication entity
+□ Create enhanced DTOs (Submit, Response, Summary)
+□ Update ITourGuideApplicationService interface
+□ Enhance TourGuideApplicationService implementation
+□ Update ITourGuideApplicationRepository interface
+□ Enhance TourGuideApplicationRepository implementation
+□ Update AccountController endpoints
+□ Add CmsController TourGuide endpoints
+□ Create EntityConfiguration
+□ Create database migration
+□ Add email templates
+□ Update Program.cs DI registrations
+□ Create API documentation
+□ Write unit tests
+□ Perform integration testing
+□ Data migration script
+□ Production deployment
