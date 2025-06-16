@@ -27,17 +27,15 @@ namespace TayNinhTourApi.Controller.Controllers
     public class CmsController : ControllerBase
     {
         private readonly ICmsService _cmsService;
-        // private readonly ITourGuideApplicationService _tourGuideApplicationService; // Old service removed
-        private readonly IEnhancedTourGuideApplicationService _enhancedTourGuideApplicationService;
+        private readonly ITourGuideApplicationService _tourGuideApplicationService;
         private readonly ISupportTicketService _supportTicketService;
         private readonly IShopApplicationService _shopApplicationService;
         private readonly ITourDetailsService _tourDetailsService;
 
-        public CmsController(ICmsService cmsService, /* ITourGuideApplicationService tourGuideApplicationService, */ IEnhancedTourGuideApplicationService enhancedTourGuideApplicationService, ISupportTicketService supportTicketService, IShopApplicationService shopApplicationService, ITourDetailsService tourDetailsService)
+        public CmsController(ICmsService cmsService, ITourGuideApplicationService tourGuideApplicationService, ISupportTicketService supportTicketService, IShopApplicationService shopApplicationService, ITourDetailsService tourDetailsService)
         {
             _cmsService = cmsService;
-            // _tourGuideApplicationService = tourGuideApplicationService; // Old service removed
-            _enhancedTourGuideApplicationService = enhancedTourGuideApplicationService;
+            _tourGuideApplicationService = tourGuideApplicationService;
             _supportTicketService = supportTicketService;
             _shopApplicationService = shopApplicationService;
             _tourDetailsService = tourDetailsService;
@@ -181,20 +179,20 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
-        // ===== ENHANCED TOUR GUIDE APPLICATION ENDPOINTS =====
+        // ===== TOUR GUIDE APPLICATION ENDPOINTS =====
 
         /// <summary>
-        /// Admin xem danh sách tất cả đơn đăng ký TourGuide với pagination (ENHANCED VERSION)
+        /// Admin xem danh sách tất cả đơn đăng ký TourGuide với pagination
         /// </summary>
-        [HttpGet("enhanced-tourguide-applications")]
-        public async Task<IActionResult> GetEnhancedTourGuideApplications(
+        [HttpGet("tourguide-applications")]
+        public async Task<IActionResult> GetTourGuideApplications(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] int? status = null)
         {
             try
             {
-                var (applications, totalCount) = await _enhancedTourGuideApplicationService.GetAllApplicationsAsync(page, pageSize, status);
+                var (applications, totalCount) = await _tourGuideApplicationService.GetAllApplicationsAsync(page, pageSize, status);
 
                 return Ok(new ApiResponse<object>
                 {

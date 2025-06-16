@@ -30,8 +30,7 @@ namespace TayNinhTourApi.Controller.Controllers
     public class AccountController : ControllerBase
     {
         private readonly IAccountService _accountService;
-        // private readonly ITourGuideApplicationService _tourGuideApplicationService; // Old service removed
-        private readonly IEnhancedTourGuideApplicationService _enhancedTourGuideApplicationService;
+        private readonly ITourGuideApplicationService _tourGuideApplicationService;
         private readonly IBlogReactionService _reactionService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<AccountController> _logger;
@@ -41,8 +40,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
         public AccountController(
             IAccountService accountService,
-            // ITourGuideApplicationService tourGuideApplicationService, // Old service removed
-            IEnhancedTourGuideApplicationService enhancedTourGuideApplicationService,
+            ITourGuideApplicationService tourGuideApplicationService,
             IBlogReactionService blogReactionService,
             IUnitOfWork unitOfWork,
             ILogger<AccountController> logger,
@@ -51,8 +49,7 @@ namespace TayNinhTourApi.Controller.Controllers
             ISpecialtyShopApplicationService specialtyShopApplicationService)
         {
             _accountService = accountService;
-            // _tourGuideApplicationService = tourGuideApplicationService; // Old service removed
-            _enhancedTourGuideApplicationService = enhancedTourGuideApplicationService;
+            _tourGuideApplicationService = tourGuideApplicationService;
             _reactionService = blogReactionService;
             _unitOfWork = unitOfWork;
             _logger = logger;
@@ -90,23 +87,7 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
 
         }
-        // OLD TOUR GUIDE ENDPOINTS - REPLACED BY ENHANCED VERSIONS
-        // [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
-        // [HttpPost("tourguide-application")]
-        // public async Task<IActionResult> Submit([FromForm] SubmitApplicationDto submitApplicationDto)
-        // {
-        //     CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-        //     var result = await _tourGuideApplicationService.SubmitAsync(submitApplicationDto, currentUserObject);
-        //     return StatusCode(result.StatusCode, result);
-        // }
-        // [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        // [HttpGet("View-tourguideapplication")]
-        // public async Task<IActionResult> ListMyApplications()
-        // {
-        //     CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-        //     var list = await _tourGuideApplicationService.ListByUserAsync(currentUserObject.Id);
-        //     return Ok(list);
-        // }
+
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpPut("edit-Avatar")]
 
@@ -365,19 +346,19 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
 
-        // ===== ENHANCED TOUR GUIDE APPLICATION ENDPOINTS =====
+        // ===== TOUR GUIDE APPLICATION ENDPOINTS =====
 
         /// <summary>
-        /// User nộp đơn đăng ký TourGuide (ENHANCED VERSION)
+        /// User nộp đơn đăng ký TourGuide
         /// </summary>
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
-        [HttpPost("enhanced-tourguide-application")]
-        public async Task<IActionResult> SubmitEnhancedTourGuideApplication([FromBody] SubmitTourGuideApplicationJsonDto dto)
+        [HttpPost("tourguide-application")]
+        public async Task<IActionResult> SubmitTourGuideApplication([FromBody] SubmitTourGuideApplicationJsonDto dto)
         {
             try
             {
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var result = await _enhancedTourGuideApplicationService.SubmitApplicationJsonAsync(dto, currentUser);
+                var result = await _tourGuideApplicationService.SubmitApplicationJsonAsync(dto, currentUser);
                 return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
@@ -388,16 +369,16 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// User xem danh sách đơn đăng ký TourGuide của mình (ENHANCED VERSION)
+        /// User xem danh sách đơn đăng ký TourGuide của mình
         /// </summary>
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        [HttpGet("my-enhanced-tourguide-applications")]
-        public async Task<IActionResult> GetMyEnhancedTourGuideApplications()
+        [HttpGet("my-tourguide-applications")]
+        public async Task<IActionResult> GetMyTourGuideApplications()
         {
             try
             {
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var applications = await _enhancedTourGuideApplicationService.GetMyApplicationsAsync(currentUser.Id);
+                var applications = await _tourGuideApplicationService.GetMyApplicationsAsync(currentUser.Id);
 
                 return Ok(new ApiResponse<IEnumerable<TourGuideApplicationSummaryDto>>
                 {
@@ -414,16 +395,16 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// User xem chi tiết đơn đăng ký TourGuide của mình (ENHANCED VERSION)
+        /// User xem chi tiết đơn đăng ký TourGuide của mình
         /// </summary>
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        [HttpGet("my-enhanced-tourguide-application/{applicationId}")]
-        public async Task<IActionResult> GetMyEnhancedTourGuideApplication(Guid applicationId)
+        [HttpGet("my-tourguide-application/{applicationId}")]
+        public async Task<IActionResult> GetMyTourGuideApplication(Guid applicationId)
         {
             try
             {
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var application = await _enhancedTourGuideApplicationService.GetMyApplicationByIdAsync(applicationId, currentUser.Id);
+                var application = await _tourGuideApplicationService.GetMyApplicationByIdAsync(applicationId, currentUser.Id);
 
                 if (application == null)
                 {
@@ -459,7 +440,7 @@ namespace TayNinhTourApi.Controller.Controllers
             try
             {
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var canSubmit = await _enhancedTourGuideApplicationService.CanSubmitNewApplicationAsync(currentUser.Id);
+                var canSubmit = await _tourGuideApplicationService.CanSubmitNewApplicationAsync(currentUser.Id);
 
                 return Ok(new ApiResponse<object>
                 {
