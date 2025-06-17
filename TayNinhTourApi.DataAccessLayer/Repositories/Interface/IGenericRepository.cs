@@ -15,5 +15,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task DeleteAsync(Guid id);
         Task<bool> UpdateAsync(T entity);
         Task SaveChangesAsync();
+        Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate, string[]? includes = null);
+
     }
 }

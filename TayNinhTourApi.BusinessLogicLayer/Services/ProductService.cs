@@ -26,13 +26,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IMapper _mapper;
         private readonly IHostingEnvironment _env;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository)
+        private readonly ICartRepository _cartRepository;
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository)
         {
             _productRepository = productRepository;
             _mapper = mapper;
             _env = env;
             _httpContextAccessor = httpContextAccessor;
             _productImageRepository = productImageRepository;
+            _cartRepository = cartRepository;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
@@ -308,6 +310,124 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = "Product update successful"
             };
         }
+        public async Task<BaseResposeDto> AddToCartAsync(RequestAddToCartDto request, CurrentUserObject currentUser)
+        {
+            // 1. Kiểm tra sản phẩm tồn tại và còn hoạt động
+            var product = await _productRepository.GetByIdAsync(request.ProductId);
+            if (product == null || product.IsDeleted || !product.IsActive)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "Sản phẩm không tồn tại"
+                };
+            }
+
+            // 2. Kiểm tra số lượng yêu cầu
+            if (request.Quantity <= 0)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Số lượng không hợp lệ"
+                };
+            }
+
+            // 3. Lấy cart item hiện có (nếu có)
+            var existingCart = await _cartRepository.GetFirstOrDefaultAsync(x =>
+                x.UserId == currentUser.Id && x.ProductId == request.ProductId);
+
+            var totalQuantityRequested = request.Quantity;
+            if (existingCart != null)
+                totalQuantityRequested += existingCart.Quantity;
+
+            // 4. So sánh với tồn kho
+            if (totalQuantityRequested > product.QuantityInStock)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = $"Chỉ còn {product.QuantityInStock} sản phẩm trong kho"
+                };
+            }
+
+            // 5. Cập nhật cart
+            if (existingCart != null)
+            {
+                existingCart.Quantity += request.Quantity;
+                existingCart.UpdatedAt = DateTime.UtcNow;
+                existingCart.UpdatedById = currentUser.Id;
+                await _cartRepository.UpdateAsync(existingCart);
+            }
+            else
+            {
+                var newCart = new CartItem
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = currentUser.Id,
+                    ProductId = request.ProductId,
+                    Quantity = request.Quantity,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = currentUser.Id
+                };
+                await _cartRepository.AddAsync(newCart);
+            }
+
+            await _cartRepository.SaveChangesAsync();
+
+            return new BaseResposeDto
+            {
+                StatusCode = 200,
+                Message = "Đã thêm vào giỏ hàng"
+            };
+        }
+        public async Task<ResponseGetCartDto> GetCartAsync(CurrentUserObject currentUser)
+        {
+            var include = new string[] { nameof(CartItem.Product), $"{nameof(CartItem.Product)}.{nameof(Product.ProductImages)}" };
+
+            var cartItems = await _cartRepository.GetAllAsync(x => x.UserId == currentUser.Id, include);
+
+            var items = cartItems.Select(x => new CartItemDto
+            {
+                CartItemId = x.Id,
+                ProductId = x.ProductId,
+                ProductName = x.Product.Name,
+                Quantity = x.Quantity,
+                Price = x.Product.Price,
+                Total = x.Quantity * x.Product.Price,
+                ImageUrl = x.Product.ProductImages.FirstOrDefault()?.Url
+            }).ToList();
+
+            return new ResponseGetCartDto
+            {
+                StatusCode = 200,
+                Data = items,
+                TotalAmount = items.Sum(i => i.Total)
+            };
+        }
+        public async Task<BaseResposeDto> RemoveFromCartAsync(Guid cartItemId, CurrentUserObject currentUser)
+        {
+            var cartItem = await _cartRepository.GetFirstOrDefaultAsync(x => x.Id == cartItemId && x.UserId == currentUser.Id);
+
+            if (cartItem == null)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "Không tìm thấy sản phẩm trong giỏ"
+                };
+            }
+
+            await _cartRepository.DeleteAsync(cartItem.Id);
+            await _cartRepository.SaveChangesAsync();
+
+            return new BaseResposeDto
+            {
+                StatusCode = 200,
+                Message = "Đã xoá khỏi giỏ hàng"
+            };
+        }
+
 
 
     }

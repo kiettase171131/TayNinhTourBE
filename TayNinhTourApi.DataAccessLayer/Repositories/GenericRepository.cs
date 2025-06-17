@@ -114,5 +114,20 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return true;
             //await _context.SaveChangesAsync();
         }
+        public async Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate, string[]? includes = null)
+        {
+            IQueryable<T> query = _context.Set<T>().AsQueryable();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
+            }
+
+            return await query.FirstOrDefaultAsync(predicate);
+        }
+
     }
 }

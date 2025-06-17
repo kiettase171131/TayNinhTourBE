@@ -17,5 +17,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> DeleteProductAsync(Guid id);
         Task<ResponseCreateProductDto> CreateProductAsync(RequestCreateProductDto request, CurrentUserObject currentUserObject);
         Task<BaseResposeDto> UpdateProductAsync(RequestUpdateProductDto request, Guid id, CurrentUserObject currentUserObject);
+        Task<BaseResposeDto> AddToCartAsync(RequestAddToCartDto request, CurrentUserObject currentUser);
+        Task<ResponseGetCartDto> GetCartAsync(CurrentUserObject currentUser);
+        Task<BaseResposeDto> RemoveFromCartAsync(Guid cartItemId, CurrentUserObject currentUser);
     }
 }

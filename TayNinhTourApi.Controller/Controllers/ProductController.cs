@@ -19,7 +19,7 @@ namespace TayNinhTourApi.Controller.Controllers
             _productService = productService;
             _httpContextAccessor = httpContextAccessor;
         }
-        [HttpPost]
+        [HttpPost("Product")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
         public async Task<IActionResult> Create([FromForm] RequestCreateProductDto dto)
         {
@@ -28,21 +28,21 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpGet]
+        [HttpGet("Product")]
         public async Task<IActionResult> GetAll( int? pageIndex,  int? pageSize,  string? textSearch,  bool? status)
         {
             var result = await _productService.GetProductsAsync(pageIndex, pageSize, textSearch, status);
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("Product/{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var result = await _productService.GetProductByIdAsync(id);
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("Product/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
         public async Task<IActionResult> Update(Guid id, [FromForm] RequestUpdateProductDto dto)
         {
@@ -51,11 +51,43 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("Product/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _productService.DeleteProductAsync(id);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPost("AddtoCart")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddToCart([FromBody] RequestAddToCartDto dto)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.AddToCartAsync(dto, currentUser);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách giỏ hàng của người dùng hiện tại
+        /// </summary>
+        [HttpGet("Cart")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetCart()
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.GetCartAsync(currentUser);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        /// <summary>
+        /// Xoá 1 item khỏi giỏ hàng
+        /// </summary>
+        [HttpDelete("RemoveCart/{cartItemId}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> RemoveCartItem(Guid cartItemId)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.RemoveFromCartAsync(cartItemId, currentUser);
             return StatusCode(result.StatusCode, result);
         }
     }

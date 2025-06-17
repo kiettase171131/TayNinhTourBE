@@ -177,6 +177,7 @@ builder.Services.AddScoped<ISpecialtyShopRepository, SpecialtyShopRepository>();
 
 // TourGuide Invitation Workflow Repositories
 builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRepository>();
+builder.Services.AddScoped<ICartRepository, CartRepository>();
 
 
 // Register utilities
