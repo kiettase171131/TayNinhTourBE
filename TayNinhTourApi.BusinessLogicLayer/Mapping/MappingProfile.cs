@@ -7,6 +7,9 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 
@@ -45,23 +48,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.TourOperation, opt => opt.MapFrom(src => src.TourOperation));
 
             CreateMap<TimelineItem, TimelineItemDto>()
-                .ForMember(dest => dest.CheckInTime, opt => opt.MapFrom(src => src.CheckInTime.ToString(@"hh\:mm")))
-                .ForMember(dest => dest.Shop, opt => opt.MapFrom(src => src.Shop));
+                .ForMember(dest => dest.CheckInTime, opt => opt.MapFrom(src => src.CheckInTime.ToString(@"hh\:mm")));
+            // TODO: Update SpecialtyShop mapping after DTO updates
+            // .ForMember(dest => dest.SpecialtyShop, opt => opt.MapFrom(src => src.SpecialtyShop));
 
-            CreateMap<Shop, ShopDto>();
             CreateMap<TourOperation, TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany.TourOperationDto>();
 
             // Entity to DTO mappings for direct responses (simpler approach)
             // Service layer will handle response construction manually for better control
             #endregion
 
-            #region Shop Mapping
-            CreateMap<RequestCreateShopDto, Shop>();
-            CreateMap<RequestUpdateShopDto, Shop>()
-                .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
-            CreateMap<Shop, ShopDto>();
-            CreateMap<Shop, ShopSummaryDto>();
-            #endregion
+            // Shop mappings removed - merged into SpecialtyShop
 
             #region Timeline Mapping
             // TODO: Update timeline mapping for new design
@@ -71,10 +68,42 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             CreateMap<Product, ProductDto>()
     .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.ProductImages.Select(i => i.Url).ToList()));
 
+
             #endregion
 
+            #region SpecialtyShop Mapping
+            CreateMap<SpecialtyShop, SpecialtyShopResponseDto>()
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
+                .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email))
+                .ForMember(dest => dest.UserAvatar, opt => opt.MapFrom(src => src.User.Avatar))
+                .ForMember(dest => dest.UserRole, opt => opt.MapFrom(src => src.User.Role.Name));
 
 
+            // All Shop mappings removed - using SpecialtyShop only
+            #endregion
+
+            #region SpecialtyShopApplication Mapping
+            CreateMap<SpecialtyShopApplication, SpecialtyShopApplicationDto>()
+                .ForMember(dest => dest.UserInfo, opt => opt.MapFrom(src => src.User))
+                .ForMember(dest => dest.ProcessedByInfo, opt => opt.MapFrom(src => src.ProcessedBy));
+
+            CreateMap<SpecialtyShopApplication, SpecialtyShopApplicationSummaryDto>()
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
+                .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email));
+
+            CreateMap<User, UserSummaryDto>()
+                .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.PhoneNumber));
+            #endregion
+
+            #region TourGuideApplication Mapping
+            CreateMap<TourGuideApplication, TourGuideApplicationDto>()
+                .ForMember(dest => dest.UserInfo, opt => opt.MapFrom(src => src.User))
+                .ForMember(dest => dest.ProcessedByInfo, opt => opt.MapFrom(src => src.ProcessedBy));
+
+            CreateMap<TourGuideApplication, TourGuideApplicationSummaryDto>()
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
+                .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email));
+            #endregion
 
             #region TourOperation Mapping
             CreateMap<RequestCreateOperationDto, TourOperation>()

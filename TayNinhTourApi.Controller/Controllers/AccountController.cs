@@ -17,6 +17,10 @@ using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Shop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.Services;
 
 namespace TayNinhTourApi.Controller.Controllers
@@ -32,6 +36,7 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ILogger<AccountController> _logger;
         private readonly ICurrentUserService _currentUserService;
         private readonly IShopApplicationService _shopApplicationService;
+        private readonly ISpecialtyShopApplicationService _specialtyShopApplicationService;
 
         public AccountController(
             IAccountService accountService,
@@ -40,7 +45,8 @@ namespace TayNinhTourApi.Controller.Controllers
             IUnitOfWork unitOfWork,
             ILogger<AccountController> logger,
             ICurrentUserService currentUserService,
-            IShopApplicationService shopApplicationService)
+            IShopApplicationService shopApplicationService,
+            ISpecialtyShopApplicationService specialtyShopApplicationService)
         {
             _accountService = accountService;
             _tourGuideApplicationService = tourGuideApplicationService;
@@ -49,6 +55,7 @@ namespace TayNinhTourApi.Controller.Controllers
             _logger = logger;
             _currentUserService = currentUserService;
             _shopApplicationService = shopApplicationService;
+            _specialtyShopApplicationService = specialtyShopApplicationService;
         }
 
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -80,23 +87,7 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
 
         }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
-        [HttpPost("tourguide-application")]
 
-        public async Task<IActionResult> Submit([FromForm] SubmitApplicationDto submitApplicationDto)
-        {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _tourGuideApplicationService.SubmitAsync(submitApplicationDto, currentUserObject);
-            return StatusCode(result.StatusCode, result);
-        }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        [HttpGet("View-tourguideapplication")]
-        public async Task<IActionResult> ListMyApplications()
-        {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var list = await _tourGuideApplicationService.ListByUserAsync(currentUserObject.Id);
-            return Ok(list);
-        }
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         [HttpPut("edit-Avatar")]
 
@@ -107,7 +98,7 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
 
         }
-        
+
 
         /// <summary>
         /// Lấy danh sách tất cả hướng dẫn viên
@@ -295,6 +286,174 @@ namespace TayNinhTourApi.Controller.Controllers
             CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             var list = await _shopApplicationService.ListByUserAsync(currentUserObject.Id);
             return Ok(list);
+        }
+
+        // ===== NEW SPECIALTY SHOP APPLICATION ENDPOINTS =====
+
+        /// <summary>
+        /// User nộp đơn đăng ký Specialty Shop (NEW FLOW)
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpPost("specialty-shop-application")]
+        public async Task<IActionResult> SubmitSpecialtyShopApplication([FromForm] SubmitSpecialtyShopApplicationDto dto)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _specialtyShopApplicationService.SubmitApplicationAsync(dto, currentUser);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting specialty shop application");
+                return StatusCode(500, new { Error = "An error occurred while submitting application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User xem trạng thái đơn đăng ký Specialty Shop của mình (NEW FLOW)
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("my-specialty-shop-application")]
+        public async Task<IActionResult> GetMySpecialtyShopApplication()
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var application = await _specialtyShopApplicationService.GetMyApplicationAsync(currentUser);
+
+                if (application == null)
+                {
+                    return Ok(new ApiResponse<object>
+                    {
+                        IsSuccess = true,
+                        Message = "No specialty shop application found",
+                        Data = null
+                    });
+                }
+
+                return Ok(new ApiResponse<SpecialtyShopApplicationDto>
+                {
+                    IsSuccess = true,
+                    Message = "Specialty shop application retrieved successfully",
+                    Data = application
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving specialty shop application");
+                return StatusCode(500, new { Error = "An error occurred while retrieving application", Details = ex.Message });
+            }
+        }
+
+        // ===== TOUR GUIDE APPLICATION ENDPOINTS =====
+
+        /// <summary>
+        /// User nộp đơn đăng ký TourGuide
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpPost("tourguide-application")]
+        public async Task<IActionResult> SubmitTourGuideApplication([FromBody] SubmitTourGuideApplicationJsonDto dto)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _tourGuideApplicationService.SubmitApplicationJsonAsync(dto, currentUser);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting enhanced tour guide application");
+                return StatusCode(500, new { Error = "An error occurred while submitting application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User xem danh sách đơn đăng ký TourGuide của mình
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("my-tourguide-applications")]
+        public async Task<IActionResult> GetMyTourGuideApplications()
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var applications = await _tourGuideApplicationService.GetMyApplicationsAsync(currentUser.Id);
+
+                return Ok(new ApiResponse<IEnumerable<TourGuideApplicationSummaryDto>>
+                {
+                    IsSuccess = true,
+                    Message = "Tour guide applications retrieved successfully",
+                    Data = applications
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving tour guide applications");
+                return StatusCode(500, new { Error = "An error occurred while retrieving applications", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User xem chi tiết đơn đăng ký TourGuide của mình
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("my-tourguide-application/{applicationId}")]
+        public async Task<IActionResult> GetMyTourGuideApplication(Guid applicationId)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var application = await _tourGuideApplicationService.GetMyApplicationByIdAsync(applicationId, currentUser.Id);
+
+                if (application == null)
+                {
+                    return NotFound(new ApiResponse<object>
+                    {
+                        IsSuccess = false,
+                        Message = "Tour guide application not found or you don't have permission to view it",
+                        Data = null
+                    });
+                }
+
+                return Ok(new ApiResponse<TourGuideApplicationDto>
+                {
+                    IsSuccess = true,
+                    Message = "Tour guide application retrieved successfully",
+                    Data = application
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving tour guide application {ApplicationId}", applicationId);
+                return StatusCode(500, new { Error = "An error occurred while retrieving application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Kiểm tra user có thể nộp đơn TourGuide mới không
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpGet("can-submit-tourguide-application")]
+        public async Task<IActionResult> CanSubmitTourGuideApplication()
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var canSubmit = await _tourGuideApplicationService.CanSubmitNewApplicationAsync(currentUser.Id);
+
+                return Ok(new ApiResponse<object>
+                {
+                    IsSuccess = true,
+                    Message = canSubmit ? "You can submit a new application" : "You already have an active application",
+                    Data = new { CanSubmit = canSubmit }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking tour guide application eligibility");
+                return StatusCode(500, new { Error = "An error occurred while checking eligibility", Details = ex.Message });
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 {
@@ -31,6 +32,21 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.Property(td => td.Description)
                 .HasMaxLength(1000)
                 .HasComment("Mô tả về lịch trình này");
+
+            builder.Property(td => td.Status)
+                .IsRequired()
+                .HasDefaultValue(TourDetailsStatus.Pending)
+                .HasComment("Trạng thái duyệt của tour details");
+
+            builder.Property(td => td.CommentApproved)
+                .HasMaxLength(1000)
+                .IsRequired(false)
+                .HasComment("Bình luận từ admin khi duyệt/từ chối tour details");
+
+            builder.Property(td => td.SkillsRequired)
+                .HasMaxLength(500)
+                .IsRequired(false)
+                .HasComment("Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)");
 
             // Foreign Key Relationships
 
@@ -83,6 +99,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             // Index for Title (for searching by title)
             builder.HasIndex(td => td.Title)
                 .HasDatabaseName("IX_TourDetails_Title");
+
+            // Index for Status (for filtering by approval status)
+            builder.HasIndex(td => td.Status)
+                .HasDatabaseName("IX_TourDetails_Status");
         }
     }
 }

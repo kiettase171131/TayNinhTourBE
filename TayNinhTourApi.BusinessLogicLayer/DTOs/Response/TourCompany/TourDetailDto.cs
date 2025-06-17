@@ -1,3 +1,5 @@
+using TayNinhTourApi.DataAccessLayer.Enums;
+
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
 {
     /// <summary>
@@ -31,6 +33,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// Ví dụ: "Lịch trình cao cấp với các dịch vụ VIP"
         /// </summary>
         public string? Description { get; set; }
+
+        /// <summary>
+        /// Trạng thái duyệt của tour details
+        /// </summary>
+        public TourDetailsStatus Status { get; set; }
+
+        /// <summary>
+        /// Bình luận từ admin khi duyệt/từ chối tour details
+        /// Dùng để ghi lý do từ chối hoặc ghi chú khi duyệt
+        /// </summary>
+        public string? CommentApproved { get; set; }
 
         /// <summary>
         /// Danh sách timeline items thuộc về lịch trình này

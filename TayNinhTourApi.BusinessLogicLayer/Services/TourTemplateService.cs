@@ -178,7 +178,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 Id = Guid.NewGuid(),
                 Title = newTitle,
-                Description = originalTemplate.Description,
                 TemplateType = originalTemplate.TemplateType,
                 ScheduleDays = originalTemplate.ScheduleDays,
                 StartLocation = originalTemplate.StartLocation,

@@ -17,6 +17,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.SeedData;
+using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
@@ -134,20 +135,28 @@ builder.Services.AddScoped<ITourGuideApplicationService, TourGuideApplicationSer
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
-builder.Services.AddScoped<IShopService, ShopService>();
+// Shop service removed - merged into SpecialtyShopService
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
 builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
 builder.Services.AddScoped<IShopApplicationService, ShopApplicationService>();
+
 builder.Services.AddScoped<IProductService, ProductService>();
+
+builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
+builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
+
+// TourGuide Invitation Workflow Services
+builder.Services.AddScoped<ITourGuideInvitationService, TourGuideInvitationService>();
+
 
 
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<ITourTemplateRepository, TourTemplateRepository>();
-builder.Services.AddScoped<IShopRepository, ShopRepository>();
+// Shop repository removed - merged into SpecialtyShopRepository
 builder.Services.AddScoped<ITourSlotRepository, TourSlotRepository>();
 builder.Services.AddScoped<ITourDetailsRepository, TourDetailsRepository>();
 builder.Services.AddScoped<ITourOperationRepository, TourOperationRepository>();
@@ -159,14 +168,27 @@ builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();
 builder.Services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
 builder.Services.AddScoped<IShopApplicationRepository, ShopApplicationRepository>();
+
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();
+
+builder.Services.AddScoped<ISpecialtyShopApplicationRepository, SpecialtyShopApplicationRepository>();
+builder.Services.AddScoped<ISpecialtyShopRepository, SpecialtyShopRepository>();
+
+// TourGuide Invitation Workflow Repositories
+builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRepository>();
+
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();
 builder.Services.AddScoped<DataSeeder>();
 builder.Services.AddScoped<JwtUtility>();
 builder.Services.AddScoped<EmailSender>();
+
+// TourGuide Invitation Workflow Utilities (Static utility - no registration needed for SkillsMatchingUtility)
+
+// Register Background Job Service as Hosted Service
+builder.Services.AddHostedService<BackgroundJobService>();
 
 // Register UnitOfWork
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -197,9 +219,14 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Initialize seed data
+// Initialize database and seed data
 using (var scope = app.Services.CreateScope())
 {
+    var context = scope.ServiceProvider.GetRequiredService<TayNinhTouApiDbContext>();
+
+    // Ensure database is created
+    await context.Database.EnsureCreatedAsync();
+
     var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
     await seeder.SeedDataAsync();
 }

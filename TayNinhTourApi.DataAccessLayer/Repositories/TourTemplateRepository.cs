@@ -105,7 +105,6 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(t => t.UpdatedBy)
                 .Include(t => t.Images)
                 .Where(t => t.Title.Contains(keyword) ||
-                           (t.Description != null && t.Description.Contains(keyword)) ||
                            t.StartLocation.Contains(keyword) ||
                            t.EndLocation.Contains(keyword));
 

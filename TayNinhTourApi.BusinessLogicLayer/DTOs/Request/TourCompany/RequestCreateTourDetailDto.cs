@@ -27,5 +27,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         /// </summary>
         [StringLength(1000, ErrorMessage = "Description không được vượt quá 1000 ký tự")]
         public string? Description { get; set; }
+
+        /// <summary>
+        /// Kỹ năng yêu cầu cho hướng dẫn viên
+        /// Ví dụ: "English,Chinese,French" hoặc "Tiếng Anh,Tiếng Trung,Tiếng Pháp"
+        /// </summary>
+        [StringLength(500, ErrorMessage = "SkillsRequired không được vượt quá 500 ký tự")]
+        public string? SkillsRequired { get; set; }
     }
 }

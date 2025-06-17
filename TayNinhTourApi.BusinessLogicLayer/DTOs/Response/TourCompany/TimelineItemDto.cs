@@ -1,3 +1,5 @@
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
+
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
 {
     /// <summary>
@@ -28,9 +30,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string Activity { get; set; } = string.Empty;
 
         /// <summary>
-        /// ID của shop liên quan (nếu có)
+        /// ID của SpecialtyShop liên quan (nếu có)
         /// </summary>
-        public Guid? ShopId { get; set; }
+        public Guid? SpecialtyShopId { get; set; }
 
         /// <summary>
         /// Thứ tự sắp xếp trong timeline (bắt đầu từ 1)
@@ -39,9 +41,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public int SortOrder { get; set; }
 
         /// <summary>
-        /// Thông tin shop liên quan (nếu có)
+        /// Thông tin SpecialtyShop liên quan (nếu có)
         /// </summary>
-        public ShopDto? Shop { get; set; }
+        public SpecialtyShopResponseDto? SpecialtyShop { get; set; }
 
         /// <summary>
         /// Thời gian tạo timeline item

@@ -17,8 +17,7 @@
         public virtual ICollection<Tour> ToursUpdated { get; set; } = new List<Tour>();
         public virtual ICollection<TourTemplate> TourTemplatesCreated { get; set; } = new List<TourTemplate>();
         public virtual ICollection<TourTemplate> TourTemplatesUpdated { get; set; } = new List<TourTemplate>();
-        public virtual ICollection<Shop> ShopsCreated { get; set; } = new List<Shop>();
-        public virtual ICollection<Shop> ShopsUpdated { get; set; } = new List<Shop>();
+
         public virtual ICollection<TourSlot> TourSlotsCreated { get; set; } = new List<TourSlot>();
         public virtual ICollection<TourSlot> TourSlotsUpdated { get; set; } = new List<TourSlot>();
         public virtual ICollection<TourDetails> TourDetailsCreated { get; set; } = new List<TourDetails>();
@@ -33,5 +32,10 @@
         public virtual ICollection<SupportTicketComment> TicketComments { get; set; } = new List<SupportTicketComment>();
 
         public virtual ICollection<TourOperation> TourOperationsAsGuide { get; set; } = new List<TourOperation>();
+
+        /// <summary>
+        /// SpecialtyShop information if user has "Specialty Shop" role (1:1 relationship)
+        /// </summary>
+        public virtual SpecialtyShop? SpecialtyShop { get; set; }
     }
 }

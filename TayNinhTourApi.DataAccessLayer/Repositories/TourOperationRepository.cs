@@ -54,7 +54,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     .ThenInclude(td => td.TourTemplate)
                 .Include(to => to.TourDetails)
                     .ThenInclude(td => td.Timeline)
-                        .ThenInclude(ti => ti.Shop)
+                        .ThenInclude(ti => ti.SpecialtyShop)
                 .Include(to => to.TourDetails)
                     .ThenInclude(td => td.AssignedSlots)
                 .Include(to => to.Guide)

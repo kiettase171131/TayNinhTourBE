@@ -173,6 +173,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<bool> CanDeleteTimelineItemAsync(Guid tourDetailId);
 
         /// <summary>
+        /// Admin duyệt hoặc từ chối tour details
+        /// </summary>
+        /// <param name="tourDetailId">ID của tour detail cần duyệt/từ chối</param>
+        /// <param name="request">Thông tin duyệt/từ chối</param>
+        /// <param name="adminId">ID của admin thực hiện</param>
+        /// <returns>Kết quả duyệt/từ chối</returns>
+        Task<BaseResposeDto> ApproveRejectTourDetailAsync(Guid tourDetailId, RequestApprovalTourDetailDto request, Guid adminId);
+
+        /// <summary>
+        /// Lấy danh sách TourDetails với filter theo status và quyền user
+        /// </summary>
+        /// <param name="tourTemplateId">ID của tour template</param>
+        /// <param name="currentUserId">ID của user hiện tại</param>
+        /// <param name="userRole">Role của user hiện tại</param>
+        /// <param name="includeInactive">Có bao gồm TourDetails không active không</param>
+        /// <returns>Danh sách TourDetails được filter theo quyền</returns>
+        Task<ResponseGetTourDetailsDto> GetTourDetailsWithPermissionAsync(Guid tourTemplateId, Guid currentUserId, string userRole, bool includeInactive = false);
+
+        /// <summary>
         /// Duplicate một timeline item
         /// </summary>
         /// <param name="tourDetailId">ID của tour detail cần duplicate</param>
@@ -186,5 +205,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="tourDetailId">ID của tour detail</param>
         /// <returns>Thông tin chi tiết của timeline item</returns>
         Task<ResponseUpdateTourDetailDto> GetTimelineItemByIdAsync(Guid tourDetailId);
+
+        // ===== TOUR GUIDE ASSIGNMENT WORKFLOW =====
+
+        /// <summary>
+        /// Lấy trạng thái phân công hướng dẫn viên cho TourDetails
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <returns>Thông tin trạng thái assignment</returns>
+        Task<BaseResposeDto> GetGuideAssignmentStatusAsync(Guid tourDetailsId);
+
+        /// <summary>
+        /// TourCompany mời thủ công một TourGuide cụ thể
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="guideId">ID của TourGuide được mời</param>
+        /// <param name="companyId">ID của TourCompany</param>
+        /// <returns>Kết quả gửi lời mời</returns>
+        Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid companyId);
     }
 }

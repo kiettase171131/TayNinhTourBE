@@ -34,7 +34,7 @@ namespace TayNinhTourApi.DataAccessLayer.Configurations
                 .HasMaxLength(255)
                 .IsRequired();
 
-            builder.Property(t => t.ShopId)
+            builder.Property(t => t.SpecialtyShopId)
                 .HasColumnType("CHAR(36)")
                 .IsRequired(false);
 
@@ -68,9 +68,9 @@ namespace TayNinhTourApi.DataAccessLayer.Configurations
                 .HasForeignKey(t => t.TourDetailsId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne(t => t.Shop)
-                .WithMany()
-                .HasForeignKey(t => t.ShopId)
+            builder.HasOne(t => t.SpecialtyShop)
+                .WithMany(s => s.TimelineItems)
+                .HasForeignKey(t => t.SpecialtyShopId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             builder.HasOne(t => t.CreatedBy)
@@ -90,8 +90,8 @@ namespace TayNinhTourApi.DataAccessLayer.Configurations
             builder.HasIndex(t => new { t.TourDetailsId, t.SortOrder })
                 .HasDatabaseName("IX_TimelineItem_TourDetailsId_SortOrder");
 
-            builder.HasIndex(t => t.ShopId)
-                .HasDatabaseName("IX_TimelineItem_ShopId");
+            builder.HasIndex(t => t.SpecialtyShopId)
+                .HasDatabaseName("IX_TimelineItem_SpecialtyShopId");
         }
     }
 }

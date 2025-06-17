@@ -61,9 +61,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string? LatestTime => Items.Any() ? Items.Max(ti => ti.CheckInTime) : null;
 
         /// <summary>
-        /// Số lượng shops được ghé thăm trong tour (computed property)
+        /// Số lượng SpecialtyShops được ghé thăm trong tour (computed property)
         /// </summary>
-        public int ShopsCount => Items.Count(ti => ti.ShopId.HasValue);
+        public int ShopsCount => Items.Count(ti => ti.SpecialtyShopId.HasValue);
 
         /// <summary>
         /// Thời gian tạo timeline

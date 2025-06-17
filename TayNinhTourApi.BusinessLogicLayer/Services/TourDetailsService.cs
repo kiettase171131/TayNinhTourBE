@@ -1,10 +1,12 @@
 using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -16,11 +18,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     public class TourDetailsService : BaseService, ITourDetailsService
     {
         private readonly ILogger<TourDetailsService> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
-        public TourDetailsService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<TourDetailsService> logger)
+        public TourDetailsService(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            ILogger<TourDetailsService> logger,
+            IServiceProvider serviceProvider)
             : base(mapper, unitOfWork)
         {
             _logger = logger;
+            _serviceProvider = serviceProvider;
         }
 
         /// <summary>
@@ -109,6 +117,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TourTemplateId = request.TourTemplateId,
                     Title = request.Title,
                     Description = request.Description,
+                    SkillsRequired = request.SkillsRequired,
                     CreatedById = createdById,
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
@@ -166,12 +175,43 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var createdDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetail.Id);
                 var tourDetailDto = _mapper.Map<TourDetailDto>(createdDetail);
 
+                // TRIGGER INVITATION WORKFLOW: Tự động tạo invitations cho TourGuides có skills phù hợp
+                if (!string.IsNullOrWhiteSpace(request.SkillsRequired))
+                {
+                    _logger.LogInformation("Triggering automatic invitation workflow for TourDetails {TourDetailId}", tourDetail.Id);
+
+                    try
+                    {
+                        using var scope = _serviceProvider.CreateScope();
+                        var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
+                        var invitationResult = await invitationService.CreateAutomaticInvitationsAsync(tourDetail.Id, createdById);
+                        if (invitationResult.IsSuccess)
+                        {
+                            _logger.LogInformation("Successfully created automatic invitations for TourDetails {TourDetailId}", tourDetail.Id);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to create automatic invitations for TourDetails {TourDetailId}: {Message}",
+                                tourDetail.Id, invitationResult.Message);
+                        }
+                    }
+                    catch (Exception invitationEx)
+                    {
+                        _logger.LogError(invitationEx, "Error creating automatic invitations for TourDetails {TourDetailId}", tourDetail.Id);
+                        // Don't fail the entire operation if invitation creation fails
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("No skills required specified for TourDetails {TourDetailId}, skipping automatic invitations", tourDetail.Id);
+                }
+
                 _logger.LogInformation("Successfully created tour detail {TourDetailId}", tourDetail.Id);
 
                 return new ResponseCreateTourDetailDto
                 {
                     StatusCode = 201,
-                    Message = "Tạo lịch trình thành công",
+                    Message = "Tạo lịch trình thành công và đã gửi lời mời đến các hướng dẫn viên phù hợp",
                     Data = tourDetailDto
                 };
             }
@@ -367,6 +407,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        // TODO: Update to use SpecialtyShopRepository after merge
+        /*
         public async Task<ResponseGetAvailableShopsDto> GetAvailableShopsAsync(bool includeInactive = false, string? searchKeyword = null)
         {
             try
@@ -415,6 +457,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = "Có lỗi xảy ra khi lấy danh sách shops"
                 };
             }
+        }
+        */
+
+        public async Task<ResponseGetAvailableShopsDto> GetAvailableShopsAsync(bool includeInactive = false, string? searchKeyword = null)
+        {
+            // TODO: Implement with SpecialtyShopRepository after merge
+            throw new NotImplementedException("This method will be updated to use SpecialtyShopRepository");
         }
 
         /// <summary>
@@ -665,6 +714,69 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             throw new NotImplementedException("This method will be implemented for getting timeline item");
         }
 
+        /// <summary>
+        /// Admin duyệt hoặc từ chối tour details
+        /// </summary>
+        public async Task<BaseResposeDto> ApproveRejectTourDetailAsync(Guid tourDetailId, RequestApprovalTourDetailDto request, Guid adminId)
+        {
+            try
+            {
+                _logger.LogInformation("Admin {AdminId} processing approval for TourDetail {TourDetailId}", adminId, tourDetailId);
+
+                // Validate tour detail exists
+                var tourDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailId);
+                if (tourDetail == null || tourDetail.IsDeleted)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour detail",
+                        IsSuccess = false
+                    };
+                }
+
+                // Validate business rules
+                if (!request.IsApproved && string.IsNullOrWhiteSpace(request.Comment))
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Bình luận là bắt buộc khi từ chối tour detail",
+                        IsSuccess = false
+                    };
+                }
+
+                // Update status and comment
+                tourDetail.Status = request.IsApproved ? TourDetailsStatus.Approved : TourDetailsStatus.Rejected;
+                tourDetail.CommentApproved = request.Comment;
+                tourDetail.UpdatedById = adminId;
+                tourDetail.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetail);
+                await _unitOfWork.SaveChangesAsync();
+
+                var statusText = request.IsApproved ? "duyệt" : "từ chối";
+                _logger.LogInformation("Successfully {Action} TourDetail {TourDetailId} by Admin {AdminId}", statusText, tourDetailId, adminId);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = $"Đã {statusText} tour detail thành công",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing approval for TourDetail {TourDetailId} by Admin {AdminId}", tourDetailId, adminId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi xử lý duyệt tour detail",
+                    IsSuccess = false
+                };
+            }
+        }
+
         public async Task<BaseResposeDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById)
         {
             try
@@ -688,7 +800,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TourDetailsId = request.TourDetailsId,
                     CheckInTime = TimeSpan.Parse(request.CheckInTime),
                     Activity = request.Activity,
-                    ShopId = request.ShopId,
+                    // TODO: Update after DTO changes
+                    // SpecialtyShopId = request.SpecialtyShopId,
                     SortOrder = await GetNextSortOrderAsync(request.TourDetailsId),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
@@ -801,7 +914,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             TourDetailsId = request.TourDetailsId,
                             CheckInTime = checkInTime,
                             Activity = itemRequest.Activity,
-                            ShopId = itemRequest.ShopId,
+                            // TODO: Update after DTO changes
+                            // SpecialtyShopId = itemRequest.SpecialtyShopId,
                             SortOrder = itemRequest.SortOrder.HasValue ? itemRequest.SortOrder.Value : (++currentMaxSortOrder),
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,
@@ -858,6 +972,217 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return existingItems.Any() ? existingItems.Max(t => t.SortOrder) + 1 : 1;
         }
 
+        /// <summary>
+        /// Lấy danh sách TourDetails với filter theo status và quyền user
+        /// </summary>
+        public async Task<ResponseGetTourDetailsDto> GetTourDetailsWithPermissionAsync(Guid tourTemplateId, Guid currentUserId, string userRole, bool includeInactive = false)
+        {
+            try
+            {
+                _logger.LogInformation("Getting tour details for TourTemplate {TourTemplateId} with permission for user {UserId} role {UserRole}",
+                    tourTemplateId, currentUserId, userRole);
+
+                // Kiểm tra tour template tồn tại
+                var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourTemplateId);
+                if (tourTemplate == null || tourTemplate.IsDeleted)
+                {
+                    return new ResponseGetTourDetailsDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour template"
+                    };
+                }
+
+                // Lấy danh sách tour details
+                var tourDetails = await _unitOfWork.TourDetailsRepository
+                    .GetByTourTemplateOrderedAsync(tourTemplateId, includeInactive);
+
+                // Filter theo quyền user
+                var filteredTourDetails = FilterTourDetailsByPermission(tourDetails, currentUserId, userRole);
+
+                // Map to DTOs
+                var tourDetailDtos = _mapper.Map<List<TourDetailDto>>(filteredTourDetails);
+
+                return new ResponseGetTourDetailsDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy danh sách lịch trình thành công",
+                    Data = tourDetailDtos,
+                    TotalCount = tourDetailDtos.Count
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tour details with permission for TourTemplate {TourTemplateId}", tourTemplateId);
+                return new ResponseGetTourDetailsDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Filter TourDetails theo quyền user
+        /// </summary>
+        private IEnumerable<TourDetails> FilterTourDetailsByPermission(IEnumerable<TourDetails> tourDetails, Guid currentUserId, string userRole)
+        {
+            switch (userRole.ToLower())
+            {
+                case "admin":
+                    // Admin thấy tất cả TourDetails
+                    return tourDetails;
+
+                case "tour guide":
+                case "specialty shop":
+                case "tour company":
+                    // Tour Guide/Shop/Company thấy:
+                    // - TourDetails của mình (tất cả status)
+                    // - TourDetails đã approved của người khác
+                    return tourDetails.Where(td =>
+                        td.CreatedById == currentUserId ||
+                        td.Status == TourDetailsStatus.Approved);
+
+                case "user":
+                default:
+                    // User thường chỉ thấy TourDetails đã approved
+                    return tourDetails.Where(td => td.Status == TourDetailsStatus.Approved);
+            }
+        }
+
         #endregion
+
+        // ===== TOUR GUIDE ASSIGNMENT WORKFLOW =====
+
+        public async Task<BaseResposeDto> GetGuideAssignmentStatusAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting guide assignment status for TourDetails {TourDetailsId}", tourDetailsId);
+
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                // Get invitations for this TourDetails
+                var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
+
+                // Get assigned guide info if exists
+                var assignedGuide = tourDetails.TourOperation?.GuideId != null
+                    ? await _unitOfWork.UserRepository.GetByIdAsync(tourDetails.TourOperation.GuideId.Value)
+                    : null;
+
+                var statusInfo = new
+                {
+                    TourDetailsId = tourDetailsId,
+                    Title = tourDetails.Title,
+                    Status = tourDetails.Status.ToString(),
+                    SkillsRequired = tourDetails.SkillsRequired,
+                    AssignedGuide = assignedGuide != null ? new
+                    {
+                        Id = assignedGuide.Id,
+                        Name = assignedGuide.Name,
+                        Email = assignedGuide.Email
+                    } : null,
+                    InvitationsSummary = new
+                    {
+                        Total = invitations.Count(),
+                        Pending = invitations.Count(i => i.Status == InvitationStatus.Pending),
+                        Accepted = invitations.Count(i => i.Status == InvitationStatus.Accepted),
+                        Rejected = invitations.Count(i => i.Status == InvitationStatus.Rejected),
+                        Expired = invitations.Count(i => i.Status == InvitationStatus.Expired)
+                    },
+                    CreatedAt = tourDetails.CreatedAt,
+                    UpdatedAt = tourDetails.UpdatedAt
+                };
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy trạng thái phân công thành công",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting guide assignment status for TourDetails {TourDetailsId}", tourDetailsId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra: {ex.Message}",
+                    IsSuccess = false
+                };
+            }
+        }
+
+        public async Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid companyId)
+        {
+            try
+            {
+                _logger.LogInformation("TourCompany {CompanyId} manually inviting Guide {GuideId} for TourDetails {TourDetailsId}",
+                    companyId, guideId, tourDetailsId);
+
+                // Validate TourDetails exists and belongs to company
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                if (tourDetails.CreatedById != companyId)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "Bạn không có quyền mời hướng dẫn viên cho tour này",
+                        IsSuccess = false
+                    };
+                }
+
+                // Check if TourDetails is in correct status for manual invitation
+                if (tourDetails.Status != TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "TourDetails không ở trạng thái cho phép mời thủ công",
+                        IsSuccess = false
+                    };
+                }
+
+                // Use invitation service to create manual invitation
+                using var scope = _serviceProvider.CreateScope();
+                var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
+                var result = await invitationService.CreateManualInvitationAsync(tourDetailsId, guideId, companyId);
+
+                _logger.LogInformation("Manual invitation result for TourDetails {TourDetailsId}: {IsSuccess}",
+                    tourDetailsId, result.IsSuccess);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating manual invitation for TourDetails {TourDetailsId} to Guide {GuideId}",
+                    tourDetailsId, guideId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi mời hướng dẫn viên: {ex.Message}",
+                    IsSuccess = false
+                };
+            }
+        }
     }
 }

@@ -126,7 +126,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     Id = Guid.NewGuid(),
                     Title = tour.Title,
-                    Description = tour.Description,
                     TemplateType = templateType,
                     ScheduleDays = scheduleDay,
                     StartLocation = "TP.HCM", // Default start location

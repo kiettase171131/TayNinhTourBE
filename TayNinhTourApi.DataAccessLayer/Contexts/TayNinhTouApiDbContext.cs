@@ -16,16 +16,23 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<TourSlot> TourSlots { get; set; } = null!;
         public DbSet<TourDetails> TourDetails { get; set; } = null!;
         public DbSet<TourOperation> TourOperations { get; set; } = null!;
+        public DbSet<TourGuideInvitation> TourGuideInvitations { get; set; } = null!;
         public DbSet<TimelineItem> TimelineItems { get; set; } = null!;
-        public DbSet<Shop> Shops { get; set; } = null!;
+
         public DbSet<SupportTicketImage> SupportTicketImages { get; set; } = null!;
         public DbSet<Blog> Blogs { get; set; } = null!;
         public DbSet<BlogImage> BlogImages { get; set; } = null!;
         public DbSet<BlogReaction> BlogReactions { get; set; }
         public DbSet<BlogComment> BlogComments { get; set; }
         public DbSet<ShopApplication> ShopApplications { get; set; }
+
         public DbSet<Product> Products { get; set; } = null!;
         public DbSet<ProductImage> ProductImages { get; set; } = null!;
+
+        public DbSet<SpecialtyShopApplication> SpecialtyShopApplications { get; set; } = null!;
+        public DbSet<SpecialtyShop> SpecialtyShops { get; set; } = null!;
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // modelBuilder.ApplyConfiguration(new UserConfiguration());

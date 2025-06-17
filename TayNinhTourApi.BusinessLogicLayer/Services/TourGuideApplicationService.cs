@@ -1,250 +1,410 @@
-﻿using AutoMapper;
+using AutoMapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Account;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Application;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
+    /// <summary>
+    /// TourGuide Application Service Implementation
+    /// Comprehensive implementation for tour guide application management
+    /// </summary>
     public class TourGuideApplicationService : ITourGuideApplicationService
     {
-        private readonly ITourGuideApplicationRepository _appRepo;
-        private readonly IUserRepository _userRepo;
-        private readonly IRoleRepository _roleRepo;
-        private readonly IHostingEnvironment _env;
-        private readonly EmailSender _emailSender;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ITourGuideApplicationRepository _applicationRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IRoleRepository _roleRepository;
         private readonly IMapper _mapper;
-
+        private readonly Microsoft.AspNetCore.Hosting.IHostingEnvironment _environment;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly EmailSender _emailSender;
 
         public TourGuideApplicationService(
-            ITourGuideApplicationRepository appRepo,
-            IUserRepository userRepo,
-            IRoleRepository roleRepo,
-            IHostingEnvironment env, EmailSender emailSender, IHttpContextAccessor httpContextAccessor, IMapper mapper)
+            ITourGuideApplicationRepository applicationRepository,
+            IUserRepository userRepository,
+            IRoleRepository roleRepository,
+            IMapper mapper,
+            Microsoft.AspNetCore.Hosting.IHostingEnvironment environment,
+            IHttpContextAccessor httpContextAccessor,
+            EmailSender emailSender)
         {
-            _appRepo = appRepo;
-            _userRepo = userRepo;
-            _roleRepo = roleRepo;
-            _env = env;
-            _emailSender = emailSender;
-            _httpContextAccessor = httpContextAccessor;
+            _applicationRepository = applicationRepository;
+            _userRepository = userRepository;
+            _roleRepository = roleRepository;
             _mapper = mapper;
+            _environment = environment;
+            _httpContextAccessor = httpContextAccessor;
+            _emailSender = emailSender;
         }
 
-        public async Task<BaseResposeDto> ApproveAsync(Guid applicationId)
+        /// <summary>
+        /// User nộp đơn đăng ký TourGuide (Enhanced version)
+        /// </summary>
+        public async Task<TourGuideApplicationSubmitResponseDto> SubmitApplicationAsync(
+            SubmitTourGuideApplicationDto dto,
+            CurrentUserObject currentUser)
         {
-            var app = await _appRepo.GetByIdAsync(applicationId);
-            if (app.Status != ApplicationStatus.Pending)
+            // 1. Validate user chưa có đơn active
+            var hasActiveApplication = await _applicationRepository.HasActiveApplicationAsync(currentUser.Id);
+            if (hasActiveApplication)
             {
-                return new BaseResposeDto
+                return new TourGuideApplicationSubmitResponseDto
                 {
                     StatusCode = 400,
-                    Message = "Application is not pending, cannot approve !"
+                    Message = "Bạn đã có đơn đăng ký đang chờ xử lý hoặc đã được duyệt. Vui lòng liên hệ support nếu cần hỗ trợ."
                 };
             }
 
-
-            // chuyển user thành tourguide
-            var guiderole = await _roleRepo.GetRoleByNameAsync(Constants.RoleTourGuideName);
-            if (guiderole == null)
+            try
             {
-                guiderole = new Role
+                // 2. Upload CV file
+                string? cvUrl = null;
+                if (dto.CurriculumVitae != null)
+                {
+                    cvUrl = await UploadCVFileAsync(dto.CurriculumVitae);
+                }
+
+                // 3. Tạo application entity
+                var application = new TourGuideApplication
                 {
                     Id = Guid.NewGuid(),
-                    Name = Constants.RoleTourGuideName,
-                    CreatedAt = DateTime.UtcNow
+                    UserId = currentUser.Id,
+                    FullName = dto.FullName,
+                    PhoneNumber = dto.PhoneNumber,
+                    Email = dto.Email,
+                    Experience = dto.Experience.ToString(), // Convert int to string for enhanced entity
+                    Languages = dto.Languages,
+                    CurriculumVitae = cvUrl,
+                    Status = TourGuideApplicationStatus.Pending,
+                    SubmittedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = currentUser.Id
                 };
-                await _roleRepo.AddAsync(guiderole);
-                await _roleRepo.SaveChangesAsync();
+
+                // 4. Lưu application
+                await _applicationRepository.AddAsync(application);
+                await _applicationRepository.SaveChangesAsync();
+
+                // 5. Send confirmation email
+                await _emailSender.SendTourGuideApplicationSubmittedAsync(
+                    application.Email,
+                    application.FullName,
+                    application.SubmittedAt);
+
+                return new TourGuideApplicationSubmitResponseDto
+                {
+                    StatusCode = 200,
+                    Message = "Đơn đăng ký hướng dẫn viên đã được gửi thành công",
+                    ApplicationId = application.Id,
+                    FullName = application.FullName,
+                    CurriculumVitaeUrl = application.CurriculumVitae,
+                    SubmittedAt = application.SubmittedAt
+                };
             }
-            var user = await _userRepo.GetByIdAsync(app.UserId);
-            if (user == null)
+            catch (Exception ex)
+            {
+                return new TourGuideApplicationSubmitResponseDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi gửi đơn đăng ký: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// User nộp đơn đăng ký TourGuide (JSON version for API testing)
+        /// </summary>
+        public async Task<TourGuideApplicationSubmitResponseDto> SubmitApplicationJsonAsync(
+            SubmitTourGuideApplicationJsonDto dto,
+            CurrentUserObject currentUser)
+        {
+            // 1. Validate user chưa có đơn active
+            var hasActiveApplication = await _applicationRepository.HasActiveApplicationAsync(currentUser.Id);
+            if (hasActiveApplication)
+            {
+                return new TourGuideApplicationSubmitResponseDto
+                {
+                    StatusCode = 400,
+                    Message = "Bạn đã có đơn đăng ký đang chờ xử lý hoặc đã được duyệt. Vui lòng liên hệ support nếu cần hỗ trợ."
+                };
+            }
+
+            try
+            {
+                // 2. Tạo application entity (không cần upload file, dùng URL)
+                var application = new TourGuideApplication
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = currentUser.Id,
+                    FullName = dto.FullName,
+                    PhoneNumber = dto.PhoneNumber,
+                    Email = dto.Email,
+                    Experience = dto.Experience, // Use experience description
+                    Languages = dto.Languages,
+                    CurriculumVitae = dto.CurriculumVitaeUrl, // Store URL directly
+                    Status = TourGuideApplicationStatus.Pending,
+                    SubmittedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = currentUser.Id
+                };
+
+                // 3. Lưu application
+                await _applicationRepository.AddAsync(application);
+                await _applicationRepository.SaveChangesAsync();
+
+                // 4. Send confirmation email
+                await _emailSender.SendTourGuideApplicationSubmittedAsync(
+                    application.Email,
+                    application.FullName,
+                    application.SubmittedAt);
+
+                return new TourGuideApplicationSubmitResponseDto
+                {
+                    StatusCode = 200,
+                    Message = "Đơn đăng ký hướng dẫn viên đã được gửi thành công",
+                    ApplicationId = application.Id,
+                    FullName = application.FullName,
+                    CurriculumVitaeUrl = application.CurriculumVitae,
+                    SubmittedAt = application.SubmittedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                return new TourGuideApplicationSubmitResponseDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi gửi đơn đăng ký: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// User xem danh sách đơn đăng ký của mình
+        /// </summary>
+        public async Task<IEnumerable<TourGuideApplicationSummaryDto>> GetMyApplicationsAsync(Guid userId)
+        {
+            var applications = await _applicationRepository.GetByUserIdAsync(userId);
+            return _mapper.Map<IEnumerable<TourGuideApplicationSummaryDto>>(applications);
+        }
+
+        /// <summary>
+        /// User xem chi tiết đơn đăng ký của mình
+        /// </summary>
+        public async Task<TourGuideApplicationDto?> GetMyApplicationByIdAsync(Guid applicationId, Guid userId)
+        {
+            var application = await _applicationRepository.GetByIdAndUserIdAsync(applicationId, userId);
+            return application != null ? _mapper.Map<TourGuideApplicationDto>(application) : null;
+        }
+
+        /// <summary>
+        /// Admin xem danh sách tất cả đơn đăng ký với pagination
+        /// </summary>
+        public async Task<(IEnumerable<TourGuideApplicationSummaryDto> Applications, int TotalCount)> GetAllApplicationsAsync(
+            int page = 1,
+            int pageSize = 10,
+            int? status = null)
+        {
+            var pageIndex = page - 1; // Convert to 0-based index
+            TourGuideApplicationStatus? statusFilter = status.HasValue ? (TourGuideApplicationStatus)status.Value : null;
+
+            var (applications, totalCount) = await _applicationRepository.GetPagedAsync(pageIndex, pageSize, statusFilter);
+            var applicationDtos = _mapper.Map<IEnumerable<TourGuideApplicationSummaryDto>>(applications);
+
+            return (applicationDtos, totalCount);
+        }
+
+        /// <summary>
+        /// Admin xem chi tiết đơn đăng ký
+        /// </summary>
+        public async Task<TourGuideApplicationDto?> GetApplicationByIdAsync(Guid applicationId)
+        {
+            var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId);
+            return application != null ? _mapper.Map<TourGuideApplicationDto>(application) : null;
+        }
+
+        /// <summary>
+        /// Admin duyệt đơn đăng ký
+        /// </summary>
+        public async Task<BaseResposeDto> ApproveApplicationAsync(Guid applicationId, CurrentUserObject adminUser)
+        {
+            var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId);
+            if (application == null)
             {
                 return new BaseResposeDto
                 {
                     StatusCode = 404,
-                    Message = "User not found"
+                    Message = "Không tìm thấy đơn đăng ký"
                 };
             }
-            user.RoleId = guiderole.Id;              // gán quan hệ FK thay vì user.Name
-            user.UpdatedAt = DateTime.UtcNow;
-            user.UpdatedById = app.CreatedById;
 
-            // update trạng thái hồ sơ
-            app.Status = ApplicationStatus.Approved;
-            app.UpdatedAt = DateTime.UtcNow;
-            app.UpdatedById = app.CreatedById;
-
-            await _appRepo.SaveChangesAsync();
-            // --- Gửi email về địa chỉ app.Email, không phải user.Email ---
-            await _emailSender.SendApprovalNotificationAsync(
-                app.Email,            // dùng email đã nhập trong SubmitApplicationDto
-                user.Name         // giữ nguyên tên user
-            );
-            return new BaseResposeDto
-            {
-                StatusCode = 200,
-                Message = "Application approved successfully"
-            };
-        }
-
-        public async Task<IEnumerable<TourGuideApplication>> GetPendingAsync()
-        {
-            return await _appRepo.ListByStatusAsync(ApplicationStatus.Pending);
-        }
-
-        public async Task<IEnumerable<TourGuideApplication>> ListByUserAsync(Guid userId)
-        {
-            return await _appRepo.ListByUserAsync(userId);
-        }
-
-        public async Task<BaseResposeDto> RejectAsync(Guid applicationId, string reason)
-        {
-            var app = await _appRepo.GetByIdAsync(applicationId);
-            if (app.Status != ApplicationStatus.Pending)
+            if (application.Status != TourGuideApplicationStatus.Pending)
             {
                 return new BaseResposeDto
                 {
                     StatusCode = 400,
-                    Message = "Application is not pending, cannot reject !"
+                    Message = "Đơn đăng ký không ở trạng thái chờ xử lý"
                 };
             }
-            app.Status = ApplicationStatus.Rejected;
-            app.RejectionReason = reason;
-            app.UpdatedAt = DateTime.UtcNow;
-            app.UpdatedById = app.CreatedById;
-            await _appRepo.SaveChangesAsync();
-            var user = await _userRepo.GetByIdAsync(app.UserId);
-            if (user == null)
+
+            try
+            {
+                // 1. Get TourGuide role
+                var tourGuideRole = await _roleRepository.GetRoleByNameAsync(Constants.RoleTourGuideName);
+                if (tourGuideRole == null)
+                {
+                    tourGuideRole = new Role
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = Constants.RoleTourGuideName,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _roleRepository.AddAsync(tourGuideRole);
+                    await _roleRepository.SaveChangesAsync();
+                }
+
+                // 2. Update user role
+                var user = await _userRepository.GetByIdAsync(application.UserId);
+                if (user == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy user"
+                    };
+                }
+
+                user.RoleId = tourGuideRole.Id;
+                user.UpdatedAt = DateTime.UtcNow;
+                user.UpdatedById = adminUser.Id;
+
+                // 3. Update application status
+                application.Status = TourGuideApplicationStatus.Approved;
+                application.ProcessedAt = DateTime.UtcNow;
+                application.ProcessedById = adminUser.Id;
+                application.UpdatedAt = DateTime.UtcNow;
+                application.UpdatedById = adminUser.Id;
+
+                await _applicationRepository.SaveChangesAsync();
+
+                // 4. Send approval email
+                await _emailSender.SendTourGuideApplicationApprovedAsync(
+                    application.Email,
+                    application.FullName);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Đơn đăng ký đã được duyệt thành công"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi duyệt đơn: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Admin từ chối đơn đăng ký
+        /// </summary>
+        public async Task<BaseResposeDto> RejectApplicationAsync(
+            Guid applicationId,
+            RejectTourGuideApplicationDto dto,
+            CurrentUserObject adminUser)
+        {
+            var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId);
+            if (application == null)
             {
                 return new BaseResposeDto
                 {
                     StatusCode = 404,
-                    Message = "User not found"
+                    Message = "Không tìm thấy đơn đăng ký"
                 };
-            }         
-            await _emailSender.SendRejectionNotificationAsync(
-                app.Email,           
-                user.Name,
-                reason
+            }
 
-            );
-            return new BaseResposeDto
+            if (application.Status != TourGuideApplicationStatus.Pending)
             {
-                StatusCode = 200,
-                Message = "Application rejected successfully"
-            };
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Đơn đăng ký không ở trạng thái chờ xử lý"
+                };
+            }
+
+            try
+            {
+                // Update application status
+                application.Status = TourGuideApplicationStatus.Rejected;
+                application.RejectionReason = dto.Reason;
+                application.ProcessedAt = DateTime.UtcNow;
+                application.ProcessedById = adminUser.Id;
+                application.UpdatedAt = DateTime.UtcNow;
+                application.UpdatedById = adminUser.Id;
+
+                await _applicationRepository.SaveChangesAsync();
+
+                // Send rejection email
+                await _emailSender.SendTourGuideApplicationRejectedAsync(
+                    application.Email,
+                    application.FullName,
+                    dto.Reason);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Đơn đăng ký đã được từ chối"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi từ chối đơn: {ex.Message}"
+                };
+            }
         }
 
-        public async Task<ResponseApplicationDto> SubmitAsync(SubmitApplicationDto submitApplicationDto, CurrentUserObject currentUserObject)
+        /// <summary>
+        /// Kiểm tra user có thể nộp đơn mới không
+        /// </summary>
+        public async Task<bool> CanSubmitNewApplicationAsync(Guid userId)
         {
-            
-            var existing = await _appRepo.ListByUserAsync(currentUserObject.Id);
-            if (existing.Any(e =>
-            e.Status == ApplicationStatus.Pending ||
-            e.Status == ApplicationStatus.Approved))
+            return !await _applicationRepository.HasActiveApplicationAsync(userId);
+        }
+
+        /// <summary>
+        /// Upload CV file và return URL
+        /// </summary>
+        private async Task<string> UploadCVFileAsync(IFormFile cvFile)
+        {
+            var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "cv");
+            Directory.CreateDirectory(uploadsFolder);
+
+            var fileName = $"{Guid.NewGuid()}_{cvFile.FileName}";
+            var filePath = Path.Combine(uploadsFolder, fileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
             {
-                return new ResponseApplicationDto
-                {
-                    StatusCode = 400,
-                    Message = "You have already submitted an application."
-                };
-            }
-            if (submitApplicationDto == null)
-            {
-                return new ResponseApplicationDto()
-                {
-                    StatusCode = 400,
-                    Message = "No files were uploaded."
-                };
+                await cvFile.CopyToAsync(fileStream);
             }
 
-            var app = new TourGuideApplication
-            {
-                Id = Guid.NewGuid(),
-                UserId = currentUserObject.Id,
-                Email = submitApplicationDto.Email,
-                Status = ApplicationStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
-                CreatedById = currentUserObject.Id
-            };
-            // Xử lý upload CV
-            if (submitApplicationDto.CurriculumVitae != null && submitApplicationDto.CurriculumVitae.Length > 0)
-            {
-                const long MaxFileSize = 5 * 1024 * 1024;
-                if (submitApplicationDto.CurriculumVitae.Length > MaxFileSize)
-                {
-                    return new ResponseApplicationDto
-                    {
-                        StatusCode = 400,
-                        Message = $"File too large. Max size is {MaxFileSize / (1024 * 1024)} MB."
-                    };
-                }
-                var allowedExts = new[] { ".png", ".jpg", ".jpeg", ".webp", ".pdf", ".doc", ".docx" };
-                var ext = Path.GetExtension(submitApplicationDto.CurriculumVitae.FileName);
-                if (!allowedExts.Contains(ext))
-                {
-                    return new ResponseApplicationDto
-                    {
-                        StatusCode = 400,
-                        Message = "Invalid file type. Only .png, .jpg, .jpeg, .webp, .pdf, .doc, .docx are allowed."
-                    };
-                }
-                // Thư mục wwwroot/uploads/cv
-                var webRoot = _env.WebRootPath;
-                if (string.IsNullOrEmpty(webRoot))
-                {
-                    // fallback nếu WebRootPath chưa được thiết lập
-                    webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                }
-                // Tạo folder nếu chưa có
-                var cvfolder = Path.Combine(webRoot, "uploads", "cv");
-                if (!Directory.Exists(cvfolder))
-                    Directory.CreateDirectory(cvfolder);
-                
-
-                // Tạo tên file duy nhất
-                //var ext = Path.GetExtension(submitApplicationDto.CurriculumVitae.FileName);
-                var fileName = $"{Guid.NewGuid()}{ext}";
-                var fullPath = Path.Combine(cvfolder, fileName);
-
-                // Lưu file
-                 using (var stream = new FileStream(fullPath, FileMode.Create))
-                {
-                    await submitApplicationDto.CurriculumVitae.CopyToAsync(stream);
-                }
-
-                // Lưu đường dẫn tương đối vào DB (để frontend có thể truy cập)
-                app.CurriculumVitae = Path.Combine("uploads", "cv", fileName).Replace("\\", "/");
-            }
             var request = _httpContextAccessor.HttpContext!.Request;
             var baseUrl = $"{request.Scheme}://{request.Host}";
-            var fullCVUrl = $"{baseUrl}/{app.CurriculumVitae}";
-            app.CurriculumVitae = fullCVUrl; // Lưu URL đầy đủ vào DB
-            await _appRepo.AddAsync(app);
-            await _appRepo.SaveChangesAsync();
-          
-            return  new ResponseApplicationDto
-            {
-                StatusCode = 200,
-                Message = "Application sent successfully",
-                UrlCv = fullCVUrl,
-            };
+            return $"{baseUrl}/uploads/cv/{fileName}";
         }
     }
 }

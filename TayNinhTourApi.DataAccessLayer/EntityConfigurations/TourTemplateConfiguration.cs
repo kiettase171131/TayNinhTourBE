@@ -20,8 +20,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired()
                 .HasMaxLength(200);
 
-            builder.Property(t => t.Description)
-                .HasMaxLength(1000);
+
 
             builder.Property(t => t.TemplateType)
                 .IsRequired()

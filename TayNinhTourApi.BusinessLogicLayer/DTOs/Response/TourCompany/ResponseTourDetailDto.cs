@@ -1,4 +1,5 @@
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
 {
@@ -94,9 +95,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     public class ResponseGetAvailableShopsDto : BaseResposeDto
     {
         /// <summary>
-        /// Danh sách shops có sẵn
+        /// Danh sách SpecialtyShops có sẵn
         /// </summary>
-        public List<ShopSummaryDto> Data { get; set; } = new List<ShopSummaryDto>();
+        public List<SpecialtyShopResponseDto> Data { get; set; } = new List<SpecialtyShopResponseDto>();
 
         /// <summary>
         /// Tổng số shops
@@ -174,8 +175,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public decimal TotalDuration { get; set; }
 
         /// <summary>
-        /// Danh sách shops được sử dụng
+        /// Danh sách SpecialtyShops được sử dụng
         /// </summary>
-        public List<ShopSummaryDto> UsedShops { get; set; } = new List<ShopSummaryDto>();
+        public List<SpecialtyShopResponseDto> UsedShops { get; set; } = new List<SpecialtyShopResponseDto>();
     }
 }

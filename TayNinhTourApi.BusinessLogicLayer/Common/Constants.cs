@@ -11,6 +11,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Common
         public const string RoleTourGuideName = "Tour Guide";
         public const string RoleBloggerName = "Blogger";
         public const string RoleShopName = "Specialty Shop";
+        public const string RoleSpecialtyShopName = "Specialty Shop";
 
         public const int MaxFailedAttempts = 5;
 
