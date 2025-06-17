@@ -140,6 +140,7 @@ builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
 builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
 builder.Services.AddScoped<IShopApplicationService, ShopApplicationService>();
+builder.Services.AddScoped<IProductService, ProductService>();
 
 
 // Register repositories layer
@@ -158,6 +159,8 @@ builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();
 builder.Services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
 builder.Services.AddScoped<IShopApplicationRepository, ShopApplicationRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();

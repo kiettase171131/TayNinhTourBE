@@ -4,6 +4,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
 using TayNinhTourApi.DataAccessLayer.Entities;
@@ -66,7 +67,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             // TODO: Update timeline mapping for new design
             // CreateMap<TourTemplate, TimelineDto>() - Will be handled in service manually
             #endregion
+            #region Product Mapping
+            CreateMap<Product, ProductDto>()
+    .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.ProductImages.Select(i => i.Url).ToList()));
 
+            #endregion
 
 
 
