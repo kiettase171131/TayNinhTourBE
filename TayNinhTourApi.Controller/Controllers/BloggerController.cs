@@ -47,14 +47,16 @@ namespace TayNinhTourApi.Controller.Controllers
         [HttpGet("Blog-User")]
         public async Task<ActionResult<ResponseGetBlogsDto>> GetAcceptedBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
-            var response = await _blogService.GetAcceptedBlogsAsync(pageIndex, pageSize, textSearch, status);
+            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var response = await _blogService.GetAcceptedBlogsAsync(pageIndex, pageSize, textSearch, status, currentUser);
             return StatusCode(response.StatusCode, response);
         }
 
         [HttpGet("blog/{id}")]    
         public async Task<ActionResult<ResponseGetBlogByIdDto>> GetBlogById(Guid id)
         {
-            var response = await _blogService.GetBlogByIdAsync(id);
+            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var response = await _blogService.GetBlogByIdAsync(id, currentUser);
             return StatusCode(response.StatusCode, response);
         }
         [HttpPost("blog")]

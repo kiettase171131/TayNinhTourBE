@@ -51,5 +51,15 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
            .Select(g => new { g.Key, Count = g.Count() })
            .ToDictionaryAsync(x => x.Key, x => x.Count);
         }
+        public async Task<List<Guid>> GetBlogIdsUserLikedAsync(Guid userId, IEnumerable<Guid> blogIds)
+        {
+            return await _context.BlogReactions
+                .Where(r => r.UserId == userId
+                         && r.Reaction == BlogStatusEnum.Like
+                         && blogIds.Contains(r.BlogId))
+                .Select(r => r.BlogId)
+                .ToListAsync();
+        }
+
     }
 }

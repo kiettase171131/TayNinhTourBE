@@ -14,5 +14,6 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<int> CountByBlogAsync(Guid blogId);
         Task<Dictionary<Guid, int>> GetLikeCountsAsync(IEnumerable<Guid> blogIds);
         Task<Dictionary<Guid, int>> GetDislikeCountsAsync(IEnumerable<Guid> blogIds);
+        Task<List<Guid>> GetBlogIdsUserLikedAsync(Guid userId, IEnumerable<Guid> blogIds);
     }
 }
