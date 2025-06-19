@@ -57,8 +57,7 @@ builder.Services.AddSwaggerGen(c =>
 
 // Register DbContext with MySQL (Pomelo provider)
 builder.Services.AddDbContext<TayNinhTouApiDbContext>(options =>
-    options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection")!,
-        new MySqlServerVersion(new Version(8, 0, 21))));
+    options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection")!, new MySqlServerVersion(new Version(8, 0, 21))));
 
 // Add authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
