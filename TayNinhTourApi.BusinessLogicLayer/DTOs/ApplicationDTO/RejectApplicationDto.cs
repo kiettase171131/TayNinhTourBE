@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO
 {
-    public class RejectApplicationDto
+    public class RejectApplicationGenericDto
     {
         public string Reason { get; set; } = null!;
     }

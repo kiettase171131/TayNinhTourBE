@@ -1,38 +1,43 @@
 namespace TayNinhTourApi.DataAccessLayer.Enums
 {
     /// <summary>
-    /// Trạng thái duyệt của TourDetails với workflow phân công hướng dẫn viên
+    /// Trạng thái duyệt của tour details
     /// </summary>
     public enum TourDetailsStatus
     {
         /// <summary>
-        /// Chờ duyệt - Trạng thái mặc định khi tạo mới, chưa có hướng dẫn viên
+        /// Chờ duyệt
         /// </summary>
         Pending = 0,
 
         /// <summary>
-        /// Đã duyệt - Admin đã phê duyệt tour details
+        /// Đã được duyệt
         /// </summary>
         Approved = 1,
 
         /// <summary>
-        /// Từ chối - Admin đã từ chối tour details
+        /// Bị từ chối
         /// </summary>
         Rejected = 2,
 
         /// <summary>
-        /// Chờ phân công hướng dẫn viên - Đang trong giai đoạn tìm và mời hướng dẫn viên
+        /// Tạm ngưng
         /// </summary>
-        AwaitingGuideAssignment = 3,
+        Suspended = 3,
 
         /// <summary>
-        /// Chờ admin duyệt - Đã có hướng dẫn viên được phân công, chờ admin phê duyệt
+        /// Chờ phân công hướng dẫn viên
         /// </summary>
-        AwaitingAdminApproval = 4,
+        AwaitingGuideAssignment = 4,
 
         /// <summary>
-        /// Đã hủy - Không tìm được hướng dẫn viên trong thời gian quy định (5 ngày)
+        /// Đã hủy
         /// </summary>
-        Cancelled = 5
+        Cancelled = 5,
+
+        /// <summary>
+        /// Chờ admin duyệt
+        /// </summary>
+        AwaitingAdminApproval = 6
     }
 }

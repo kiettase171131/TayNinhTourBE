@@ -21,10 +21,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         [Required]
         [StringLength(255)]
-        public string Title { get; set; } = string.Empty;        /// <summary>
-                                                                 /// Mô tả về lịch trình này
-                                                                 /// Ví dụ: "Lịch trình cao cấp với các dịch vụ VIP"
-                                                                 /// </summary>
+        public string Title { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Mô tả về lịch trình này
+        /// Ví dụ: "Lịch trình cao cấp với các dịch vụ VIP"
+        /// </summary>
         [StringLength(1000)]
         public string? Description { get; set; }
 
@@ -36,15 +38,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         /// <summary>
         /// Bình luận từ admin khi duyệt/từ chối tour details
-        /// Dùng để ghi lý do từ chối hoặc ghi chú khi duyệt
         /// </summary>
         [StringLength(1000)]
         public string? CommentApproved { get; set; }
 
         /// <summary>
-        /// Kỹ năng yêu cầu cho hướng dẫn viên
-        /// Ví dụ: "English,Chinese,French" hoặc "Tiếng Anh,Tiếng Trung,Tiếng Pháp"
-        /// Sử dụng để matching với Languages của TourGuide
+        /// Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)
         /// </summary>
         [StringLength(500)]
         public string? SkillsRequired { get; set; }

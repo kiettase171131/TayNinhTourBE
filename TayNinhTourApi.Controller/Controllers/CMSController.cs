@@ -1,4 +1,4 @@
-﻿using Azure;
+﻿
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -111,7 +111,7 @@ namespace TayNinhTourApi.Controller.Controllers
         //     return StatusCode(response.StatusCode, response);
         // }
         // [HttpPut("{id:guid}/reject-application")]
-        // public async Task<IActionResult> Reject(Guid id, [FromBody] TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO.RejectApplicationDto dto)
+        // public async Task<IActionResult> Reject(Guid id, [FromBody] TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO.RejectApplicationGenericDto dto)
         // {
         //     var response = await _tourGuideApplicationService.RejectAsync(id, dto.Reason);
         //     return StatusCode(response.StatusCode, response);
@@ -172,7 +172,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
         [HttpPut("{id:guid}/reject-Shop-application")]
 
-        public async Task<IActionResult> RejectShop(Guid id, [FromBody] TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO.RejectApplicationDto dto)
+        public async Task<IActionResult> RejectShop(Guid id, [FromBody] TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO.RejectApplicationGenericDto dto)
         {
             var response = await _shopApplicationService.RejectAsync(id, dto.Reason);
 
