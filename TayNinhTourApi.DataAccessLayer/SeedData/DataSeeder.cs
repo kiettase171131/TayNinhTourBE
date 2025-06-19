@@ -60,6 +60,16 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         IsDeleted = false,
                         IsActive = true
                     },
+                      new Role
+                      {
+                        Id = Guid.Parse("d9a4e8f4-57c7-4be2-8f3e-789cdb4cf5a1"), 
+                        Name = "Specialty Shop",
+                        Description = "Specialty Shop role",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsActive = true
+                      }
 
                 };
                 _context.Roles.AddRange(roles);
@@ -126,6 +136,21 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         IsVerified = true,
                         RoleId = Guid.Parse("a1f3d2c4-5b6e-7890-abcd-1234567890ef"),
                         Name = "Blogger",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.NewGuid(),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni",
+                        Email = "shop@gmail.com",
+                        PhoneNumber = "0123456789",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("d9a4e8f4-57c7-4be2-8f3e-789cdb4cf5a1"),
+                        Name = "Specialty Shop",
                         Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
                         IsActive = true,
                     },
