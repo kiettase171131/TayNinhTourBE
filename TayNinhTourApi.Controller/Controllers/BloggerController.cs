@@ -45,18 +45,30 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(response.StatusCode, response);
         }
         [HttpGet("Blog-User")]
+        [AllowAnonymous]
         public async Task<ActionResult<ResponseGetBlogsDto>> GetAcceptedBlogs(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
-            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var response = await _blogService.GetAcceptedBlogsAsync(pageIndex, pageSize, textSearch, status, currentUser);
+            Guid? currentUserId = null;
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var user = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                currentUserId = user?.Id;
+            }
+            var response = await _blogService.GetAcceptedBlogsAsync(pageIndex, pageSize, textSearch, status, currentUserId);
             return StatusCode(response.StatusCode, response);
         }
 
-        [HttpGet("blog/{id}")]    
+        [HttpGet("blog/{id}")]
+        [AllowAnonymous]
         public async Task<ActionResult<ResponseGetBlogByIdDto>> GetBlogById(Guid id)
         {
-            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var response = await _blogService.GetBlogByIdAsync(id, currentUser);
+            Guid? currentUserId = null;
+            if (HttpContext.User.Identity?.IsAuthenticated == true)
+            {
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                currentUserId = currentUser?.Id;
+            }
+            var response = await _blogService.GetBlogByIdAsync(id, currentUserId);
             return StatusCode(response.StatusCode, response);
         }
         [HttpPost("blog")]

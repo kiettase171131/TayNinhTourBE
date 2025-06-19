@@ -14,9 +14,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     public interface IBlogService
     {
-        Task<ResponseGetBlogByIdDto> GetBlogByIdAsync(Guid id, CurrentUserObject currentUserObject);
+        Task<ResponseGetBlogByIdDto> GetBlogByIdAsync(Guid id, Guid? currentUserId);
         Task<ResponseGetBlogsDto> GetBlogsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, CurrentUserObject currentUserObject);
-        Task<ResponseGetBlogsDto> GetAcceptedBlogsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, CurrentUserObject currentUserObject);
+        Task<ResponseGetBlogsDto> GetAcceptedBlogsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, Guid? currentUserId);
         Task<BaseResposeDto> UpdateBlogAsync(RequestUpdateBlogDto request, Guid id, CurrentUserObject currentUserObject);
         Task<ResponseCreateBlogDto> CreateBlogAsync(RequestCreateBlogDto request, CurrentUserObject currentUserObject);
         Task<BaseResposeDto> DeleteBlogAsync(Guid id);

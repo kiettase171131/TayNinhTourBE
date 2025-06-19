@@ -170,7 +170,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
         }
 
-        public async Task<ResponseGetBlogByIdDto> GetBlogByIdAsync(Guid id, CurrentUserObject currentUserObject)
+        public async Task<ResponseGetBlogByIdDto> GetBlogByIdAsync(Guid id, Guid? currentUserId)
         {
             var include = new string[] { nameof(Blog.BlogImages) };
 
@@ -189,7 +189,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var likeCounts = await _blogReactionRepository.GetLikeCountsAsync(new[] { id });
             var dislikeCounts = await _blogReactionRepository.GetDislikeCountsAsync(new[] { id });
             var commentCounts = await _blogCommentRepository.GetCommentCountsAsync(new[] { id });
-            var likedIds = await _blogReactionRepository.GetBlogIdsUserLikedAsync(currentUserObject.Id, new[] { id });
+            bool hasLiked = false;
+            if (currentUserId.HasValue)
+            {
+                var likedIds = await _blogReactionRepository
+                                    .GetBlogIdsUserLikedAsync(currentUserId.Value, new[] { id });
+                hasLiked = likedIds.Contains(id);
+            }
 
 
             // 3. Map entity → DTO
@@ -199,7 +205,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             dto.TotalLikes = likeCounts.GetValueOrDefault(id, 0);
             dto.TotalDislikes = dislikeCounts.GetValueOrDefault(id, 0);
             dto.TotalComments = commentCounts.GetValueOrDefault(id, 0);
-            dto.HasLiked = likedIds.Contains(id);
+            dto.HasLiked = hasLiked;
             return new ResponseGetBlogByIdDto
             {
                 StatusCode = 200,
@@ -257,7 +263,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalPages = totalPages,
             };
         }
-        public async Task<ResponseGetBlogsDto> GetAcceptedBlogsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, CurrentUserObject currentUserObject)
+        public async Task<ResponseGetBlogsDto> GetAcceptedBlogsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, Guid? currentUserId)
         {
             var include = new string[] { nameof(Blog.BlogImages) };
             // Default values for pagination
@@ -287,7 +293,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var likeCounts = await _blogReactionRepository.GetLikeCountsAsync(blogIds);
             var dislikeCounts = await _blogReactionRepository.GetDislikeCountsAsync(blogIds);
             var commentCounts = await _blogCommentRepository.GetCommentCountsAsync(blogIds);
-            var likedByUser = await _blogReactionRepository.GetBlogIdsUserLikedAsync(currentUserObject.Id, blogIds);
+            List<Guid> likedByUser = new();
+            if (currentUserId.HasValue)
+            {
+                likedByUser = await _blogReactionRepository
+                                   .GetBlogIdsUserLikedAsync(currentUserId.Value, blogIds);
+            }
             var dtos = _mapper.Map<List<BlogDto>>(blogs);
             dtos.ForEach(dto =>
             {
