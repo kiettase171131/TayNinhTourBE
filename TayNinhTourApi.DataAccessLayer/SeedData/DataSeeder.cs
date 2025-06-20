@@ -16,7 +16,6 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
 
         public async Task SeedDataAsync()
         {
-            await _context.Database.MigrateAsync();
 
             if (!await _context.Roles.AnyAsync())
             {
