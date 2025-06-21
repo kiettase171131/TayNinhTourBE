@@ -488,7 +488,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 // Build query
-                var query = await _unitOfWork.TourTemplateRepository.GetAllAsync(t => !t.IsDeleted && (includeInactive || t.IsActive));
+                var query = await _unitOfWork.TourTemplateRepository.GetAllAsync(t => !t.IsDeleted && (includeInactive || t.IsActive), new[] { "Images" });
 
                 // Apply filters
                 if (templateType.HasValue)
