@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -15,7 +16,7 @@ namespace TayNinhTourApi.Controller.Controllers
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = Constants.RoleTourCompanyName)]
+    
     public class TourDetailsController : ControllerBase
     {
         private readonly ITourDetailsService _tourDetailsService;
@@ -92,6 +93,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin TourDetails cần tạo</param>
         /// <returns>TourDetails vừa được tạo với cloned TourSlots</returns>
         [HttpPost]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> CreateTourDetail([FromBody] RequestCreateTourDetailDto request)
         {
             try
@@ -131,6 +133,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin cập nhật</param>
         /// <returns>TourDetails sau khi cập nhật</returns>
         [HttpPatch("{id:guid}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> UpdateTourDetail(
             [FromRoute] Guid id,
             [FromBody] RequestUpdateTourDetailDto request)
@@ -170,6 +173,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="id">ID của TourDetails cần xóa</param>
         /// <returns>Kết quả xóa</returns>
         [HttpDelete("{id:guid}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> DeleteTourDetail([FromRoute] Guid id)
         {
             try
@@ -232,6 +236,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="includeInactive">Bao gồm inactive records (default: false)</param>
         /// <returns>Danh sách TourDetails có phân trang</returns>
         [HttpGet("paginated")]
+
         public async Task<IActionResult> GetTourDetailsPaginated(
             [FromQuery] int pageIndex = 0,
             [FromQuery] int pageSize = 10,
@@ -307,6 +312,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin timeline items cần tạo</param>
         /// <returns>Timeline items vừa được tạo</returns>
         [HttpPost("timeline")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> CreateTimelineItems([FromBody] RequestCreateTimelineItemsDto request)
         {
             try
@@ -345,6 +351,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin timeline item cần tạo</param>
         /// <returns>Timeline item vừa được tạo</returns>
         [HttpPost("timeline/single")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> CreateSingleTimelineItem([FromBody] RequestCreateTimelineItemDto request)
         {
             try
@@ -384,6 +391,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin cập nhật</param>
         /// <returns>Timeline item sau khi cập nhật</returns>
         [HttpPatch("timeline/{id:guid}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> UpdateTimelineItem(
             [FromRoute] Guid id,
             [FromBody] RequestUpdateTourDetailDto request)
@@ -423,6 +431,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="id">ID của timeline item cần xóa</param>
         /// <returns>Kết quả xóa</returns>
         [HttpDelete("timeline/{id:guid}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> DeleteTimelineItem([FromRoute] Guid id)
         {
             try
@@ -450,6 +459,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Danh sách timeline items với thứ tự mới</param>
         /// <returns>Timeline sau khi sắp xếp lại</returns>
         [HttpPost("timeline/reorder")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> ReorderTimeline([FromBody] RequestReorderTimelineDto request)
         {
             try

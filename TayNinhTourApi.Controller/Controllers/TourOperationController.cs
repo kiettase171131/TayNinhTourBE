@@ -1,10 +1,11 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
-using TayNinhTourApi.BusinessLogicLayer.DTOs;
-using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -13,7 +14,7 @@ namespace TayNinhTourApi.Controller.Controllers
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = Constants.RoleTourCompanyName)]
+ 
     public class TourOperationController : ControllerBase
     {
         private readonly ITourOperationService _tourOperationService;
@@ -35,6 +36,7 @@ namespace TayNinhTourApi.Controller.Controllers
         [HttpPost]
         [ProducesResponseType(typeof(ResponseCreateOperationDto), 200)]
         [ProducesResponseType(typeof(BaseResposeDto), 400)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<ResponseCreateOperationDto>> CreateOperation(
             [FromBody] RequestCreateOperationDto request)
         {
@@ -120,6 +122,7 @@ namespace TayNinhTourApi.Controller.Controllers
         [ProducesResponseType(typeof(ResponseUpdateOperationDto), 200)]
         [ProducesResponseType(typeof(BaseResposeDto), 400)]
         [ProducesResponseType(404)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<ResponseUpdateOperationDto>> UpdateOperation(
             Guid id,
             [FromBody] RequestUpdateOperationDto request)
@@ -169,6 +172,7 @@ namespace TayNinhTourApi.Controller.Controllers
         [ProducesResponseType(typeof(BaseResposeDto), 200)]
         [ProducesResponseType(typeof(BaseResposeDto), 400)]
         [ProducesResponseType(404)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<BaseResposeDto>> DeleteOperation(Guid id)
         {
             try
