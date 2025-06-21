@@ -177,11 +177,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _applicationRepository.AddAsync(application);
                 await _applicationRepository.SaveChangesAsync();
 
-                // 4. Send confirmation email
-                await _emailSender.SendTourGuideApplicationSubmittedAsync(
-                    application.Email,
-                    application.FullName,
-                    application.SubmittedAt);
+                // 4. Send confirmation email (with error handling)
+                try
+                {
+                    await _emailSender.SendTourGuideApplicationSubmittedAsync(
+                        application.Email,
+                        application.FullName,
+                        application.SubmittedAt);
+                }
+                catch (Exception emailEx)
+                {
+                    // Log email error but don't fail the application submission
+                    Console.WriteLine($"Email sending failed: {emailEx.Message}");
+                }
 
                 return new TourGuideApplicationSubmitResponseDto
                 {

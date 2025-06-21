@@ -60,6 +60,26 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         IsDeleted = false,
                         IsActive = true
                     },
+                     new Role
+                    {
+                        Id = Guid.Parse("e2f4a6b8-c1d3-4e5f-a7b9-c2d4e6f8a0b2"),
+                        Name = "Tour Guide",
+                        Description = "Tour Guide role",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsActive = true
+                    },
+                     new Role
+                    {
+                        Id = Guid.Parse("f3e5b7c9-d2e4-5f6a-b8ca-d3e5f7a9b1c3"),
+                        Name = "Specialty Shop",
+                        Description = "Specialty Shop role",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsActive = true
+                    },
                 };
                 _context.Roles.AddRange(roles);
                 await _context.SaveChangesAsync();
@@ -126,6 +146,203 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         IsVerified = true,
                         RoleId = Guid.Parse("a1f3d2c4-5b6e-7890-abcd-1234567890ef"),
                         Name = "Blogger",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     // Test users for CV file upload testing
+                     new User
+                     {
+                        Id = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser1@example.com",
+                        PhoneNumber = "0987654321",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 1",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("b2c3d4e5-f6a7-8901-bcde-f23456789012"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser2@example.com",
+                        PhoneNumber = "0987654322",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 2",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("c3d4e5f6-a7b8-9012-cdef-345678901234"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "tourguide1@example.com",
+                        PhoneNumber = "0987654323",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("e2f4a6b8-c1d3-4e5f-a7b9-c2d4e6f8a0b2"), // Tour Guide role
+                        Name = "Tour Guide 1",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     // Additional 10 test users for easy testing
+                     new User
+                     {
+                        Id = Guid.Parse("d4e5f6a7-b8c9-0123-def4-456789012345"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser3@example.com",
+                        PhoneNumber = "0987654324",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 3",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("e5f6a7b8-c9d0-1234-efa5-567890123456"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser4@example.com",
+                        PhoneNumber = "0987654325",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 4",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("f6a7b8c9-d0e1-2345-fab6-678901234567"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser5@example.com",
+                        PhoneNumber = "0987654326",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 5",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("a7b8c9d0-e1f2-3456-abc7-789012345678"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser6@example.com",
+                        PhoneNumber = "0987654327",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 6",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("b8c9d0e1-f2a3-4567-bcd8-890123456789"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser7@example.com",
+                        PhoneNumber = "0987654328",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 7",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("c9d0e1f2-a3b4-5678-cde9-901234567890"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser8@example.com",
+                        PhoneNumber = "0987654329",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 8",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("d0e1f2a3-b4c5-6789-def0-012345678901"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser9@example.com",
+                        PhoneNumber = "0987654330",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 9",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("e1f2a3b4-c5d6-7890-efa1-123456789012"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser10@example.com",
+                        PhoneNumber = "0987654331",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 10",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("f2a3b4c5-d6e7-8901-fab2-234567890123"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser11@example.com",
+                        PhoneNumber = "0987654332",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 11",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    },
+                     new User
+                     {
+                        Id = Guid.Parse("a3b4c5d6-e7f8-9012-abc3-345678901234"),
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = "testuser12@example.com",
+                        PhoneNumber = "0987654333",
+                        CreatedAt= DateTime.UtcNow,
+                        UpdatedAt= DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
+                        Name = "Test User 12",
                         Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
                         IsActive = true,
                     },
@@ -214,6 +431,92 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     }
                 };
                 _context.BlogImages.AddRange(blog2Images);
+                await _context.SaveChangesAsync();
+            }
+
+            // Seed Tour Guide Applications for testing
+            if (!await _context.TourGuideApplications.AnyAsync())
+            {
+                var now = DateTime.UtcNow;
+                var testUser1Id = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+                var testUser2Id = Guid.Parse("b2c3d4e5-f6a7-8901-bcde-f23456789012");
+                var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
+
+                var applications = new List<TourGuideApplication>
+                {
+                    // Application 1 - Pending (for testing file upload)
+                    new TourGuideApplication
+                    {
+                        Id = Guid.Parse("d1e2f3a4-b5c6-7890-def1-234567890abc"),
+                        UserId = testUser1Id,
+                        FullName = "Test User 1",
+                        PhoneNumber = "0987654321",
+                        Email = "testuser1@example.com",
+                        Experience = "2",
+                        Languages = "Vietnamese, English",
+                        CurriculumVitae = null, // No CV uploaded yet
+                        CvOriginalFileName = null,
+                        CvFileSize = null,
+                        CvContentType = null,
+                        CvFilePath = null,
+                        Status = TourGuideApplicationStatus.Pending,
+                        SubmittedAt = now.AddDays(-2),
+                        CreatedAt = now.AddDays(-2),
+                        CreatedById = testUser1Id,
+                        IsActive = true,
+                        IsDeleted = false
+                    },
+                    // Application 2 - With CV file (for testing download)
+                    new TourGuideApplication
+                    {
+                        Id = Guid.Parse("e2f3a4b5-c6d7-8901-efa2-345678901bcd"),
+                        UserId = testUser2Id,
+                        FullName = "Test User 2",
+                        PhoneNumber = "0987654322",
+                        Email = "testuser2@example.com",
+                        Experience = "3",
+                        Languages = "Vietnamese, English, French",
+                        CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/b2c3d4e5-f6a7-8901-bcde-f23456789012/sample_cv.pdf",
+                        CvOriginalFileName = "TestUser2_CV.pdf",
+                        CvFileSize = 1024000, // 1MB
+                        CvContentType = "application/pdf",
+                        CvFilePath = "uploads/cv/2024/12/b2c3d4e5-f6a7-8901-bcde-f23456789012/sample_cv.pdf",
+                        Status = TourGuideApplicationStatus.Pending,
+                        SubmittedAt = now.AddDays(-1),
+                        CreatedAt = now.AddDays(-1),
+                        CreatedById = testUser2Id,
+                        IsActive = true,
+                        IsDeleted = false
+                    },
+                    // Application 3 - Approved
+                    new TourGuideApplication
+                    {
+                        Id = Guid.Parse("f3a4b5c6-d7e8-9012-fab3-456789012cde"),
+                        UserId = Guid.Parse("c3d4e5f6-a7b8-9012-cdef-345678901234"), // Tour Guide user
+                        FullName = "Tour Guide 1",
+                        PhoneNumber = "0987654323",
+                        Email = "tourguide1@example.com",
+                        Experience = "5",
+                        Languages = "Vietnamese, English, Japanese",
+                        CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/c3d4e5f6-a7b8-9012-cdef-345678901234/approved_cv.pdf",
+                        CvOriginalFileName = "TourGuide1_CV.pdf",
+                        CvFileSize = 2048000, // 2MB
+                        CvContentType = "application/pdf",
+                        CvFilePath = "uploads/cv/2024/12/c3d4e5f6-a7b8-9012-cdef-345678901234/approved_cv.pdf",
+                        Status = TourGuideApplicationStatus.Approved,
+                        SubmittedAt = now.AddDays(-10),
+                        ProcessedAt = now.AddDays(-8),
+                        ProcessedById = adminId,
+                        CreatedAt = now.AddDays(-10),
+                        CreatedById = Guid.Parse("c3d4e5f6-a7b8-9012-cdef-345678901234"),
+                        UpdatedAt = now.AddDays(-8),
+                        UpdatedById = adminId,
+                        IsActive = true,
+                        IsDeleted = false
+                    }
+                };
+
+                _context.TourGuideApplications.AddRange(applications);
                 await _context.SaveChangesAsync();
             }
         }
