@@ -44,6 +44,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         public string? CurriculumVitaeUrl { get; set; }
 
         /// <summary>
+        /// Tên file gốc của CV
+        /// </summary>
+        public string? CvOriginalFileName { get; set; }
+
+        /// <summary>
+        /// Kích thước file CV (bytes)
+        /// </summary>
+        public long? CvFileSize { get; set; }
+
+        /// <summary>
+        /// Content type của file CV
+        /// </summary>
+        public string? CvContentType { get; set; }
+
+        /// <summary>
+        /// Đường dẫn file CV trên server (for internal use)
+        /// </summary>
+        public string? CvFilePath { get; set; }
+
+        /// <summary>
         /// Trạng thái đơn đăng ký
         /// </summary>
         public TourGuideApplicationStatus Status { get; set; }

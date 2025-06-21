@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,6 +37,7 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ICurrentUserService _currentUserService;
         private readonly IShopApplicationService _shopApplicationService;
         private readonly ISpecialtyShopApplicationService _specialtyShopApplicationService;
+        private readonly IWebHostEnvironment _environment;
 
         public AccountController(
             IAccountService accountService,
@@ -45,7 +47,8 @@ namespace TayNinhTourApi.Controller.Controllers
             ILogger<AccountController> logger,
             ICurrentUserService currentUserService,
             IShopApplicationService shopApplicationService,
-            ISpecialtyShopApplicationService specialtyShopApplicationService)
+            ISpecialtyShopApplicationService specialtyShopApplicationService,
+            IWebHostEnvironment environment)
         {
             _accountService = accountService;
             _tourGuideApplicationService = tourGuideApplicationService;
@@ -55,6 +58,7 @@ namespace TayNinhTourApi.Controller.Controllers
             _currentUserService = currentUserService;
             _shopApplicationService = shopApplicationService;
             _specialtyShopApplicationService = specialtyShopApplicationService;
+            _environment = environment;
         }
 
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -348,7 +352,27 @@ namespace TayNinhTourApi.Controller.Controllers
         // ===== TOUR GUIDE APPLICATION ENDPOINTS =====
 
         /// <summary>
-        /// User nộp đơn đăng ký TourGuide
+        /// User nộp đơn đăng ký TourGuide với file upload
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpPost("tourguide-application/upload")]
+        public async Task<IActionResult> SubmitTourGuideApplicationWithUpload([FromForm] SubmitTourGuideApplicationDto dto)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _tourGuideApplicationService.SubmitApplicationAsync(dto, currentUser);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting tour guide application with file upload");
+                return StatusCode(500, new { Error = "An error occurred while submitting application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User nộp đơn đăng ký TourGuide (JSON version - deprecated, use upload version)
         /// </summary>
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
         [HttpPost("tourguide-application")]
@@ -426,6 +450,65 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 _logger.LogError(ex, "Error retrieving tour guide application {ApplicationId}", applicationId);
                 return StatusCode(500, new { Error = "An error occurred while retrieving application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Download CV file của tour guide application
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("tourguide-application/{applicationId}/cv")]
+        public async Task<IActionResult> DownloadCvFile(Guid applicationId)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+
+                // Get application to check permissions
+                TourGuideApplicationDto? application = null;
+
+                // Check if user is admin or the owner of the application
+                // Get user's role to check permissions
+                var user = await _unitOfWork.UserRepository.GetByIdAsync(currentUser.Id, new[] { "Role" });
+                if (user?.Role?.Name == Constants.RoleAdminName)
+                {
+                    application = await _tourGuideApplicationService.GetApplicationByIdAsync(applicationId);
+                }
+                else
+                {
+                    application = await _tourGuideApplicationService.GetMyApplicationByIdAsync(applicationId, currentUser.Id);
+                }
+
+                if (application == null)
+                {
+                    return NotFound(new { Error = "Application not found or access denied" });
+                }
+
+                if (string.IsNullOrEmpty(application.CvFilePath))
+                {
+                    return NotFound(new { Error = "CV file not found" });
+                }
+
+                // Get file path
+                var webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var fullPath = Path.Combine(webRoot, application.CvFilePath.Replace("/", "\\"));
+
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    return NotFound(new { Error = "CV file not found on server" });
+                }
+
+                // Return file
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(fullPath);
+                var contentType = application.CvContentType ?? "application/octet-stream";
+                var fileName = application.CvOriginalFileName ?? "cv.pdf";
+
+                return File(fileBytes, contentType, fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading CV file for application {ApplicationId}", applicationId);
+                return StatusCode(500, new { Error = "An error occurred while downloading the file" });
             }
         }
 

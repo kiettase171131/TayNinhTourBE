@@ -146,6 +146,9 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
 
+// File Storage Services
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+
 // TourGuide Invitation Workflow Services
 builder.Services.AddScoped<ITourGuideInvitationService, TourGuideInvitationService>();
 

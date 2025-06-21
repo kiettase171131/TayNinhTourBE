@@ -28,6 +28,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly Microsoft.AspNetCore.Hosting.IHostingEnvironment _environment;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly EmailSender _emailSender;
+        private readonly IFileStorageService _fileStorageService;
 
         public TourGuideApplicationService(
             ITourGuideApplicationRepository applicationRepository,
@@ -36,7 +37,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             IMapper mapper,
             Microsoft.AspNetCore.Hosting.IHostingEnvironment environment,
             IHttpContextAccessor httpContextAccessor,
-            EmailSender emailSender)
+            EmailSender emailSender,
+            IFileStorageService fileStorageService)
         {
             _applicationRepository = applicationRepository;
             _userRepository = userRepository;
@@ -45,6 +47,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _environment = environment;
             _httpContextAccessor = httpContextAccessor;
             _emailSender = emailSender;
+            _fileStorageService = fileStorageService;
         }
 
         /// <summary>
@@ -67,11 +70,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             try
             {
-                // 2. Upload CV file
-                string? cvUrl = null;
+                // 2. Upload CV file with enhanced storage
+                FileStorageResult? fileResult = null;
                 if (dto.CurriculumVitae != null)
                 {
-                    cvUrl = await UploadCVFileAsync(dto.CurriculumVitae);
+                    fileResult = await _fileStorageService.StoreCvFileAsync(dto.CurriculumVitae, currentUser.Id);
+                    if (!fileResult.IsSuccess)
+                    {
+                        return new TourGuideApplicationSubmitResponseDto
+                        {
+                            StatusCode = 400,
+                            Message = $"Lỗi upload CV: {fileResult.ErrorMessage}"
+                        };
+                    }
                 }
 
                 // 3. Tạo application entity
@@ -84,7 +95,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Email = dto.Email,
                     Experience = dto.Experience.ToString(), // Convert int to string for enhanced entity
                     Languages = dto.Languages,
-                    CurriculumVitae = cvUrl,
+                    CurriculumVitae = fileResult?.AccessUrl,
+                    CvOriginalFileName = fileResult?.OriginalFileName,
+                    CvFileSize = fileResult?.FileSize,
+                    CvContentType = fileResult?.ContentType,
+                    CvFilePath = fileResult?.FilePath,
                     Status = TourGuideApplicationStatus.Pending,
                     SubmittedAt = DateTime.UtcNow,
                     CreatedAt = DateTime.UtcNow,
@@ -356,6 +371,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _applicationRepository.SaveChangesAsync();
 
+                // Clean up CV file for rejected applications (optional - keep for audit trail)
+                // await CleanupCvFileAsync(application.CvFilePath);
+
                 // Send rejection email
                 await _emailSender.SendTourGuideApplicationRejectedAsync(
                     application.Email,
@@ -387,24 +405,56 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Upload CV file và return URL
+        /// Cleanup CV file when application is deleted
         /// </summary>
-        private async Task<string> UploadCVFileAsync(IFormFile cvFile)
+        private async Task CleanupCvFileAsync(string? filePath)
         {
-            var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "cv");
-            Directory.CreateDirectory(uploadsFolder);
-
-            var fileName = $"{Guid.NewGuid()}_{cvFile.FileName}";
-            var filePath = Path.Combine(uploadsFolder, fileName);
-
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            if (!string.IsNullOrEmpty(filePath))
             {
-                await cvFile.CopyToAsync(fileStream);
+                await _fileStorageService.DeleteCvFileAsync(filePath);
             }
+        }
 
-            var request = _httpContextAccessor.HttpContext!.Request;
-            var baseUrl = $"{request.Scheme}://{request.Host}";
-            return $"{baseUrl}/uploads/cv/{fileName}";
+        /// <summary>
+        /// Admin method to clean up orphaned CV files
+        /// </summary>
+        public async Task<BaseResposeDto> CleanupOrphanedFilesAsync()
+        {
+            try
+            {
+                var applications = await _applicationRepository.GetAllAsync();
+                var cleanedCount = 0;
+
+                foreach (var app in applications)
+                {
+                    if (!string.IsNullOrEmpty(app.CvFilePath) && !_fileStorageService.FileExists(app.CvFilePath))
+                    {
+                        // File doesn't exist, clear the path from database
+                        app.CvFilePath = null;
+                        app.CurriculumVitae = null;
+                        cleanedCount++;
+                    }
+                }
+
+                if (cleanedCount > 0)
+                {
+                    await _applicationRepository.SaveChangesAsync();
+                }
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = $"Cleaned up {cleanedCount} orphaned file references"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Error cleaning up orphaned files: {ex.Message}"
+                };
+            }
         }
     }
 }

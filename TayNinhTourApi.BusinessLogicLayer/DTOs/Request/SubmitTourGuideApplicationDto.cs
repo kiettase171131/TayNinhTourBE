@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.BusinessLogicLayer.Attributes;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request
 {
@@ -46,9 +47,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request
         public string? Languages { get; set; }
 
         /// <summary>
-        /// File CV (PDF format)
+        /// File CV (PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP format)
         /// </summary>
         [Required(ErrorMessage = "CV là bắt buộc")]
+        [CvFileValidation]
         public IFormFile CurriculumVitae { get; set; } = null!;
     }
 }

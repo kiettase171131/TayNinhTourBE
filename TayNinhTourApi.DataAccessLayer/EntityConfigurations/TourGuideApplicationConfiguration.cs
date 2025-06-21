@@ -44,6 +44,17 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.Property(x => x.CurriculumVitae)
                 .HasMaxLength(500);
 
+            builder.Property(x => x.CvOriginalFileName)
+                .HasMaxLength(255);
+
+            builder.Property(x => x.CvFileSize);
+
+            builder.Property(x => x.CvContentType)
+                .HasMaxLength(100);
+
+            builder.Property(x => x.CvFilePath)
+                .HasMaxLength(500);
+
             builder.Property(x => x.Status)
                 .IsRequired()
                 .HasDefaultValue(TourGuideApplicationStatus.Pending);
