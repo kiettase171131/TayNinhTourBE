@@ -29,7 +29,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 
             builder.Property(tdss => tdss.InvitedAt)
                 .IsRequired()
-                .HasDefaultValueSql("GETUTCDATE()")
+                .IsRequired()
                 .HasComment("Thời gian được mời tham gia tour");
 
             builder.Property(tdss => tdss.Status)
@@ -99,10 +99,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasDatabaseName("IX_TourDetailsSpecialtyShops_TourDetails_Shop_Unique");
 
             // Constraints
-            builder.HasCheckConstraint("CK_TourDetailsSpecialtyShops_ExpiresAt", 
+            builder.HasCheckConstraint("CK_TourDetailsSpecialtyShops_ExpiresAt",
                 "ExpiresAt > InvitedAt");
 
-            builder.HasCheckConstraint("CK_TourDetailsSpecialtyShops_RespondedAt", 
+            builder.HasCheckConstraint("CK_TourDetailsSpecialtyShops_RespondedAt",
                 "RespondedAt IS NULL OR RespondedAt >= InvitedAt");
         }
     }

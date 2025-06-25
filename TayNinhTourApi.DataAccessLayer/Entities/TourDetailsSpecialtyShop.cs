@@ -9,6 +9,14 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
     /// </summary>
     public class TourDetailsSpecialtyShop : BaseEntity
     {
+        public TourDetailsSpecialtyShop()
+        {
+            // Thiết lập giá trị mặc định trong constructor
+            InvitedAt = DateTime.UtcNow;
+            Status = ShopInvitationStatus.Pending;
+            ExpiresAt = DateTime.UtcNow.AddDays(7);
+        }
+        
         /// <summary>
         /// ID của TourDetails
         /// </summary>
@@ -25,13 +33,13 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Thời gian được mời tham gia tour
         /// </summary>
         [Required]
-        public DateTime InvitedAt { get; set; } = DateTime.UtcNow;
+        public DateTime InvitedAt { get; set; }
 
         /// <summary>
         /// Trạng thái phản hồi của shop
         /// </summary>
         [Required]
-        public ShopInvitationStatus Status { get; set; } = ShopInvitationStatus.Pending;
+        public ShopInvitationStatus Status { get; set; }
 
         /// <summary>
         /// Thời gian shop phản hồi (accept/decline)
@@ -48,7 +56,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Thời gian hết hạn invitation (mặc định 7 ngày)
         /// </summary>
         [Required]
-        public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddDays(7);
+        public DateTime ExpiresAt { get; set; }
 
         /// <summary>
         /// Ưu tiên hiển thị trong timeline (1 = cao nhất)
