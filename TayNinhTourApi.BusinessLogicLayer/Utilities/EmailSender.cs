@@ -568,5 +568,66 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             await SendEmailAsync(message);
         }
 
+        /// <summary>
+        /// Send invitation email to SpecialtyShop for a TourDetails
+        /// </summary>
+        public async Task SendSpecialtyShopTourInvitationAsync(string toEmail, string shopName, string ownerName, string tourTitle, string tourCompanyName, DateTime tourDate, DateTime expiresAt, string invitationId)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(shopName, toEmail));
+            message.Subject = "Tour Partnership Invitation - Join Our Tour Experience";
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = $@"
+            <h2>Hello {ownerName},</h2>
+            <p>We are excited to invite <strong>{shopName}</strong> to participate in an upcoming tour experience!</p>
+
+            <div style=""background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;"">
+                <h3 style=""color: #155724; margin-top: 0;"">Tour Invitation Details:</h3>
+                <p><strong>Tour:</strong> {tourTitle}</p>
+                <p><strong>Tour Company:</strong> {tourCompanyName}</p>
+                <p><strong>Tour Date:</strong> {tourDate:dd/MM/yyyy}</p>
+                <p><strong>Invitation ID:</strong> {invitationId}</p>
+                <p><strong>Response Deadline:</strong> {expiresAt:dd/MM/yyyy HH:mm}</p>
+            </div>
+
+            <p><strong>What this means for your shop:</strong></p>
+            <ul>
+                <li>Your shop will be featured in the tour timeline</li>
+                <li>Potential customers will visit your shop during the tour</li>
+                <li>Opportunity to showcase your products and services</li>
+                <li>Increased visibility and sales potential</li>
+                <li>Partnership with established tour companies</li>
+            </ul>
+
+            <p><strong>Next Steps:</strong></p>
+            <ul>
+                <li>Review the tour details and timeline</li>
+                <li>Prepare your shop for potential tour visitors</li>
+                <li>Respond to this invitation before the deadline</li>
+                <li>Contact the tour company if you have questions</li>
+            </ul>
+
+            <p><strong>How to respond:</strong></p>
+            <ul>
+                <li>Log in to your Specialty Shop dashboard</li>
+                <li>Navigate to ""Tour Invitations"" section</li>
+                <li>Accept or decline this invitation</li>
+                <li>Add any special notes or requirements</li>
+            </ul>
+
+            <p>This is a great opportunity to grow your business and connect with tourists visiting Tay Ninh!</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            await SendEmailAsync(message);
+        }
+
     }
 }

@@ -56,6 +56,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string? PhoneNumber { get; set; }
 
         /// <summary>
+        /// Địa chỉ của shop
+        /// </summary>
+        [StringLength(500)]
+        public string? Address { get; set; }
+
+        /// <summary>
         /// Website của shop
         /// </summary>
         [StringLength(200)]
@@ -124,5 +130,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Thay thế cho Shop.TourDetails relationship
         /// </summary>
         public virtual ICollection<TimelineItem> TimelineItems { get; set; } = new List<TimelineItem>();
+
+        /// <summary>
+        /// Danh sách các tour invitations mà shop này nhận được
+        /// </summary>
+        public virtual ICollection<TourDetailsSpecialtyShop> TourInvitations { get; set; } = new List<TourDetailsSpecialtyShop>();
     }
 }

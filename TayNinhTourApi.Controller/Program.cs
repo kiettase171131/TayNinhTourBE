@@ -140,8 +140,9 @@ builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
+builder.Services.AddScoped<ITourBookingService, TourBookingService>();
 builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
-builder.Services.AddScoped<IShopApplicationService, ShopApplicationService>();
+
 
 builder.Services.AddScoped<IProductService, ProductService>();
 
@@ -163,7 +164,9 @@ builder.Services.AddScoped<ITourTemplateRepository, TourTemplateRepository>();
 // Shop repository removed - merged into SpecialtyShopRepository
 builder.Services.AddScoped<ITourSlotRepository, TourSlotRepository>();
 builder.Services.AddScoped<ITourDetailsRepository, TourDetailsRepository>();
+builder.Services.AddScoped<ITourDetailsSpecialtyShopRepository, TourDetailsSpecialtyShopRepository>();
 builder.Services.AddScoped<ITourOperationRepository, TourOperationRepository>();
+builder.Services.AddScoped<ITourBookingRepository, TourBookingRepository>();
 builder.Services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 builder.Services.AddScoped<ISupportTicketCommentRepository, SupportTicketCommentRepository>();
 builder.Services.AddScoped<ITourGuideApplicationRepository, TourGuideApplicationRepository>();
@@ -171,7 +174,7 @@ builder.Services.AddScoped<IBlogRepository, BlogRepository>();
 builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();
 builder.Services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
-builder.Services.AddScoped<IShopApplicationRepository, ShopApplicationRepository>();
+
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();

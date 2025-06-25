@@ -34,6 +34,40 @@ namespace TayNinhTourApi.Controller.Controllers
         // ===== TOURDETAILS CRUD ENDPOINTS =====
 
         /// <summary>
+        /// Lấy danh sách tất cả TourDetails với phân trang mặc định
+        /// Endpoint tương thích với frontend calls
+        /// </summary>
+        /// <param name="pageIndex">Chỉ số trang (0-based, default: 0)</param>
+        /// <param name="pageSize">Kích thước trang (default: 10)</param>
+        /// <param name="includeInactive">Bao gồm inactive records (default: false)</param>
+        /// <returns>Danh sách TourDetails có phân trang</returns>
+        [HttpGet]
+        public async Task<IActionResult> GetAllTourDetails(
+            [FromQuery] int pageIndex = 0,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] bool includeInactive = false)
+        {
+            try
+            {
+                _logger.LogInformation("Getting all TourDetails - Page: {PageIndex}, Size: {PageSize}, IncludeInactive: {IncludeInactive}",
+                    pageIndex, pageSize, includeInactive);
+
+                var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
+                    pageIndex, pageSize, null, null, includeInactive);
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all TourDetails");
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình"
+                });
+            }
+        }
+
+        /// <summary>
         /// Lấy danh sách TourDetails của một tour template
         /// </summary>
         /// <param name="templateId">ID của tour template</param>

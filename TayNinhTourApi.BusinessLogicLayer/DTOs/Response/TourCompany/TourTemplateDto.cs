@@ -23,6 +23,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string? UpdatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>
+        /// Thông tin capacity tổng quan cho template
+        /// </summary>
+        public TemplateCapacitySummaryDto? CapacitySummary { get; set; }
     }
 
     /// <summary>
@@ -45,6 +50,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public UserCmsDto? UpdatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>
+        /// Thông tin capacity chi tiết cho template
+        /// </summary>
+        public TemplateCapacitySummaryDto? CapacitySummary { get; set; }
     }
 
     /// <summary>
@@ -62,6 +72,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public bool IsActive { get; set; }
         public List<string> Images { get; set; } = new List<string>();
         public DateTime CreatedAt { get; set; }
+
+        /// <summary>
+        /// Thông tin capacity tổng quan cho template
+        /// </summary>
+        public TemplateCapacitySummaryDto? CapacitySummary { get; set; }
     }
 
     /// <summary>
@@ -74,5 +89,56 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public List<TourTemplateSummaryDto> Data { get; set; } = new List<TourTemplateSummaryDto>();
         public int TotalRecord { get; set; }
         public int TotalPages { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho thông tin capacity tổng quan của template
+    /// </summary>
+    public class TemplateCapacitySummaryDto
+    {
+        /// <summary>
+        /// Tổng số slots có sẵn
+        /// </summary>
+        public int TotalSlots { get; set; }
+
+        /// <summary>
+        /// Số slots đang active (có thể booking)
+        /// </summary>
+        public int ActiveSlots { get; set; }
+
+        /// <summary>
+        /// Tổng capacity tối đa (tổng MaxGuests của tất cả operations)
+        /// </summary>
+        public int TotalMaxCapacity { get; set; }
+
+        /// <summary>
+        /// Tổng số khách đã booking
+        /// </summary>
+        public int TotalBookedGuests { get; set; }
+
+        /// <summary>
+        /// Tổng số chỗ còn trống
+        /// </summary>
+        public int TotalAvailableCapacity => TotalMaxCapacity - TotalBookedGuests;
+
+        /// <summary>
+        /// Phần trăm đã booking
+        /// </summary>
+        public decimal BookingPercentage => TotalMaxCapacity > 0 ? (decimal)TotalBookedGuests / TotalMaxCapacity * 100 : 0;
+
+        /// <summary>
+        /// Có slots nào còn chỗ trống không
+        /// </summary>
+        public bool HasAvailableSlots => TotalAvailableCapacity > 0;
+
+        /// <summary>
+        /// Ngày gần nhất có slot available
+        /// </summary>
+        public DateTime? NextAvailableDate { get; set; }
+
+        /// <summary>
+        /// Số operations đang hoạt động
+        /// </summary>
+        public int ActiveOperations { get; set; }
     }
 }

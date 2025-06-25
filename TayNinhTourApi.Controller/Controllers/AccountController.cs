@@ -16,7 +16,7 @@ using TayNinhTourApi.Controller.Helper;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Shop;
+
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
@@ -35,7 +35,7 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<AccountController> _logger;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IShopApplicationService _shopApplicationService;
+
         private readonly ISpecialtyShopApplicationService _specialtyShopApplicationService;
         private readonly IWebHostEnvironment _environment;
 
@@ -46,7 +46,7 @@ namespace TayNinhTourApi.Controller.Controllers
             IUnitOfWork unitOfWork,
             ILogger<AccountController> logger,
             ICurrentUserService currentUserService,
-            IShopApplicationService shopApplicationService,
+
             ISpecialtyShopApplicationService specialtyShopApplicationService,
             IWebHostEnvironment environment)
         {
@@ -56,7 +56,7 @@ namespace TayNinhTourApi.Controller.Controllers
             _unitOfWork = unitOfWork;
             _logger = logger;
             _currentUserService = currentUserService;
-            _shopApplicationService = shopApplicationService;
+
             _specialtyShopApplicationService = specialtyShopApplicationService;
             _environment = environment;
         }
@@ -273,23 +273,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new { Error = ex.Message, StackTrace = ex.StackTrace });
             }
         }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
-        [HttpPost("shop-application")]
 
-        public async Task<IActionResult> ShopSubmit([FromForm] RequestShopSubmitDto requestShopSubmitDto)
-        {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _shopApplicationService.SubmitAsync(requestShopSubmitDto, currentUserObject);
-            return StatusCode(result.StatusCode, result);
-        }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        [HttpGet("View-shopapplication")]
-        public async Task<IActionResult> ListMyShopApplications()
-        {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var list = await _shopApplicationService.ListByUserAsync(currentUserObject.Id);
-            return Ok(list);
-        }
 
         // ===== NEW SPECIALTY SHOP APPLICATION ENDPOINTS =====
 
@@ -304,7 +288,7 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 var result = await _specialtyShopApplicationService.SubmitApplicationAsync(dto, currentUser);
-                return Ok(result);
+                return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
             {
