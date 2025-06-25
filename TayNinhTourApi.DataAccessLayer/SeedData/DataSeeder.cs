@@ -335,14 +335,14 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                      {
                         Id = Guid.Parse("a3b4c5d6-e7f8-9012-abc3-345678901234"),
                         PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
-                        Email = "testuser12@example.com",
+                        Email = "shop@gmail.com",
                         PhoneNumber = "0987654333",
                         CreatedAt= DateTime.UtcNow,
                         UpdatedAt= DateTime.UtcNow,
                         IsDeleted = false,
                         IsVerified = true,
-                        RoleId = Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"), // User role
-                        Name = "Test User 12",
+                        RoleId = Guid.Parse("f3e5b7c9-d2e4-5f6a-b8ca-d3e5f7a9b1c3"), // User role
+                        Name = "Shop",
                         Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
                         IsActive = true,
                     },
