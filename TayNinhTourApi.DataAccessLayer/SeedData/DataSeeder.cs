@@ -434,12 +434,102 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 await _context.SaveChangesAsync();
             }
 
+            // Seed TourTemplates for testing
+            if (!await _context.TourTemplates.AnyAsync())
+            {
+                var now = DateTime.UtcNow;
+                var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
+                var tourCompanyId = Guid.Parse("7a5cbc0b-6082-4215-a90a-9c8cb1b7cc5c"); // Tour Company user ID
+
+                var tourTemplates = new List<TourTemplate>
+                {
+                    // Template 1 - Free Scenic Tour (Núi Bà Đen) - Saturday
+                    new TourTemplate
+                    {
+                        Id = Guid.Parse("b740b8a6-716f-41a6-a7e7-f7f9e09d7925"),
+                        Title = "Tour Núi Bà Đen - Danh lam thắng cảnh",
+                        TemplateType = TourTemplateType.FreeScenic,
+                        ScheduleDays = ScheduleDay.Saturday,
+                        StartLocation = "TP.HCM - Bến xe Miền Tây",
+                        EndLocation = "Núi Bà Đen - Tây Ninh",
+                        Month = 6,
+                        Year = 2025,
+                        IsActive = true,
+                        IsDeleted = false,
+                        CreatedAt = now.AddDays(-10),
+                        CreatedById = tourCompanyId,
+                        UpdatedAt = now.AddDays(-5),
+                        UpdatedById = tourCompanyId
+                    },
+
+                    // Template 2 - Free Scenic Tour (Tòa Thánh Cao Đài) - Sunday
+                    new TourTemplate
+                    {
+                        Id = Guid.Parse("f0288a60-20b0-457c-af62-68e054e98dac"),
+                        Title = "Tour Tòa Thánh Cao Đài - Di tích lịch sử",
+                        TemplateType = TourTemplateType.FreeScenic,
+                        ScheduleDays = ScheduleDay.Sunday,
+                        StartLocation = "TP.HCM - Bến xe Miền Tây",
+                        EndLocation = "Tòa Thánh Cao Đài - Tây Ninh",
+                        Month = 6,
+                        Year = 2025,
+                        IsActive = true,
+                        IsDeleted = false,
+                        CreatedAt = now.AddDays(-8),
+                        CreatedById = tourCompanyId,
+                        UpdatedAt = now.AddDays(-3),
+                        UpdatedById = tourCompanyId
+                    },
+
+                    // Template 3 - Paid Attraction Tour - Saturday
+                    new TourTemplate
+                    {
+                        Id = Guid.Parse("a6683345-e4d4-4273-b1d9-d65542cf0755"),
+                        Title = "Tour Khu du lịch sinh thái Tây Ninh",
+                        TemplateType = TourTemplateType.PaidAttraction,
+                        ScheduleDays = ScheduleDay.Saturday,
+                        StartLocation = "TP.HCM - Bến xe Miền Tây",
+                        EndLocation = "Khu du lịch sinh thái - Tây Ninh",
+                        Month = 7,
+                        Year = 2025,
+                        IsActive = true,
+                        IsDeleted = false,
+                        CreatedAt = now.AddDays(-6),
+                        CreatedById = tourCompanyId,
+                        UpdatedAt = now.AddDays(-1),
+                        UpdatedById = tourCompanyId
+                    },
+
+                    // Template 4 - Next month template - Sunday
+                    new TourTemplate
+                    {
+                        Id = Guid.Parse("0009ddda-5f69-407f-9241-b567dde990dc"),
+                        Title = "Tour Núi Bà Đen - Tháng tới",
+                        TemplateType = TourTemplateType.FreeScenic,
+                        ScheduleDays = ScheduleDay.Sunday,
+                        StartLocation = "TP.HCM - Bến xe Miền Tây",
+                        EndLocation = "Núi Bà Đen - Tây Ninh",
+                        Month = 8,
+                        Year = 2025,
+                        IsActive = true,
+                        IsDeleted = false,
+                        CreatedAt = now.AddDays(-4),
+                        CreatedById = tourCompanyId,
+                        UpdatedAt = now.AddDays(-2),
+                        UpdatedById = tourCompanyId
+                    }
+                };
+
+                await _context.TourTemplates.AddRangeAsync(tourTemplates);
+                await _context.SaveChangesAsync();
+            }
+
             // Seed Tour Guide Applications for testing
             if (!await _context.TourGuideApplications.AnyAsync())
             {
                 var now = DateTime.UtcNow;
-                var testUser1Id = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
-                var testUser2Id = Guid.Parse("b2c3d4e5-f6a7-8901-bcde-f23456789012");
+                var testUser1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+                var testUser2Id = Guid.Parse("22222222-2222-2222-2222-222222222222");
                 var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
 
                 var applications = new List<TourGuideApplication>

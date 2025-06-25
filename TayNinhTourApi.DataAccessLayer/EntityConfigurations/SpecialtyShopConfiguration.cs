@@ -47,6 +47,9 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.Property(s => s.PhoneNumber)
                 .HasMaxLength(20);
 
+            builder.Property(s => s.Address)
+                .HasMaxLength(500);
+
             builder.Property(s => s.Website)
                 .HasMaxLength(200);
 

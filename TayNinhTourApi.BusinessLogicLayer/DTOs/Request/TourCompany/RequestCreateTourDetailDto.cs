@@ -34,5 +34,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         /// </summary>
         [StringLength(500, ErrorMessage = "SkillsRequired không được vượt quá 500 ký tự")]
         public string? SkillsRequired { get; set; }
+
+        /// <summary>
+        /// Danh sách ID của các SpecialtyShop được mời tham gia tour
+        /// Các shop này sẽ nhận email mời sau khi admin duyệt TourDetails
+        /// </summary>
+        public List<Guid> SpecialtyShopIds { get; set; } = new List<Guid>();
     }
 }

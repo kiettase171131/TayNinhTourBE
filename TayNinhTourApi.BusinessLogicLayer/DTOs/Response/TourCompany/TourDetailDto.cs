@@ -66,6 +66,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public int AssignedSlotsCount { get; set; }
 
         /// <summary>
+        /// Danh sách SpecialtyShop được mời tham gia tour
+        /// </summary>
+        public List<TourDetailsSpecialtyShopDto> InvitedSpecialtyShops { get; set; } = new List<TourDetailsSpecialtyShopDto>();
+
+        /// <summary>
+        /// Số lượng SpecialtyShop được mời
+        /// </summary>
+        public int InvitedShopsCount { get; set; }
+
+        /// <summary>
         /// Thời gian tạo tour detail
         /// </summary>
         public DateTime CreatedAt { get; set; }

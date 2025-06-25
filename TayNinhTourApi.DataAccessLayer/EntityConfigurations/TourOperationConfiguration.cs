@@ -16,6 +16,8 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             {
                 t.HasCheckConstraint("CK_TourOperations_Price_Positive", "Price > 0");
                 t.HasCheckConstraint("CK_TourOperations_MaxGuests_Positive", "MaxGuests > 0");
+                t.HasCheckConstraint("CK_TourOperations_CurrentBookings_NonNegative", "CurrentBookings >= 0");
+                t.HasCheckConstraint("CK_TourOperations_CurrentBookings_LessOrEqualMaxGuests", "CurrentBookings <= MaxGuests");
             });
 
             // Primary Key
@@ -55,6 +57,15 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasDefaultValue(true)
                 .HasComment("Trạng thái hoạt động của tour operation");
 
+            builder.Property(to => to.CurrentBookings)
+                .IsRequired()
+                .HasDefaultValue(0)
+                .HasComment("Số lượng khách đã booking hiện tại");
+
+            builder.Property(to => to.RowVersion)
+                .IsRowVersion()
+                .HasComment("Row version cho optimistic concurrency control");
+
             // Foreign Key Relationships
 
             // TourDetails relationship (One-to-One)
@@ -69,7 +80,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .WithMany(u => u.TourOperationsAsGuide) // Many TourOperations can have the same Guide
                 .HasForeignKey(to => to.GuideId)
                 .OnDelete(DeleteBehavior.Restrict) // Prevent deleting User if they have TourOperations
-                .IsRequired();
+                .IsRequired(false); // GuideId is optional - TourOperation can be created without a Guide
 
             // CreatedBy relationship
             builder.HasOne(to => to.CreatedBy)
@@ -84,6 +95,13 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasForeignKey(to => to.UpdatedById)
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired(false);
+
+            // TourBookings relationship (One-to-Many)
+            builder.HasMany(to => to.TourBookings)
+                .WithOne(tb => tb.TourOperation)
+                .HasForeignKey(tb => tb.TourOperationId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
 
             // Indexes for Performance
 
@@ -104,6 +122,13 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.HasIndex(to => new { to.GuideId, to.IsActive })
                 .HasDatabaseName("IX_TourOperations_GuideId_IsActive");
 
+            // Index for CurrentBookings (for capacity queries)
+            builder.HasIndex(to => to.CurrentBookings)
+                .HasDatabaseName("IX_TourOperations_CurrentBookings");
+
+            // Composite index for CurrentBookings + MaxGuests (for availability queries)
+            builder.HasIndex(to => new { to.CurrentBookings, to.MaxGuests })
+                .HasDatabaseName("IX_TourOperations_CurrentBookings_MaxGuests");
 
         }
     }

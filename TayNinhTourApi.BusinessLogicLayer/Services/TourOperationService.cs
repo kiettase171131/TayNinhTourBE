@@ -3,8 +3,10 @@ using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -71,7 +73,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // MaxGuests validation removed - now managed at operation level
 
-                // 4. Validate Guide (nếu có)
+                // 4. VALIDATE TOUR READINESS: Check TourGuide assignment và SpecialtyShop participation
+                var (isReady, readinessError) = await ValidateTourDetailsReadinessAsync(request.TourDetailsId);
+                if (!isReady)
+                {
+                    _logger.LogWarning("TourDetails {TourDetailsId} not ready for operation creation: {Error}",
+                        request.TourDetailsId, readinessError);
+                    return new ResponseCreateOperationDto
+                    {
+                        IsSuccess = false,
+                        Message = readinessError
+                    };
+                }
+
+                // 5. Validate Guide (nếu có)
                 if (request.GuideId.HasValue)
                 {
                     var guide = await _unitOfWork.UserRepository.GetByIdAsync(request.GuideId.Value);
@@ -85,7 +100,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 5. Create operation
+                // 6. Create operation
                 var operation = new TourOperation
                 {
                     Id = Guid.NewGuid(),
@@ -103,8 +118,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.TourOperationRepository.AddAsync(operation);
                 await _unitOfWork.SaveChangesAsync();
 
-                // 6. Return response
-                var operationDto = _mapper.Map<TourOperationDto>(operation);
+                // 7. Return response
+                var operationDto = _mapper.Map<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>(operation);
 
                 _logger.LogInformation("Operation created successfully for TourDetails {TourDetailsId}", request.TourDetailsId);
 
@@ -129,7 +144,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy operation theo TourDetails ID
         /// </summary>
-        public async Task<TourOperationDto?> GetOperationByTourDetailsAsync(Guid tourDetailsId)
+        public async Task<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto?> GetOperationByTourDetailsAsync(Guid tourDetailsId)
         {
             try
             {
@@ -138,7 +153,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
                 if (operation == null) return null;
 
-                return _mapper.Map<TourOperationDto>(operation);
+                var operationDto = _mapper.Map<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>(operation);
+
+                // Get current booking count
+                operationDto.BookedSeats = await _unitOfWork.TourBookingRepository.GetTotalBookedGuestsAsync(operation.Id);
+
+                return operationDto;
             }
             catch (Exception ex)
             {
@@ -150,7 +170,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy operation theo Operation ID
         /// </summary>
-        public async Task<TourOperationDto?> GetOperationByIdAsync(Guid operationId)
+        public async Task<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto?> GetOperationByIdAsync(Guid operationId)
         {
             try
             {
@@ -159,7 +179,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var operation = await _unitOfWork.TourOperationRepository.GetByIdAsync(operationId);
                 if (operation == null) return null;
 
-                return _mapper.Map<TourOperationDto>(operation);
+                var operationDto = _mapper.Map<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>(operation);
+
+                // Get current booking count
+                operationDto.BookedSeats = await _unitOfWork.TourBookingRepository.GetTotalBookedGuestsAsync(operation.Id);
+
+                return operationDto;
             }
             catch (Exception ex)
             {
@@ -224,7 +249,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.TourOperationRepository.UpdateAsync(operation);
                 await _unitOfWork.SaveChangesAsync();
 
-                var operationDto = _mapper.Map<TourOperationDto>(operation);
+                var operationDto = _mapper.Map<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>(operation);
 
                 _logger.LogInformation("Operation {OperationId} updated successfully", id);
 
@@ -294,7 +319,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy danh sách operations với filtering
         /// </summary>
-        public async Task<List<TourOperationDto>> GetOperationsAsync(
+        public async Task<List<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>> GetOperationsAsync(
             Guid? tourTemplateId = null,
             Guid? guideId = null,
             DateTime? fromDate = null,
@@ -308,12 +333,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var (operations, _) = await _unitOfWork.TourOperationRepository.GetPaginatedAsync(
                     1, 1000, guideId, tourTemplateId, includeInactive);
 
-                return _mapper.Map<List<TourOperationDto>>(operations);
+                var operationDtos = _mapper.Map<List<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>>(operations);
+
+                // Update booking counts for each operation
+                foreach (var dto in operationDtos)
+                {
+                    dto.BookedSeats = await _unitOfWork.TourBookingRepository.GetTotalBookedGuestsAsync(dto.Id);
+                }
+
+                return operationDtos;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting operations");
-                return new List<TourOperationDto>();
+                return new List<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>();
             }
         }
 
@@ -377,5 +410,278 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return false;
             }
         }
+
+        /// <summary>
+        /// Validate TourDetails readiness cho việc tạo TourOperation (public tour)
+        /// Kiểm tra TourGuide assignment và SpecialtyShop participation
+        /// </summary>
+        public async Task<(bool IsReady, string ErrorMessage)> ValidateTourDetailsReadinessAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Validating TourDetails readiness for TourDetailsId {TourDetailsId}", tourDetailsId);
+
+                // 1. Check TourDetails exists and is approved
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    return (false, "TourDetails không tồn tại");
+                }
+
+                if (tourDetails.Status != TourDetailsStatus.Approved)
+                {
+                    return (false, "TourDetails chưa được admin duyệt");
+                }
+
+                var missingRequirements = new List<string>();
+
+                // 2. Check TourGuide Assignment
+                bool hasTourGuide = await ValidateTourGuideAssignmentAsync(tourDetailsId);
+                if (!hasTourGuide)
+                {
+                    missingRequirements.Add("Chưa có hướng dẫn viên được phân công");
+                }
+
+                // 3. Check SpecialtyShop Participation
+                bool hasSpecialtyShop = await ValidateSpecialtyShopParticipationAsync(tourDetailsId);
+                if (!hasSpecialtyShop)
+                {
+                    missingRequirements.Add("Chưa có cửa hàng đặc sản tham gia");
+                }
+
+                // 4. Return result
+                if (missingRequirements.Any())
+                {
+                    var errorMessage = "Không thể tạo tour operation: " + string.Join(", ", missingRequirements);
+                    _logger.LogWarning("TourDetails {TourDetailsId} not ready: {ErrorMessage}", tourDetailsId, errorMessage);
+                    return (false, errorMessage);
+                }
+
+                _logger.LogInformation("TourDetails {TourDetailsId} is ready for TourOperation creation", tourDetailsId);
+                return (true, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating TourDetails readiness for {TourDetailsId}", tourDetailsId);
+                return (false, "Lỗi kiểm tra tính sẵn sàng của tour");
+            }
+        }
+
+        /// <summary>
+        /// Get detailed readiness status của TourDetails cho frontend checking
+        /// </summary>
+        public async Task<TourDetailsReadinessDto> GetTourDetailsReadinessAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting TourDetails readiness info for {TourDetailsId}", tourDetailsId);
+
+                var readinessDto = new TourDetailsReadinessDto
+                {
+                    TourDetailsId = tourDetailsId
+                };
+
+                // 1. Get TourGuide information
+                readinessDto.GuideInfo = await GetTourGuideReadinessInfoAsync(tourDetailsId);
+                readinessDto.HasTourGuide = readinessDto.GuideInfo.HasDirectAssignment || readinessDto.GuideInfo.AcceptedInvitations > 0;
+                readinessDto.AcceptedGuideInvitations = readinessDto.GuideInfo.AcceptedInvitations;
+
+                // 2. Get SpecialtyShop information
+                readinessDto.ShopInfo = await GetSpecialtyShopReadinessInfoAsync(tourDetailsId);
+                readinessDto.HasSpecialtyShop = readinessDto.ShopInfo.AcceptedInvitations > 0;
+                readinessDto.AcceptedShopInvitations = readinessDto.ShopInfo.AcceptedInvitations;
+
+                // 3. Determine overall readiness
+                readinessDto.IsReady = readinessDto.HasTourGuide && readinessDto.HasSpecialtyShop;
+
+                // 4. Build missing requirements list
+                if (!readinessDto.HasTourGuide)
+                {
+                    readinessDto.MissingRequirements.Add("Chưa có hướng dẫn viên được phân công");
+                }
+                if (!readinessDto.HasSpecialtyShop)
+                {
+                    readinessDto.MissingRequirements.Add("Chưa có cửa hàng đặc sản tham gia");
+                }
+
+                // 5. Build message
+                if (readinessDto.IsReady)
+                {
+                    readinessDto.Message = "Tour đã sẵn sàng để public";
+                }
+                else
+                {
+                    readinessDto.Message = "Tour cần có đầy đủ hướng dẫn viên và cửa hàng đặc sản trước khi public";
+                }
+
+                return readinessDto;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting TourDetails readiness info for {TourDetailsId}", tourDetailsId);
+                return new TourDetailsReadinessDto
+                {
+                    TourDetailsId = tourDetailsId,
+                    IsReady = false,
+                    Message = "Lỗi kiểm tra tính sẵn sàng của tour"
+                };
+            }
+        }
+
+        #region Private Helper Methods
+
+        /// <summary>
+        /// Validate TourGuide assignment cho TourDetails
+        /// </summary>
+        private async Task<bool> ValidateTourGuideAssignmentAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                // 1. Check if TourDetails already has TourOperation with GuideId
+                var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
+                if (existingOperation?.GuideId != null)
+                {
+                    _logger.LogInformation("TourDetails {TourDetailsId} has direct guide assignment: {GuideId}",
+                        tourDetailsId, existingOperation.GuideId);
+                    return true;
+                }
+
+                // 2. Check if any TourGuideInvitation has been accepted
+                var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
+                var acceptedInvitations = invitations.Where(i => i.Status == InvitationStatus.Accepted && i.IsActive);
+
+                if (acceptedInvitations.Any())
+                {
+                    _logger.LogInformation("TourDetails {TourDetailsId} has {Count} accepted guide invitations",
+                        tourDetailsId, acceptedInvitations.Count());
+                    return true;
+                }
+
+                _logger.LogWarning("TourDetails {TourDetailsId} has no guide assignment", tourDetailsId);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating TourGuide assignment for {TourDetailsId}", tourDetailsId);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Validate SpecialtyShop participation cho TourDetails
+        /// </summary>
+        private async Task<bool> ValidateSpecialtyShopParticipationAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                var shopInvitations = await _unitOfWork.TourDetailsSpecialtyShopRepository.GetByTourDetailsIdAsync(tourDetailsId);
+                var acceptedShops = shopInvitations.Where(s => s.Status == ShopInvitationStatus.Accepted && s.IsActive);
+
+                if (acceptedShops.Any())
+                {
+                    _logger.LogInformation("TourDetails {TourDetailsId} has {Count} accepted shop invitations",
+                        tourDetailsId, acceptedShops.Count());
+                    return true;
+                }
+
+                _logger.LogWarning("TourDetails {TourDetailsId} has no accepted shop invitations", tourDetailsId);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating SpecialtyShop participation for {TourDetailsId}", tourDetailsId);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Get detailed TourGuide readiness information
+        /// </summary>
+        private async Task<TourGuideReadinessInfo> GetTourGuideReadinessInfoAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                var guideInfo = new TourGuideReadinessInfo();
+
+                // 1. Check direct assignment in TourOperation
+                var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
+                if (existingOperation?.GuideId != null)
+                {
+                    guideInfo.HasDirectAssignment = true;
+                    guideInfo.DirectlyAssignedGuideId = existingOperation.GuideId;
+
+                    var guide = await _unitOfWork.UserRepository.GetByIdAsync(existingOperation.GuideId.Value);
+                    guideInfo.DirectlyAssignedGuideName = guide?.Name ?? "Unknown Guide";
+                }
+
+                // 2. Get invitation statistics
+                var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
+                var activeInvitations = invitations.Where(i => i.IsActive).ToList();
+
+                guideInfo.PendingInvitations = activeInvitations.Count(i => i.Status == InvitationStatus.Pending);
+                guideInfo.AcceptedInvitations = activeInvitations.Count(i => i.Status == InvitationStatus.Accepted);
+                guideInfo.RejectedInvitations = activeInvitations.Count(i => i.Status == InvitationStatus.Rejected);
+
+                // 3. Get accepted guides details
+                var acceptedInvitations = activeInvitations.Where(i => i.Status == InvitationStatus.Accepted);
+                foreach (var invitation in acceptedInvitations)
+                {
+                    guideInfo.AcceptedGuides.Add(new AcceptedGuideInfo
+                    {
+                        GuideId = invitation.GuideId,
+                        GuideName = invitation.Guide?.Name ?? "Unknown Guide",
+                        GuideEmail = invitation.Guide?.Email ?? "Unknown Email",
+                        AcceptedAt = invitation.RespondedAt ?? invitation.UpdatedAt ?? DateTime.UtcNow
+                    });
+                }
+
+                return guideInfo;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting TourGuide readiness info for {TourDetailsId}", tourDetailsId);
+                return new TourGuideReadinessInfo();
+            }
+        }
+
+        /// <summary>
+        /// Get detailed SpecialtyShop readiness information
+        /// </summary>
+        private async Task<SpecialtyShopReadinessInfo> GetSpecialtyShopReadinessInfoAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                var shopInfo = new SpecialtyShopReadinessInfo();
+
+                var shopInvitations = await _unitOfWork.TourDetailsSpecialtyShopRepository.GetByTourDetailsIdAsync(tourDetailsId);
+                var activeInvitations = shopInvitations.Where(s => s.IsActive).ToList();
+
+                shopInfo.PendingInvitations = activeInvitations.Count(s => s.Status == ShopInvitationStatus.Pending);
+                shopInfo.AcceptedInvitations = activeInvitations.Count(s => s.Status == ShopInvitationStatus.Accepted);
+                shopInfo.DeclinedInvitations = activeInvitations.Count(s => s.Status == ShopInvitationStatus.Declined);
+
+                // Get accepted shops details
+                var acceptedInvitations = activeInvitations.Where(s => s.Status == ShopInvitationStatus.Accepted);
+                foreach (var invitation in acceptedInvitations)
+                {
+                    shopInfo.AcceptedShops.Add(new AcceptedShopInfo
+                    {
+                        ShopId = invitation.SpecialtyShopId,
+                        ShopName = invitation.SpecialtyShop?.ShopName ?? "Unknown Shop",
+                        ShopAddress = invitation.SpecialtyShop?.Address,
+                        AcceptedAt = invitation.RespondedAt ?? invitation.UpdatedAt ?? DateTime.UtcNow
+                    });
+                }
+
+                return shopInfo;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting SpecialtyShop readiness info for {TourDetailsId}", tourDetailsId);
+                return new SpecialtyShopReadinessInfo();
+            }
+        }
+
+        #endregion
     }
 }

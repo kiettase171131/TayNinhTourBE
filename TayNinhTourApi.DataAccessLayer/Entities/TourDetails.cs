@@ -71,6 +71,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public virtual ICollection<TourSlot> AssignedSlots { get; set; } = new List<TourSlot>();
 
         /// <summary>
+        /// Danh sách SpecialtyShop được mời tham gia tour này
+        /// </summary>
+        public virtual ICollection<TourDetailsSpecialtyShop> InvitedSpecialtyShops { get; set; } = new List<TourDetailsSpecialtyShop>();
+
+        /// <summary>
         /// User đã tạo tour detail này
         /// </summary>
         public virtual User CreatedBy { get; set; } = null!;
