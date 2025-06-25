@@ -54,6 +54,12 @@ namespace TayNinhTourApi.Controller.Controllers
             var response = await _cmsService.GetTourByIdAsync(id);
             return StatusCode(response.StatusCode, response);
         }
+        [HttpPost("user/create")]
+        public async Task<IActionResult> CreateUser([FromBody] RequestCreateUserDto dto)
+        {
+            var result = await _cmsService.CreateUserAsync(dto);
+            return StatusCode(result.StatusCode, result);
+        }
 
         [HttpGet("user")]
         public async Task<ActionResult<ResponseGetUsersCmsDto>> GetUser(int? pageIndex, int? pageSize, string? textSearch, bool? status)

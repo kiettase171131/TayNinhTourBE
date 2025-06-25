@@ -19,5 +19,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<ResponseGetBlogsDto> GetBlogsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status);
         Task<BaseResposeDto> UpdateBlogAsync(RequestUpdateBlogCmsDto request, Guid id, Guid updatedById);
         Task<BaseResposeDto> UpdateUserAsync(RequestUpdateUserCmsDto request, Guid id);
+        Task<BaseResposeDto> CreateUserAsync(RequestCreateUserDto request);
     }
 }

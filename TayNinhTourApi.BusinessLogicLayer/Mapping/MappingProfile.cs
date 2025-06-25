@@ -21,7 +21,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
         {
             #region User Mapping
             CreateMap<RequestRegisterDto, User>();
-            CreateMap<User, UserCmsDto>();
+            CreateMap<User, UserCmsDto>()
+                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.Name)); 
             #endregion
 
             #region Tour Mapping
