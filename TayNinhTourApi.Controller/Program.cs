@@ -155,6 +155,12 @@ builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 // TourGuide Invitation Workflow Services
 builder.Services.AddScoped<ITourGuideInvitationService, TourGuideInvitationService>();
 
+// Skill Management Services
+builder.Services.AddScoped<ISkillManagementService, SkillManagementService>();
+
+// Data Migration Services
+builder.Services.AddScoped<DataMigrationService>();
+
 
 
 // Register repositories layer

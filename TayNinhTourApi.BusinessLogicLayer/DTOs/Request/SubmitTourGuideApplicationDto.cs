@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
 using TayNinhTourApi.BusinessLogicLayer.Attributes;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request
@@ -34,17 +36,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request
         public string Email { get; set; } = null!;
 
         /// <summary>
-        /// Số năm kinh nghiệm làm hướng dẫn viên
+        /// Mô tả kinh nghiệm làm hướng dẫn viên
         /// </summary>
         [Required(ErrorMessage = "Kinh nghiệm là bắt buộc")]
-        [Range(0, 50, ErrorMessage = "Kinh nghiệm phải từ 0-50 năm")]
-        public int Experience { get; set; }
+        [StringLength(1000, MinimumLength = 10, ErrorMessage = "Mô tả kinh nghiệm phải từ 10-1000 ký tự")]
+        public string Experience { get; set; } = null!;
 
         /// <summary>
         /// Ngôn ngữ có thể sử dụng (VN, EN, CN...)
+        /// DEPRECATED: Sử dụng Skills thay thế
         /// </summary>
         [StringLength(200, ErrorMessage = "Ngôn ngữ không được quá 200 ký tự")]
         public string? Languages { get; set; }
+
+        /// <summary>
+        /// Kỹ năng của hướng dẫn viên (Enhanced skill system)
+        /// </summary>
+        [ValidSkillSelection(ErrorMessage = "Ít nhất một kỹ năng hợp lệ phải được chọn")]
+        public List<TourGuideSkill> Skills { get; set; } = new();
+
+        /// <summary>
+        /// Kỹ năng dưới dạng comma-separated string (for API compatibility)
+        /// Ví dụ: "Vietnamese,English,History,MountainClimbing"
+        /// </summary>
+        [StringLength(500, ErrorMessage = "Kỹ năng không được quá 500 ký tự")]
+        public string? SkillsString { get; set; }
 
         /// <summary>
         /// File CV (PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP format)

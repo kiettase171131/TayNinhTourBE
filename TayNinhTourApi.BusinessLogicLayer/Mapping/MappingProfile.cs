@@ -14,6 +14,8 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 {
@@ -119,7 +121,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.CvOriginalFileName, opt => opt.MapFrom(src => src.CvOriginalFileName))
                 .ForMember(dest => dest.CvFileSize, opt => opt.MapFrom(src => src.CvFileSize))
                 .ForMember(dest => dest.CvContentType, opt => opt.MapFrom(src => src.CvContentType))
-                .ForMember(dest => dest.CvFilePath, opt => opt.MapFrom(src => src.CvFilePath));
+                .ForMember(dest => dest.CvFilePath, opt => opt.MapFrom(src => src.CvFilePath))
+                .ForMember(dest => dest.Skills, opt => opt.MapFrom(src =>
+                    !string.IsNullOrEmpty(src.Skills)
+                        ? TourGuideSkillUtility.StringToSkills(src.Skills)
+                        : TourGuideSkillUtility.StringToSkills(src.Languages)))
+                .ForMember(dest => dest.SkillsString, opt => opt.MapFrom(src =>
+                    !string.IsNullOrEmpty(src.Skills)
+                        ? src.Skills
+                        : TourGuideSkillUtility.MigrateLegacyLanguages(src.Languages)))
+                .ForMember(dest => dest.SkillsInfo, opt => opt.MapFrom(src =>
+                    (!string.IsNullOrEmpty(src.Skills)
+                        ? TourGuideSkillUtility.StringToSkills(src.Skills)
+                        : TourGuideSkillUtility.StringToSkills(src.Languages))
+                    .Select(skill => new SkillInfoDto
+                    {
+                        Skill = skill,
+                        DisplayName = TourGuideSkillUtility.GetDisplayName(skill),
+                        EnglishName = skill.ToString(),
+                        Category = GetSkillCategory(skill)
+                    }).ToList()));
 
             CreateMap<TourGuideApplication, TourGuideApplicationSummaryDto>()
                 .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
@@ -200,6 +221,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 TourOperationStatus.PendingConfirmation => "Chờ xác nhận",
                 _ => status.ToString()
             };
+        }
+
+        /// <summary>
+        /// Helper method để xác định category của skill
+        /// </summary>
+        private static string GetSkillCategory(TourGuideSkill skill)
+        {
+            if (TourGuideSkillUtility.SkillCategories.Languages.Contains(skill))
+                return "Ngôn ngữ";
+            if (TourGuideSkillUtility.SkillCategories.Knowledge.Contains(skill))
+                return "Kiến thức chuyên môn";
+            if (TourGuideSkillUtility.SkillCategories.Activities.Contains(skill))
+                return "Kỹ năng hoạt động";
+            if (TourGuideSkillUtility.SkillCategories.Special.Contains(skill))
+                return "Kỹ năng đặc biệt";
+
+            return "Khác";
         }
 
         private static string GetShopInvitationStatusText(ShopInvitationStatus status)

@@ -3,7 +3,6 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 
@@ -12,11 +11,9 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250625031741_InitialCreate")]
-    partial class InitialCreate
+    partial class TayNinhTouApiDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1218,9 +1215,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasComment("Thời gian hết hạn invitation");
 
                     b.Property<DateTime>("InvitedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("GETUTCDATE()")
                         .HasComment("Thời gian được mời tham gia tour");
 
                     b.Property<bool>("IsActive")
@@ -1346,7 +1341,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<string>("Languages")
                         .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("varchar(200)")
+                        .HasComment("DEPRECATED: Sử dụng Skills field thay thế");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -1362,6 +1358,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Skills")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Kỹ năng của hướng dẫn viên (comma-separated TourGuideSkill enum values)");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()

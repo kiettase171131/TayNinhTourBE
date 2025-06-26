@@ -30,7 +30,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
 
         /// <summary>
         /// Kỹ năng yêu cầu cho hướng dẫn viên
-        /// Ví dụ: "English,Chinese,French" hoặc "Tiếng Anh,Tiếng Trung,Tiếng Pháp"
+        /// Ví dụ: "Vietnamese,English,History,MountainClimbing"
         /// </summary>
         [StringLength(500, ErrorMessage = "SkillsRequired không được vượt quá 500 ký tự")]
         public string? SkillsRequired { get; set; }

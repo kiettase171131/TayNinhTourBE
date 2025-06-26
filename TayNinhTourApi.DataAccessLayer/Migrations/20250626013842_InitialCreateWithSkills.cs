@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialCreateWithSkills : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -341,7 +341,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Experience = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Languages = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                    Languages = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true, comment: "DEPRECATED: Sử dụng Skills field thay thế")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Skills = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Kỹ năng của hướng dẫn viên (comma-separated TourGuideSkill enum values)")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CurriculumVitae = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
