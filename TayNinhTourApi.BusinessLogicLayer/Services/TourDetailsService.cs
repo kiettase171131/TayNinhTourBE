@@ -95,6 +95,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Dữ liệu không hợp lệ",
+                        IsSuccess = false,
                         ValidationErrors = validationResult.Errors
                     };
                 }
@@ -107,7 +108,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new ResponseCreateTourDetailDto
                     {
                         StatusCode = 400,
-                        Message = "Tiêu đề lịch trình đã tồn tại"
+                        Message = "Tiêu đề lịch trình đã tồn tại",
+                        IsSuccess = false
                     };
                 }
 
@@ -233,6 +235,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 201,
                     Message = "Tạo lịch trình thành công. Lời mời sẽ được gửi sau khi admin duyệt.",
+                    IsSuccess = true,
                     Data = tourDetailDto
                 };
             }
@@ -242,7 +245,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseCreateTourDetailDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi tạo lịch trình"
+                    Message = "Có lỗi xảy ra khi tạo lịch trình",
+                    IsSuccess = false
                 };
             }
         }
@@ -510,6 +514,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDtos,
                     TotalCount = totalCount,
                     PageIndex = pageIndex,
@@ -523,7 +528,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseGetTourDetailsPaginatedDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình"
+                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình",
+                    IsSuccess = false
                 };
             }
         }
@@ -594,7 +600,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new ResponseGetTourDetailDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy lịch trình"
+                        Message = "Không tìm thấy lịch trình",
+                        IsSuccess = false
                     };
                 }
 
@@ -604,7 +611,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy thông tin lịch trình thành công",
-                    Data = tourDetailDto
+                    Data = tourDetailDto,
+                    IsSuccess = true
                 };
             }
             catch (Exception ex)
@@ -613,7 +621,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseGetTourDetailDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy thông tin lịch trình"
+                    Message = "Có lỗi xảy ra khi lấy thông tin lịch trình",
+                    IsSuccess = false
                 };
             }
         }

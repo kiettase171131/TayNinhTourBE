@@ -80,7 +80,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var items = await query
                 .Include(s => s.User)
                 .OrderBy(s => s.ShopName)
-                .Skip((pageIndex - 1) * pageSize)
+                .Skip(pageIndex * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 

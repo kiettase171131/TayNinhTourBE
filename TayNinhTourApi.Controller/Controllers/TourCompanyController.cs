@@ -96,7 +96,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
         [HttpGet("template")]
         public async Task<ActionResult<ResponseGetTourTemplatesDto>> GetTourTemplates(
-            int pageIndex = 1,
+            int pageIndex = 0,
             int pageSize = 10,
             string? templateType = null,
             string? startLocation = null,
@@ -109,9 +109,9 @@ namespace TayNinhTourApi.Controller.Controllers
                 parsedTemplateType = type;
             }
 
-            // Convert 1-based pageIndex to 0-based for service
+            // Use 0-based pageIndex directly
             var response = await _tourTemplateService.GetTourTemplatesPaginatedAsync(
-                pageIndex - 1, pageSize, parsedTemplateType, null, null, startLocation, includeInactive);
+                pageIndex, pageSize, parsedTemplateType, null, null, startLocation, includeInactive);
             return StatusCode(response.StatusCode, response);
         }
 

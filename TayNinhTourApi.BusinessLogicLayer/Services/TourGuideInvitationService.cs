@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
+using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
@@ -47,7 +48,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // 2. Lấy tất cả TourGuides (users với role TourGuide)
-                var tourGuides = await _unitOfWork.UserRepository.GetUsersByRoleAsync("TourGuide");
+                var tourGuides = await _unitOfWork.UserRepository.GetUsersByRoleAsync(Constants.RoleTourGuideName);
                 if (!tourGuides.Any())
                 {
                     return new BaseResposeDto
@@ -826,22 +827,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Helper method để lấy TourGuideApplication của một user
-        /// TODO: Implement when TourGuideApplicationRepository is available
         /// </summary>
         private async Task<TourGuideApplication?> GetTourGuideApplicationAsync(Guid userId)
         {
             try
             {
-                // TODO: Implement when TourGuideApplicationRepository is added to UnitOfWork
-                // var applications = await _unitOfWork.TourGuideApplicationRepository
-                //     .GetAllAsync(app => app.UserId == userId && app.Status == TourGuideApplicationStatus.Approved);
-                // return applications.FirstOrDefault();
-
-                await Task.CompletedTask; // Placeholder
-                return null;
+                // Lấy application approved mới nhất của user
+                var applications = await _unitOfWork.TourGuideApplicationRepository
+                    .GetAllAsync(app => app.UserId == userId &&
+                                       app.Status == TourGuideApplicationStatus.Approved &&
+                                       app.IsActive);
+                return applications.OrderByDescending(app => app.ProcessedAt).FirstOrDefault();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error getting TourGuideApplication for user {UserId}", userId);
                 return null;
             }
         }

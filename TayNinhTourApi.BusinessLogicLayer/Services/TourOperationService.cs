@@ -73,17 +73,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // MaxGuests validation removed - now managed at operation level
 
-                // 4. VALIDATE TOUR READINESS: Check TourGuide assignment và SpecialtyShop participation
-                var (isReady, readinessError) = await ValidateTourDetailsReadinessAsync(request.TourDetailsId);
-                if (!isReady)
+                // 4. VALIDATE TOUR READINESS: Skip for initial creation, only validate for updates
+                // Allow creating TourOperation for Pending TourDetails during wizard flow
+                // Validation will be enforced when TourDetails is approved by admin
+                if (tourDetails.Status == TourDetailsStatus.Approved)
                 {
-                    _logger.LogWarning("TourDetails {TourDetailsId} not ready for operation creation: {Error}",
-                        request.TourDetailsId, readinessError);
-                    return new ResponseCreateOperationDto
+                    var (isReady, readinessError) = await ValidateTourDetailsReadinessAsync(request.TourDetailsId);
+                    if (!isReady)
                     {
-                        IsSuccess = false,
-                        Message = readinessError
-                    };
+                        _logger.LogWarning("TourDetails {TourDetailsId} not ready for operation creation: {Error}",
+                            request.TourDetailsId, readinessError);
+                        return new ResponseCreateOperationDto
+                        {
+                            IsSuccess = false,
+                            Message = readinessError
+                        };
+                    }
                 }
 
                 // 5. Validate Guide (nếu có)
@@ -428,25 +433,34 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return (false, "TourDetails không tồn tại");
                 }
 
-                if (tourDetails.Status != TourDetailsStatus.Approved)
+                // Allow creating TourOperation for Pending TourDetails (initial creation)
+                // Only require approval for updates or when TourGuide assignment is needed
+                if (tourDetails.Status != TourDetailsStatus.Approved && tourDetails.Status != TourDetailsStatus.Pending)
                 {
-                    return (false, "TourDetails chưa được admin duyệt");
+                    return (false, "TourDetails phải ở trạng thái Pending hoặc Approved");
                 }
 
                 var missingRequirements = new List<string>();
 
-                // 2. Check TourGuide Assignment
-                bool hasTourGuide = await ValidateTourGuideAssignmentAsync(tourDetailsId);
-                if (!hasTourGuide)
+                // 2. Check TourGuide Assignment (only for approved tours)
+                if (tourDetails.Status == TourDetailsStatus.Approved)
                 {
-                    missingRequirements.Add("Chưa có hướng dẫn viên được phân công");
+                    bool hasTourGuide = await ValidateTourGuideAssignmentAsync(tourDetailsId);
+                    if (!hasTourGuide)
+                    {
+                        missingRequirements.Add("Chưa có hướng dẫn viên được phân công");
+                    }
                 }
 
-                // 3. Check SpecialtyShop Participation
-                bool hasSpecialtyShop = await ValidateSpecialtyShopParticipationAsync(tourDetailsId);
-                if (!hasSpecialtyShop)
+                // 3. Check SpecialtyShop Participation (only for approved tours)
+                // For pending tours, shops can be selected in timeline but not invited yet
+                if (tourDetails.Status == TourDetailsStatus.Approved)
                 {
-                    missingRequirements.Add("Chưa có cửa hàng đặc sản tham gia");
+                    bool hasSpecialtyShop = await ValidateSpecialtyShopParticipationAsync(tourDetailsId);
+                    if (!hasSpecialtyShop)
+                    {
+                        missingRequirements.Add("Chưa có cửa hàng đặc sản tham gia");
+                    }
                 }
 
                 // 4. Return result

@@ -14,7 +14,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             // Table Configuration
             builder.ToTable("TourOperations", t =>
             {
-                t.HasCheckConstraint("CK_TourOperations_Price_Positive", "Price > 0");
+                t.HasCheckConstraint("CK_TourOperations_Price_Positive", "Price >= 0");
                 t.HasCheckConstraint("CK_TourOperations_MaxGuests_Positive", "MaxGuests > 0");
                 t.HasCheckConstraint("CK_TourOperations_CurrentBookings_NonNegative", "CurrentBookings >= 0");
                 t.HasCheckConstraint("CK_TourOperations_CurrentBookings_LessOrEqualMaxGuests", "CurrentBookings <= MaxGuests");
