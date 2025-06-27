@@ -63,6 +63,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDtos,
                     TotalCount = tourDetailDtos.Count
                 };
@@ -321,6 +322,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Cập nhật lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDto
                 };
             }
@@ -381,6 +383,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Xóa lịch trình thành công",
+                    IsSuccess = true,
                     DeletedTourDetailId = tourDetailId,
                     CleanedSlotsCount = 0, // TODO: Count actual cleaned slots
                     CleanedTimelineItemsCount = 0, // TODO: Count actual cleaned timeline items
@@ -416,6 +419,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Tìm kiếm lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDtos,
                     TotalCount = tourDetailDtos.Count,
                     SearchKeyword = keyword
@@ -469,6 +473,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách shops thành công",
+                    IsSuccess = true,
                     Data = shopSummaries,
                     TotalCount = shopSummaries.Count
                 };
@@ -667,6 +672,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy timeline thành công",
+                    IsSuccess = true,
                     Data = timeline
                 };
             }
@@ -1043,6 +1049,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDtos,
                     TotalCount = tourDetailDtos.Count
                 };

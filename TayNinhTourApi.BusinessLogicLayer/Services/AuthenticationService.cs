@@ -123,7 +123,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "OTP sent to your email. Please verify to complete registration."
+                Message = "OTP sent to your email. Please verify to complete registration.",
+                IsSuccess = true
             };
         }
 
@@ -184,7 +185,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Email = newUser.Email,
                 Name = newUser.Name,
                 PhoneNumber = newUser.PhoneNumber,
-                StatusCode = 200
+                StatusCode = 200,
+                IsSuccess = true
             };
         }
 
@@ -261,6 +263,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Your account is verified. You can login now!",
+                    IsSuccess = true
                 };
             }
             else
@@ -336,7 +339,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "OTP sent to your email. Please verify to complete reset password."
+                Message = "OTP sent to your email. Please verify to complete reset password.",
+                IsSuccess = true
             };
         }
 
@@ -401,6 +405,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 200,
                         Message = "Reset Password Succcessfully !",
+                        IsSuccess = true
                     };
                 else
                     return new ResponseVerifyOtpDto

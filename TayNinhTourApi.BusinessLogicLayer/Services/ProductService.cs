@@ -70,6 +70,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Get product list successfully",
+                IsSuccess = true,
                 Data = _mapper.Map<List<ProductDto>>(products),
                 TotalRecord = totalProducts,
                 TotalPages = totalPages
@@ -95,6 +96,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetProductByIdDto
             {
                 StatusCode = 200,
+                IsSuccess = true,
                 Data = _mapper.Map<ProductDto>(product)
             };
         }
@@ -122,7 +124,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Product deleted succcessfully !"
+                Message = "Product deleted succcessfully !",
+                IsSuccess = true
             };
         }
         public async Task<ResponseCreateProductDto> CreateProductAsync(RequestCreateProductDto request, CurrentUserObject currentUserObject)
@@ -202,6 +205,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Create successful products",
+                IsSuccess = true,
                 ProductId = product.Id,
                 ImageUrls = uploadedUrls
             };
@@ -307,7 +311,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Product update successful"
+                Message = "Product update successful",
+                IsSuccess = true
             };
         }
         public async Task<BaseResposeDto> AddToCartAsync(RequestAddToCartDto request, CurrentUserObject currentUser)
@@ -378,7 +383,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Đã thêm vào giỏ hàng"
+                Message = "Đã thêm vào giỏ hàng",
+                IsSuccess = true
             };
         }
         public async Task<ResponseGetCartDto> GetCartAsync(CurrentUserObject currentUser)
@@ -401,6 +407,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetCartDto
             {
                 StatusCode = 200,
+                IsSuccess = true,
                 Data = items,
                 TotalAmount = items.Sum(i => i.Total)
             };
@@ -424,7 +431,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Đã xoá khỏi giỏ hàng"
+                Message = "Đã xoá khỏi giỏ hàng",
+                IsSuccess = true
             };
         }
 
