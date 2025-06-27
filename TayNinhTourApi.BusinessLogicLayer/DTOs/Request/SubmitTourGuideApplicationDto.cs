@@ -42,16 +42,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request
         [StringLength(1000, MinimumLength = 10, ErrorMessage = "Mô tả kinh nghiệm phải từ 10-1000 ký tự")]
         public string Experience { get; set; } = null!;
 
-        /// <summary>
-        /// Ngôn ngữ có thể sử dụng (VN, EN, CN...)
-        /// DEPRECATED: Sử dụng Skills thay thế
-        /// </summary>
-        [StringLength(200, ErrorMessage = "Ngôn ngữ không được quá 200 ký tự")]
-        public string? Languages { get; set; }
+
 
         /// <summary>
         /// Kỹ năng của hướng dẫn viên (Enhanced skill system)
         /// </summary>
+        [Required(ErrorMessage = "Kỹ năng là bắt buộc")]
         [ValidSkillSelection(ErrorMessage = "Ít nhất một kỹ năng hợp lệ phải được chọn")]
         public List<TourGuideSkill> Skills { get; set; } = new();
 
@@ -59,6 +55,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request
         /// Kỹ năng dưới dạng comma-separated string (for API compatibility)
         /// Ví dụ: "Vietnamese,English,History,MountainClimbing"
         /// </summary>
+        [ValidSkillSelection(ErrorMessage = "Ít nhất một kỹ năng hợp lệ phải được chọn")]
         [StringLength(500, ErrorMessage = "Kỹ năng không được quá 500 ký tự")]
         public string? SkillsString { get; set; }
 

@@ -637,5 +637,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new { Error = "An error occurred while checking eligibility", Details = ex.Message });
             }
         }
+
+
     }
 }

@@ -94,7 +94,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PhoneNumber = dto.PhoneNumber,
                     Email = dto.Email,
                     Experience = dto.Experience, // Experience is now string in DTO
-                    Languages = dto.Languages, // Keep for backward compatibility
+                    Languages = null, // Languages field removed from DTO
                     Skills = GetSkillsFromDto(dto), // Enhanced skill system
                     CurriculumVitae = fileResult?.AccessUrl,
                     CvOriginalFileName = fileResult?.OriginalFileName,
@@ -166,7 +166,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PhoneNumber = dto.PhoneNumber,
                     Email = dto.Email,
                     Experience = dto.Experience, // Use experience description
-                    Languages = dto.Languages, // Keep for backward compatibility
+                    Languages = null, // Languages field removed from DTO
                     Skills = GetSkillsFromJsonDto(dto), // Enhanced skill system
                     CurriculumVitae = dto.CurriculumVitaeUrl, // Store URL directly
                     Status = TourGuideApplicationStatus.Pending,
@@ -469,7 +469,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Helper method để extract skills từ DTO
-        /// Hỗ trợ cả Skills list và SkillsString, với fallback về Languages
+        /// Hỗ trợ cả Skills list và SkillsString (Languages field đã bị loại bỏ)
         /// </summary>
         /// <param name="dto">SubmitTourGuideApplicationDto</param>
         /// <returns>Skills string for database storage</returns>
@@ -491,25 +491,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             }
 
-            // Priority 3: Languages (backward compatibility)
-            if (!string.IsNullOrWhiteSpace(dto.Languages))
-            {
-                return TourGuideSkillUtility.MigrateLegacyLanguages(dto.Languages);
-            }
-
-            // Default: Vietnamese if nothing is provided
+            // Default: Vietnamese if nothing is provided (should not happen due to validation)
             return "Vietnamese";
         }
 
         /// <summary>
         /// Helper method để extract skills từ JSON DTO
-        /// Hỗ trợ SkillsString với fallback về Languages
+        /// Chỉ hỗ trợ SkillsString (Languages field đã bị loại bỏ)
         /// </summary>
         /// <param name="dto">SubmitTourGuideApplicationJsonDto</param>
         /// <returns>Skills string for database storage</returns>
         private static string? GetSkillsFromJsonDto(SubmitTourGuideApplicationJsonDto dto)
         {
-            // Priority 1: SkillsString (new system)
+            // Priority 1: SkillsString (required field)
             if (!string.IsNullOrWhiteSpace(dto.SkillsString))
             {
                 // Validate and normalize the skills string
@@ -519,13 +513,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             }
 
-            // Priority 2: Languages (backward compatibility)
-            if (!string.IsNullOrWhiteSpace(dto.Languages))
-            {
-                return TourGuideSkillUtility.MigrateLegacyLanguages(dto.Languages);
-            }
-
-            // Default: Vietnamese if nothing is provided
+            // Default: Vietnamese if nothing is provided (should not happen due to validation)
             return "Vietnamese";
         }
     }
