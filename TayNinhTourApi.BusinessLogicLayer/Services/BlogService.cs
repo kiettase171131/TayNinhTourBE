@@ -182,7 +182,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ResponseGetBlogByIdDto
                 {
-                    StatusCode = 404,
+                    StatusCode = 200,
                     Message = "Blog Not Found",
                 };
             }

@@ -131,7 +131,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ResponseGetTourDto
                 {
-                    StatusCode = 404,
+                    StatusCode = 200,
                     Message = "Không tìm thấy chi nhánh này",
                 };
             }
@@ -227,7 +227,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ResponseGetUserByIdCmsDto
                 {
-                    StatusCode = 404,
+                    StatusCode = 200,
                     Message = "User not found"
                 };
             }
