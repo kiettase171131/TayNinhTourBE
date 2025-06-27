@@ -87,6 +87,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (!string.IsNullOrWhiteSpace(updateDto.OpeningHours))
                     specialtyShop.OpeningHours = updateDto.OpeningHours;
 
+                if (!string.IsNullOrWhiteSpace(updateDto.ClosingHours))
+                    specialtyShop.ClosingHours = updateDto.ClosingHours;
+
                 if (updateDto.IsShopActive.HasValue)
                     specialtyShop.IsShopActive = updateDto.IsShopActive.Value;
 

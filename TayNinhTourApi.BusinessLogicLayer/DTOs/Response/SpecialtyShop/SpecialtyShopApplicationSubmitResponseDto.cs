@@ -34,6 +34,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop
         /// <summary>
         /// Thông báo hướng dẫn cho user
         /// </summary>
-        public string Instructions { get; set; } = "Your specialty shop application has been submitted successfully. We will review your application within 3-5 business days and notify you via email.";
+        public string Instructions { get; set; } = string.Empty;
     }
 }

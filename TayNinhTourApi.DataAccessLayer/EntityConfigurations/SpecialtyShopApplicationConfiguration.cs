@@ -62,7 +62,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasMaxLength(50);
 
             builder.Property(s => s.OpeningHours)
-                .HasMaxLength(100);
+                .HasMaxLength(10);
+
+            builder.Property(s => s.ClosingHours)
+                .HasMaxLength(10);
 
             builder.Property(s => s.BusinessLicenseUrl)
                 .HasMaxLength(500);

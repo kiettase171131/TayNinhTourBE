@@ -92,4 +92,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Attributes
             return false;
         }
     }
+
+    /// <summary>
+    /// Custom validation attribute for time format (HH:mm)
+    /// </summary>
+    public class TimeFormatValidationAttribute : ValidationAttribute
+    {
+        public override bool IsValid(object? value)
+        {
+            if (value == null || string.IsNullOrWhiteSpace(value.ToString()))
+            {
+                return true; // Allow null/empty values, use Required attribute for mandatory fields
+            }
+
+            var timeString = value.ToString()!;
+
+            // Check if the format matches HH:mm
+            if (TimeSpan.TryParseExact(timeString, @"hh\:mm", null, out _))
+            {
+                return true;
+            }
+
+            ErrorMessage = "Định dạng thời gian không hợp lệ. Vui lòng sử dụng định dạng HH:mm (ví dụ: 08:00)";
+            return false;
+        }
+    }
 }

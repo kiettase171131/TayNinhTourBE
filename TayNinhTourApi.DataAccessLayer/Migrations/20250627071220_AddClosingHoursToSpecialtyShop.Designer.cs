@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 
@@ -11,9 +12,11 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    partial class TayNinhTouApiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250627071220_AddClosingHoursToSpecialtyShop")]
+    partial class AddClosingHoursToSpecialtyShop
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -75,7 +78,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -126,7 +129,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -173,7 +176,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -214,7 +217,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -257,7 +260,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -302,7 +305,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -342,7 +345,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
@@ -398,7 +401,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -439,7 +442,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
@@ -494,7 +497,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
@@ -620,7 +623,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
@@ -745,7 +748,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -795,7 +798,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -834,7 +837,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -883,7 +886,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("CHAR(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -942,7 +945,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
@@ -1054,7 +1057,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("varchar(1000)")
                         .HasComment("Ghi chú từ khách hàng");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -1144,7 +1147,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
@@ -1215,7 +1218,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("ExpiresAt")
@@ -1323,7 +1326,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
@@ -1423,7 +1426,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("ExpiresAt")
@@ -1519,7 +1522,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasDefaultValue(0)
                         .HasComment("Số lượng khách đã booking hiện tại");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
@@ -1622,7 +1625,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
@@ -1707,7 +1710,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("EndLocation")
@@ -1796,7 +1799,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTime>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")

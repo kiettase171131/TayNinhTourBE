@@ -13,10 +13,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
         [StringLength(1000, ErrorMessage = "Shop description cannot exceed 1000 characters")]
         public string? ShopDescription { get; set; }
 
-        [Required(ErrorMessage = "Business license is required")]
-        [StringLength(100, ErrorMessage = "Business license cannot exceed 100 characters")]
-        public string BusinessLicense { get; set; } = string.Empty;
-
         [Required(ErrorMessage = "Location is required")]
         [StringLength(500, ErrorMessage = "Location cannot exceed 500 characters")]
         public string Location { get; set; } = string.Empty;
@@ -38,8 +34,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
         [StringLength(50, ErrorMessage = "Shop type cannot exceed 50 characters")]
         public string? ShopType { get; set; }
 
-        [StringLength(100, ErrorMessage = "Opening hours cannot exceed 100 characters")]
+        [StringLength(10, ErrorMessage = "Opening hours cannot exceed 10 characters")]
+        [TimeFormatValidation]
         public string? OpeningHours { get; set; }
+
+        [StringLength(10, ErrorMessage = "Closing hours cannot exceed 10 characters")]
+        [TimeFormatValidation]
+        public string? ClosingHours { get; set; }
 
         [Required(ErrorMessage = "Representative name is required")]
         [StringLength(100, ErrorMessage = "Representative name cannot exceed 100 characters")]

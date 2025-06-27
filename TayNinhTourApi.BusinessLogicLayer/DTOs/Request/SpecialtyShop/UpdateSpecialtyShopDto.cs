@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.BusinessLogicLayer.Attributes;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
 {
@@ -47,10 +48,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
         public string? ShopType { get; set; }
 
         /// <summary>
-        /// Giờ mở cửa
+        /// Giờ mở cửa (HH:mm format)
         /// </summary>
-        [StringLength(100, ErrorMessage = "Opening hours cannot exceed 100 characters")]
+        [StringLength(10, ErrorMessage = "Opening hours cannot exceed 10 characters")]
+        [TimeFormatValidation]
         public string? OpeningHours { get; set; }
+
+        /// <summary>
+        /// Giờ đóng cửa (HH:mm format)
+        /// </summary>
+        [StringLength(10, ErrorMessage = "Closing hours cannot exceed 10 characters")]
+        [TimeFormatValidation]
+        public string? ClosingHours { get; set; }
 
         /// <summary>
         /// Trạng thái hoạt động của shop

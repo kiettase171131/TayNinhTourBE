@@ -277,6 +277,105 @@ namespace TayNinhTourApi.Controller.Controllers
 
         // ===== NEW SPECIALTY SHOP APPLICATION ENDPOINTS =====
 
+
+
+        /// <summary>
+        /// User nộp đơn đăng ký Specialty Shop (NEW FLOW)
+        /// </summary>
+        [HttpPost("test-specialty-shop-valid")]
+        public async Task<IActionResult> TestSpecialtyShopValid([FromForm] SubmitSpecialtyShopApplicationDto dto)
+        {
+            try
+            {
+                // Validate model state first
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState
+                        .Where(x => x.Value?.Errors.Count > 0)
+                        .ToDictionary(
+                            x => x.Key,
+                            x => x.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                        );
+
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "Validation failed",
+                        Errors = errors,
+                        Success = false
+                    });
+                }
+
+                // Mock successful response with detailed data
+                var mockResponse = new
+                {
+                    StatusCode = 201,
+                    Message = "Specialty shop application submitted successfully",
+                    Success = true,
+                    Data = new
+                    {
+                        ApplicationId = Guid.NewGuid(),
+                        ShopName = dto.ShopName,
+                        Location = dto.Location,
+                        PhoneNumber = dto.PhoneNumber,
+                        Email = dto.Email,
+                        Website = dto.Website,
+                        ShopType = dto.ShopType,
+                        ShopDescription = dto.ShopDescription,
+                        OpeningHours = dto.OpeningHours,
+                        ClosingHours = dto.ClosingHours,
+                        RepresentativeName = dto.RepresentativeName,
+                        Status = "Pending", // 0 = Pending
+                        SubmittedAt = DateTime.UtcNow,
+                        ProcessedAt = (DateTime?)null,
+                        RejectionReason = (string?)null,
+                        Files = new
+                        {
+                            BusinessLicenseFile = new
+                            {
+                                FileName = dto.BusinessLicenseFile?.FileName,
+                                FileSize = dto.BusinessLicenseFile?.Length,
+                                ContentType = dto.BusinessLicenseFile?.ContentType,
+                                MockUrl = $"https://api.tayninhtour.com/files/business-license/{Guid.NewGuid()}.pdf"
+                            },
+                            Logo = new
+                            {
+                                FileName = dto.Logo?.FileName,
+                                FileSize = dto.Logo?.Length,
+                                ContentType = dto.Logo?.ContentType,
+                                MockUrl = $"https://api.tayninhtour.com/files/logos/{Guid.NewGuid()}.png"
+                            }
+                        },
+                        ValidationSummary = new
+                        {
+                            AllRequiredFieldsProvided = true,
+                            FilesValidated = true,
+                            TimeFormatValid = !string.IsNullOrEmpty(dto.OpeningHours) || !string.IsNullOrEmpty(dto.ClosingHours),
+                            EmailFormatValid = true,
+                            PhoneFormatValid = true,
+                            WebsiteFormatValid = !string.IsNullOrEmpty(dto.Website)
+                        }
+                    }
+                };
+
+                return StatusCode(201, mockResponse);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing specialty shop valid case");
+                return StatusCode(500, new {
+                    StatusCode = 500,
+                    Message = "Internal server error",
+                    Error = ex.Message,
+                    Success = false
+                });
+            }
+        }
+
+
+
+
+
         /// <summary>
         /// User nộp đơn đăng ký Specialty Shop (NEW FLOW)
         /// </summary>
