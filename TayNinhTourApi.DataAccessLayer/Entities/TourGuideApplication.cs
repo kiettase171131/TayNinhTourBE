@@ -46,9 +46,18 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         /// <summary>
         /// Ngôn ngữ có thể sử dụng (VN, EN, CN...)
+        /// DEPRECATED: Sử dụng Skills field thay thế
         /// </summary>
         [StringLength(200)]
         public string? Languages { get; set; }
+
+        /// <summary>
+        /// Kỹ năng của hướng dẫn viên (comma-separated TourGuideSkill enum values)
+        /// Thay thế cho Languages field với hệ thống skill toàn diện
+        /// Ví dụ: "Vietnamese,English,History,MountainClimbing"
+        /// </summary>
+        [StringLength(500)]
+        public string? Skills { get; set; }
 
         /// <summary>
         /// URL đến file CV

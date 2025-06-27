@@ -543,7 +543,8 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         PhoneNumber = "0987654321",
                         Email = "testuser1@example.com",
                         Experience = "2",
-                        Languages = "Vietnamese, English",
+                        Languages = "Vietnamese, English", // Legacy field
+                        Skills = "Vietnamese,English,History,Culture", // New skill system
                         CurriculumVitae = null, // No CV uploaded yet
                         CvOriginalFileName = null,
                         CvFileSize = null,
@@ -565,7 +566,8 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         PhoneNumber = "0987654322",
                         Email = "testuser2@example.com",
                         Experience = "3",
-                        Languages = "Vietnamese, English, French",
+                        Languages = "Vietnamese, English, French", // Legacy field
+                        Skills = "Vietnamese,English,French,Geography,Photography", // New skill system
                         CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/b2c3d4e5-f6a7-8901-bcde-f23456789012/sample_cv.pdf",
                         CvOriginalFileName = "TestUser2_CV.pdf",
                         CvFileSize = 1024000, // 1MB
@@ -587,7 +589,8 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         PhoneNumber = "0987654323",
                         Email = "tourguide1@example.com",
                         Experience = "5",
-                        Languages = "Vietnamese, English, Japanese",
+                        Languages = "Vietnamese, English, Japanese", // Legacy field
+                        Skills = "Vietnamese,English,Japanese,History,Culture,Religion,MountainClimbing,Trekking", // New skill system
                         CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/c3d4e5f6-a7b8-9012-cdef-345678901234/approved_cv.pdf",
                         CvOriginalFileName = "TourGuide1_CV.pdf",
                         CvFileSize = 2048000, // 2MB

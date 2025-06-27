@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 {
@@ -268,6 +269,131 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             // Parse and check if we get valid skills
             var skills = ParseSkills(skillsString);
             return skills.Count > 0 && skills.All(skill => skill.Length <= 50);
+        }
+
+        // ===== ENHANCED SKILL MATCHING METHODS =====
+
+        /// <summary>
+        /// Kiểm tra xem TourGuide có skills phù hợp với requirements không (Enhanced version)
+        /// Hỗ trợ cả legacy languages và new skill system
+        /// </summary>
+        /// <param name="requiredSkills">Skills yêu cầu từ TourDetails</param>
+        /// <param name="guideSkills">Skills của TourGuide (có thể là legacy languages hoặc new skills)</param>
+        /// <returns>True nếu có ít nhất 1 skill match</returns>
+        public static bool MatchSkillsEnhanced(string? requiredSkills, string? guideSkills)
+        {
+            if (string.IsNullOrWhiteSpace(requiredSkills) || string.IsNullOrWhiteSpace(guideSkills))
+            {
+                return false;
+            }
+
+            // Convert both to TourGuideSkill enums for accurate matching
+            var requiredSkillEnums = TourGuideSkillUtility.StringToSkills(requiredSkills);
+            var guideSkillEnums = TourGuideSkillUtility.StringToSkills(guideSkills);
+
+            // Check for any intersection
+            return requiredSkillEnums.Intersect(guideSkillEnums).Any();
+        }
+
+        /// <summary>
+        /// Tính toán match score giữa required skills và guide skills (Enhanced version)
+        /// </summary>
+        /// <param name="requiredSkills">Skills yêu cầu</param>
+        /// <param name="guideSkills">Skills của guide</param>
+        /// <returns>Score từ 0.0 đến 1.0 (1.0 = perfect match)</returns>
+        public static double CalculateMatchScoreEnhanced(string? requiredSkills, string? guideSkills)
+        {
+            if (string.IsNullOrWhiteSpace(requiredSkills) || string.IsNullOrWhiteSpace(guideSkills))
+            {
+                return 0.0;
+            }
+
+            var requiredSkillEnums = TourGuideSkillUtility.StringToSkills(requiredSkills);
+            var guideSkillEnums = TourGuideSkillUtility.StringToSkills(guideSkills);
+
+            if (requiredSkillEnums.Count == 0)
+            {
+                return 0.0;
+            }
+
+            var matchCount = requiredSkillEnums.Intersect(guideSkillEnums).Count();
+            return (double)matchCount / requiredSkillEnums.Count;
+        }
+
+        /// <summary>
+        /// Lấy danh sách skills match giữa requirements và guide capabilities (Enhanced version)
+        /// </summary>
+        /// <param name="requiredSkills">Skills yêu cầu</param>
+        /// <param name="guideSkills">Skills của guide</param>
+        /// <returns>Danh sách skills match với display names</returns>
+        public static List<string> GetMatchedSkillsEnhanced(string? requiredSkills, string? guideSkills)
+        {
+            if (string.IsNullOrWhiteSpace(requiredSkills) || string.IsNullOrWhiteSpace(guideSkills))
+            {
+                return new List<string>();
+            }
+
+            var requiredSkillEnums = TourGuideSkillUtility.StringToSkills(requiredSkills);
+            var guideSkillEnums = TourGuideSkillUtility.StringToSkills(guideSkills);
+
+            var matchedSkills = requiredSkillEnums.Intersect(guideSkillEnums);
+            return matchedSkills.Select(skill => TourGuideSkillUtility.GetDisplayName(skill)).ToList();
+        }
+
+        /// <summary>
+        /// Lấy danh sách TourGuides được sắp xếp theo độ phù hợp skills
+        /// </summary>
+        /// <param name="requiredSkills">Skills yêu cầu từ TourDetails</param>
+        /// <param name="guides">Danh sách guides với skills của họ</param>
+        /// <returns>Danh sách guides được sắp xếp theo match score giảm dần</returns>
+        public static List<(T guide, double matchScore, List<string> matchedSkills)> RankGuidesBySkillMatch<T>(
+            string? requiredSkills,
+            IEnumerable<(T guide, string skills)> guides)
+        {
+            if (string.IsNullOrWhiteSpace(requiredSkills) || !guides.Any())
+            {
+                return new List<(T, double, List<string>)>();
+            }
+
+            var rankedGuides = new List<(T guide, double matchScore, List<string> matchedSkills)>();
+
+            foreach (var (guide, skills) in guides)
+            {
+                var matchScore = CalculateMatchScoreEnhanced(requiredSkills, skills);
+                var matchedSkills = GetMatchedSkillsEnhanced(requiredSkills, skills);
+
+                if (matchScore > 0) // Only include guides with at least one matching skill
+                {
+                    rankedGuides.Add((guide, matchScore, matchedSkills));
+                }
+            }
+
+            return rankedGuides.OrderByDescending(x => x.matchScore)
+                              .ThenByDescending(x => x.matchedSkills.Count)
+                              .ToList();
+        }
+
+        /// <summary>
+        /// Migrate legacy language data to new skill format
+        /// </summary>
+        /// <param name="legacyLanguages">Old languages string</param>
+        /// <returns>New skills string in TourGuideSkill format</returns>
+        public static string MigrateLegacyToSkills(string? legacyLanguages)
+        {
+            return TourGuideSkillUtility.MigrateLegacyLanguages(legacyLanguages);
+        }
+
+        /// <summary>
+        /// Validate if skills string uses new TourGuideSkill format
+        /// </summary>
+        /// <param name="skillsString">Skills string to check</param>
+        /// <returns>True if using new format</returns>
+        public static bool IsNewSkillFormat(string? skillsString)
+        {
+            if (string.IsNullOrWhiteSpace(skillsString))
+                return true;
+
+            return TourGuideSkillUtility.IsValidSkillsString(skillsString);
         }
     }
 }

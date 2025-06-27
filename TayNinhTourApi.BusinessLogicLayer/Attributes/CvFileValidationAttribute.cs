@@ -32,4 +32,64 @@ namespace TayNinhTourApi.BusinessLogicLayer.Attributes
             return false;
         }
     }
+
+    /// <summary>
+    /// Custom validation attribute for Business License file uploads
+    /// </summary>
+    public class BusinessLicenseFileValidationAttribute : ValidationAttribute
+    {
+        public override bool IsValid(object? value)
+        {
+            if (value is IFormFile file)
+            {
+                var validationResult = FileValidationUtility.ValidateBusinessLicenseFile(file);
+                if (!validationResult.IsValid)
+                {
+                    ErrorMessage = validationResult.ErrorMessage;
+                    return false;
+                }
+                return true;
+            }
+
+            // If value is null, return false since BusinessLicenseFile is required
+            if (value == null)
+            {
+                ErrorMessage = "Giấy phép kinh doanh là bắt buộc";
+                return false;
+            }
+
+            ErrorMessage = "Định dạng file không hợp lệ";
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Custom validation attribute for Logo file uploads
+    /// </summary>
+    public class LogoFileValidationAttribute : ValidationAttribute
+    {
+        public override bool IsValid(object? value)
+        {
+            if (value is IFormFile file)
+            {
+                var validationResult = FileValidationUtility.ValidateLogoFile(file);
+                if (!validationResult.IsValid)
+                {
+                    ErrorMessage = validationResult.ErrorMessage;
+                    return false;
+                }
+                return true;
+            }
+
+            // If value is null, return false since Logo is required
+            if (value == null)
+            {
+                ErrorMessage = "Logo cửa hàng là bắt buộc";
+                return false;
+            }
+
+            ErrorMessage = "Định dạng file không hợp lệ";
+            return false;
+        }
+    }
 }

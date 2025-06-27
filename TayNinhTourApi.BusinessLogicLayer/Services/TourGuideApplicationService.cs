@@ -93,8 +93,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     FullName = dto.FullName,
                     PhoneNumber = dto.PhoneNumber,
                     Email = dto.Email,
-                    Experience = dto.Experience.ToString(), // Convert int to string for enhanced entity
-                    Languages = dto.Languages,
+                    Experience = dto.Experience, // Experience is now string in DTO
+                    Languages = dto.Languages, // Keep for backward compatibility
+                    Skills = GetSkillsFromDto(dto), // Enhanced skill system
                     CurriculumVitae = fileResult?.AccessUrl,
                     CvOriginalFileName = fileResult?.OriginalFileName,
                     CvFileSize = fileResult?.FileSize,
@@ -165,7 +166,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PhoneNumber = dto.PhoneNumber,
                     Email = dto.Email,
                     Experience = dto.Experience, // Use experience description
-                    Languages = dto.Languages,
+                    Languages = dto.Languages, // Keep for backward compatibility
+                    Skills = GetSkillsFromJsonDto(dto), // Enhanced skill system
                     CurriculumVitae = dto.CurriculumVitaeUrl, // Store URL directly
                     Status = TourGuideApplicationStatus.Pending,
                     SubmittedAt = DateTime.UtcNow,
@@ -463,6 +465,68 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = $"Error cleaning up orphaned files: {ex.Message}"
                 };
             }
+        }
+
+        /// <summary>
+        /// Helper method để extract skills từ DTO
+        /// Hỗ trợ cả Skills list và SkillsString, với fallback về Languages
+        /// </summary>
+        /// <param name="dto">SubmitTourGuideApplicationDto</param>
+        /// <returns>Skills string for database storage</returns>
+        private static string? GetSkillsFromDto(SubmitTourGuideApplicationDto dto)
+        {
+            // Priority 1: Skills list (new system)
+            if (dto.Skills != null && dto.Skills.Any())
+            {
+                return TourGuideSkillUtility.SkillsToString(dto.Skills);
+            }
+
+            // Priority 2: SkillsString (API compatibility)
+            if (!string.IsNullOrWhiteSpace(dto.SkillsString))
+            {
+                // Validate and normalize the skills string
+                if (TourGuideSkillUtility.IsValidSkillsString(dto.SkillsString))
+                {
+                    return dto.SkillsString;
+                }
+            }
+
+            // Priority 3: Languages (backward compatibility)
+            if (!string.IsNullOrWhiteSpace(dto.Languages))
+            {
+                return TourGuideSkillUtility.MigrateLegacyLanguages(dto.Languages);
+            }
+
+            // Default: Vietnamese if nothing is provided
+            return "Vietnamese";
+        }
+
+        /// <summary>
+        /// Helper method để extract skills từ JSON DTO
+        /// Hỗ trợ SkillsString với fallback về Languages
+        /// </summary>
+        /// <param name="dto">SubmitTourGuideApplicationJsonDto</param>
+        /// <returns>Skills string for database storage</returns>
+        private static string? GetSkillsFromJsonDto(SubmitTourGuideApplicationJsonDto dto)
+        {
+            // Priority 1: SkillsString (new system)
+            if (!string.IsNullOrWhiteSpace(dto.SkillsString))
+            {
+                // Validate and normalize the skills string
+                if (TourGuideSkillUtility.IsValidSkillsString(dto.SkillsString))
+                {
+                    return dto.SkillsString;
+                }
+            }
+
+            // Priority 2: Languages (backward compatibility)
+            if (!string.IsNullOrWhiteSpace(dto.Languages))
+            {
+                return TourGuideSkillUtility.MigrateLegacyLanguages(dto.Languages);
+            }
+
+            // Default: Vietnamese if nothing is provided
+            return "Vietnamese";
         }
     }
 }

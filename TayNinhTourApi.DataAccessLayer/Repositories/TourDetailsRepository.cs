@@ -130,11 +130,11 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             // Get total count
             var totalCount = await query.CountAsync();
 
-            // Apply pagination
+            // Apply pagination (pageIndex is 0-based from frontend)
             var details = await query
                 .OrderBy(td => td.TourTemplate.Title)
                 .ThenBy(td => td.Title)
-                .Skip((pageIndex - 1) * pageSize)
+                .Skip(pageIndex * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 

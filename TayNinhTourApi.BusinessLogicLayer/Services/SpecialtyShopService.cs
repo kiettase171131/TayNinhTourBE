@@ -203,7 +203,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                if (pageIndex < 1) pageIndex = 1;
+                if (pageIndex < 0) pageIndex = 0;
                 if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
                 var (shops, totalCount) = await _unitOfWork.SpecialtyShopRepository.GetPagedAsync(pageIndex, pageSize, true);

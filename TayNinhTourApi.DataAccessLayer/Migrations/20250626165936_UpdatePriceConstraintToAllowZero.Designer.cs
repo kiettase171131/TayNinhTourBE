@@ -12,8 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250625031741_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250626165936_UpdatePriceConstraintToAllowZero")]
+    partial class UpdatePriceConstraintToAllowZero
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1218,9 +1218,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasComment("Thời gian hết hạn invitation");
 
                     b.Property<DateTime>("InvitedAt")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("GETUTCDATE()")
                         .HasComment("Thời gian được mời tham gia tour");
 
                     b.Property<bool>("IsActive")
@@ -1346,7 +1344,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<string>("Languages")
                         .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("varchar(200)")
+                        .HasComment("DEPRECATED: Sử dụng Skills field thay thế");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -1362,6 +1361,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Skills")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Kỹ năng của hướng dẫn viên (comma-separated TourGuideSkill enum values)");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
@@ -1597,7 +1601,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                             t.HasCheckConstraint("CK_TourOperations_MaxGuests_Positive", "MaxGuests > 0");
 
-                            t.HasCheckConstraint("CK_TourOperations_Price_Positive", "Price > 0");
+                            t.HasCheckConstraint("CK_TourOperations_Price_Positive", "Price >= 0");
                         });
                 });
 

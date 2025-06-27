@@ -35,7 +35,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="status">Lọc theo status (optional)</param>
         /// <returns>Danh sách invitations</returns>
         [HttpGet("my-invitations")]
-        [Authorize(Roles = "TourGuide")]
+        [Authorize(Roles = "Tour Guide")]
         public async Task<ActionResult<MyInvitationsResponseDto>> GetMyInvitations([FromQuery] string? status = null)
         {
             try
@@ -93,7 +93,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin chấp nhận</param>
         /// <returns>Kết quả chấp nhận</returns>
         [HttpPost("{invitationId}/accept")]
-        [Authorize(Roles = "TourGuide")]
+        [Authorize(Roles = "Tour Guide")]
         public async Task<ActionResult<BaseResposeDto>> AcceptInvitation(
             Guid invitationId,
             [FromBody] AcceptInvitationDto request)
@@ -155,7 +155,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin từ chối</param>
         /// <returns>Kết quả từ chối</returns>
         [HttpPost("{invitationId}/reject")]
-        [Authorize(Roles = "TourGuide")]
+        [Authorize(Roles = "Tour Guide")]
         public async Task<ActionResult<BaseResposeDto>> RejectInvitation(
             Guid invitationId,
             [FromBody] RejectInvitationDto request)
@@ -210,7 +210,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="invitationId">ID của invitation</param>
         /// <returns>Thông tin chi tiết invitation</returns>
         [HttpGet("{invitationId}")]
-        [Authorize(Roles = "TourGuide,Admin,TourCompany")]
+        [Authorize(Roles = "Tour Guide,Admin,Tour Company")]
         public async Task<ActionResult<InvitationDetailsResponseDto>> GetInvitationDetails(Guid invitationId)
         {
             try
@@ -237,7 +237,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="tourDetailsId">ID của TourDetails</param>
         /// <returns>Danh sách invitations</returns>
         [HttpGet("tourdetails/{tourDetailsId}")]
-        [Authorize(Roles = "Admin,TourCompany")]
+        [Authorize(Roles = "Admin,Tour Company")]
         public async Task<ActionResult<TourDetailsInvitationsResponseDto>> GetInvitationsForTourDetails(Guid tourDetailsId)
         {
             try
@@ -264,7 +264,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="invitationId">ID của invitation</param>
         /// <returns>Kết quả validation</returns>
         [HttpGet("{invitationId}/validate-acceptance")]
-        [Authorize(Roles = "TourGuide")]
+        [Authorize(Roles = "Tour Guide")]
         public async Task<ActionResult<BaseResposeDto>> ValidateInvitationAcceptance(Guid invitationId)
         {
             try

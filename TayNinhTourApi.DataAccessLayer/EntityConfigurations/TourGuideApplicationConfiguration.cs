@@ -39,7 +39,13 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired();
 
             builder.Property(x => x.Languages)
-                .HasMaxLength(200);
+                .HasMaxLength(200)
+                .HasComment("DEPRECATED: Sử dụng Skills field thay thế");
+
+            builder.Property(x => x.Skills)
+                .HasMaxLength(500)
+                .IsRequired(false)
+                .HasComment("Kỹ năng của hướng dẫn viên (comma-separated TourGuideSkill enum values)");
 
             builder.Property(x => x.CurriculumVitae)
                 .HasMaxLength(500);

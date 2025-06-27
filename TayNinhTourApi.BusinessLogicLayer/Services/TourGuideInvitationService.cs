@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
+using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
@@ -47,7 +48,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // 2. Lấy tất cả TourGuides (users với role TourGuide)
-                var tourGuides = await _unitOfWork.UserRepository.GetUsersByRoleAsync("TourGuide");
+                var tourGuides = await _unitOfWork.UserRepository.GetUsersByRoleAsync(Constants.RoleTourGuideName);
                 if (!tourGuides.Any())
                 {
                     return new BaseResposeDto
@@ -58,20 +59,34 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 3. Filter TourGuides có skills phù hợp
-                var matchingGuides = new List<User>();
+                // 3. Filter TourGuides có skills phù hợp (Enhanced skill matching)
+                var matchingGuides = new List<(User guide, double matchScore, List<string> matchedSkills)>();
                 foreach (var guide in tourGuides)
                 {
-                    // Lấy languages từ TourGuideApplication
+                    // Lấy skills từ TourGuideApplication (ưu tiên Skills field, fallback về Languages)
                     var application = await GetTourGuideApplicationAsync(guide.Id);
-                    if (application != null &&
-                        SkillsMatchingUtility.MatchSkills(tourDetails.SkillsRequired, application.Languages))
+                    if (application != null)
                     {
-                        matchingGuides.Add(guide);
+                        var guideSkills = GetGuideSkillsString(application);
+
+                        // Sử dụng enhanced skill matching
+                        if (SkillsMatchingUtility.MatchSkillsEnhanced(tourDetails.SkillsRequired, guideSkills))
+                        {
+                            var matchScore = SkillsMatchingUtility.CalculateMatchScoreEnhanced(tourDetails.SkillsRequired, guideSkills);
+                            var matchedSkills = SkillsMatchingUtility.GetMatchedSkillsEnhanced(tourDetails.SkillsRequired, guideSkills);
+
+                            matchingGuides.Add((guide, matchScore, matchedSkills));
+                        }
                     }
                 }
 
-                if (!matchingGuides.Any())
+                // Sắp xếp guides theo match score giảm dần
+                var sortedGuides = matchingGuides.OrderByDescending(x => x.matchScore)
+                                                .ThenByDescending(x => x.matchedSkills.Count)
+                                                .Select(x => x.guide)
+                                                .ToList();
+
+                if (!sortedGuides.Any())
                 {
                     return new BaseResposeDto
                     {
@@ -81,11 +96,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 4. Tạo invitations cho matching guides
+                // 4. Tạo invitations cho matching guides (ưu tiên guides có match score cao)
                 var invitationsCreated = 0;
                 var expiresAt = DateTime.UtcNow.AddHours(24); // 24 hours expiry
 
-                foreach (var guide in matchingGuides)
+                foreach (var guide in sortedGuides)
                 {
                     // Check xem đã có invitation chưa
                     var existingInvitation = await _unitOfWork.TourGuideInvitationRepository
@@ -812,24 +827,48 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Helper method để lấy TourGuideApplication của một user
-        /// TODO: Implement when TourGuideApplicationRepository is available
         /// </summary>
         private async Task<TourGuideApplication?> GetTourGuideApplicationAsync(Guid userId)
         {
             try
             {
-                // TODO: Implement when TourGuideApplicationRepository is added to UnitOfWork
-                // var applications = await _unitOfWork.TourGuideApplicationRepository
-                //     .GetAllAsync(app => app.UserId == userId && app.Status == TourGuideApplicationStatus.Approved);
-                // return applications.FirstOrDefault();
-
-                await Task.CompletedTask; // Placeholder
-                return null;
+                // Lấy application approved mới nhất của user
+                var applications = await _unitOfWork.TourGuideApplicationRepository
+                    .GetAllAsync(app => app.UserId == userId &&
+                                       app.Status == TourGuideApplicationStatus.Approved &&
+                                       app.IsActive);
+                return applications.OrderByDescending(app => app.ProcessedAt).FirstOrDefault();
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error getting TourGuideApplication for user {UserId}", userId);
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Helper method để lấy skills string từ TourGuideApplication
+        /// Ưu tiên Skills field, fallback về Languages field
+        /// </summary>
+        /// <param name="application">TourGuideApplication entity</param>
+        /// <returns>Skills string for matching</returns>
+        private static string? GetGuideSkillsString(TourGuideApplication application)
+        {
+            // Priority 1: Skills field (new system)
+            if (!string.IsNullOrWhiteSpace(application.Skills))
+            {
+                return application.Skills;
+            }
+
+            // Priority 2: Languages field (backward compatibility)
+            if (!string.IsNullOrWhiteSpace(application.Languages))
+            {
+                // Convert legacy languages to skills format
+                return TourGuideSkillUtility.MigrateLegacyLanguages(application.Languages);
+            }
+
+            // Default: Vietnamese if no skills/languages specified
+            return "Vietnamese";
         }
     }
 }
