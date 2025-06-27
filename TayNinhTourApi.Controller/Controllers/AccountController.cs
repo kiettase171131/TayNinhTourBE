@@ -286,6 +286,23 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
+                // Validate model state first
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState
+                        .Where(x => x.Value?.Errors.Count > 0)
+                        .SelectMany(x => x.Value!.Errors)
+                        .Select(x => x.ErrorMessage)
+                        .ToList();
+
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "Dữ liệu không hợp lệ",
+                        Errors = errors
+                    });
+                }
+
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 var result = await _specialtyShopApplicationService.SubmitApplicationAsync(dto, currentUser);
                 return StatusCode(result.StatusCode, result);

@@ -19,6 +19,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
         public static readonly string[] AllowedCvExtensions = { ".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg", ".webp" };
 
         /// <summary>
+        /// Maximum file size for Business License uploads (5MB)
+        /// </summary>
+        public const long MaxBusinessLicenseFileSize = 5 * 1024 * 1024; // 5MB
+
+        /// <summary>
+        /// Allowed file extensions for Business License uploads
+        /// </summary>
+        public static readonly string[] AllowedBusinessLicenseExtensions = { ".pdf", ".doc", ".docx", ".png", ".jpg", ".jpeg", ".webp" };
+
+        /// <summary>
+        /// Maximum file size for Logo uploads (2MB)
+        /// </summary>
+        public const long MaxLogoFileSize = 2 * 1024 * 1024; // 2MB
+
+        /// <summary>
+        /// Allowed file extensions for Logo uploads (only images)
+        /// </summary>
+        public static readonly string[] AllowedLogoExtensions = { ".png", ".jpg", ".jpeg", ".webp" };
+
+        /// <summary>
         /// Allowed MIME types for CV uploads
         /// </summary>
         public static readonly Dictionary<string, string[]> AllowedMimeTypes = new()
@@ -158,13 +178,137 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
         }
 
         /// <summary>
+        /// Validates a Business License file upload
+        /// </summary>
+        /// <param name="file">The uploaded file</param>
+        /// <returns>Validation result</returns>
+        public static FileValidationResult ValidateBusinessLicenseFile(IFormFile file)
+        {
+            if (file == null)
+            {
+                return new FileValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = "Giấy phép kinh doanh là bắt buộc"
+                };
+            }
+
+            // Check file size
+            if (file.Length == 0)
+            {
+                return new FileValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = "File rỗng không được phép"
+                };
+            }
+
+            if (file.Length > MaxBusinessLicenseFileSize)
+            {
+                return new FileValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = $"Kích thước file vượt quá giới hạn {MaxBusinessLicenseFileSize / (1024 * 1024)}MB"
+                };
+            }
+
+            // Check file extension
+            var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+            if (string.IsNullOrEmpty(extension) || !AllowedBusinessLicenseExtensions.Contains(extension))
+            {
+                return new FileValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = $"Định dạng file không được hỗ trợ. Chỉ chấp nhận: {string.Join(", ", AllowedBusinessLicenseExtensions)}"
+                };
+            }
+
+            // Validate file signature for security
+            var signatureResult = ValidateFileSignature(file, extension);
+            if (!signatureResult.IsValid)
+            {
+                return signatureResult;
+            }
+
+            return new FileValidationResult
+            {
+                IsValid = true,
+                Extension = extension,
+                ContentType = file.ContentType,
+                FileSize = file.Length
+            };
+        }
+
+        /// <summary>
+        /// Validates a Logo file upload
+        /// </summary>
+        /// <param name="file">The uploaded file</param>
+        /// <returns>Validation result</returns>
+        public static FileValidationResult ValidateLogoFile(IFormFile file)
+        {
+            if (file == null)
+            {
+                return new FileValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = "Logo cửa hàng là bắt buộc"
+                };
+            }
+
+            // Check file size
+            if (file.Length == 0)
+            {
+                return new FileValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = "File rỗng không được phép"
+                };
+            }
+
+            if (file.Length > MaxLogoFileSize)
+            {
+                return new FileValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = $"Kích thước file vượt quá giới hạn {MaxLogoFileSize / (1024 * 1024)}MB"
+                };
+            }
+
+            // Check file extension (only images for logo)
+            var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+            if (string.IsNullOrEmpty(extension) || !AllowedLogoExtensions.Contains(extension))
+            {
+                return new FileValidationResult
+                {
+                    IsValid = false,
+                    ErrorMessage = $"Định dạng file không được hỗ trợ. Logo chỉ chấp nhận: {string.Join(", ", AllowedLogoExtensions)}"
+                };
+            }
+
+            // Validate file signature for security
+            var signatureResult = ValidateFileSignature(file, extension);
+            if (!signatureResult.IsValid)
+            {
+                return signatureResult;
+            }
+
+            return new FileValidationResult
+            {
+                IsValid = true,
+                Extension = extension,
+                ContentType = file.ContentType,
+                FileSize = file.Length
+            };
+        }
+
+        /// <summary>
         /// Generates a safe filename for storage
         /// </summary>
         public static string GenerateSafeFileName(string originalFileName, string extension)
         {
             var safeFileName = Path.GetFileNameWithoutExtension(originalFileName);
             safeFileName = string.Join("_", safeFileName.Split(Path.GetInvalidFileNameChars()));
-            
+
             // Limit filename length
             if (safeFileName.Length > 50)
             {

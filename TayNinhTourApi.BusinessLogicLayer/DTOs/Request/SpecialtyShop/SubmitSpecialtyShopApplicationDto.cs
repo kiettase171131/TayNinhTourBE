@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.BusinessLogicLayer.Attributes;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
 {
@@ -47,11 +48,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
         /// <summary>
         /// Business license document file upload
         /// </summary>
-        public IFormFile? BusinessLicenseFile { get; set; }
+        [Required(ErrorMessage = "Giấy phép kinh doanh là bắt buộc")]
+        [BusinessLicenseFileValidation]
+        public IFormFile BusinessLicenseFile { get; set; } = null!;
 
         /// <summary>
         /// Shop logo file upload
         /// </summary>
-        public IFormFile? Logo { get; set; }
+        [Required(ErrorMessage = "Logo cửa hàng là bắt buộc")]
+        [LogoFileValidation]
+        public IFormFile Logo { get; set; } = null!;
     }
 }

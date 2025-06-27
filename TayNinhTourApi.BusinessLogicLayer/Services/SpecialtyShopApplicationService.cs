@@ -68,15 +68,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            // Validate input
-            if (dto.BusinessLicenseFile == null || dto.Logo == null)
-            {
-                return new SpecialtyShopApplicationSubmitResponseDto
-                {
-                    StatusCode = 400,
-                    Message = "Business license file and logo are required."
-                };
-            }
+            // Note: File validation is now handled by DTO validation attributes
+            // BusinessLicenseFile and Logo are required and validated at DTO level
 
             try
             {
