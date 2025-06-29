@@ -9,11 +9,10 @@ using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories
 {
-    public class CartRepository : GenericRepository<CartItem>, ICartRepository
+    public class OrderRepository : GenericRepository<Order>, IOrderRepository
     {
-        public CartRepository(TayNinhTouApiDbContext context) : base(context)
+        public OrderRepository(TayNinhTouApiDbContext context) : base(context)
         {
         }
-
     }
 }

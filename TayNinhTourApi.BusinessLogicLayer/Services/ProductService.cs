@@ -2,6 +2,7 @@
 using LinqKit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -27,7 +28,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IHostingEnvironment _env;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ICartRepository _cartRepository;
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository)
+        private readonly IPayOsService _payOsService;
+        private readonly IOrderRepository _orderRepository;
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository,IPayOsService payOsService, IOrderRepository orderRepository)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -35,6 +38,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _httpContextAccessor = httpContextAccessor;
             _productImageRepository = productImageRepository;
             _cartRepository = cartRepository;
+            _payOsService = payOsService;
+            _orderRepository = orderRepository;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
@@ -427,6 +432,97 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = "Đã xoá khỏi giỏ hàng"
             };
         }
+        public async Task ClearCartAndMarkOrderAsPaidAsync(Guid orderId)
+        {
+            var order = await _orderRepository.GetByIdAsync(orderId, new[] { nameof(Order.OrderDetails) });
+
+            if (order == null || order.Status == "Paid")
+                return;
+
+            // ✅ 1. Đánh dấu đơn hàng đã thanh toán
+            order.Status = "Paid";
+            order.UpdatedAt = DateTime.UtcNow;
+            await _orderRepository.UpdateAsync(order);
+            await _orderRepository.SaveChangesAsync();
+
+            // ✅ 2. Giảm tồn kho sản phẩm
+            foreach (var detail in order.OrderDetails)
+            {
+                var product = await _productRepository.GetByIdAsync(detail.ProductId);
+                if (product != null)
+                {
+                    product.QuantityInStock -= detail.Quantity;
+                    if (product.QuantityInStock < 0) product.QuantityInStock = 0;
+
+                    await _productRepository.UpdateAsync(product);
+                }
+            }
+            await _productRepository.SaveChangesAsync();
+
+            // ✅ 3. Xóa giỏ hàng của user
+            var cartItems = await _cartRepository.GetAllAsync(x => x.UserId == order.UserId);
+            _cartRepository.DeleteRange(cartItems);
+            await _cartRepository.SaveChangesAsync();
+        }
+        public async Task<string?> CheckoutCartAsync(CurrentUserObject currentUser)
+        {
+            var include = new string[] { nameof(CartItem.Product) };
+
+            var cartItems = await _cartRepository.GetAllAsync(x =>
+                x.UserId == currentUser.Id && !x.IsDeleted,
+                include);
+
+            // ✅ Lọc ra những item có product hợp lệ
+            cartItems = cartItems
+                .Where(x => x.Product != null && !x.Product.IsDeleted && x.Product.IsActive)
+                .ToList();
+           
+            if (!cartItems.Any())
+                return null;
+
+            // ✅ 1. Kiểm tra tồn kho
+            foreach (var item in cartItems)
+            {
+                if (item.Quantity > item.Product.QuantityInStock)
+                {
+                    throw new InvalidOperationException($"Sản phẩm '{item.Product.Name}' chỉ còn {item.Product.QuantityInStock} trong kho.");
+                }
+            }
+
+            // ✅ 2. Tính tổng tiền
+            var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
+
+            // ✅ 3. Tạo đơn hàng
+            var order = new Order
+            {
+                UserId = currentUser.Id,
+                TotalAmount = total,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow,
+                OrderDetails = cartItems.Select(x => new OrderDetail
+                {
+                    ProductId = x.ProductId,
+                    Quantity = x.Quantity,
+                    UnitPrice = x.Product.Price
+                }).ToList()
+            };
+
+            await _orderRepository.AddAsync(order);
+            await _orderRepository.SaveChangesAsync(); // or _context.SaveChangesAsync()
+
+            // ✅ 4. Gọi PayOS
+            var checkoutUrl = await _payOsService.CreatePaymentUrlAsync(
+                total,
+                order.Id.ToString(),
+                "https://yourdomain.com/payment-return"
+            );
+
+            return checkoutUrl;
+        }
+
+
+
+
 
 
 

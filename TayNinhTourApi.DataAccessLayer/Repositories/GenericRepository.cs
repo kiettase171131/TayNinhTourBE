@@ -128,6 +128,25 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
             return await query.FirstOrDefaultAsync(predicate);
         }
+        public async Task<List<T>> ListAsync(Expression<Func<T, bool>> predicate, string[]? includes = null)
+        {
+            IQueryable<T> query = _context.Set<T>().AsQueryable();
+
+            if (includes != null)
+            {
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
+            }
+
+            return await query.Where(predicate).ToListAsync();
+        }
+
+        public void DeleteRange(IEnumerable<T> entities)
+        {
+            _context.Set<T>().RemoveRange(entities);
+        }
 
     }
 }
