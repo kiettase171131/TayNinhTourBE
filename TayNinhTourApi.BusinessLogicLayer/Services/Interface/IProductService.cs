@@ -6,7 +6,9 @@ using System.Threading.Tasks;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
@@ -20,7 +22,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> AddToCartAsync(RequestAddToCartDto request, CurrentUserObject currentUser);
         Task<ResponseGetCartDto> GetCartAsync(CurrentUserObject currentUser);
         Task<BaseResposeDto> RemoveFromCartAsync(Guid cartItemId, CurrentUserObject currentUser);
-        Task ClearCartAndMarkOrderAsPaidAsync(Guid orderId);
-        Task<string?> CheckoutCartAsync(CurrentUserObject currentUser);
+        //Task ClearCartAndMarkOrderAsPaidAsync(Guid orderId);
+        Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser);
+        Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId);
+        
     }
 }

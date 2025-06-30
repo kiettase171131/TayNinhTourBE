@@ -2,10 +2,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
 using TayNinhTourApi.BusinessLogicLayer.Services;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.Controller.Controllers
@@ -95,31 +97,31 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _productService.RemoveFromCartAsync(cartItemId, currentUser);
             return StatusCode(result.StatusCode, result);
         }
-        //[HttpGet("payment-return")]
-        //public async Task<IActionResult> PaymentReturn([FromQuery] string orderCode)
-        //{
-        //    // Gọi PayOS để xác thực lại trạng thái đơn hàng
-        //    //var status = await _payOsService.VerifyPaymentStatusAsync(orderCode);
+        [HttpGet("orders/{orderId}/payment-status")]
+        public async Task<IActionResult> GetPaymentStatus(Guid orderId)
+        {
+            try
+            {
+                var status = await _productService.GetOrderPaymentStatusAsync(orderId);
+                return Ok(new { status = status.ToString() });
+            }
+            catch (Exception ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
 
-        //    if (status == "PAID")
-        //    {
-        //        await _productService.ClearCartAndMarkOrderAsPaidAsync(Guid.Parse(orderCode));
-        //        return Ok("Thanh toán thành công. Cảm ơn bạn!");
-        //    }
-
-        //    return BadRequest("Thanh toán thất bại hoặc bị hủy.");
-        //}
         [HttpPost("checkout")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> Checkout()
+        public async Task<IActionResult> Checkout([FromBody] CheckoutSelectedCartItemsDto dto)
         {
             try
             {
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var url = await _productService.CheckoutCartAsync(currentUser);
+                var url = await _productService.CheckoutCartAsync(dto.CartItemIds,currentUser);
 
                 if (url == null)
-                    return BadRequest("Giỏ hàng rỗng.");
+                    return BadRequest("Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho.");
 
                 return Ok(new { CheckoutUrl = url });
             }
@@ -132,6 +134,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, "Có lỗi xảy ra: " + ex.Message);
             }
         }
+       
 
     }
 }
