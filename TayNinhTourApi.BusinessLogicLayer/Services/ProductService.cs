@@ -280,7 +280,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             product.Description = request.Description ?? product.Description;
             product.Price = request.Price ?? product.Price;
             product.QuantityInStock = request.QuantityInStock ?? product.QuantityInStock;
-            product.Category = request.Category ?? product.Category;
+            if (request.Category.HasValue)
+            {
+                product.Category = request.Category.Value;
+            }
             product.UpdatedAt = DateTime.UtcNow;
             product.UpdatedById = currentUserObject.Id;
 
