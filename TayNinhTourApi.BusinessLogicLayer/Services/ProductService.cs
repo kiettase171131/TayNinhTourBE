@@ -34,7 +34,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IOrderRepository _orderRepository;
         private readonly IProductRatingRepository _ratingRepo;
         private readonly IProductReviewRepository _reviewRepo;
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository,IPayOsService payOsService, IOrderRepository orderRepository,IProductReviewRepository productReview,IProductRatingRepository productRating)
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -49,7 +49,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
-            var include = new string[] { nameof(Product.ProductImages)}; 
+            var include = new string[] { nameof(Product.ProductImages) };
 
             // Default values for pagination
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
@@ -128,7 +128,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
         public async Task<ResponseGetProductByIdDto> GetProductByIdAsync(Guid id)
         {
-            var include = new string[] { nameof(Product.ProductImages) }; 
+            var include = new string[] { nameof(Product.ProductImages) };
 
             var predicate = PredicateBuilder.New<Product>(x => !x.IsDeleted);
 
@@ -488,93 +488,162 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 IsSuccess = true
             };
         }
-        //public async Task ClearCartAndMarkOrderAsPaidAsync(Guid orderId)
-        //{
-        //    var order = await _orderRepository.GetByIdAsync(orderId, new[] { nameof(Order.OrderDetails) });
+        public async Task ClearCartAndUpdateInventoryAsync(Guid orderId)
+        {
+            try
+            {
+                Console.WriteLine($"ClearCartAndUpdateInventoryAsync called for order: {orderId}");
+                
+                var order = await _orderRepository.GetByIdAsync(orderId, new[] { nameof(Order.OrderDetails) });
 
-        //    if (order == null || order.Status == "Paid")
-        //        return;
+                if (order == null)
+                {
+                    Console.WriteLine($"Order not found: {orderId}");
+                    return;
+                }
 
-        //    // ✅ 1. Đánh dấu đơn hàng đã thanh toán
-        //    order.Status = "Paid";
-        //    order.UpdatedAt = DateTime.UtcNow;
-        //    await _orderRepository.UpdateAsync(order);
-        //    await _orderRepository.SaveChangesAsync();
+                Console.WriteLine($"Order found: {orderId}, Status: {order.Status}, OrderDetails count: {order.OrderDetails?.Count}");
 
-        //    // ✅ 2. Giảm tồn kho sản phẩm
-        //    foreach (var detail in order.OrderDetails)
-        //    {
-        //        var product = await _productRepository.GetByIdAsync(detail.ProductId);
-        //        if (product != null)
-        //        {
-        //            product.QuantityInStock -= detail.Quantity;
-        //            if (product.QuantityInStock < 0) product.QuantityInStock = 0;
+                if (order.Status != OrderStatus.Paid)
+                {
+                    Console.WriteLine($"Order status is not PAID, current status: {order.Status}");
+                    return;
+                }
 
-        //            await _productRepository.UpdateAsync(product);
-        //        }
-        //    }
-        //    await _productRepository.SaveChangesAsync();
+                // ✅ 1. Giảm tồn kho sản phẩm
+                Console.WriteLine("Starting inventory update...");
+                foreach (var detail in order.OrderDetails)
+                {
+                    Console.WriteLine($"Processing product: {detail.ProductId}, Quantity to subtract: {detail.Quantity}");
+                    
+                    var product = await _productRepository.GetByIdAsync(detail.ProductId);
+                    if (product != null)
+                    {
+                        var oldQuantity = product.QuantityInStock;
+                        product.QuantityInStock -= detail.Quantity;
+                        if (product.QuantityInStock < 0) product.QuantityInStock = 0;
 
-        //    // ✅ 3. Xóa giỏ hàng của user
-        //    var cartItems = await _cartRepository.GetAllAsync(x => x.UserId == order.UserId);
-        //    _cartRepository.DeleteRange(cartItems);
-        //    await _cartRepository.SaveChangesAsync();
-        //}
+                        Console.WriteLine($"Product {detail.ProductId}: {oldQuantity} -> {product.QuantityInStock}");
+                        await _productRepository.UpdateAsync(product);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Product not found: {detail.ProductId}");
+                    }
+                }
+                await _productRepository.SaveChangesAsync();
+                Console.WriteLine("Inventory update completed");
+
+                // ✅ 2. Xóa chỉ những cart items đã được checkout, không phải toàn bộ giỏ hàng
+                Console.WriteLine("Starting cart cleanup...");
+                var productIdsInOrder = order.OrderDetails.Select(x => x.ProductId).ToList();
+                Console.WriteLine($"Product IDs in order: {string.Join(", ", productIdsInOrder)}");
+                
+                var cartItemsToRemove = await _cartRepository.GetAllAsync(x => 
+                    x.UserId == order.UserId && productIdsInOrder.Contains(x.ProductId));
+                
+                Console.WriteLine($"Cart items to remove: {cartItemsToRemove.Count()}");
+                
+                if (cartItemsToRemove.Any())
+                {
+                    _cartRepository.DeleteRange(cartItemsToRemove);
+                    await _cartRepository.SaveChangesAsync();
+                    Console.WriteLine("Cart cleanup completed");
+                }
+                else
+                {
+                    Console.WriteLine("No cart items to remove");
+                }
+
+                Console.WriteLine("ClearCartAndUpdateInventoryAsync completed successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ClearCartAndUpdateInventoryAsync error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw;
+            }
+        }
+
         public async Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser)
         {
-            var include = new[] { nameof(CartItem.Product) };
-
-            var cartItems = await _cartRepository.GetAllAsync(
-                x => cartItemIds.Contains(x.Id) && x.UserId == currentUser.Id && !x.IsDeleted,
-                include
-            );
-
-      
-
-            cartItems = cartItems
-                .Where(x => x.Product != null && !x.Product.IsDeleted && x.Product.IsActive)
-                .ToList();
-
-            if (!cartItems.Any())
-                return null;
-
-            // Kiểm tra tồn kho
-            foreach (var item in cartItems)
+            try
             {
-                if (item.Quantity > item.Product.QuantityInStock)
-                    throw new InvalidOperationException($"Sản phẩm '{item.Product.Name}' chỉ còn {item.Product.QuantityInStock} trong kho.");
-            }
-
-            var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
-
-            var order = new Order
-            {
-                UserId = currentUser.Id,
-                TotalAmount = total,
-                Status = OrderStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
-                OrderDetails = cartItems.Select(x => new OrderDetail
+                // ✅ Validation đầu vào
+                if (cartItemIds == null || !cartItemIds.Any())
                 {
-                    ProductId = x.ProductId,
-                    Quantity = x.Quantity,
-                    UnitPrice = x.Product.Price
-                }).ToList()
-            };
+                    throw new ArgumentException("Danh sách cart item không được để trống");
+                }
 
-            await _orderRepository.AddAsync(order);
-            await _orderRepository.SaveChangesAsync();
+                if (currentUser == null)
+                {
+                    throw new ArgumentException("Thông tin người dùng không hợp lệ");
+                }
 
-            var checkoutUrl = await _payOsService.CreatePaymentUrlAsync(
-                total,
-                order.Id.ToString(),
-                "https://tndt.netlify.app"
-            );
+                var include = new[] { nameof(CartItem.Product) };
 
-            return new CheckoutResultDto
+                var cartItems = await _cartRepository.GetAllAsync(
+                    x => cartItemIds.Contains(x.Id) && x.UserId == currentUser.Id && !x.IsDeleted,
+                    include
+                );
+
+                cartItems = cartItems
+                    .Where(x => x.Product != null && !x.Product.IsDeleted && x.Product.IsActive)
+                    .ToList();
+
+                if (!cartItems.Any())
+                {
+                    throw new InvalidOperationException("Không tìm thấy sản phẩm hợp lệ trong giỏ hàng");
+                }
+
+                // Kiểm tra tồn kho
+                foreach (var item in cartItems)
+                {
+                    if (item.Quantity > item.Product.QuantityInStock)
+                        throw new InvalidOperationException($"Sản phẩm '{item.Product.Name}' chỉ còn {item.Product.QuantityInStock} trong kho.");
+                }
+
+                var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
+
+                var order = new Order
+                {
+                    UserId = currentUser.Id,
+                    TotalAmount = total,
+                    Status = OrderStatus.Pending,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = currentUser.Id,
+                    OrderDetails = cartItems.Select(x => new OrderDetail
+                    {
+                        ProductId = x.ProductId,
+                        Quantity = x.Quantity,
+                        UnitPrice = x.Product.Price,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedById = currentUser.Id
+                    }).ToList()
+                };
+
+                await _orderRepository.AddAsync(order);
+                await _orderRepository.SaveChangesAsync();
+
+                var checkoutUrl = await _payOsService.CreatePaymentUrlAsync(
+                    total,
+                    order.Id.ToString(),
+                    "https://tndt.netlify.app"
+                );
+
+                return new CheckoutResultDto
+                {
+                    CheckoutUrl = checkoutUrl,
+                    OrderId = order.Id
+                };
+            }
+            catch (Exception ex)
             {
-                CheckoutUrl = checkoutUrl,
-                OrderId = order.Id
-            };
+                // ✅ Log lỗi chi tiết để debug
+                Console.WriteLine($"CheckoutCartAsync Error: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                throw; // Re-throw để controller xử lý
+            }
         }
 
         public async Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId)
@@ -650,7 +719,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<IEnumerable<ProductReviewDto>> GetProductReviewsAsync(Guid productId)
         {
             var includes = new[] { "User" };
-            var reviews = await _reviewRepo.ListAsync(r => r.ProductId == productId,includes);
+            var reviews = await _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
 
             return reviews.Select(r => new ProductReviewDto
             {

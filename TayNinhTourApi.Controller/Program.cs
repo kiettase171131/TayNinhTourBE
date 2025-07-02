@@ -228,6 +228,15 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
+    
+    // Specific policy for PayOS callback
+    options.AddPolicy("PayOSCallback", policy =>
+    {
+        policy.WithOrigins("https://api-merchant.payos.vn", "https://payos.vn")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
 });
 
 

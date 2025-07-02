@@ -23,7 +23,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> AddToCartAsync(RequestAddToCartDto request, CurrentUserObject currentUser);
         Task<ResponseGetCartDto> GetCartAsync(CurrentUserObject currentUser);
         Task<BaseResposeDto> RemoveFromCartAsync(Guid cartItemId, CurrentUserObject currentUser);
-        //Task ClearCartAndMarkOrderAsPaidAsync(Guid orderId);
+        Task ClearCartAndUpdateInventoryAsync(Guid orderId);
         Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser);
         Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId);
         Task<BaseResposeDto> RateProductAsync(CreateProductRatingDto dto, Guid userId);

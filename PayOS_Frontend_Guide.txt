@@ -1,0 +1,276 @@
+HUONG DAN TICH HOP THANH TOAN PAYOS - FRONTEND
+
+==========================================
+
+TONG QUAN
+---------
+Tai lieu huong dan tich hop PayOS cho frontend React/Vue/Angular.
+Payment duoc xu ly tu dong sau khi user thanh toan thanh cong.
+
+LUONG THANH TOAN
+----------------
+1. Checkout -> Backend tra ve {orderId, checkoutUrl}
+2. Redirect to PayOS -> User scan QR thanh toan
+3. PayOS redirect ve -> Frontend nhan orderId tu URL
+4. Goi API xac nhan -> Backend xu ly tu dong
+5. Hien thi ket qua -> Thanh cong/That bai
+
+BACKEND APIs SAN SANG
+---------------------
+API                                                 Method  Muc dich
+/api/Product/checkout                               POST    Tao don hang va link thanh toan
+/api/payment-callback/payment-success/{orderId}    POST    Xu ly thanh toan thanh cong
+/api/payment-callback/payment-cancel/{orderId}     POST    Xu ly thanh toan bi huy
+/api/payment-callback/check-status/{orderId}       GET     Kiem tra trang thai don hang
+
+CODE IMPLEMENTATION
+===================
+
+1. CHECKOUT SERVICE
+-------------------
+// CheckoutService.js
+class CheckoutService {
+  constructor(apiUrl, token) {
+    this.apiUrl = apiUrl;
+    this.token = token;
+  }
+
+  async checkout(cartItemIds) {
+    const response = await fetch(`${this.apiUrl}/api/Product/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`
+      },
+      body: JSON.stringify({ cartItemIds })
+    });
+
+    const result = await response.json();
+    
+    // Luu orderId de backup
+    localStorage.setItem('currentOrderId', result.orderId);
+    
+    return result; // {orderId, checkoutUrl}
+  }
+}
+
+2. CHECKOUT COMPONENT
+---------------------
+// CheckoutPage.jsx
+import React, { useState } from 'react';
+
+const CheckoutPage = () => {
+  const [loading, setLoading] = useState(false);
+  const [selectedItems, setSelectedItems] = useState([]);
+
+  const handleCheckout = async () => {
+    setLoading(true);
+    try {
+      const checkoutService = new CheckoutService(API_URL, authToken);
+      const result = await checkoutService.checkout(selectedItems);
+      
+      // Redirect den PayOS
+      window.location.href = result.checkoutUrl;
+    } catch (error) {
+      alert('Loi: ' + error.message);
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2>Thanh Toan</h2>
+      <button onClick={handleCheckout} disabled={loading}>
+        {loading ? 'Dang xu ly...' : 'Thanh Toan PayOS'}
+      </button>
+    </div>
+  );
+};
+
+3. TRANG THANH TOAN THANH CONG
+-------------------------------
+// PaymentSuccessPage.jsx
+import React, { useEffect, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+
+const PaymentSuccessPage = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [status, setStatus] = useState('processing');
+  const [message, setMessage] = useState('Dang xu ly...');
+
+  useEffect(() => {
+    // Lay orderId tu URL hoac localStorage
+    const orderId = searchParams.get('orderId') || localStorage.getItem('currentOrderId');
+    
+    if (orderId) {
+      processPayment(orderId);
+    } else {
+      setStatus('error');
+      setMessage('Khong tim thay thong tin don hang');
+    }
+  }, []);
+
+  const processPayment = async (orderId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/payment-callback/payment-success/${orderId}`, {
+        method: 'POST'
+      });
+
+      const data = await response.json();
+
+      if (data.inventoryUpdated && data.cartCleared) {
+        setStatus('success');
+        setMessage('Thanh toan thanh cong!');
+        localStorage.removeItem('currentOrderId');
+        setTimeout(() => navigate('/orders'), 3000);
+      } else if (data.shouldRetry) {
+        setTimeout(() => processPayment(orderId), 3000);
+      }
+    } catch (error) {
+      setStatus('error');
+      setMessage('Loi xu ly thanh toan');
+    }
+  };
+
+  return (
+    <div className="payment-page">
+      {status === 'processing' && (
+        <div>
+          <div className="spinner"></div>
+          <h2>Dang xu ly thanh toan</h2>
+          <p>{message}</p>
+        </div>
+      )}
+
+      {status === 'success' && (
+        <div>
+          <h2>Thanh toan thanh cong!</h2>
+          <p>Don hang da duoc xu ly. Chuyen huong trong giay lat...</p>
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div>
+          <h2>Co loi xay ra</h2>
+          <p>{message}</p>
+          <button onClick={() => navigate('/cart')}>Ve gio hang</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+4. TRANG HUY THANH TOAN
+-----------------------
+// PaymentCancelPage.jsx
+import React, { useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+
+const PaymentCancelPage = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (orderId) {
+      // Goi API xu ly huy thanh toan
+      fetch(`${API_URL}/api/payment-callback/payment-cancel/${orderId}`, {
+        method: 'POST'
+      });
+    }
+  }, []);
+
+  return (
+    <div className="payment-cancel-page">
+      <h2>Thanh toan da bi huy</h2>
+      <p>San pham van duoc giu trong gio hang.</p>
+      <button onClick={() => navigate('/cart')}>Ve gio hang</button>
+      <button onClick={() => navigate('/products')}>Tiep tuc mua sam</button>
+    </div>
+  );
+};
+
+5. ROUTER SETUP
+---------------
+// App.jsx
+import { Routes, Route } from 'react-router-dom';
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/payment-success" element={<PaymentSuccessPage />} />
+      <Route path="/payment-cancel" element={<PaymentCancelPage />} />
+    </Routes>
+  );
+}
+
+CSS DON GIAN
+============
+.payment-page {
+  text-align: center;
+  padding: 2rem;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+button {
+  padding: 10px 20px;
+  margin: 10px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #ccc;
+}
+
+TEST CHECKLIST
+==============
+CAN TEST:
+- [ ] Checkout voi san pham hop le
+- [ ] Checkout voi gio hang trong (loi)
+- [ ] Thanh toan thanh cong tren PayOS
+- [ ] Huy thanh toan tren PayOS
+- [ ] Refresh trang trong luc xu ly
+- [ ] orderId luu trong localStorage
+- [ ] Redirect ve trang dung sau thanh toan
+
+LUU Y QUAN TRONG
+================
+1. Environment Variables:
+REACT_APP_API_URL=https://localhost:7205
+
+2. PayOS URLs duoc config san:
+   - Success: https://yoursite.com/payment-success?orderId={orderId}
+   - Cancel: https://yoursite.com/payment-cancel?orderId={orderId}
+
+3. Debug Tools:
+// Console commands de debug
+PaymentDebugger.checkOrderStatus('order-id');
+PaymentDebugger.testCallback('order-id', 'PAID');
+
+HO TRO
+======
+- Debug order: GET /api/payment-callback/debug/{orderId}
+- Manual test: POST /api/payment-callback/confirm/{orderId}
+- Auto-check: POST /api/payment-callback/auto-check
+
+Payment system san sang su dung!
