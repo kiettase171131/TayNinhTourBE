@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
 using TayNinhTourApi.BusinessLogicLayer.Services;
@@ -39,6 +40,14 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<IActionResult> GetAll( int? pageIndex,  int? pageSize,  string? textSearch,  bool? status)
         {
             var result = await _productService.GetProductsAsync(pageIndex, pageSize, textSearch, status);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("Product-ByShop")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
+        public async Task<IActionResult> GetAllByShop(int? pageIndex, int? pageSize, string? textSearch, bool? status)
+        {
+            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.GetProductsByShopAsync(pageIndex, pageSize, textSearch, status,currentUser);
             return StatusCode(result.StatusCode, result);
         }
 
@@ -96,6 +105,35 @@ namespace TayNinhTourApi.Controller.Controllers
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             var result = await _productService.RemoveFromCartAsync(cartItemId, currentUser);
             return StatusCode(result.StatusCode, result);
+        }
+        [HttpPost("rate")]
+        public async Task<IActionResult> RateProduct([FromBody] CreateProductRatingDto dto)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.RateProductAsync(dto, currentUser.Id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost("review")]
+        public async Task<IActionResult> ReviewProduct([FromBody] CreateProductReviewDto dto)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.ReviewProductAsync(dto, currentUser.Id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("{productId}/average-rating")]
+        public async Task<IActionResult> GetAverageRating(Guid productId)
+        {
+            var result = await _productService.GetAverageRatingAsync(productId);
+            return Ok(new { averageRating = result });
+        }
+
+        [HttpGet("{productId}/reviews")]
+        public async Task<IActionResult> GetReviews(Guid productId)
+        {
+            var result = await _productService.GetProductReviewsAsync(productId);
+            return Ok(result);
         }
         [HttpGet("orders/{orderId}/payment-status")]
         public async Task<IActionResult> GetPaymentStatus(Guid orderId)

@@ -32,7 +32,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly ICartRepository _cartRepository;
         private readonly IPayOsService _payOsService;
         private readonly IOrderRepository _orderRepository;
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository,IPayOsService payOsService, IOrderRepository orderRepository)
+        private readonly IProductRatingRepository _ratingRepo;
+        private readonly IProductReviewRepository _reviewRepo;
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository,IPayOsService payOsService, IOrderRepository orderRepository,IProductReviewRepository productReview,IProductRatingRepository productRating)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -42,6 +44,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _cartRepository = cartRepository;
             _payOsService = payOsService;
             _orderRepository = orderRepository;
+            _ratingRepo = productRating;
+            _reviewRepo = productReview;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
@@ -53,6 +57,45 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             // Predicate lọc
             var predicate = PredicateBuilder.New<Product>(x => !x.IsDeleted);
+
+            // Lọc theo tên sản phẩm
+            if (!string.IsNullOrEmpty(textSearch))
+            {
+                predicate = predicate.And(b =>
+           EF.Functions.Like(b.Name, $"%{textSearch}%"));
+            }
+
+            // Lọc theo trạng thái hoạt động
+            if (status.HasValue)
+            {
+                predicate = predicate.And(x => x.IsActive == status);
+            }
+
+            // Lấy danh sách sản phẩm
+            var products = await _productRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate, include);
+
+            var totalProducts = products.Count();
+            var totalPages = (int)Math.Ceiling((double)totalProducts / pageSizeValue);
+
+            return new ResponseGetProductsDto
+            {
+                StatusCode = 200,
+                Message = "Get product list successfully",
+                Data = _mapper.Map<List<ProductDto>>(products),
+                TotalRecord = totalProducts,
+                TotalPages = totalPages
+            };
+        }
+        public async Task<ResponseGetProductsDto> GetProductsByShopAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, CurrentUserObject currentUserObject)
+        {
+            var include = new string[] { nameof(Product.ProductImages) };
+
+            // Default values for pagination
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+            // Predicate lọc
+            var predicate = PredicateBuilder.New<Product>(x => !x.IsDeleted && x.CreatedById == currentUserObject.Id);
 
             // Lọc theo tên sản phẩm
             if (!string.IsNullOrEmpty(textSearch))
@@ -541,11 +584,69 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             return status;
         }
-        
 
+        public async Task<BaseResposeDto> RateProductAsync(CreateProductRatingDto dto, Guid userId)
+        {
+            var existing = await _ratingRepo.GetFirstOrDefaultAsync(r => r.ProductId == dto.ProductId && r.UserId == userId);
+            if (existing != null)
+            {
+                existing.Rating = dto.Rating;
+                await _ratingRepo.UpdateAsync(existing);
+                await _ratingRepo.SaveChangesAsync();
+            }
+            else
+            {
+                var rating = new ProductRating
+                {
+                    ProductId = dto.ProductId,
+                    UserId = userId,
+                    Rating = dto.Rating
+                };
+                await _ratingRepo.AddAsync(rating);
+                await _ratingRepo.SaveChangesAsync();
+            }
+            return new BaseResposeDto
+            {
+                StatusCode = 200,
+                Message = "Product rating updated successfully"
+            };
+        }
 
+        public async Task<BaseResposeDto> ReviewProductAsync(CreateProductReviewDto dto, Guid userId)
+        {
+            var review = new ProductReview
+            {
+                ProductId = dto.ProductId,
+                UserId = userId,
+                Content = dto.Content
+            };
+            await _reviewRepo.AddAsync(review);
+            await _reviewRepo.SaveChangesAsync();
+            return new BaseResposeDto
+            {
+                StatusCode = 200,
+                Message = "Product review added successfully"
+            };
+        }
 
+        public async Task<double> GetAverageRatingAsync(Guid productId)
+        {
+            var ratings = await _ratingRepo.ListAsync(r => r.ProductId == productId);
+            if (!ratings.Any()) return 0;
+            return ratings.Average(r => r.Rating);
+        }
 
+        public async Task<IEnumerable<ProductReviewDto>> GetProductReviewsAsync(Guid productId)
+        {
+            var includes = new[] { "User" };
+            var reviews = await _reviewRepo.ListAsync(r => r.ProductId == productId,includes);
 
+            return reviews.Select(r => new ProductReviewDto
+            {
+                UserName = r.User.Name,
+                Content = r.Content,
+                CreatedAt = r.CreatedAt
+            });
+        }
     }
 }

@@ -15,6 +15,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
     public interface IProductService
     {
         Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status);
+        Task<ResponseGetProductsDto> GetProductsByShopAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, CurrentUserObject currentUserObject);
         Task<ResponseGetProductByIdDto> GetProductByIdAsync(Guid id);
         Task<BaseResposeDto> DeleteProductAsync(Guid id);
         Task<ResponseCreateProductDto> CreateProductAsync(RequestCreateProductDto request, CurrentUserObject currentUserObject);
@@ -25,6 +26,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         //Task ClearCartAndMarkOrderAsPaidAsync(Guid orderId);
         Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser);
         Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId);
-        
+        Task<BaseResposeDto> RateProductAsync(CreateProductRatingDto dto, Guid userId);
+        Task<BaseResposeDto> ReviewProductAsync(CreateProductReviewDto dto, Guid userId);
+        Task<double> GetAverageRatingAsync(Guid productId);
+        Task<IEnumerable<ProductReviewDto>> GetProductReviewsAsync(Guid productId);
     }
 }

@@ -171,6 +171,8 @@ builder.Services.AddScoped<IShopApplicationRepository, ShopApplicationRepository
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();
+builder.Services.AddScoped<IProductRatingRepository, ProductRatingRepository>();
+builder.Services.AddScoped<IProductReviewRepository, ProductReviewRepository>();
 
 builder.Services.AddScoped<ISpecialtyShopApplicationRepository, SpecialtyShopApplicationRepository>();
 builder.Services.AddScoped<ISpecialtyShopRepository, SpecialtyShopRepository>();

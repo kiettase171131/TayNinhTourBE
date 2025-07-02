@@ -17,6 +17,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task SaveChangesAsync();
         Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate, string[]? includes = null);
         Task<List<T>> ListAsync(Expression<Func<T, bool>> predicate, string[]? includes = null);
+
         void DeleteRange(IEnumerable<T> entities);
 
 
