@@ -475,9 +475,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 include
             );
 
-            //// Đảm bảo đúng số lượng (chống thao tác thiếu quyền)
-            //if (cartItems.Count != cartItemIds.Count)
-            //    return null; // hoặc throw lỗi
+      
 
             cartItems = cartItems
                 .Where(x => x.Product != null && !x.Product.IsDeleted && x.Product.IsActive)
@@ -515,7 +513,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var checkoutUrl = await _payOsService.CreatePaymentUrlAsync(
                 total,
                 order.Id.ToString(),
-                "https://tayninhtour.card-diversevercel.io.vn"
+                "https://tndt.netlify.app"
             );
 
             return new CheckoutResultDto

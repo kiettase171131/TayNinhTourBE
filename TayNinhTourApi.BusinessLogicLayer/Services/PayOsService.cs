@@ -30,14 +30,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             List<ItemData> items = new List<ItemData>();
 
             PayOS payOS = new PayOS(clientId, apiKey, checksumKey);
-            string orderCode2 = DateTimeOffset.Now.ToString("ffffff");
+            var orderCode2 = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             PaymentData paymentData = new PaymentData(
-             orderCode: int.Parse(orderCode2),
-             amount: (int)amount*1000,
-             description: $"don hang",
+             orderCode: orderCode2,
+             amount: (int)amount,
+             description: $"don hang", 
              items: items,
-             cancelUrl: "https://tayninhtour.card-diversevercel.io.vn",
-             returnUrl: "https://tayninhtour.card-diversevercel.io.vn",
+             cancelUrl: "https://tndt.netlify.app/about",
+             returnUrl: "https://tndt.netlify.app/blog",
              buyerName:"kiet") ;
             CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
             return createPayment.checkoutUrl;
