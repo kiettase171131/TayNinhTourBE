@@ -11,17 +11,47 @@ LUONG THANH TOAN
 ----------------
 1. Checkout -> Backend tra ve {orderId, checkoutUrl}
 2. Redirect to PayOS -> User scan QR thanh toan
-3. PayOS redirect ve -> Frontend nhan orderId tu URL
-4. Goi API xac nhan -> Backend xu ly tu dong
+3. PayOS goi callback URL voi orderCode:
+   - Thanh cong: POST /api/payment-callback/paid/{orderCode}
+   - Huy: POST /api/payment-callback/cancelled/{orderCode}
+4. Frontend nhan orderId tu URL va goi API xac nhan
 5. Hien thi ket qua -> Thanh cong/That bai
 
-BACKEND APIs SAN SANG
----------------------
+ORDER STATUS VALUES
+-------------------
+- 0 = Pending (Cho xu ly)
+- 1 = Paid (Da thanh toan) - Truong hop nay se tru stock san pham
+- 2 = Cancelled (Da huy) - KHONG tru stock
+
+BACKEND APIs SIMPLIFIED
+-----------------------
 API                                                 Method  Muc dich
 /api/Product/checkout                               POST    Tao don hang va link thanh toan
-/api/payment-callback/payment-success/{orderId}    POST    Xu ly thanh toan thanh cong
-/api/payment-callback/payment-cancel/{orderId}     POST    Xu ly thanh toan bi huy
+/api/payment-callback/paid/{orderCode}             POST    PayOS callback thanh toan thanh cong
+/api/payment-callback/cancelled/{orderCode}        POST    PayOS callback thanh toan bi huy  
+/api/payment-callback/payment-success/{orderId}    POST    Frontend xu ly thanh toan thanh cong
+/api/payment-callback/payment-cancel/{orderId}     POST    Frontend xu ly thanh toan bi huy
 /api/payment-callback/check-status/{orderId}       GET     Kiem tra trang thai don hang
+
+PAYOS CALLBACK URLs
+-------------------
+Cau hinh trong PayOS Dashboard:
+- PAID callback: https://yourdomain.com/api/payment-callback/paid/{orderCode}
+- CANCELLED callback: https://yourdomain.com/api/payment-callback/cancelled/{orderCode}
+
+PayOS se tu dong thay the {orderCode} bang gia tri that.
+
+RESPONSE FORMAT
+---------------
+Tat ca API tra ve statusValue de frontend check:
+{
+  "orderId": "guid",
+  "status": "Paid", 
+  "statusValue": 1,  // 0=Pending, 1=Paid, 2=Cancelled
+  "message": "...",
+  "stockUpdated": true,
+  "cartCleared": true
+}
 
 CODE IMPLEMENTATION
 ===================
@@ -119,13 +149,18 @@ const PaymentSuccessPage = () => {
 
       const data = await response.json();
 
-      if (data.inventoryUpdated && data.cartCleared) {
+      // Check statusValue thay vi string
+      if (data.statusValue === 1 && data.stockUpdated && data.cartCleared) {
         setStatus('success');
-        setMessage('Thanh toan thanh cong!');
+        setMessage('Thanh toan thanh cong! Stock da duoc tru.');
         localStorage.removeItem('currentOrderId');
         setTimeout(() => navigate('/orders'), 3000);
       } else if (data.shouldRetry) {
         setTimeout(() => processPayment(orderId), 3000);
+      } else if (data.isAlreadyProcessed && data.statusValue === 1) {
+        setStatus('success');
+        setMessage('Don hang da duoc thanh toan truoc do.');
+        setTimeout(() => navigate('/orders'), 2000);
       }
     } catch (error) {
       setStatus('error');
@@ -146,7 +181,9 @@ const PaymentSuccessPage = () => {
       {status === 'success' && (
         <div>
           <h2>Thanh toan thanh cong!</h2>
-          <p>Don hang da duoc xu ly. Chuyen huong trong giay lat...</p>
+          <p>{message}</p>
+          <p>San pham da duoc tru khoi kho</p>
+          <p>Gio hang da duoc xoa</p>
         </div>
       )}
 
@@ -164,27 +201,38 @@ const PaymentSuccessPage = () => {
 4. TRANG HUY THANH TOAN
 -----------------------
 // PaymentCancelPage.jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
 const PaymentCancelPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [message, setMessage] = useState('Dang xu ly huy thanh toan...');
 
   useEffect(() => {
     const orderId = searchParams.get('orderId');
     if (orderId) {
-      // Goi API xu ly huy thanh toan
+      // Goi API xu ly huy thanh toan - se set status = 2
       fetch(`${API_URL}/api/payment-callback/payment-cancel/${orderId}`, {
         method: 'POST'
-      });
+      }).then(response => response.json())
+        .then(data => {
+          console.log('Cancel processed:', data);
+          if (data.statusValue === 2) {
+            setMessage('Thanh toan da bi huy. San pham van trong gio hang.');
+          }
+        })
+        .catch(() => {
+          setMessage('Da ghi nhan huy thanh toan.');
+        });
     }
   }, []);
 
   return (
     <div className="payment-cancel-page">
       <h2>Thanh toan da bi huy</h2>
-      <p>San pham van duoc giu trong gio hang.</p>
+      <p>{message}</p>
+      <p>Stock san pham KHONG bi tru.</p>
       <button onClick={() => navigate('/cart')}>Ve gio hang</button>
       <button onClick={() => navigate('/products')}>Tiep tuc mua sam</button>
     </div>
@@ -204,6 +252,53 @@ function App() {
       <Route path="/payment-cancel" element={<PaymentCancelPage />} />
     </Routes>
   );
+}
+
+6. CHECK STATUS UTILITY
+------------------------
+// PaymentStatusChecker.js
+class PaymentStatusChecker {
+  constructor(apiUrl) {
+    this.apiUrl = apiUrl;
+  }
+
+  async checkStatus(orderId) {
+    const response = await fetch(`${this.apiUrl}/api/payment-callback/check-status/${orderId}`);
+    const data = await response.json();
+    
+    return {
+      orderId: data.orderId,
+      status: data.status,
+      statusValue: data.statusValue, // 0, 1, or 2
+      isPaid: data.statusValue === 1,
+      isCancelled: data.statusValue === 2,
+      isPending: data.statusValue === 0,
+      totalAmount: data.totalAmount
+    };
+  }
+
+  // Polling de check status
+  async pollStatus(orderId, maxAttempts = 10, interval = 3000) {
+    for (let i = 0; i < maxAttempts; i++) {
+      const result = await this.checkStatus(orderId);
+      
+      if (result.isPaid || result.isCancelled) {
+        return result; // Da co ket qua cuoi cung
+      }
+      
+      // Cho interval roi check lai
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+    
+    throw new Error('Timeout waiting for payment status');
+  }
+}
+
+// Su dung:
+const checker = new PaymentStatusChecker(API_URL);
+const result = await checker.checkStatus(orderId);
+if (result.isPaid) {
+  console.log('Don hang da thanh toan - stock da bi tru');
 }
 
 CSS DON GIAN
@@ -246,12 +341,36 @@ TEST CHECKLIST
 ==============
 CAN TEST:
 - [ ] Checkout voi san pham hop le
-- [ ] Checkout voi gio hang trong (loi)
-- [ ] Thanh toan thanh cong tren PayOS
-- [ ] Huy thanh toan tren PayOS
+- [ ] Checkout voi gio hang trong (loi)  
+- [ ] Thanh toan thanh cong tren PayOS -> callback paid/{orderCode} -> statusValue = 1, stock bi tru
+- [ ] Huy thanh toan tren PayOS -> callback cancelled/{orderCode} -> statusValue = 2, stock KHONG bi tru
 - [ ] Refresh trang trong luc xu ly
 - [ ] orderId luu trong localStorage
 - [ ] Redirect ve trang dung sau thanh toan
+- [ ] Kiem tra stock san pham sau thanh toan thanh cong
+- [ ] Kiem tra gio hang da bi xoa sau thanh toan
+- [ ] Test callback URLs bang Postman
+
+CALLBACK FLOW LOGIC
+===================
+PAID CALLBACK (PayOS -> Backend):
+1. PayOS goi: POST /api/payment-callback/paid/{orderCode}
+2. Backend set order.Status = 1 (Paid)
+3. Backend goi ClearCartAndUpdateInventoryAsync()
+4. Stock bi tru, cart bi xoa
+5. Response: {"statusValue": 1, "stockUpdated": true}
+
+CANCELLED CALLBACK (PayOS -> Backend):
+1. PayOS goi: POST /api/payment-callback/cancelled/{orderCode}  
+2. Backend set order.Status = 2 (Cancelled)
+3. Backend KHONG tru stock, KHONG xoa cart
+4. Response: {"statusValue": 2, "stockUpdated": false}
+
+FRONTEND FLOW:
+1. User redirect ve tu PayOS voi orderId
+2. Frontend goi: POST /api/payment-callback/payment-success/{orderId}
+3. Backend check PayOS status va xu ly tuong ung
+4. Frontend nhan response va hien thi UI
 
 LUU Y QUAN TRONG
 ================
@@ -262,15 +381,25 @@ REACT_APP_API_URL=https://localhost:7205
    - Success: https://yoursite.com/payment-success?orderId={orderId}
    - Cancel: https://yoursite.com/payment-cancel?orderId={orderId}
 
-3. Debug Tools:
+3. PayOS Callback URLs (cau hinh trong dashboard):
+   - PAID: https://yourdomain.com/api/payment-callback/paid/{orderCode}
+   - CANCELLED: https://yourdomain.com/api/payment-callback/cancelled/{orderCode}
+
+4. Debug Tools:
 // Console commands de debug
 PaymentDebugger.checkOrderStatus('order-id');
-PaymentDebugger.testCallback('order-id', 'PAID');
 
 HO TRO
 ======
 - Debug order: GET /api/payment-callback/debug/{orderId}
-- Manual test: POST /api/payment-callback/confirm/{orderId}
-- Auto-check: POST /api/payment-callback/auto-check
+- Get callback URLs: GET /api/payment-callback/urls
+- Health check: GET /api/payment-callback/health
+- Check status: GET /api/payment-callback/check-status/{orderId}
+
+QUAN TRONG: 
+- Khi thanh toan THANH CONG: PayOS goi /paid/{orderCode} -> statusValue = 1, stock bi tru, cart bi xoa
+- Khi thanh toan BI HUY: PayOS goi /cancelled/{orderCode} -> statusValue = 2, stock KHONG bi tru, cart van con
+
+API callback don gian hon, chi can orderCode trong URL!
 
 Payment system san sang su dung!
