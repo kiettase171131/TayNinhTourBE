@@ -145,6 +145,7 @@ builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
 
 
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IPayOsService, PayOsService>();
 
 builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
@@ -187,7 +188,7 @@ builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();
 
 builder.Services.AddScoped<ISpecialtyShopApplicationRepository, SpecialtyShopApplicationRepository>();
 builder.Services.AddScoped<ISpecialtyShopRepository, SpecialtyShopRepository>();
-
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 // TourGuide Invitation Workflow Repositories
 builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();

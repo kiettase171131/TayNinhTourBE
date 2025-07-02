@@ -29,9 +29,12 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
 
         public DbSet<Product> Products { get; set; } = null!;
         public DbSet<ProductImage> ProductImages { get; set; } = null!;
-        public DbSet<CartItem> CartItems { get; set; }
+        public DbSet<CartItem> CartItems { get; set; } = null!;
 
         public DbSet<SpecialtyShopApplication> SpecialtyShopApplications { get; set; } = null!;
+        public DbSet<Order> Orders { get; set; } = null!;
+        public DbSet<OrderDetail> OrderDetails { get; set; } = null!;
+
         public DbSet<SpecialtyShop> SpecialtyShops { get; set; } = null!;
         public DbSet<TourBooking> TourBookings { get; set; } = null!;
 
