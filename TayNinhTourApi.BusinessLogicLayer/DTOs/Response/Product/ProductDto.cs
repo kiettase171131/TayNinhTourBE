@@ -16,6 +16,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
         public int QuantityInStock { get; set; }
         public List<string> ImageUrl { get; set; } = new();
         public string? Category { get; set; }
+        public bool IsSale { get; set; }
+        public int? SalePercent { get; set; }
+        public int SoldCount { get; set; } 
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
