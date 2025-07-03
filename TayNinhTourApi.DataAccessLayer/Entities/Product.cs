@@ -42,6 +42,16 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         [StringLength(100)]
         public string? Category { get; set; }
+        /// <summary>
+        /// Có đang giảm giá không
+        /// </summary>
+        public bool IsSale { get; set; } = false;
+
+        /// <summary>
+        /// Giảm giá bao nhiêu phần trăm (0–100)
+        /// </summary>
+        [Range(0, 100)]
+        public int? SalePercent { get; set; }
 
         /// <summary>
         /// Người bán sản phẩm (có thể liên kết với Shop nếu cần)
