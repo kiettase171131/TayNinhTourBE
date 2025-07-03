@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.Controller.Controllers
@@ -14,11 +15,12 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         private readonly IOrderRepository _orderRepository;
         private readonly IProductService _productService;
-
-        public PaymentController(IOrderRepository orderRepository, IProductService productService)
+        private readonly IProductRepository _productRepository;
+        public PaymentController(IOrderRepository orderRepository, IProductService productService, IProductRepository productRepository)
         {
             _orderRepository = orderRepository;
             _productService = productService;
+            _productRepository = productRepository;
         }
 
         /// <summary>
@@ -47,14 +49,15 @@ namespace TayNinhTourApi.Controller.Controllers
                 if (long.TryParse(orderCode, out long numericOrderCode))
                 {
                     Console.WriteLine($"Looking for order with PayOsOrderCode: {numericOrderCode}");
-                    order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == numericOrderCode);
+                    order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == numericOrderCode, includes: new[] { "OrderDetails" });
                 }
 
                 // If not found, try parse as GUID Order.Id
                 if (order == null && Guid.TryParse(orderCode, out Guid orderGuid))
-                {
+                {   
                     Console.WriteLine($"Looking for order with ID: {orderGuid}");
-                    order = await _orderRepository.GetByIdAsync(orderGuid);
+                    var includes = new[] { "OrderDetails" };
+                    order = await _orderRepository.GetByIdAsync(orderGuid,includes);
                 }
 
                 if (order == null)
@@ -78,6 +81,17 @@ namespace TayNinhTourApi.Controller.Controllers
                     Console.WriteLine("Calling ClearCartAndUpdateInventoryAsync...");
                     await _productService.ClearCartAndUpdateInventoryAsync(order.Id);
                     Console.WriteLine("Stock updated and cart cleared");
+                    var orderDetails = order.OrderDetails.ToList();
+                    foreach (var item in orderDetails)
+                    {
+                        var product = await _productRepository.GetByIdAsync(item.ProductId);
+                        if (product != null)
+                        {
+                            product.SoldCount += item.Quantity;
+                            await _productRepository.UpdateAsync(product);
+                        }
+                    }
+                    await _productRepository.SaveChangesAsync();
                 }
                 else
                 {

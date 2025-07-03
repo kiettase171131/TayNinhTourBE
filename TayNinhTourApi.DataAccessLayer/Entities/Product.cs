@@ -53,6 +53,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         [Required]
         public ProductCategory Category { get; set; }
+        public int SoldCount { get; set; } = 0;
 
 
         /// <summary>
