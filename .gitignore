@@ -520,3 +520,6 @@ TayNinhTourApi.Controller/wwwroot/uploads/*
 .history/
 *.bakk
 *.orig 
+
+#Ignore vscode AI rules
+.github\copilot-instructions.md

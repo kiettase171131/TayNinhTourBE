@@ -10,6 +10,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories;
@@ -21,13 +22,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     public class CmsService : ICmsService
     {
         private readonly IUserRepository _userRepository;
+        private readonly IRoleRepository _roleRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly BcryptUtility _bcryptUtility;
         private readonly IBlogRepository _blogRepository;
         private readonly IBlogCommentRepository _blogCommentRepository;
         private readonly IBlogReactionRepository _blogReactionRepository;
 
-        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository)
+        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility)
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
@@ -35,6 +38,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _blogRepository = repo;
             _blogCommentRepository = blogCommentRepository;
             _blogReactionRepository = blogReactionRepository;
+            _roleRepository = roleRepository;
+            _bcryptUtility = bcryptUtility;
         }
 
         public async Task<BaseResposeDto> DeleteUserAsync(Guid id)
@@ -60,7 +65,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "User deleted successfully"
+                Message = "User deleted successfully",
+                IsSuccess = true
             };
         }
 
@@ -107,6 +113,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog found successfully",
+                IsSuccess = true,
                 Data = dtos,
                 TotalRecord = totalblogs,
                 TotalPages = totalPages,
@@ -126,14 +133,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ResponseGetTourDto
                 {
-                    StatusCode = 404,
+                    StatusCode = 200,
                     Message = "Không tìm thấy chi nhánh này",
+                    IsSuccess = true
                 };
             }
 
             return new ResponseGetTourDto
             {
                 StatusCode = 200,
+                IsSuccess = true,
                 Data = _mapper.Map<TourDto>(tour)
             };
         }
@@ -170,6 +179,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetToursDto
             {
                 StatusCode = 200,
+                IsSuccess = true,
                 Data = _mapper.Map<List<TourDto>>(tours),
                 TotalRecord = totalTours,
                 TotalPages = totalPages,
@@ -178,6 +188,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<ResponseGetUsersCmsDto> GetUserAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
+            var include = new string[] { nameof(User.Role) };
             // Set page index and page size
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
             var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
@@ -197,7 +208,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             predicate = predicate.And(x => x.Role.Name != "Admin");
 
             // Get users from repository
-            var users = await _userRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate);
+            var users = await _userRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate,include);
 
             var totalUsers = users.Count();
             var totalPages = (int)Math.Ceiling((double)totalUsers / pageSizeValue);
@@ -213,14 +224,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<ResponseGetUserByIdCmsDto> GetUserByIdAsync(Guid id)
         {
+            var include = new string[] { nameof(User.Role) };
             // Find user by id
-            var user = await _userRepository.GetByIdAsync(id);
+            var user = await _userRepository.GetByIdAsync(id,include);
 
             if (user == null || user.IsDeleted)
             {
                 return new ResponseGetUserByIdCmsDto
                 {
-                    StatusCode = 404,
+                    StatusCode = 200,
                     Message = "User not found"
                 };
             }
@@ -228,9 +240,61 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetUserByIdCmsDto
             {
                 StatusCode = 200,
+                IsSuccess = true,
                 Data = _mapper.Map<UserCmsDto>(user)
             };
         }
+        public async Task<BaseResposeDto> CreateUserAsync(RequestCreateUserDto request)
+        {
+            // 1. Kiểm tra email trùng
+            var existingUser = await _userRepository.GetFirstOrDefaultAsync(x => x.Email == request.Email);
+            if (existingUser != null)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Email đã tồn tại"
+                };
+            }
+
+            // 2. Kiểm tra role hợp lệ (không được là Admin)
+            var role = await _roleRepository.GetByIdAsync(request.RoleId);
+            if (role == null || role.IsDeleted || !role.IsActive || role.Name == Constants.RoleAdminName)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Role không hợp lệ"
+                };
+            }
+
+            // 3. Tạo user mới
+            var newUser = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = request.Email,
+                Name = request.Name,
+                PhoneNumber = request.PhoneNumber,
+                PasswordHash = _bcryptUtility.HashPassword(request.Password),
+                RoleId = request.RoleId,
+                IsActive = true,
+                IsVerified = true,  // Nếu muốn user CMS mặc định là verified
+                CreatedAt = DateTime.UtcNow,
+                CreatedById = Guid.Empty,  // hoặc gán userId đang login nếu cần
+                Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png"
+            };
+
+            await _userRepository.AddAsync(newUser);
+            await _unitOfWork.SaveChangesAsync();
+
+            return new BaseResposeDto
+            {
+                StatusCode = 201,
+                Message = "Tạo user thành công",
+                IsSuccess = true
+            };
+        }
+
 
         public async Task<BaseResposeDto> UpdateBlogAsync(RequestUpdateBlogCmsDto request, Guid id, Guid updatedById)
         {
@@ -284,7 +348,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Blog updated successfully"
+                Message = "Blog updated successfully",
+                IsSuccess = true
             };
         }
 
@@ -340,7 +405,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Cập nhật Tour thành công"
+                Message = "Cập nhật Tour thành công",
+                IsSuccess = true
             };
         }
 
@@ -370,7 +436,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "User updated successfully"
+                Message = "User updated successfully",
+                IsSuccess = true
             };
         }
     }

@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -37,11 +38,8 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [StringLength(500)]
         public string? ImageUrl { get; set; }
 
-        /// <summary>
-        /// Danh mục sản phẩm (VD: Mắm, Bánh tráng, Muối tôm,...)
-        /// </summary>
-        [StringLength(100)]
-        public string? Category { get; set; }
+       
+     
         /// <summary>
         /// Có đang giảm giá không
         /// </summary>
@@ -52,6 +50,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         [Range(0, 100)]
         public int? SalePercent { get; set; }
+
+        [Required]
+        public ProductCategory Category { get; set; }
+
 
         /// <summary>
         /// Người bán sản phẩm (có thể liên kết với Shop nếu cần)

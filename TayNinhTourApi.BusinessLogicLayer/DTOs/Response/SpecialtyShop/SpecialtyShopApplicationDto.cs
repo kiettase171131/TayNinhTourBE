@@ -54,9 +54,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop
         public string? ShopType { get; set; }
 
         /// <summary>
-        /// Giờ mở cửa
+        /// Giờ mở cửa (HH:mm format)
         /// </summary>
         public string? OpeningHours { get; set; }
+
+        /// <summary>
+        /// Giờ đóng cửa (HH:mm format)
+        /// </summary>
+        public string? ClosingHours { get; set; }
 
         /// <summary>
         /// Tên người đại diện

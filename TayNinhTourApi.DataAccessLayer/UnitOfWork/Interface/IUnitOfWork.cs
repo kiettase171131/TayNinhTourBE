@@ -14,10 +14,13 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         // IShopRepository ShopRepository { get; }
         ISpecialtyShopRepository SpecialtyShopRepository { get; }
         ISpecialtyShopApplicationRepository SpecialtyShopApplicationRepository { get; }
+        ITourGuideApplicationRepository TourGuideApplicationRepository { get; }
         ITourSlotRepository TourSlotRepository { get; }
 
         ITourDetailsRepository TourDetailsRepository { get; }
+        ITourDetailsSpecialtyShopRepository TourDetailsSpecialtyShopRepository { get; }
         ITourOperationRepository TourOperationRepository { get; }
+        ITourBookingRepository TourBookingRepository { get; }
         ITourGuideInvitationRepository TourGuideInvitationRepository { get; }
         ITimelineItemRepository TimelineItemRepository { get; }
         IBlogRepository BlogRepository { get; }

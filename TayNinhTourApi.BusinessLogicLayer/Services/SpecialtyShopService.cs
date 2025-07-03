@@ -87,6 +87,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (!string.IsNullOrWhiteSpace(updateDto.OpeningHours))
                     specialtyShop.OpeningHours = updateDto.OpeningHours;
 
+                if (!string.IsNullOrWhiteSpace(updateDto.ClosingHours))
+                    specialtyShop.ClosingHours = updateDto.ClosingHours;
+
                 if (updateDto.IsShopActive.HasValue)
                     specialtyShop.IsShopActive = updateDto.IsShopActive.Value;
 
@@ -203,7 +206,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                if (pageIndex < 1) pageIndex = 1;
+                if (pageIndex < 0) pageIndex = 0;
                 if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
                 var (shops, totalCount) = await _unitOfWork.SpecialtyShopRepository.GetPagedAsync(pageIndex, pageSize, true);

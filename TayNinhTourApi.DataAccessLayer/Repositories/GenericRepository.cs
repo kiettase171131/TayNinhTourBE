@@ -66,7 +66,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 }
             }
 
-            query = query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
+            query = query.Skip(pageIndex * pageSize).Take(pageSize);
 
             return await query.ToListAsync();
         }

@@ -51,16 +51,10 @@ namespace TayNinhTourApi.Controller.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            try
-            {
-                var ticket = await _service.GetTicketDetailsAsync(id);
-                if (ticket == null) return NotFound();
-                return Ok(ticket);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+           
+           var response = await _service.GetTicketDetailsAsync(id);
+            return StatusCode(response.StatusCode, response);
+
         }
         //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         //// PUT: api/SupportTickets/{id}/status

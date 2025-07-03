@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
 {
@@ -13,9 +14,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
         public string? Description { get; set; }
         public decimal? Price { get; set; }
         public int? QuantityInStock { get; set; }
-        public string? Category { get; set; }
+
+        
         public bool? IsSale { get; set; }
         public int? SalePercent { get; set; }
+
+        public ProductCategory? Category { get; set; }
+
         public List<IFormFile>? Files { get; set; }
     }
 

@@ -55,9 +55,11 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Register DbContext with MySQL (Pomelo provider)
+// Register DbContext with MySQL (Pomelo provider) - removed retry policy to fix transaction issues
 builder.Services.AddDbContext<TayNinhTouApiDbContext>(options =>
-    options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection")!, new MySqlServerVersion(new Version(8, 0, 21))));
+    options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection")!,
+        new MySqlServerVersion(new Version(8, 0, 21)),
+        mySqlOptions => mySqlOptions.CommandTimeout(120)));
 
 // Add authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
@@ -138,8 +140,9 @@ builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
 builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
+builder.Services.AddScoped<ITourBookingService, TourBookingService>();
 builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
-builder.Services.AddScoped<IShopApplicationService, ShopApplicationService>();
+
 
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IPayOsService, PayOsService>();
@@ -147,8 +150,17 @@ builder.Services.AddScoped<IPayOsService, PayOsService>();
 builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
 
+// File Storage Services
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+
 // TourGuide Invitation Workflow Services
 builder.Services.AddScoped<ITourGuideInvitationService, TourGuideInvitationService>();
+
+// Skill Management Services
+builder.Services.AddScoped<ISkillManagementService, SkillManagementService>();
+
+// Data Migration Services
+builder.Services.AddScoped<DataMigrationService>();
 
 
 
@@ -159,7 +171,9 @@ builder.Services.AddScoped<ITourTemplateRepository, TourTemplateRepository>();
 // Shop repository removed - merged into SpecialtyShopRepository
 builder.Services.AddScoped<ITourSlotRepository, TourSlotRepository>();
 builder.Services.AddScoped<ITourDetailsRepository, TourDetailsRepository>();
+builder.Services.AddScoped<ITourDetailsSpecialtyShopRepository, TourDetailsSpecialtyShopRepository>();
 builder.Services.AddScoped<ITourOperationRepository, TourOperationRepository>();
+builder.Services.AddScoped<ITourBookingRepository, TourBookingRepository>();
 builder.Services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 builder.Services.AddScoped<ISupportTicketCommentRepository, SupportTicketCommentRepository>();
 builder.Services.AddScoped<ITourGuideApplicationRepository, TourGuideApplicationRepository>();
@@ -167,7 +181,7 @@ builder.Services.AddScoped<IBlogRepository, BlogRepository>();
 builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();
 builder.Services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
-builder.Services.AddScoped<IShopApplicationRepository, ShopApplicationRepository>();
+
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();
@@ -214,6 +228,15 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
+    
+    // Specific policy for PayOS callback
+    options.AddPolicy("PayOSCallback", policy =>
+    {
+        policy.WithOrigins("https://api-merchant.payos.vn", "https://payos.vn")
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
 });
 
 
@@ -222,16 +245,40 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Initialize database and seed data
-using (var scope = app.Services.CreateScope())
+// Initialize database and seed data with error handling
+try
 {
-    var context = scope.ServiceProvider.GetRequiredService<TayNinhTouApiDbContext>();
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<TayNinhTouApiDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    // Ensure database is created
-    await context.Database.EnsureCreatedAsync();
+        logger.LogInformation("Attempting to connect to database...");
 
-    var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
-    await seeder.SeedDataAsync();
+        // Test connection first
+        var canConnect = await context.Database.CanConnectAsync();
+        if (!canConnect)
+        {
+            logger.LogWarning("Cannot connect to database. API will start without database initialization.");
+        }
+        else
+        {
+            logger.LogInformation("Database connection successful. Initializing...");
+
+            // Ensure database is created
+            await context.Database.EnsureCreatedAsync();
+            logger.LogInformation("Database ensured created.");
+
+            var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
+            await seeder.SeedDataAsync();
+            logger.LogInformation("Database seeding completed.");
+        }
+    }
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "An error occurred while initializing the database. API will start without database initialization.");
 }
 
 // Configure the HTTP request pipeline.

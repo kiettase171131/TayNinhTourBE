@@ -133,6 +133,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             var tourTemplateDtos = _mapper.Map<List<TourTemplateSummaryDto>>(templates);
 
+            // Add capacity information for each template
+            foreach (var dto in tourTemplateDtos)
+            {
+                dto.CapacitySummary = await CalculateTemplateCapacityAsync(dto.Id);
+            }
+
             return new ResponseGetTourTemplatesDto
             {
                 StatusCode = 200,
@@ -225,6 +231,84 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     .GroupBy(t => t.TemplateType)
                     .ToDictionary(g => g.Key.ToString(), g => g.Count())
             };
+        }
+
+        /// <summary>
+        /// Tính toán capacity summary cho template
+        /// </summary>
+        private async Task<TemplateCapacitySummaryDto> CalculateTemplateCapacityAsync(Guid templateId)
+        {
+            try
+            {
+                // Get all slots for this template
+                var slots = await _unitOfWork.TourSlotRepository.GetAllAsync(
+                    s => s.TourTemplateId == templateId && !s.IsDeleted);
+
+                // Get all tour details for this template
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
+                    td => td.TourTemplateId == templateId && !td.IsDeleted);
+
+                // Get all operations for these tour details
+                var operations = new List<TourOperation>();
+                foreach (var detail in tourDetails)
+                {
+                    var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(detail.Id);
+                    if (operation != null && operation.IsActive)
+                    {
+                        operations.Add(operation);
+                    }
+                }
+
+                // Calculate totals
+                var totalSlots = slots.Count();
+                var activeSlots = slots.Count(s => s.IsActive);
+                var totalMaxCapacity = operations.Sum(o => o.MaxGuests);
+                var activeOperations = operations.Count;
+
+                // Calculate total booked guests
+                var totalBookedGuests = 0;
+                foreach (var operation in operations)
+                {
+                    totalBookedGuests += await _unitOfWork.TourBookingRepository.GetTotalBookedGuestsAsync(operation.Id);
+                }
+
+                // Find next available date
+                DateTime? nextAvailableDate = null;
+                var futureSlots = slots.Where(s => s.TourDate > DateOnly.FromDateTime(DateTime.Now) && s.IsActive)
+                                      .OrderBy(s => s.TourDate);
+
+                foreach (var slot in futureSlots)
+                {
+                    if (slot.TourDetailsId.HasValue)
+                    {
+                        var operation = operations.FirstOrDefault(o => o.TourDetailsId == slot.TourDetailsId.Value);
+                        if (operation != null)
+                        {
+                            var bookedGuests = await _unitOfWork.TourBookingRepository.GetTotalBookedGuestsAsync(operation.Id);
+                            if (bookedGuests < operation.MaxGuests)
+                            {
+                                nextAvailableDate = slot.TourDate.ToDateTime(TimeOnly.MinValue);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                return new TemplateCapacitySummaryDto
+                {
+                    TotalSlots = totalSlots,
+                    ActiveSlots = activeSlots,
+                    TotalMaxCapacity = totalMaxCapacity,
+                    TotalBookedGuests = totalBookedGuests,
+                    NextAvailableDate = nextAvailableDate,
+                    ActiveOperations = activeOperations
+                };
+            }
+            catch (Exception ex)
+            {
+                // Log error and return empty summary
+                return new TemplateCapacitySummaryDto();
+            }
         }
     }
 }

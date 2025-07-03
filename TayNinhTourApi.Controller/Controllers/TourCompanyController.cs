@@ -1,24 +1,23 @@
 ﻿
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
-
 using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
-
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
-using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = Constants.RoleTourCompanyName)]
+    
     public class TourCompanyController : ControllerBase
     {
         private readonly ITourCompanyService _tourCompanyService;
@@ -54,6 +53,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpPost("tour")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<BaseResposeDto>> CreateTour(RequestCreateTourCmsDto request)
         {
             // Get current user id from ICurrentUserService
@@ -69,6 +69,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpPatch("tour/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<BaseResposeDto>> UpdateTour(RequestUpdateTourDto request, Guid id)
         {
             // Get current user id from ICurrentUserService
@@ -84,6 +85,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpDelete("tour/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<BaseResposeDto>> DeleteTour(Guid id)
         {
             var response = await _tourCompanyService.DeleteTourAsync(id);
@@ -94,7 +96,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
         [HttpGet("template")]
         public async Task<ActionResult<ResponseGetTourTemplatesDto>> GetTourTemplates(
-            int pageIndex = 1,
+            int pageIndex = 0,
             int pageSize = 10,
             string? templateType = null,
             string? startLocation = null,
@@ -107,9 +109,9 @@ namespace TayNinhTourApi.Controller.Controllers
                 parsedTemplateType = type;
             }
 
-            // Convert 1-based pageIndex to 0-based for service
+            // Use 0-based pageIndex directly
             var response = await _tourTemplateService.GetTourTemplatesPaginatedAsync(
-                pageIndex - 1, pageSize, parsedTemplateType, null, null, startLocation, includeInactive);
+                pageIndex, pageSize, parsedTemplateType, null, null, startLocation, includeInactive);
             return StatusCode(response.StatusCode, response);
         }
 
@@ -121,6 +123,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpPost("template")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<ResponseCreateTourTemplateDto>> CreateTourTemplate(RequestCreateTourTemplateDto request)
         {
             // Get current user id from ICurrentUserService
@@ -173,6 +176,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpPatch("template/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<ResponseUpdateTourTemplateDto>> UpdateTourTemplate(Guid id, RequestUpdateTourTemplateDto request)
         {
             // Get current user id from ICurrentUserService
@@ -188,6 +192,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpDelete("template/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<ResponseDeleteTourTemplateDto>> DeleteTourTemplate(Guid id)
         {
             // Get current user id from ICurrentUserService
@@ -203,6 +208,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpPost("template/{id}/copy")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<ResponseCopyTourTemplateDto>> CopyTourTemplate(Guid id, [FromBody] CopyTourTemplateRequest request)
         {
             // Get current user id from ICurrentUserService

@@ -1,0 +1,121 @@
+using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.DataAccessLayer.Enums;
+
+namespace TayNinhTourApi.DataAccessLayer.Entities
+{
+    /// <summary>
+    /// Entity đại diện cho booking của khách hàng cho một tour operation
+    /// </summary>
+    public class TourBooking : BaseEntity
+    {
+        /// <summary>
+        /// ID của TourOperation được booking
+        /// </summary>
+        [Required]
+        public Guid TourOperationId { get; set; }
+
+        /// <summary>
+        /// ID của User thực hiện booking
+        /// </summary>
+        [Required]
+        public Guid UserId { get; set; }
+
+        /// <summary>
+        /// Số lượng khách trong booking này
+        /// </summary>
+        [Required]
+        [Range(1, 50, ErrorMessage = "Số lượng khách phải từ 1 đến 50")]
+        public int NumberOfGuests { get; set; }
+
+        /// <summary>
+        /// Số lượng khách người lớn
+        /// </summary>
+        [Required]
+        [Range(0, 50, ErrorMessage = "Số lượng người lớn phải từ 0 đến 50")]
+        public int AdultCount { get; set; }
+
+        /// <summary>
+        /// Số lượng trẻ em (nếu có)
+        /// </summary>
+        [Range(0, 50, ErrorMessage = "Số lượng trẻ em phải từ 0 đến 50")]
+        public int ChildCount { get; set; } = 0;
+
+        /// <summary>
+        /// Tổng giá tiền của booking
+        /// </summary>
+        [Required]
+        [Range(0, double.MaxValue, ErrorMessage = "Tổng giá phải >= 0")]
+        public decimal TotalPrice { get; set; }
+
+        /// <summary>
+        /// Trạng thái của booking
+        /// </summary>
+        [Required]
+        public BookingStatus Status { get; set; } = BookingStatus.Pending;
+
+        /// <summary>
+        /// Ngày booking được tạo
+        /// </summary>
+        [Required]
+        public DateTime BookingDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Ngày xác nhận booking (nếu có)
+        /// </summary>
+        public DateTime? ConfirmedDate { get; set; }
+
+        /// <summary>
+        /// Ngày hủy booking (nếu có)
+        /// </summary>
+        public DateTime? CancelledDate { get; set; }
+
+        /// <summary>
+        /// Lý do hủy booking
+        /// </summary>
+        [StringLength(500, ErrorMessage = "Lý do hủy không quá 500 ký tự")]
+        public string? CancellationReason { get; set; }
+
+        /// <summary>
+        /// Ghi chú từ khách hàng
+        /// </summary>
+        [StringLength(1000, ErrorMessage = "Ghi chú không quá 1000 ký tự")]
+        public string? CustomerNotes { get; set; }
+
+        /// <summary>
+        /// Thông tin liên hệ khách hàng
+        /// </summary>
+        [StringLength(100, ErrorMessage = "Tên liên hệ không quá 100 ký tự")]
+        public string? ContactName { get; set; }
+
+        /// <summary>
+        /// Số điện thoại liên hệ
+        /// </summary>
+        [StringLength(20, ErrorMessage = "Số điện thoại không quá 20 ký tự")]
+        public string? ContactPhone { get; set; }
+
+        /// <summary>
+        /// Email liên hệ
+        /// </summary>
+        [StringLength(100, ErrorMessage = "Email không quá 100 ký tự")]
+        public string? ContactEmail { get; set; }
+
+        /// <summary>
+        /// Mã booking duy nhất cho khách hàng
+        /// </summary>
+        [Required]
+        [StringLength(20, ErrorMessage = "Mã booking không quá 20 ký tự")]
+        public string BookingCode { get; set; } = string.Empty;
+
+        // Navigation Properties
+
+        /// <summary>
+        /// TourOperation được booking
+        /// </summary>
+        public virtual TourOperation TourOperation { get; set; } = null!;
+
+        /// <summary>
+        /// User thực hiện booking
+        /// </summary>
+        public virtual User User { get; set; } = null!;
+    }
+}

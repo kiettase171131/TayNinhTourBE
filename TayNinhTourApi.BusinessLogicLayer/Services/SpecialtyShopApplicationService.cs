@@ -64,19 +64,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new SpecialtyShopApplicationSubmitResponseDto
                 {
                     StatusCode = 400,
-                    Message = "You already have an active specialty shop application. Please wait for processing or contact support."
+                    Message = "You already have an active specialty shop application. Please wait for processing or contact support.",
+                    IsSuccess = false,
+                    Instructions = "Please wait for your current application to be processed or contact support for assistance."
                 };
             }
 
-            // Validate input
-            if (dto.BusinessLicenseFile == null || dto.Logo == null)
-            {
-                return new SpecialtyShopApplicationSubmitResponseDto
-                {
-                    StatusCode = 400,
-                    Message = "Business license file and logo are required."
-                };
-            }
+            // Note: File validation is now handled by DTO validation attributes
+            // BusinessLicenseFile and Logo are required and validated at DTO level
 
             try
             {
@@ -87,13 +82,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UserId = currentUser.Id,
                     ShopName = dto.ShopName,
                     ShopDescription = dto.ShopDescription,
-                    BusinessLicense = dto.BusinessLicense,
+                    BusinessLicense = "PENDING", // Sẽ được cập nhật từ file name hoặc metadata
                     Location = dto.Location,
                     PhoneNumber = dto.PhoneNumber,
                     Email = dto.Email,
                     Website = dto.Website,
                     ShopType = dto.ShopType,
                     OpeningHours = dto.OpeningHours,
+                    ClosingHours = dto.ClosingHours,
                     RepresentativeName = dto.RepresentativeName,
                     Status = SpecialtyShopApplicationStatus.Pending,
                     SubmittedAt = DateTime.UtcNow,
@@ -112,10 +108,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new SpecialtyShopApplicationSubmitResponseDto
                     {
                         StatusCode = 400,
-                        Message = businessLicenseUrl
+                        Message = businessLicenseUrl,
+                        IsSuccess = false,
+                        Instructions = "Please check your business license file and try again. Make sure the file is in correct format and size."
                     };
                 }
                 application.BusinessLicenseUrl = businessLicenseUrl;
+
+                // Cập nhật BusinessLicense từ file name (loại bỏ extension)
+                application.BusinessLicense = Path.GetFileNameWithoutExtension(dto.BusinessLicenseFile.FileName);
 
                 // Upload logo file
                 var logoUrl = await UploadFileAsync(
@@ -128,7 +129,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new SpecialtyShopApplicationSubmitResponseDto
                     {
                         StatusCode = 400,
-                        Message = logoUrl
+                        Message = logoUrl,
+                        IsSuccess = false,
+                        Instructions = "Please check your logo file and try again. Make sure the file is in correct format and size."
                     };
                 }
                 application.LogoUrl = logoUrl;
@@ -147,11 +150,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Specialty shop application submitted successfully",
+                    IsSuccess = true,
                     ApplicationId = application.Id,
                     ShopName = application.ShopName,
                     LogoUrl = application.LogoUrl,
                     BusinessLicenseUrl = application.BusinessLicenseUrl,
-                    SubmittedAt = application.SubmittedAt
+                    SubmittedAt = application.SubmittedAt,
+                    Instructions = "Your specialty shop application has been submitted successfully. We will review your application within 3-5 business days and notify you via email."
                 };
             }
             catch (Exception ex)
@@ -159,7 +164,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new SpecialtyShopApplicationSubmitResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"An error occurred while submitting application: {ex.Message}"
+                    Message = $"An error occurred while submitting application: {ex.Message}",
+                    IsSuccess = false,
+                    Instructions = "An unexpected error occurred. Please try again later or contact support if the problem persists."
                 };
             }
         }
@@ -316,6 +323,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     LogoUrl = application.LogoUrl,
                     ShopType = application.ShopType,
                     OpeningHours = application.OpeningHours,         // ⭐ NEW - Fix missing data
+                    ClosingHours = application.ClosingHours,         // ⭐ NEW - Add closing hours
                     IsShopActive = true,
                     CreatedAt = DateTime.UtcNow,
                     CreatedById = application.UserId

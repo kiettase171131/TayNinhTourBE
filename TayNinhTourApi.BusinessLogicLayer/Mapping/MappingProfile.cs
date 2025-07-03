@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Authentication;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Blog;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Booking;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Booking;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
@@ -12,6 +14,8 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 {
@@ -21,7 +25,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
         {
             #region User Mapping
             CreateMap<RequestRegisterDto, User>();
-            CreateMap<User, UserCmsDto>();
+            CreateMap<User, UserCmsDto>()
+                .ForMember(dest => dest.RoleName, opt => opt.MapFrom(src => src.Role.Name)); 
             #endregion
 
             #region Tour Mapping
@@ -44,13 +49,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.TourTemplateName, opt => opt.MapFrom(src => src.TourTemplate.Title))
                 .ForMember(dest => dest.AssignedSlotsCount, opt => opt.MapFrom(src => src.AssignedSlots.Count))
                 .ForMember(dest => dest.TimelineItemsCount, opt => opt.MapFrom(src => src.Timeline.Count))
+                .ForMember(dest => dest.InvitedShopsCount, opt => opt.MapFrom(src => src.InvitedSpecialtyShops.Count))
                 .ForMember(dest => dest.Timeline, opt => opt.MapFrom(src => src.Timeline))
-                .ForMember(dest => dest.TourOperation, opt => opt.MapFrom(src => src.TourOperation));
+                .ForMember(dest => dest.TourOperation, opt => opt.MapFrom(src => src.TourOperation))
+                .ForMember(dest => dest.InvitedSpecialtyShops, opt => opt.MapFrom(src => src.InvitedSpecialtyShops));
 
             CreateMap<TimelineItem, TimelineItemDto>()
                 .ForMember(dest => dest.CheckInTime, opt => opt.MapFrom(src => src.CheckInTime.ToString(@"hh\:mm")));
             // TODO: Update SpecialtyShop mapping after DTO updates
             // .ForMember(dest => dest.SpecialtyShop, opt => opt.MapFrom(src => src.SpecialtyShop));
+
+            // TourDetailsSpecialtyShop mappings
+            CreateMap<TourDetailsSpecialtyShop, TourDetailsSpecialtyShopDto>()
+                .ForMember(dest => dest.StatusText, opt => opt.MapFrom(src => GetShopInvitationStatusText(src.Status)))
+                .ForMember(dest => dest.IsExpired, opt => opt.MapFrom(src => src.ExpiresAt < DateTime.UtcNow && src.Status == ShopInvitationStatus.Pending))
+                .ForMember(dest => dest.DaysRemaining, opt => opt.MapFrom(src => src.Status == ShopInvitationStatus.Pending ? Math.Max(0, (int)(src.ExpiresAt - DateTime.UtcNow).TotalDays) : 0))
+                .ForMember(dest => dest.SpecialtyShop, opt => opt.MapFrom(src => src.SpecialtyShop));
+
+            CreateMap<SpecialtyShop, SpecialtyShopSummaryDto>()
+                .ForMember(dest => dest.OwnerName, opt => opt.MapFrom(src => src.User.Name))
+                .ForMember(dest => dest.OwnerEmail, opt => opt.MapFrom(src => src.User.Email));
 
             CreateMap<TourOperation, TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany.TourOperationDto>();
 
@@ -98,7 +116,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #region TourGuideApplication Mapping
             CreateMap<TourGuideApplication, TourGuideApplicationDto>()
                 .ForMember(dest => dest.UserInfo, opt => opt.MapFrom(src => src.User))
-                .ForMember(dest => dest.ProcessedByInfo, opt => opt.MapFrom(src => src.ProcessedBy));
+                .ForMember(dest => dest.ProcessedByInfo, opt => opt.MapFrom(src => src.ProcessedBy))
+                .ForMember(dest => dest.CurriculumVitaeUrl, opt => opt.MapFrom(src => src.CurriculumVitae))
+                .ForMember(dest => dest.CvOriginalFileName, opt => opt.MapFrom(src => src.CvOriginalFileName))
+                .ForMember(dest => dest.CvFileSize, opt => opt.MapFrom(src => src.CvFileSize))
+                .ForMember(dest => dest.CvContentType, opt => opt.MapFrom(src => src.CvContentType))
+                .ForMember(dest => dest.CvFilePath, opt => opt.MapFrom(src => src.CvFilePath))
+                .ForMember(dest => dest.Skills, opt => opt.MapFrom(src =>
+                    !string.IsNullOrEmpty(src.Skills)
+                        ? TourGuideSkillUtility.StringToSkills(src.Skills)
+                        : TourGuideSkillUtility.StringToSkills(src.Languages)))
+                .ForMember(dest => dest.SkillsString, opt => opt.MapFrom(src =>
+                    !string.IsNullOrEmpty(src.Skills)
+                        ? src.Skills
+                        : TourGuideSkillUtility.MigrateLegacyLanguages(src.Languages)))
+                .ForMember(dest => dest.SkillsInfo, opt => opt.MapFrom(src =>
+                    (!string.IsNullOrEmpty(src.Skills)
+                        ? TourGuideSkillUtility.StringToSkills(src.Skills)
+                        : TourGuideSkillUtility.StringToSkills(src.Languages))
+                    .Select(skill => new SkillInfoDto
+                    {
+                        Skill = skill,
+                        DisplayName = TourGuideSkillUtility.GetDisplayName(skill),
+                        EnglishName = skill.ToString(),
+                        Category = GetSkillCategory(skill)
+                    }).ToList()));
 
             CreateMap<TourGuideApplication, TourGuideApplicationSummaryDto>()
                 .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
@@ -120,7 +162,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
                 .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Email : null))
                 .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null))
-                .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price));
+                .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price))
+                .ForMember(dest => dest.CurrentBookings, opt => opt.Ignore()); // Will set in service
+            CreateMap<TourOperation, TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany.TourOperationDto>()
+                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
+                .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Email : null))
+                .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null))
+                .ForMember(dest => dest.CurrentBookings, opt => opt.Ignore()) // Will set in service
+                .ForMember(dest => dest.StatusName, opt => opt.Ignore()); // Will set in service
+            #endregion
+
+            #region TourBooking Mapping
+            CreateMap<RequestCreateBookingDto, TourBooking>()
+                .ForMember(dest => dest.NumberOfGuests, opt => opt.MapFrom(src => src.TotalGuests))
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.UserId, opt => opt.Ignore())
+                .ForMember(dest => dest.TotalPrice, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
+                .ForMember(dest => dest.BookingDate, opt => opt.Ignore())
+                .ForMember(dest => dest.BookingCode, opt => opt.Ignore());
+            CreateMap<TourBooking, ResponseBookingDto>()
+                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? src.User.Name : "N/A"))
+                .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : null))
+                .ForMember(dest => dest.TotalGuests, opt => opt.MapFrom(src => src.NumberOfGuests))
+                .ForMember(dest => dest.StatusName, opt => opt.Ignore()) // Will set in service
+                .ForMember(dest => dest.TourOperation, opt => opt.Ignore()); // Will set in service
             #endregion
         }
 
@@ -153,6 +219,36 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 TourOperationStatus.Cancelled => "Đã hủy",
                 TourOperationStatus.Postponed => "Đã hoãn",
                 TourOperationStatus.PendingConfirmation => "Chờ xác nhận",
+                _ => status.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Helper method để xác định category của skill
+        /// </summary>
+        private static string GetSkillCategory(TourGuideSkill skill)
+        {
+            if (TourGuideSkillUtility.SkillCategories.Languages.Contains(skill))
+                return "Ngôn ngữ";
+            if (TourGuideSkillUtility.SkillCategories.Knowledge.Contains(skill))
+                return "Kiến thức chuyên môn";
+            if (TourGuideSkillUtility.SkillCategories.Activities.Contains(skill))
+                return "Kỹ năng hoạt động";
+            if (TourGuideSkillUtility.SkillCategories.Special.Contains(skill))
+                return "Kỹ năng đặc biệt";
+
+            return "Khác";
+        }
+
+        private static string GetShopInvitationStatusText(ShopInvitationStatus status)
+        {
+            return status switch
+            {
+                ShopInvitationStatus.Pending => "Chờ phản hồi",
+                ShopInvitationStatus.Accepted => "Đã chấp nhận",
+                ShopInvitationStatus.Declined => "Đã từ chối",
+                ShopInvitationStatus.Expired => "Đã hết hạn",
+                ShopInvitationStatus.Cancelled => "Đã hủy",
                 _ => status.ToString()
             };
         }

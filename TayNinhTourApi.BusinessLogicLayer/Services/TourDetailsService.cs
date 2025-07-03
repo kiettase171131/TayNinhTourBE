@@ -5,6 +5,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
@@ -62,6 +63,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDtos,
                     TotalCount = tourDetailDtos.Count
                 };
@@ -94,6 +96,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Dữ liệu không hợp lệ",
+                        IsSuccess = false,
                         ValidationErrors = validationResult.Errors
                     };
                 }
@@ -106,7 +109,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new ResponseCreateTourDetailDto
                     {
                         StatusCode = 400,
-                        Message = "Tiêu đề lịch trình đã tồn tại"
+                        Message = "Tiêu đề lịch trình đã tồn tại",
+                        IsSuccess = false
                     };
                 }
 
@@ -171,47 +175,68 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         request.TourTemplateId);
                 }
 
-                // Get created item with relationships
-                var createdDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetail.Id);
-                var tourDetailDto = _mapper.Map<TourDetailDto>(createdDetail);
-
-                // TRIGGER INVITATION WORKFLOW: Tự động tạo invitations cho TourGuides có skills phù hợp
-                if (!string.IsNullOrWhiteSpace(request.SkillsRequired))
+                // SAVE SPECIALTY SHOP SELECTIONS: Lưu danh sách shops được chọn để mời sau khi admin duyệt
+                if (request.SpecialtyShopIds != null && request.SpecialtyShopIds.Any())
                 {
-                    _logger.LogInformation("Triggering automatic invitation workflow for TourDetails {TourDetailId}", tourDetail.Id);
+                    _logger.LogInformation("Saving {ShopCount} SpecialtyShop selections for TourDetails {TourDetailId}",
+                        request.SpecialtyShopIds.Count, tourDetail.Id);
 
-                    try
+                    var shopInvitations = new List<TourDetailsSpecialtyShop>();
+                    foreach (var shopId in request.SpecialtyShopIds.Distinct())
                     {
-                        using var scope = _serviceProvider.CreateScope();
-                        var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
-                        var invitationResult = await invitationService.CreateAutomaticInvitationsAsync(tourDetail.Id, createdById);
-                        if (invitationResult.IsSuccess)
+                        // Validate shop exists and is active
+                        var shop = await _unitOfWork.SpecialtyShopRepository.GetByIdAsync(shopId);
+                        if (shop != null && shop.IsShopActive && shop.IsActive)
                         {
-                            _logger.LogInformation("Successfully created automatic invitations for TourDetails {TourDetailId}", tourDetail.Id);
+                            var invitation = new TourDetailsSpecialtyShop
+                            {
+                                Id = Guid.NewGuid(),
+                                TourDetailsId = tourDetail.Id,
+                                SpecialtyShopId = shopId,
+                                InvitedAt = DateTime.UtcNow,
+                                Status = ShopInvitationStatus.Pending,
+                                ExpiresAt = DateTime.UtcNow.AddDays(7), // 7 days to respond
+                                CreatedById = createdById,
+                                CreatedAt = DateTime.UtcNow,
+                                IsActive = true
+                            };
+
+                            shopInvitations.Add(invitation);
                         }
                         else
                         {
-                            _logger.LogWarning("Failed to create automatic invitations for TourDetails {TourDetailId}: {Message}",
-                                tourDetail.Id, invitationResult.Message);
+                            _logger.LogWarning("SpecialtyShop {ShopId} not found or inactive, skipping invitation", shopId);
                         }
                     }
-                    catch (Exception invitationEx)
+
+                    if (shopInvitations.Any())
                     {
-                        _logger.LogError(invitationEx, "Error creating automatic invitations for TourDetails {TourDetailId}", tourDetail.Id);
-                        // Don't fail the entire operation if invitation creation fails
+                        foreach (var invitation in shopInvitations)
+                        {
+                            await _unitOfWork.TourDetailsSpecialtyShopRepository.AddAsync(invitation);
+                        }
+                        await _unitOfWork.SaveChangesAsync();
+
+                        _logger.LogInformation("Successfully saved {InvitationCount} SpecialtyShop invitations for TourDetails {TourDetailId}",
+                            shopInvitations.Count, tourDetail.Id);
                     }
                 }
                 else
                 {
-                    _logger.LogInformation("No skills required specified for TourDetails {TourDetailId}, skipping automatic invitations", tourDetail.Id);
+                    _logger.LogInformation("No SpecialtyShops selected for TourDetails {TourDetailId}", tourDetail.Id);
                 }
+
+                // Get created item with relationships
+                var createdDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetail.Id);
+                var tourDetailDto = _mapper.Map<TourDetailDto>(createdDetail);
 
                 _logger.LogInformation("Successfully created tour detail {TourDetailId}", tourDetail.Id);
 
                 return new ResponseCreateTourDetailDto
                 {
                     StatusCode = 201,
-                    Message = "Tạo lịch trình thành công và đã gửi lời mời đến các hướng dẫn viên phù hợp",
+                    Message = "Tạo lịch trình thành công. Lời mời sẽ được gửi sau khi admin duyệt.",
+                    IsSuccess = true,
                     Data = tourDetailDto
                 };
             }
@@ -221,7 +246,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseCreateTourDetailDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi tạo lịch trình"
+                    Message = "Có lỗi xảy ra khi tạo lịch trình",
+                    IsSuccess = false
                 };
             }
         }
@@ -296,6 +322,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Cập nhật lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDto
                 };
             }
@@ -356,6 +383,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Xóa lịch trình thành công",
+                    IsSuccess = true,
                     DeletedTourDetailId = tourDetailId,
                     CleanedSlotsCount = 0, // TODO: Count actual cleaned slots
                     CleanedTimelineItemsCount = 0, // TODO: Count actual cleaned timeline items
@@ -391,6 +419,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Tìm kiếm lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDtos,
                     TotalCount = tourDetailDtos.Count,
                     SearchKeyword = keyword
@@ -444,6 +473,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách shops thành công",
+                    IsSuccess = true,
                     Data = shopSummaries,
                     TotalCount = shopSummaries.Count
                 };
@@ -489,6 +519,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDtos,
                     TotalCount = totalCount,
                     PageIndex = pageIndex,
@@ -502,7 +533,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseGetTourDetailsPaginatedDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình"
+                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình",
+                    IsSuccess = false
                 };
             }
         }
@@ -573,7 +605,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new ResponseGetTourDetailDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy lịch trình"
+                        Message = "Không tìm thấy lịch trình",
+                        IsSuccess = false
                     };
                 }
 
@@ -583,7 +616,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy thông tin lịch trình thành công",
-                    Data = tourDetailDto
+                    Data = tourDetailDto,
+                    IsSuccess = true
                 };
             }
             catch (Exception ex)
@@ -592,7 +626,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseGetTourDetailDto
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy thông tin lịch trình"
+                    Message = "Có lỗi xảy ra khi lấy thông tin lịch trình",
+                    IsSuccess = false
                 };
             }
         }
@@ -637,6 +672,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy timeline thành công",
+                    IsSuccess = true,
                     Data = timeline
                 };
             }
@@ -757,6 +793,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 var statusText = request.IsApproved ? "duyệt" : "từ chối";
                 _logger.LogInformation("Successfully {Action} TourDetail {TourDetailId} by Admin {AdminId}", statusText, tourDetailId, adminId);
+
+                // TRIGGER EMAIL INVITATIONS: Gửi email mời khi admin approve TourDetails
+                if (request.IsApproved)
+                {
+                    await TriggerApprovalEmailsAsync(tourDetail, adminId);
+                }
 
                 return new BaseResposeDto
                 {
@@ -1007,6 +1049,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lịch trình thành công",
+                    IsSuccess = true,
                     Data = tourDetailDtos,
                     TotalCount = tourDetailDtos.Count
                 };
@@ -1182,6 +1225,126 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = $"Có lỗi xảy ra khi mời hướng dẫn viên: {ex.Message}",
                     IsSuccess = false
                 };
+            }
+        }
+
+        /// <summary>
+        /// Trigger email invitations khi admin approve TourDetails
+        /// Gửi email mời SpecialtyShop và TourGuide
+        /// </summary>
+        private async Task TriggerApprovalEmailsAsync(TourDetails tourDetail, Guid adminId)
+        {
+            try
+            {
+                _logger.LogInformation("Triggering approval emails for TourDetails {TourDetailId}", tourDetail.Id);
+
+                using var scope = _serviceProvider.CreateScope();
+                var emailSender = scope.ServiceProvider.GetRequiredService<EmailSender>();
+
+                // 1. SEND SPECIALTY SHOP INVITATIONS
+                await SendSpecialtyShopInvitationsAsync(tourDetail, emailSender);
+
+                // 2. SEND TOUR GUIDE INVITATIONS
+                await SendTourGuideInvitationsAsync(tourDetail, adminId);
+
+                _logger.LogInformation("Successfully triggered all approval emails for TourDetails {TourDetailId}", tourDetail.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error triggering approval emails for TourDetails {TourDetailId}", tourDetail.Id);
+                // Don't fail the approval process if email sending fails
+            }
+        }
+
+        /// <summary>
+        /// Gửi email mời SpecialtyShop tham gia tour
+        /// </summary>
+        private async Task SendSpecialtyShopInvitationsAsync(TourDetails tourDetail, EmailSender emailSender)
+        {
+            try
+            {
+                // Lấy danh sách SpecialtyShop invitations
+                var shopInvitations = await _unitOfWork.TourDetailsSpecialtyShopRepository
+                    .GetByTourDetailsIdAsync(tourDetail.Id);
+
+                if (!shopInvitations.Any())
+                {
+                    _logger.LogInformation("No SpecialtyShop invitations found for TourDetails {TourDetailId}", tourDetail.Id);
+                    return;
+                }
+
+                _logger.LogInformation("Sending emails to {ShopCount} SpecialtyShops for TourDetails {TourDetailId}",
+                    shopInvitations.Count(), tourDetail.Id);
+
+                // Lấy thông tin TourTemplate để có tour date
+                var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourDetail.TourTemplateId);
+                var tourCompany = await _unitOfWork.UserRepository.GetByIdAsync(tourDetail.CreatedById);
+
+                foreach (var invitation in shopInvitations)
+                {
+                    try
+                    {
+                        await emailSender.SendSpecialtyShopTourInvitationAsync(
+                            invitation.SpecialtyShop.User.Email,
+                            invitation.SpecialtyShop.ShopName,
+                            invitation.SpecialtyShop.User.Name,
+                            tourDetail.Title,
+                            tourCompany?.Name ?? "Tour Company",
+                            DateTime.Now.AddDays(30), // Placeholder tour date
+                            invitation.ExpiresAt,
+                            invitation.Id.ToString()
+                        );
+
+                        _logger.LogInformation("Successfully sent email to SpecialtyShop {ShopId} for TourDetails {TourDetailId}",
+                            invitation.SpecialtyShopId, tourDetail.Id);
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError(emailEx, "Failed to send email to SpecialtyShop {ShopId} for TourDetails {TourDetailId}",
+                            invitation.SpecialtyShopId, tourDetail.Id);
+                        // Continue with other emails
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending SpecialtyShop invitations for TourDetails {TourDetailId}", tourDetail.Id);
+            }
+        }
+
+        /// <summary>
+        /// Gửi email mời TourGuide dựa trên SkillsRequired
+        /// </summary>
+        private async Task SendTourGuideInvitationsAsync(TourDetails tourDetail, Guid adminId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(tourDetail.SkillsRequired))
+                {
+                    _logger.LogInformation("No skills required for TourDetails {TourDetailId}, skipping TourGuide invitations", tourDetail.Id);
+                    return;
+                }
+
+                _logger.LogInformation("Triggering TourGuide invitations for TourDetails {TourDetailId} with skills: {Skills}",
+                    tourDetail.Id, tourDetail.SkillsRequired);
+
+                using var scope = _serviceProvider.CreateScope();
+                var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
+                var invitationResult = await invitationService.CreateAutomaticInvitationsAsync(tourDetail.Id, adminId);
+
+                if (invitationResult.IsSuccess)
+                {
+                    _logger.LogInformation("Successfully created TourGuide invitations for TourDetails {TourDetailId}", tourDetail.Id);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to create TourGuide invitations for TourDetails {TourDetailId}: {Message}",
+                        tourDetail.Id, invitationResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending TourGuide invitations for TourDetails {TourDetailId}", tourDetail.Id);
             }
         }
     }

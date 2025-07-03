@@ -29,15 +29,13 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ICmsService _cmsService;
         private readonly ITourGuideApplicationService _tourGuideApplicationService;
         private readonly ISupportTicketService _supportTicketService;
-        private readonly IShopApplicationService _shopApplicationService;
         private readonly ITourDetailsService _tourDetailsService;
 
-        public CmsController(ICmsService cmsService, ITourGuideApplicationService tourGuideApplicationService, ISupportTicketService supportTicketService, IShopApplicationService shopApplicationService, ITourDetailsService tourDetailsService)
+        public CmsController(ICmsService cmsService, ITourGuideApplicationService tourGuideApplicationService, ISupportTicketService supportTicketService, ITourDetailsService tourDetailsService)
         {
             _cmsService = cmsService;
             _tourGuideApplicationService = tourGuideApplicationService;
             _supportTicketService = supportTicketService;
-            _shopApplicationService = shopApplicationService;
             _tourDetailsService = tourDetailsService;
         }
 
@@ -53,6 +51,12 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             var response = await _cmsService.GetTourByIdAsync(id);
             return StatusCode(response.StatusCode, response);
+        }
+        [HttpPost("user/create")]
+        public async Task<IActionResult> CreateUser([FromBody] RequestCreateUserDto dto)
+        {
+            var result = await _cmsService.CreateUserAsync(dto);
+            return StatusCode(result.StatusCode, result);
         }
 
         [HttpGet("user")]
@@ -157,27 +161,7 @@ namespace TayNinhTourApi.Controller.Controllers
             var response = await _cmsService.GetBlogsAsync(pageIndex, pageSize, textSearch, status);
             return StatusCode(response.StatusCode, response);
         }
-        [HttpGet("Shop-application")]
-        public async Task<IActionResult> GetPendingShop()
-        {
-            var list = await _shopApplicationService.GetPendingAsync();
-            return Ok(list);
-        }
-        [HttpPut("{id:guid}/approve-Shop-application")]
-        public async Task<IActionResult> ApproveShop(Guid id)
-        {
-            var response = await _shopApplicationService.ApproveAsync(id);
-            return StatusCode(response.StatusCode, response);
-        }
 
-        [HttpPut("{id:guid}/reject-Shop-application")]
-
-        public async Task<IActionResult> RejectShop(Guid id, [FromBody] TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO.RejectApplicationGenericDto dto)
-        {
-            var response = await _shopApplicationService.RejectAsync(id, dto.Reason);
-
-            return StatusCode(response.StatusCode, response);
-        }
 
         // ===== TOUR GUIDE APPLICATION ENDPOINTS =====
 

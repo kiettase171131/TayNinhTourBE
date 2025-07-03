@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.DataAccessLayer.Enums
 {
-    public enum ShopStatus
+    public enum ProductCategory
     {
-        Pending,
-        Approved,
-        Rejected
+        Food,
+        Souvenir,
+        Jewelry,
+        Clothing
     }
+
 }

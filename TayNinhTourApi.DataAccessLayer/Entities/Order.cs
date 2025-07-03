@@ -13,6 +13,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public Guid UserId { get; set; }
         public decimal TotalAmount { get; set; }
         public OrderStatus Status { get; set; }
+        
+        /// <summary>
+        /// PayOS numeric order code for payment tracking
+        /// </summary>
+        public long? PayOsOrderCode { get; set; }
        
         public virtual ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
     }

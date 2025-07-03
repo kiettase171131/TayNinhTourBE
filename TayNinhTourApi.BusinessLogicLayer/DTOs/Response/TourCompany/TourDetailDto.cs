@@ -46,6 +46,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string? CommentApproved { get; set; }
 
         /// <summary>
+        /// Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)
+        /// </summary>
+        public string? SkillsRequired { get; set; }
+
+        /// <summary>
         /// Danh sách timeline items thuộc về lịch trình này
         /// </summary>
         public List<TimelineItemDto> Timeline { get; set; } = new List<TimelineItemDto>();
@@ -64,6 +69,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// Số lượng slots được assign lịch trình này
         /// </summary>
         public int AssignedSlotsCount { get; set; }
+
+        /// <summary>
+        /// Danh sách SpecialtyShop được mời tham gia tour
+        /// </summary>
+        public List<TourDetailsSpecialtyShopDto> InvitedSpecialtyShops { get; set; } = new List<TourDetailsSpecialtyShopDto>();
+
+        /// <summary>
+        /// Số lượng SpecialtyShop được mời
+        /// </summary>
+        public int InvitedShopsCount { get; set; }
 
         /// <summary>
         /// Thời gian tạo tour detail

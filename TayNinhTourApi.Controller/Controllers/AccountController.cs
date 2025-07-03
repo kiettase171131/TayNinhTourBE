@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,7 +16,7 @@ using TayNinhTourApi.Controller.Helper;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Shop;
+
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
@@ -34,8 +35,9 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<AccountController> _logger;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IShopApplicationService _shopApplicationService;
+
         private readonly ISpecialtyShopApplicationService _specialtyShopApplicationService;
+        private readonly IWebHostEnvironment _environment;
 
         public AccountController(
             IAccountService accountService,
@@ -44,8 +46,9 @@ namespace TayNinhTourApi.Controller.Controllers
             IUnitOfWork unitOfWork,
             ILogger<AccountController> logger,
             ICurrentUserService currentUserService,
-            IShopApplicationService shopApplicationService,
-            ISpecialtyShopApplicationService specialtyShopApplicationService)
+
+            ISpecialtyShopApplicationService specialtyShopApplicationService,
+            IWebHostEnvironment environment)
         {
             _accountService = accountService;
             _tourGuideApplicationService = tourGuideApplicationService;
@@ -53,8 +56,9 @@ namespace TayNinhTourApi.Controller.Controllers
             _unitOfWork = unitOfWork;
             _logger = logger;
             _currentUserService = currentUserService;
-            _shopApplicationService = shopApplicationService;
+
             _specialtyShopApplicationService = specialtyShopApplicationService;
+            _environment = environment;
         }
 
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -269,25 +273,108 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new { Error = ex.Message, StackTrace = ex.StackTrace });
             }
         }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
-        [HttpPost("shop-application")]
 
-        public async Task<IActionResult> ShopSubmit([FromForm] RequestShopSubmitDto requestShopSubmitDto)
-        {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _shopApplicationService.SubmitAsync(requestShopSubmitDto, currentUserObject);
-            return StatusCode(result.StatusCode, result);
-        }
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        [HttpGet("View-shopapplication")]
-        public async Task<IActionResult> ListMyShopApplications()
-        {
-            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var list = await _shopApplicationService.ListByUserAsync(currentUserObject.Id);
-            return Ok(list);
-        }
 
         // ===== NEW SPECIALTY SHOP APPLICATION ENDPOINTS =====
+
+
+
+        /// <summary>
+        /// User nộp đơn đăng ký Specialty Shop (NEW FLOW)
+        /// </summary>
+        [HttpPost("test-specialty-shop-valid")]
+        public async Task<IActionResult> TestSpecialtyShopValid([FromForm] SubmitSpecialtyShopApplicationDto dto)
+        {
+            try
+            {
+                // Validate model state first
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState
+                        .Where(x => x.Value?.Errors.Count > 0)
+                        .ToDictionary(
+                            x => x.Key,
+                            x => x.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                        );
+
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "Validation failed",
+                        Errors = errors,
+                        Success = false
+                    });
+                }
+
+                // Mock successful response with detailed data
+                var mockResponse = new
+                {
+                    StatusCode = 201,
+                    Message = "Specialty shop application submitted successfully",
+                    Success = true,
+                    Data = new
+                    {
+                        ApplicationId = Guid.NewGuid(),
+                        ShopName = dto.ShopName,
+                        Location = dto.Location,
+                        PhoneNumber = dto.PhoneNumber,
+                        Email = dto.Email,
+                        Website = dto.Website,
+                        ShopType = dto.ShopType,
+                        ShopDescription = dto.ShopDescription,
+                        OpeningHours = dto.OpeningHours,
+                        ClosingHours = dto.ClosingHours,
+                        RepresentativeName = dto.RepresentativeName,
+                        Status = "Pending", // 0 = Pending
+                        SubmittedAt = DateTime.UtcNow,
+                        ProcessedAt = (DateTime?)null,
+                        RejectionReason = (string?)null,
+                        Files = new
+                        {
+                            BusinessLicenseFile = new
+                            {
+                                FileName = dto.BusinessLicenseFile?.FileName,
+                                FileSize = dto.BusinessLicenseFile?.Length,
+                                ContentType = dto.BusinessLicenseFile?.ContentType,
+                                MockUrl = $"https://api.tayninhtour.com/files/business-license/{Guid.NewGuid()}.pdf"
+                            },
+                            Logo = new
+                            {
+                                FileName = dto.Logo?.FileName,
+                                FileSize = dto.Logo?.Length,
+                                ContentType = dto.Logo?.ContentType,
+                                MockUrl = $"https://api.tayninhtour.com/files/logos/{Guid.NewGuid()}.png"
+                            }
+                        },
+                        ValidationSummary = new
+                        {
+                            AllRequiredFieldsProvided = true,
+                            FilesValidated = true,
+                            TimeFormatValid = !string.IsNullOrEmpty(dto.OpeningHours) || !string.IsNullOrEmpty(dto.ClosingHours),
+                            EmailFormatValid = true,
+                            PhoneFormatValid = true,
+                            WebsiteFormatValid = !string.IsNullOrEmpty(dto.Website)
+                        }
+                    }
+                };
+
+                return StatusCode(201, mockResponse);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing specialty shop valid case");
+                return StatusCode(500, new {
+                    StatusCode = 500,
+                    Message = "Internal server error",
+                    Error = ex.Message,
+                    Success = false
+                });
+            }
+        }
+
+
+
+
 
         /// <summary>
         /// User nộp đơn đăng ký Specialty Shop (NEW FLOW)
@@ -298,9 +385,26 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
+                // Validate model state first
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState
+                        .Where(x => x.Value?.Errors.Count > 0)
+                        .SelectMany(x => x.Value!.Errors)
+                        .Select(x => x.ErrorMessage)
+                        .ToList();
+
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "Dữ liệu không hợp lệ",
+                        Errors = errors
+                    });
+                }
+
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 var result = await _specialtyShopApplicationService.SubmitApplicationAsync(dto, currentUser);
-                return Ok(result);
+                return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
             {
@@ -348,7 +452,27 @@ namespace TayNinhTourApi.Controller.Controllers
         // ===== TOUR GUIDE APPLICATION ENDPOINTS =====
 
         /// <summary>
-        /// User nộp đơn đăng ký TourGuide
+        /// User nộp đơn đăng ký TourGuide với file upload
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
+        [HttpPost("tourguide-application/upload")]
+        public async Task<IActionResult> SubmitTourGuideApplicationWithUpload([FromForm] SubmitTourGuideApplicationDto dto)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _tourGuideApplicationService.SubmitApplicationAsync(dto, currentUser);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting tour guide application with file upload");
+                return StatusCode(500, new { Error = "An error occurred while submitting application", Details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// User nộp đơn đăng ký TourGuide (JSON version - deprecated, use upload version)
         /// </summary>
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
         [HttpPost("tourguide-application")]
@@ -430,6 +554,65 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// Download CV file của tour guide application
+        /// </summary>
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [HttpGet("tourguide-application/{applicationId}/cv")]
+        public async Task<IActionResult> DownloadCvFile(Guid applicationId)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+
+                // Get application to check permissions
+                TourGuideApplicationDto? application = null;
+
+                // Check if user is admin or the owner of the application
+                // Get user's role to check permissions
+                var user = await _unitOfWork.UserRepository.GetByIdAsync(currentUser.Id, new[] { "Role" });
+                if (user?.Role?.Name == Constants.RoleAdminName)
+                {
+                    application = await _tourGuideApplicationService.GetApplicationByIdAsync(applicationId);
+                }
+                else
+                {
+                    application = await _tourGuideApplicationService.GetMyApplicationByIdAsync(applicationId, currentUser.Id);
+                }
+
+                if (application == null)
+                {
+                    return NotFound(new { Error = "Application not found or access denied" });
+                }
+
+                if (string.IsNullOrEmpty(application.CvFilePath))
+                {
+                    return NotFound(new { Error = "CV file not found" });
+                }
+
+                // Get file path
+                var webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var fullPath = Path.Combine(webRoot, application.CvFilePath.Replace("/", "\\"));
+
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    return NotFound(new { Error = "CV file not found on server" });
+                }
+
+                // Return file
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(fullPath);
+                var contentType = application.CvContentType ?? "application/octet-stream";
+                var fileName = application.CvOriginalFileName ?? "cv.pdf";
+
+                return File(fileBytes, contentType, fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading CV file for application {ApplicationId}", applicationId);
+                return StatusCode(500, new { Error = "An error occurred while downloading the file" });
+            }
+        }
+
+        /// <summary>
         /// Kiểm tra user có thể nộp đơn TourGuide mới không
         /// </summary>
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
@@ -454,5 +637,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new { Error = "An error occurred while checking eligibility", Details = ex.Message });
             }
         }
+
+
     }
 }

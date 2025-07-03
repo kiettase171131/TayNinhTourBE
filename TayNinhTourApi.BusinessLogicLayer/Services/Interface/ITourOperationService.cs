@@ -1,4 +1,5 @@
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 
@@ -24,12 +25,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// Lấy operation theo TourDetails ID
         /// Return null nếu TourDetails chưa có operation
         /// </summary>
-        Task<TourOperationDto?> GetOperationByTourDetailsAsync(Guid tourDetailsId);
+        Task<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto?> GetOperationByTourDetailsAsync(Guid tourDetailsId);
 
         /// <summary>
         /// Lấy operation theo Operation ID
         /// </summary>
-        Task<TourOperationDto?> GetOperationByIdAsync(Guid operationId);
+        Task<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto?> GetOperationByIdAsync(Guid operationId);
 
         /// <summary>
         /// Cập nhật operation
@@ -51,7 +52,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <summary>
         /// Lấy danh sách operations với filtering
         /// </summary>
-        Task<List<TourOperationDto>> GetOperationsAsync(
+        Task<List<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>> GetOperationsAsync(
             Guid? tourTemplateId = null,
             Guid? guideId = null,
             DateTime? fromDate = null,
@@ -67,5 +68,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// Check xem TourDetails có thể tạo operation không
         /// </summary>
         Task<bool> CanCreateOperationForTourDetailsAsync(Guid tourDetailsId);
+
+        /// <summary>
+        /// Validate TourDetails readiness cho việc tạo TourOperation (public tour)
+        /// Kiểm tra TourGuide assignment và SpecialtyShop participation
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails cần validate</param>
+        /// <returns>Tuple với IsReady status và error message nếu không ready</returns>
+        Task<(bool IsReady, string ErrorMessage)> ValidateTourDetailsReadinessAsync(Guid tourDetailsId);
+
+        /// <summary>
+        /// Get readiness status của TourDetails cho frontend checking
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <returns>Detailed readiness information</returns>
+        Task<TourDetailsReadinessDto> GetTourDetailsReadinessAsync(Guid tourDetailsId);
     }
 }

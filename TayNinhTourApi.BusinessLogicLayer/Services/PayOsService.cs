@@ -34,11 +34,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             PaymentData paymentData = new PaymentData(
              orderCode: orderCode2,
              amount: (int)amount,
-             description: $"don hang", 
+             description: $"don hang",
              items: items,
              cancelUrl: "https://tndt.netlify.app/about",
              returnUrl: "https://tndt.netlify.app/blog",
-             buyerName:"kiet") ;
+             buyerName: "kiet");
             CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
             return createPayment.checkoutUrl;
         }

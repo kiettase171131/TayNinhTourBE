@@ -1,4 +1,5 @@
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
@@ -34,14 +35,49 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         public string Experience { get; set; } = null!;
 
         /// <summary>
-        /// Ngôn ngữ có thể sử dụng
+        /// Ngôn ngữ có thể sử dụng (DEPRECATED)
         /// </summary>
         public string? Languages { get; set; }
+
+        /// <summary>
+        /// Kỹ năng của hướng dẫn viên (Enhanced skill system)
+        /// </summary>
+        public List<TourGuideSkill> Skills { get; set; } = new();
+
+        /// <summary>
+        /// Kỹ năng dưới dạng comma-separated string
+        /// </summary>
+        public string? SkillsString { get; set; }
+
+        /// <summary>
+        /// Thông tin chi tiết về kỹ năng với tên hiển thị
+        /// </summary>
+        public List<SkillInfoDto> SkillsInfo { get; set; } = new();
 
         /// <summary>
         /// URL đến file CV
         /// </summary>
         public string? CurriculumVitaeUrl { get; set; }
+
+        /// <summary>
+        /// Tên file gốc của CV
+        /// </summary>
+        public string? CvOriginalFileName { get; set; }
+
+        /// <summary>
+        /// Kích thước file CV (bytes)
+        /// </summary>
+        public long? CvFileSize { get; set; }
+
+        /// <summary>
+        /// Content type của file CV
+        /// </summary>
+        public string? CvContentType { get; set; }
+
+        /// <summary>
+        /// Đường dẫn file CV trên server (for internal use)
+        /// </summary>
+        public string? CvFilePath { get; set; }
 
         /// <summary>
         /// Trạng thái đơn đăng ký

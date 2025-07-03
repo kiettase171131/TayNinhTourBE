@@ -9,6 +9,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms
         public string Name { get; set; } = null!;
         public string PhoneNumber { get; set; } = null!;
         public string Avatar { get; set; } = null!;
+        public Guid RoleId { get; set; }
+        public string RoleName { get; set; } = null!;
         public bool IsVerified { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }

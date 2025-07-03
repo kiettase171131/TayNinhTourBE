@@ -47,6 +47,9 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.Property(s => s.PhoneNumber)
                 .HasMaxLength(20);
 
+            builder.Property(s => s.Address)
+                .HasMaxLength(500);
+
             builder.Property(s => s.Website)
                 .HasMaxLength(200);
 
@@ -63,7 +66,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasMaxLength(50);
 
             builder.Property(s => s.OpeningHours)
-                .HasMaxLength(100);
+                .HasMaxLength(10);
+
+            builder.Property(s => s.ClosingHours)
+                .HasMaxLength(10);
 
             builder.Property(s => s.Rating)
                 .HasColumnType("decimal(3,2)");

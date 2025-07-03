@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
 {
@@ -18,9 +19,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
         [Required(ErrorMessage = "Please select QuantityInStock")]
         public int QuantityInStock { get; set; }
         [Required(ErrorMessage = "Please select Category")]
-        public string? Category { get; set; }
+         public ProductCategory Category { get; set; }
         public bool? IsSale { get; set; }
         public int? SalePercent { get; set; }
+
+
+       
+        
 
         [Required(ErrorMessage = "Please select Images")]
         public List<IFormFile>? Files { get; set; }

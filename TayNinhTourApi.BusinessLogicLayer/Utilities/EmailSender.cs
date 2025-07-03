@@ -15,6 +15,50 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             _emailSettings = emailSettings.Value;
         }
 
+        /// <summary>
+        /// Common method to send email with proper SMTP configuration and error handling
+        /// </summary>
+        private async Task SendEmailAsync(MimeMessage message)
+        {
+            try
+            {
+                using (var client = new SmtpClient())
+                {
+                    // Set LocalDomain to avoid Unicode hostname issues
+                    client.LocalDomain = "localhost.localdomain";
+
+                    // Connect using StartTLS for Gmail port 587
+                    await client.ConnectAsync(
+                        _emailSettings.SmtpServer,
+                        _emailSettings.SmtpPort,
+                        MailKit.Security.SecureSocketOptions.StartTls
+                    );
+
+                    // Authenticate using Username from settings
+                    await client.AuthenticateAsync(
+                        _emailSettings.Username,
+                        _emailSettings.Password
+                    );
+
+                    // Send the email
+                    await client.SendAsync(message);
+
+                    // Disconnect
+                    await client.DisconnectAsync(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't throw to avoid breaking the application flow
+                Console.WriteLine($"Email sending failed: {ex.Message}");
+                // In a real application, you would use proper logging here
+                // _logger.LogError(ex, "Failed to send email to {ToEmail}", message.To.FirstOrDefault()?.ToString());
+
+                // Optionally, you could store failed emails in a queue for retry
+                // or send to a dead letter queue for manual processing
+            }
+        }
+
         public async Task SendOtpRegisterAsync(string toEmail, string otp)
         {
             var message = new MimeMessage();
@@ -35,13 +79,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             };
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, MailKit.Security.SecureSocketOptions.StartTls);
-                await client.AuthenticateAsync(_emailSettings.Username, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         public async Task SendOtpResetPasswordAsync(string toEmail, string otp)
@@ -64,13 +102,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             };
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, MailKit.Security.SecureSocketOptions.StartTls);
-                await client.AuthenticateAsync(_emailSettings.Username, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
         public async Task SendApprovalNotificationAsync(string toEmail, string userName)
         {
@@ -92,27 +124,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             };
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                // Connect to SMTP server using StartTLS
-                await client.ConnectAsync(
-                    _emailSettings.SmtpServer,
-                    _emailSettings.SmtpPort,
-                    MailKit.Security.SecureSocketOptions.StartTls
-                );
-
-                // Authenticate if required
-                await client.AuthenticateAsync(
-                    _emailSettings.Username,
-                    _emailSettings.Password
-                );
-
-                // Send the email
-                await client.SendAsync(message);
-
-                // Disconnect
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
         public async Task SendRejectionNotificationAsync(string toEmail, string userName, string reason)
         {
@@ -137,17 +149,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             };
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(
-                    _emailSettings.SmtpServer,
-                    _emailSettings.SmtpPort,
-                    MailKit.Security.SecureSocketOptions.StartTls
-                );
-                await client.AuthenticateAsync(_emailSettings.Username, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         public async Task SendShopApprovalNotificationAsync(string toEmail, string userName)
@@ -170,27 +172,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             };
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                // Connect to SMTP server using StartTLS
-                await client.ConnectAsync(
-                    _emailSettings.SmtpServer,
-                    _emailSettings.SmtpPort,
-                    MailKit.Security.SecureSocketOptions.StartTls
-                );
-
-                // Authenticate if required
-                await client.AuthenticateAsync(
-                    _emailSettings.Username,
-                    _emailSettings.Password
-                );
-
-                // Send the email
-                await client.SendAsync(message);
-
-                // Disconnect
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         public async Task SendShopRejectionNotificationAsync(string toEmail, string userName, string reason)
@@ -216,17 +198,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             };
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(
-                    _emailSettings.SmtpServer,
-                    _emailSettings.SmtpPort,
-                    MailKit.Security.SecureSocketOptions.StartTls
-                );
-                await client.AuthenticateAsync(_emailSettings.Username, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -259,13 +231,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -298,13 +264,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -340,13 +300,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -379,13 +333,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -418,13 +366,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -460,13 +402,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -505,13 +441,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -550,13 +480,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -596,13 +520,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
-            {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+            await SendEmailAsync(message);
         }
 
         /// <summary>
@@ -647,13 +565,68 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 
             message.Body = bodyBuilder.ToMessageBody();
 
-            using (var client = new SmtpClient())
+            await SendEmailAsync(message);
+        }
+
+        /// <summary>
+        /// Send invitation email to SpecialtyShop for a TourDetails
+        /// </summary>
+        public async Task SendSpecialtyShopTourInvitationAsync(string toEmail, string shopName, string ownerName, string tourTitle, string tourCompanyName, DateTime tourDate, DateTime expiresAt, string invitationId)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(shopName, toEmail));
+            message.Subject = "Tour Partnership Invitation - Join Our Tour Experience";
+
+            var bodyBuilder = new BodyBuilder
             {
-                await client.ConnectAsync(_emailSettings.SmtpServer, _emailSettings.SmtpPort, true);
-                await client.AuthenticateAsync(_emailSettings.SenderEmail, _emailSettings.Password);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
-            }
+                HtmlBody = $@"
+            <h2>Hello {ownerName},</h2>
+            <p>We are excited to invite <strong>{shopName}</strong> to participate in an upcoming tour experience!</p>
+
+            <div style=""background-color: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;"">
+                <h3 style=""color: #155724; margin-top: 0;"">Tour Invitation Details:</h3>
+                <p><strong>Tour:</strong> {tourTitle}</p>
+                <p><strong>Tour Company:</strong> {tourCompanyName}</p>
+                <p><strong>Tour Date:</strong> {tourDate:dd/MM/yyyy}</p>
+                <p><strong>Invitation ID:</strong> {invitationId}</p>
+                <p><strong>Response Deadline:</strong> {expiresAt:dd/MM/yyyy HH:mm}</p>
+            </div>
+
+            <p><strong>What this means for your shop:</strong></p>
+            <ul>
+                <li>Your shop will be featured in the tour timeline</li>
+                <li>Potential customers will visit your shop during the tour</li>
+                <li>Opportunity to showcase your products and services</li>
+                <li>Increased visibility and sales potential</li>
+                <li>Partnership with established tour companies</li>
+            </ul>
+
+            <p><strong>Next Steps:</strong></p>
+            <ul>
+                <li>Review the tour details and timeline</li>
+                <li>Prepare your shop for potential tour visitors</li>
+                <li>Respond to this invitation before the deadline</li>
+                <li>Contact the tour company if you have questions</li>
+            </ul>
+
+            <p><strong>How to respond:</strong></p>
+            <ul>
+                <li>Log in to your Specialty Shop dashboard</li>
+                <li>Navigate to ""Tour Invitations"" section</li>
+                <li>Accept or decline this invitation</li>
+                <li>Add any special notes or requirements</li>
+            </ul>
+
+            <p>This is a great opportunity to grow your business and connect with tourists visiting Tay Ninh!</p>
+            <br/>
+            <p>Best regards,</p>
+            <p>The Tay Ninh Tour Team</p>"
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            await SendEmailAsync(message);
         }
 
     }

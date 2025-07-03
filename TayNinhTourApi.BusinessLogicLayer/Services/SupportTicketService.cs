@@ -154,7 +154,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var entities = await _ticketRepo.ListByUserAsync(userid);
             if (entities == null || !entities.Any())
             {
-                throw new KeyNotFoundException("No tickets found for this user.");
+                return new SupportTicketDto[]
+                {
+                    new SupportTicketDto
+                    {
+                        StatusCode = 200,
+                        Message = "No tickets found for this user."
+                    }
+                };
             }
 
             var dtos = entities
@@ -194,7 +201,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var entities = await _ticketRepo.ListByAdminAsync(adminId);
             if (entities == null || !entities.Any())
             {
-                throw new KeyNotFoundException("No tickets found for this admin.");
+                return new SupportTicketDto[]
+                {
+                    new SupportTicketDto
+                    {
+                        StatusCode = 200,
+                        Message = "No tickets found for this admin."
+                    }
+                };
             }
 
             var dtos = entities
@@ -233,7 +247,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var entity = await _ticketRepo.GetDetail(ticketId);
             if (entity == null)
             {
-                throw new KeyNotFoundException("Ticket not found");
+                return new SupportTicketDto
+                {
+                    StatusCode = 200,
+                    Message = "Support ticket not found"
+                };
             }
 
             var dto = new SupportTicketDto

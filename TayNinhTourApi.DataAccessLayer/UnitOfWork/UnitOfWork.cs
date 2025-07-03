@@ -21,10 +21,13 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         // private IShopRepository _shopRepository = null!;
         private ISpecialtyShopRepository _specialtyShopRepository = null!;
         private ISpecialtyShopApplicationRepository _specialtyShopApplicationRepository = null!;
+        private ITourGuideApplicationRepository _tourGuideApplicationRepository = null!;
         private ITourSlotRepository _tourSlotRepository = null!;
 
         private ITourDetailsRepository _tourDetailsRepository = null!;
+        private ITourDetailsSpecialtyShopRepository _tourDetailsSpecialtyShopRepository = null!;
         private ITourOperationRepository _tourOperationRepository = null!;
+        private ITourBookingRepository _tourBookingRepository = null!;
         private ITourGuideInvitationRepository _tourGuideInvitationRepository = null!;
         private ITimelineItemRepository _timelineItemRepository = null!;
         private IBlogRepository _blogRepository = null!;
@@ -102,6 +105,14 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
+        public ITourGuideApplicationRepository TourGuideApplicationRepository
+        {
+            get
+            {
+                return _tourGuideApplicationRepository ??= new TourGuideApplicationRepository(_context);
+            }
+        }
+
         public ITourSlotRepository TourSlotRepository
         {
             get
@@ -120,11 +131,27 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
+        public ITourDetailsSpecialtyShopRepository TourDetailsSpecialtyShopRepository
+        {
+            get
+            {
+                return _tourDetailsSpecialtyShopRepository ??= new TourDetailsSpecialtyShopRepository(_context);
+            }
+        }
+
         public ITourOperationRepository TourOperationRepository
         {
             get
             {
                 return _tourOperationRepository ??= new TourOperationRepository(_context);
+            }
+        }
+
+        public ITourBookingRepository TourBookingRepository
+        {
+            get
+            {
+                return _tourBookingRepository ??= new TourBookingRepository(_context);
             }
         }
 

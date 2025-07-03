@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -12,10 +13,11 @@ namespace TayNinhTourApi.Controller.Controllers
     /// <summary>
     /// Controller quản lý TourDetails và timeline chi tiết của tour templates
     /// Cung cấp các endpoints để CRUD TourDetails và quản lý timeline items
+    /// Read operations accessible to all authenticated users, write operations restricted to Tour Company role
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = Constants.RoleTourCompanyName)]
+    [Authorize] // Base authentication required, specific role restrictions applied at method level
     public class TourDetailsController : ControllerBase
     {
         private readonly ITourDetailsService _tourDetailsService;
@@ -30,6 +32,40 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         // ===== TOURDETAILS CRUD ENDPOINTS =====
+
+        /// <summary>
+        /// Lấy danh sách tất cả TourDetails với phân trang mặc định
+        /// Endpoint tương thích với frontend calls
+        /// </summary>
+        /// <param name="pageIndex">Chỉ số trang (0-based, default: 0)</param>
+        /// <param name="pageSize">Kích thước trang (default: 10)</param>
+        /// <param name="includeInactive">Bao gồm inactive records (default: false)</param>
+        /// <returns>Danh sách TourDetails có phân trang</returns>
+        [HttpGet]
+        public async Task<IActionResult> GetAllTourDetails(
+            [FromQuery] int pageIndex = 0,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] bool includeInactive = false)
+        {
+            try
+            {
+                _logger.LogInformation("Getting all TourDetails - Page: {PageIndex}, Size: {PageSize}, IncludeInactive: {IncludeInactive}",
+                    pageIndex, pageSize, includeInactive);
+
+                var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
+                    pageIndex, pageSize, null, null, includeInactive);
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all TourDetails");
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình"
+                });
+            }
+        }
 
         /// <summary>
         /// Lấy danh sách TourDetails của một tour template
@@ -92,6 +128,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin TourDetails cần tạo</param>
         /// <returns>TourDetails vừa được tạo với cloned TourSlots</returns>
         [HttpPost]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> CreateTourDetail([FromBody] RequestCreateTourDetailDto request)
         {
             try
@@ -131,6 +168,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin cập nhật</param>
         /// <returns>TourDetails sau khi cập nhật</returns>
         [HttpPatch("{id:guid}")]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> UpdateTourDetail(
             [FromRoute] Guid id,
             [FromBody] RequestUpdateTourDetailDto request)
@@ -170,6 +208,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="id">ID của TourDetails cần xóa</param>
         /// <returns>Kết quả xóa</returns>
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> DeleteTourDetail([FromRoute] Guid id)
         {
             try
@@ -232,6 +271,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="includeInactive">Bao gồm inactive records (default: false)</param>
         /// <returns>Danh sách TourDetails có phân trang</returns>
         [HttpGet("paginated")]
+
         public async Task<IActionResult> GetTourDetailsPaginated(
             [FromQuery] int pageIndex = 0,
             [FromQuery] int pageSize = 10,
@@ -307,6 +347,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin timeline items cần tạo</param>
         /// <returns>Timeline items vừa được tạo</returns>
         [HttpPost("timeline")]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> CreateTimelineItems([FromBody] RequestCreateTimelineItemsDto request)
         {
             try
@@ -345,6 +386,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin timeline item cần tạo</param>
         /// <returns>Timeline item vừa được tạo</returns>
         [HttpPost("timeline/single")]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> CreateSingleTimelineItem([FromBody] RequestCreateTimelineItemDto request)
         {
             try
@@ -384,6 +426,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin cập nhật</param>
         /// <returns>Timeline item sau khi cập nhật</returns>
         [HttpPatch("timeline/{id:guid}")]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> UpdateTimelineItem(
             [FromRoute] Guid id,
             [FromBody] RequestUpdateTourDetailDto request)
@@ -423,6 +466,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="id">ID của timeline item cần xóa</param>
         /// <returns>Kết quả xóa</returns>
         [HttpDelete("timeline/{id:guid}")]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> DeleteTimelineItem([FromRoute] Guid id)
         {
             try
@@ -450,6 +494,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Danh sách timeline items với thứ tự mới</param>
         /// <returns>Timeline sau khi sắp xếp lại</returns>
         [HttpPost("timeline/reorder")]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> ReorderTimeline([FromBody] RequestReorderTimelineDto request)
         {
             try
@@ -518,7 +563,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="id">ID của TourDetails</param>
         /// <returns>Thông tin trạng thái assignment</returns>
         [HttpGet("{id:guid}/guide-assignment-status")]
-        [Authorize(Roles = "TourCompany,Admin")]
+        [Authorize(Roles = Constants.RoleTourCompanyName + "," + Constants.RoleAdminName)]
         public async Task<IActionResult> GetGuideAssignmentStatus([FromRoute] Guid id)
         {
             try
@@ -546,7 +591,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin mời guide</param>
         /// <returns>Kết quả gửi lời mời</returns>
         [HttpPost("{id:guid}/manual-invite-guide")]
-        [Authorize(Roles = "TourCompany")]
+        [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> ManualInviteGuide(
             [FromRoute] Guid id,
             [FromBody] InviteTourGuideDto request)

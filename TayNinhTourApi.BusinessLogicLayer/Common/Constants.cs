@@ -12,11 +12,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Common
         public const string RoleBloggerName = "Blogger";
         public const string RoleShopName = "Specialty Shop";
         public const string RoleSpecialtyShopName = "Specialty Shop";
+        // Regex email chuẩn
+        public const string EmailRegexPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
 
+        // Regex phone chỉ cho phép 10 số, không chữ, không ký tự đặc biệt
+        public const string PhoneNumberRegexPattern = @"^\d{10}$";
         public const int MaxFailedAttempts = 5;
 
         public const int PageSizeDefault = 10;
 
-        public const int PageIndexDefault = 1;
+        public const int PageIndexDefault = 0;
     }
 }

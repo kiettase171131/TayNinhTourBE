@@ -63,6 +63,20 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         public new bool IsActive { get; set; } = true;
 
+        /// <summary>
+        /// Số lượng khách đã booking hiện tại (confirmed bookings only)
+        /// Được tính toán từ TourBookings với Status = Confirmed
+        /// </summary>
+        [Required]
+        public int CurrentBookings { get; set; } = 0;
+
+        /// <summary>
+        /// Row version cho optimistic concurrency control
+        /// Được sử dụng để prevent race conditions khi booking
+        /// </summary>
+        [Timestamp]
+        public byte[] RowVersion { get; set; } = null!;
+
         // Navigation Properties
 
         /// <summary>
@@ -86,5 +100,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// User đã cập nhật tour operation này lần cuối
         /// </summary>
         public virtual User? UpdatedBy { get; set; }
+
+        /// <summary>
+        /// Danh sách các booking cho tour operation này
+        /// Relationship: One-to-Many
+        /// </summary>
+        public virtual ICollection<TourBooking> TourBookings { get; set; } = new List<TourBooking>();
     }
 }

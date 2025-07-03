@@ -27,6 +27,50 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// Lấy danh sách tất cả SpecialtyShops với phân trang mặc định
+        /// Endpoint tương thích với frontend calls
+        /// </summary>
+        /// <param name="pageIndex">Trang hiện tại (bắt đầu từ 0, default: 0)</param>
+        /// <param name="pageSize">Số lượng items per page (default: 10)</param>
+        /// <param name="includeInactive">Có bao gồm shops không active không (default: false)</param>
+        /// <returns>Danh sách SpecialtyShops với thông tin phân trang</returns>
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAllShops(
+            [FromQuery] int pageIndex = 0,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] bool includeInactive = false)
+        {
+            try
+            {
+                _logger.LogInformation("Getting all SpecialtyShops - Page: {PageIndex}, Size: {PageSize}, IncludeInactive: {IncludeInactive}",
+                    pageIndex, pageSize, includeInactive);
+
+                // Nếu includeInactive = false, sử dụng active shops
+                if (!includeInactive)
+                {
+                    var activeResult = await _specialtyShopService.GetAllActiveShopsAsync();
+                    return StatusCode(activeResult.StatusCode, activeResult);
+                }
+                else
+                {
+                    // Sử dụng paged endpoint cho trường hợp cần includeInactive
+                    var pagedResult = await _specialtyShopService.GetPagedShopsAsync(pageIndex, pageSize);
+                    return StatusCode(pagedResult.StatusCode, pagedResult);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all SpecialtyShops");
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách cửa hàng"
+                });
+            }
+        }
+
+        /// <summary>
         /// Lấy thông tin shop của user hiện tại
         /// Chỉ user có role "Specialty Shop" mới có thể gọi
         /// </summary>
@@ -119,12 +163,12 @@ namespace TayNinhTourApi.Controller.Controllers
         /// Lấy danh sách shops với phân trang
         /// Public endpoint, không cần authentication
         /// </summary>
-        /// <param name="pageIndex">Trang hiện tại (bắt đầu từ 1)</param>
+        /// <param name="pageIndex">Trang hiện tại (bắt đầu từ 0)</param>
         /// <param name="pageSize">Số lượng items per page</param>
         /// <returns>Danh sách SpecialtyShops với thông tin phân trang</returns>
         [HttpGet("paged")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetPagedShops([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetPagedShops([FromQuery] int pageIndex = 0, [FromQuery] int pageSize = 10)
         {
             var result = await _specialtyShopService.GetPagedShopsAsync(pageIndex, pageSize);
             return StatusCode(result.StatusCode, result);
@@ -150,7 +194,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// Lấy danh sách SpecialtyShops với pagination và filtering cho timeline integration
         /// Dành cho timeline integration và admin management
         /// </summary>
-        /// <param name="pageIndex">Trang hiện tại (bắt đầu từ 1)</param>
+        /// <param name="pageIndex">Trang hiện tại (bắt đầu từ 0)</param>
         /// <param name="pageSize">Số items per page</param>
         /// <param name="textSearch">Từ khóa tìm kiếm (tên hoặc mô tả shop)</param>
         /// <param name="location">Filter theo location (optional)</param>
@@ -160,7 +204,7 @@ namespace TayNinhTourApi.Controller.Controllers
         [HttpGet("timeline")]
         [Authorize(Roles = $"{Constants.RoleAdminName},{Constants.RoleTourCompanyName}")]
         public async Task<IActionResult> GetShopsForTimeline(
-            [FromQuery] int? pageIndex = 1,
+            [FromQuery] int? pageIndex = 0,
             [FromQuery] int? pageSize = 10,
             [FromQuery] string? textSearch = null,
             [FromQuery] string? location = null,

@@ -155,24 +155,54 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
+                // ✅ Check ModelState validation
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState
+                        .Where(x => x.Value.Errors.Count > 0)
+                        .Select(x => new { Field = x.Key, Errors = x.Value.Errors.Select(e => e.ErrorMessage) })
+                        .ToList();
+                    return BadRequest(new { message = "Dữ liệu không hợp lệ", errors });
+                }
+
+                // ✅ Validation cơ bản
+                if (dto == null || dto.CartItemIds == null || !dto.CartItemIds.Any())
+                {
+                    return BadRequest(new { message = "Danh sách sản phẩm checkout không được để trống." });
+                }
+
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var url = await _productService.CheckoutCartAsync(dto.CartItemIds,currentUser);
+                if (currentUser == null)
+                {
+                    return Unauthorized(new { message = "Không thể xác thực người dùng." });
+                }
 
-                if (url == null)
-                    return BadRequest("Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho.");
+                var result = await _productService.CheckoutCartAsync(dto.CartItemIds, currentUser);
 
-                return Ok(new { CheckoutUrl = url });
+                if (result == null)
+                    return BadRequest(new { message = "Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho." });
+
+                return Ok(result);
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(ex.Message); // Báo thiếu tồn kho
+                return BadRequest(new { message = ex.Message }); // Báo thiếu tồn kho
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message }); // Lỗi tham số
             }
             catch (Exception ex)
             {
-                return StatusCode(500, "Có lỗi xảy ra: " + ex.Message);
+                // ✅ Log chi tiết lỗi
+                Console.WriteLine($"Checkout Error: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
+                return StatusCode(500, new { message = "Có lỗi xảy ra trong quá trình checkout", error = ex.Message });
             }
         }
-       
-
     }
 }

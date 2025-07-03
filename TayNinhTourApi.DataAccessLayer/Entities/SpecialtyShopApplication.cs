@@ -71,10 +71,16 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string? ShopType { get; set; }
 
         /// <summary>
-        /// Giờ mở cửa
+        /// Giờ mở cửa (HH:mm format, ví dụ: "08:00")
         /// </summary>
-        [StringLength(100)]
+        [StringLength(10)]
         public string? OpeningHours { get; set; }
+
+        /// <summary>
+        /// Giờ đóng cửa (HH:mm format, ví dụ: "18:00")
+        /// </summary>
+        [StringLength(10)]
+        public string? ClosingHours { get; set; }
 
         /// <summary>
         /// Tên người đại diện
