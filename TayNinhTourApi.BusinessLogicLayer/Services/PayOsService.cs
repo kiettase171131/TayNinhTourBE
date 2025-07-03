@@ -34,7 +34,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             PaymentData paymentData = new PaymentData(
              orderCode: orderCode2,
              amount: (int)amount,
-             description: $"don hang",
+             description: $"{orderCode2}",
              items: items,
              cancelUrl: "https://tndt.netlify.app/about",
              returnUrl: "https://tndt.netlify.app/blog",
