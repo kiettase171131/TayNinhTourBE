@@ -51,6 +51,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         public async Task<List<T>> GenericGetPaginationAsync(int pageIndex, int pageSize, Expression<Func<T, bool>>? predicate = null, string[]? include = null)
         {
+            if (pageIndex <= 0) pageIndex = 1;
+            if (pageSize <= 0) pageSize = 10;
             var query = _context.Set<T>().AsQueryable();
 
             if (predicate != null)
@@ -66,7 +68,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 }
             }
 
-            query = query.Skip(pageIndex * pageSize).Take(pageSize);
+            query = query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
 
             return await query.ToListAsync();
         }
