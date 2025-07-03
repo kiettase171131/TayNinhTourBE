@@ -14,7 +14,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
         public string? Description { get; set; }
         public decimal? Price { get; set; }
         public int? QuantityInStock { get; set; }
+
+        
+        public bool? IsSale { get; set; }
+        public int? SalePercent { get; set; }
+
         public ProductCategory? Category { get; set; }
+
         public List<IFormFile>? Files { get; set; }
     }
 

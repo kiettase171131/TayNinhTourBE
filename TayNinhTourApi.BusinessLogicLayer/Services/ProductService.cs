@@ -188,6 +188,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Price = request.Price,
                 QuantityInStock = request.QuantityInStock,
                 Category = request.Category,
+                IsSale = request.IsSale ?? false,
+                SalePercent = request.SalePercent ?? 0,
                 ShopId = currentUserObject.Id,
                 CreatedById = currentUserObject.Id,
                 CreatedAt = DateTime.UtcNow,
@@ -280,10 +282,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             product.Description = request.Description ?? product.Description;
             product.Price = request.Price ?? product.Price;
             product.QuantityInStock = request.QuantityInStock ?? product.QuantityInStock;
+            
+            product.IsSale = request.IsSale ?? product.IsSale;
+            product.SalePercent = request.SalePercent ?? product.SalePercent;
+
             if (request.Category.HasValue)
             {
                 product.Category = request.Category.Value;
             }
+
             product.UpdatedAt = DateTime.UtcNow;
             product.UpdatedById = currentUserObject.Id;
 

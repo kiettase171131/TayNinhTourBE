@@ -19,8 +19,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
         [Required(ErrorMessage = "Please select QuantityInStock")]
         public int QuantityInStock { get; set; }
         [Required(ErrorMessage = "Please select Category")]
-        public ProductCategory Category { get; set; }
+         public ProductCategory Category { get; set; }
+        public bool? IsSale { get; set; }
+        public int? SalePercent { get; set; }
+
+
+       
         
+
         [Required(ErrorMessage = "Please select Images")]
         public List<IFormFile>? Files { get; set; }
     }

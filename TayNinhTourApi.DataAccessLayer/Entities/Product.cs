@@ -38,12 +38,22 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [StringLength(500)]
         public string? ImageUrl { get; set; }
 
+       
+     
         /// <summary>
-        /// Danh mục sản phẩm (VD: Mắm, Bánh tráng, Muối tôm,...)
+        /// Có đang giảm giá không
         /// </summary>
-        [StringLength(100)]
+        public bool IsSale { get; set; } = false;
+
+        /// <summary>
+        /// Giảm giá bao nhiêu phần trăm (0–100)
+        /// </summary>
+        [Range(0, 100)]
+        public int? SalePercent { get; set; }
+
         [Required]
         public ProductCategory Category { get; set; }
+
 
         /// <summary>
         /// Người bán sản phẩm (có thể liên kết với Shop nếu cần)
