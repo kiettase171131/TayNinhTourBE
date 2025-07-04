@@ -1,0 +1,384 @@
+# HUONG DAN TONG HOP TICH HOP THANH TOAN PAYOS CHO FRONTEND & BACKEND
+# ================================================================================
+
+## TONG QUAN HE THONG THANH TOAN
+
+PayOS hoat dong theo co che webhook va URL callback:
+1. **Frontend** - Hien thi trang success/cancel va goi API lay thong tin
+2. **PayOS Webhook** - Tu dong goi Backend API de cap nhat trang thai
+3. **Backend API** - Xu ly cap nhat don hang, tru stock, xoa cart
+
+## 1. API ENDPOINTS CHINH
+
+### A. API Frontend su dung
+```
+GET /api/payment-callback/lookup/{payOsOrderCode}
+- Mo ta: Tra cuu thong tin don hang tu PayOS orderCode
+- Headers: Khong can Authorization
+- Response: { orderId, payOsOrderCode, status, totalAmount, createdAt }
+
+GET /api/Product/orders/{orderId}/payment-status  
+- Mo ta: Kiem tra trang thai thanh toan cua don hang
+- Headers: Authorization: Bearer {token}
+- Response: { status: "Paid" }
+```
+
+### B. API PayOS Webhook su dung (TU DONG)
+```
+POST /api/payment-callback/paid/{orderCode}
+- Mo ta: PayOS tu dong goi khi thanh toan thanh cong
+- Chuc nang: Cap nhat status = Paid + Tru stock + Xoa cart + Tang SoldCount
+- Headers: Khong can Authorization (da bo)
+
+POST /api/payment-callback/cancelled/{orderCode}  
+- Mo ta: PayOS tu dong goi khi thanh toan bi huy
+- Chuc nang: Cap nhat status = Cancelled + GIU NGUYEN stock va cart
+- Headers: Khong can Authorization (da bo)
+```
+
+## 2. LUONG HOAT DONG CUA HE THONG
+
+### Khi thanh toan THANH CONG:
+```
+1. User thanh toan thanh cong tren PayOS
+2. PayOS redirect user den: https://tndt.netlify.app/payment-success?orderId={order-id}
+3. DONG THOI PayOS tu dong goi: POST /api/payment-callback/paid/{orderCode}
+4. Backend nhan webhook va:
+   - Tim don hang bang orderCode
+   - Cap nhat status = Paid (1)
+   - Giam ton kho san pham
+   - Xoa items khoi gio hang
+   - Tang SoldCount cua san pham
+5. Frontend hien thi trang success va goi API lay thong tin don hang
+```
+
+### Khi thanh toan BI HUY:
+```
+1. User huy thanh toan tren PayOS
+2. PayOS redirect user den: https://tndt.netlify.app/payment-cancel?orderId={order-id}
+3. DONG THOI PayOS tu dong goi: POST /api/payment-callback/cancelled/{orderCode}
+4. Backend nhan webhook va:
+   - Tim don hang bang orderCode
+   - Cap nhat status = Cancelled (2)
+   - GIU NGUYEN ton kho va gio hang
+5. Frontend hien thi trang cancel va goi API lay thong tin don hang
+```
+
+## 3. IMPLEMENTATION CHO FRONTEND
+
+### A. Trang Thanh toan Thanh cong
+**URL:** `https://tndt.netlify.app/payment-success?orderId={order-id}&orderCode={payos-code}`
+
+```javascript
+// payment-success.js
+class PaymentSuccessPage {
+    async init() {
+        this.showLoading();
+        
+        try {
+            // Lay parameters tu URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            const payOsOrderCode = urlParams.get('orderCode');
+            
+            if (!orderId && !payOsOrderCode) {
+                throw new Error('Thieu thong tin don hang');
+            }
+            
+            // QUAN TRONG: Doi 2-3 giay de webhook co thoi gian xu ly
+            await this.delay(3000);
+            
+            // Lay thong tin don hang
+            const orderInfo = await this.getOrderInfo(orderId, payOsOrderCode);
+            
+            // Hien thi thong tin
+            this.displaySuccessInfo(orderInfo);
+            
+            // Tu dong chuyen trang sau 10s
+            this.startAutoRedirect();
+            
+        } catch (error) {
+            this.showError(error.message);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    async getOrderInfo(orderId, payOsOrderCode) {
+        // Option 1: Su dung orderId neu co (UU TIEN)
+        if (orderId) {
+            try {
+                const response = await fetch(`/api/Product/orders/${orderId}/payment-status`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const statusData = await response.json();
+                    // Goi them API lookup de lay day du thong tin
+                    if (payOsOrderCode) {
+                        const lookupResponse = await fetch(`/api/payment-callback/lookup/${payOsOrderCode}`);
+                        if (lookupResponse.ok) {
+                            const lookupData = await lookupResponse.json();
+                            return {
+                                ...lookupData,
+                                status: statusData.status
+                            };
+                        }
+                    }
+                    return {
+                        orderId: orderId,
+                        status: statusData.status,
+                        payOsOrderCode: payOsOrderCode
+                    };
+                }
+            } catch (error) {
+                console.log('Error with orderId, trying payOsOrderCode:', error);
+            }
+        }
+        
+        // Option 2: Fallback su dung PayOS orderCode
+        if (payOsOrderCode) {
+            const response = await fetch(`/api/payment-callback/lookup/${payOsOrderCode}`);
+            
+            if (response.ok) {
+                return await response.json();
+            }
+        }
+        
+        throw new Error('Khong the lay thong tin don hang');
+    }
+    
+    displaySuccessInfo(orderInfo) {
+        document.getElementById('order-id').textContent = orderInfo.orderId;
+        document.getElementById('total-amount').textContent = 
+            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                .format(orderInfo.totalAmount);
+        document.getElementById('created-at').textContent = 
+            new Date(orderInfo.createdAt).toLocaleString('vi-VN');
+        document.getElementById('status').textContent = orderInfo.status;
+        
+        // Hien thi thong bao dac biet neu da thanh toan
+        if (orderInfo.status === 'Paid') {
+            this.showSuccessMessage('Thanh toan thanh cong! Don hang da duoc xu ly.');
+        }
+        
+        this.animateSuccess();
+    }
+    
+    showSuccessMessage(message) {
+        const toast = document.createElement('div');
+        toast.className = 'success-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => toast.remove(), 5000);
+    }
+    
+    // Cac method khac: animateSuccess, startAutoRedirect, showLoading, hideLoading, showError
+}
+```
+
+### B. Trang Thanh toan Bi huy
+**URL:** `https://tndt.netlify.app/payment-cancel?orderId={order-id}&orderCode={payos-code}`
+
+```javascript
+// payment-cancel.js  
+class PaymentCancelPage {
+    async init() {
+        this.showLoading();
+        
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            const payOsOrderCode = urlParams.get('orderCode');
+            
+            if (!orderId && !payOsOrderCode) {
+                throw new Error('Thieu thong tin don hang');
+            }
+            
+            // QUAN TRONG: Doi webhook xu ly xong
+            await this.delay(2000);
+            
+            const orderInfo = await this.getOrderInfo(orderId, payOsOrderCode);
+            
+            this.displayCancelInfo(orderInfo);
+            this.setupRetryButton(orderInfo.orderId);
+            
+        } catch (error) {
+            this.showError(error.message);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    displayCancelInfo(orderInfo) {
+        document.getElementById('order-id').textContent = orderInfo.orderId;
+        document.getElementById('total-amount').textContent = 
+            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                .format(orderInfo.totalAmount);
+        document.getElementById('status').textContent = orderInfo.status;
+        
+        // Hien thi thong bao neu da bi huy
+        if (orderInfo.status === 'Cancelled') {
+            this.showCancelMessage('Don hang da bi huy. Ban co the thu thanh toan lai.');
+        }
+        
+        this.animateCancel();
+    }
+    
+    setupRetryButton(orderId) {
+        const retryBtn = document.getElementById('retry-payment');
+        retryBtn.addEventListener('click', () => {
+            // Chuyen ve trang checkout de thu lai
+            window.location.href = `/checkout?retry=${orderId}`;
+        });
+    }
+    
+    // Method getOrderInfo tuong tu PaymentSuccessPage
+}
+```
+
+## 4. CAU HINH PAYOS WEBHOOK (CHO BACKEND TEAM)
+
+### A. Cau hinh trong PayOS Dashboard
+1. Truy cap: https://business.payos.vn/
+2. Vao muc "Webhook" > "Cau hinh"
+3. Them webhook URLs:
+
+**Production:**
+```
+Success webhook: https://yourdomain.com/api/payment-callback/paid/{orderCode}
+Cancel webhook: https://yourdomain.com/api/payment-callback/cancelled/{orderCode}
+```
+
+**Development (dung ngrok):**
+```
+Success webhook: https://abc123.ngrok.io/api/payment-callback/paid/{orderCode}  
+Cancel webhook: https://abc123.ngrok.io/api/payment-callback/cancelled/{orderCode}
+```
+
+### B. Security Settings
+- **Authentication:** Khong can (da bo Authorization requirement)
+- **HTTPS:** Bat buoc phai dung HTTPS
+- **IP Whitelist:** Cho phep PayOS IPs
+
+## 5. TESTING & DEBUGGING
+
+### A. Test webhook locally
+```bash
+# 1. Start application
+dotnet run
+
+# 2. Start ngrok  
+ngrok http https://localhost:7000
+
+# 3. Update PayOS webhook URLs voi ngrok domain
+# 4. Test thanh toan va kiem tra console logs
+```
+
+### B. Console logs de monitor
+```
+PayOS PAID Callback received for orderCode: 1234567890
+Looking for order with PayOsOrderCode: 1234567890  
+Found order: 08ddbb01-e8da-4601-87cb-1af7aab6006d
+Processing PAID status...
+Order status updated to PAID (status = 1)
+Stock updated and cart cleared
+```
+
+### C. Frontend debugging
+```javascript
+// Check URL parameters
+console.log('Order ID:', urlParams.get('orderId'));
+console.log('PayOS Code:', urlParams.get('orderCode'));
+
+// Check API responses
+console.log('Order Info:', orderInfo);
+console.log('Status:', orderInfo.status);
+```
+
+## 6. QUAN TRONG - LUONG XU LY DON HANG
+
+### Truoc khi PayOS webhook:
+```
+Order Status: Pending (0)
+Stock: Khong thay doi
+Cart: Con san pham
+```
+
+### Sau khi webhook PAID:
+```
+Order Status: Paid (1) 
+Stock: Da tru (giam di)
+Cart: Da xoa san pham
+SoldCount: Da tang
+```
+
+### Sau khi webhook CANCELLED:
+```
+Order Status: Cancelled (2)
+Stock: Khong thay doi (giu nguyen)  
+Cart: Khong thay doi (user co the thu lai)
+```
+
+## 7. ERROR HANDLING & FALLBACKS
+
+### A. Neu webhook cham hoac loi
+```javascript
+// Frontend doi 2-3 giay roi moi goi API
+await this.delay(3000);
+
+// Neu van chua cap nhat, hien thi thong bao
+if (orderInfo.status === 'Pending') {
+    this.showPendingMessage('Don hang dang duoc xu ly. Vui long doi...');
+}
+```
+
+### B. Neu khong lay duoc thong tin
+```javascript
+// Fallback hien thi thong tin co ban
+if (!orderInfo) {
+    this.showBasicInfo({
+        orderId: orderId || 'Khong xac dinh',
+        message: 'Dang cap nhat thong tin don hang...'
+    });
+}
+```
+
+## 8. CHECKLIST TRIEN KHAI
+
+### Frontend:
+- [ ] Implement PaymentSuccessPage voi delay 3s
+- [ ] Implement PaymentCancelPage voi retry function  
+- [ ] Handle both orderId va payOsOrderCode parameters
+- [ ] Add loading states va error handling
+- [ ] Test voi ca 2 scenarios: success va cancel
+
+### Backend:
+- [ ] Deploy PaymentController voi webhook endpoints
+- [ ] Configure PayOS webhook URLs
+- [ ] Monitor webhook logs
+- [ ] Test end-to-end payment flow
+- [ ] Verify stock va cart updates
+
+### DevOps:
+- [ ] Setup HTTPS cho webhook endpoints
+- [ ] Configure firewall cho PayOS IPs
+- [ ] Setup monitoring cho webhook calls
+- [ ] Prepare rollback plan
+
+---
+**Created by:** Backend Team  
+**Last Updated:** 15/01/2024 16:00
+**Version:** 2.0 (Combined Guide)
+
+**Lien he:**
+- Backend: [Contact]
+- Frontend: [Contact]  
+- DevOps: [Contact]

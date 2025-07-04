@@ -1,0 +1,280 @@
+# HUONG DAN CAU HINH PAYOS WEBHOOK CHO BACKEND TEAM
+# ========================================================
+
+## 1. TONG QUAN VE PAYOS WEBHOOK
+
+PayOS su dung webhook de thong bao cho server cua ban khi co thay doi trang thai thanh toan.
+Khi khach hang thanh toan thanh cong hoac huy thanh toan, PayOS se tu dong goi den cac endpoint callback cua ban.
+
+## 2. CAC API CALLBACK DA DUOC IMPLEMENT
+
+### A. API Thanh toan thanh cong
+```
+POST /api/payment-callback/paid/{orderCode}
+Authorization: Bearer {token} (Role: User)
+```
+
+**Chuc nang:**
+- Nhan thong bao tu PayOS khi thanh toan thanh cong
+- Cap nhat trang thai don hang thanh Paid
+- Giam ton kho san pham
+- Xoa san pham da mua khoi gio hang
+- Tang so luong ban cua san pham (SoldCount)
+
+### B. API Thanh toan bi huy
+```
+POST /api/payment-callback/cancelled/{orderCode}
+Authorization: Bearer {token} (Role: User)
+```
+
+**Chuc nang:**
+- Nhan thong bao tu PayOS khi thanh toan bi huy
+- Cap nhat trang thai don hang thanh Cancelled
+- KHONG giam ton kho (giu nguyen stock)
+- KHONG xoa gio hang (user co the thu lai)
+
+### C. API Tra cuu thong tin don hang
+```
+GET /api/payment-callback/lookup/{payOsOrderCode}
+Khong can Authorization
+```
+
+**Chuc nang:**
+- Tra cuu thong tin don hang tu PayOS orderCode
+- Su dung cho Frontend de lay thong tin hien thi
+
+## 3. CAU HINH WEBHOOK TRONG PAYOS DASHBOARD
+
+### Buoc 1: Dang nhap PayOS Dashboard
+1. Truy cap: https://business.payos.vn/
+2. Dang nhap bang tai khoan PayOS cua ban
+3. Vao muc "Cau hinh" > "Webhook"
+
+### Buoc 2: Thiet lap Webhook URLs
+Them cac URL sau vao PayOS Dashboard:
+
+**Production URLs:**
+```
+Thanh toan thanh cong:
+https://yourdomain.com/api/payment-callback/paid/{orderCode}
+
+Thanh toan bi huy:
+https://yourdomain.com/api/payment-callback/cancelled/{orderCode}
+```
+
+**Development URLs (cho test):**
+```
+Thanh toan thanh cong:
+https://localhost:7000/api/payment-callback/paid/{orderCode}
+
+Thanh toan bi huy:
+https://localhost:7000/api/payment-callback/cancelled/{orderCode}
+```
+
+### Buoc 3: Cau hinh Events
+Tick chon cac event sau:
+- [x] Payment Success (PAID)
+- [x] Payment Cancelled (CANCELLED)
+- [x] Payment Failed (neu can)
+
+### Buoc 4: Authentication
+**QUAN TRONG:** PayOS webhook can authentication!
+
+Them HTTP Headers:
+```
+Authorization: Bearer {JWT_TOKEN_CUA_USER}
+Content-Type: application/json
+```
+
+**Luu y:** Token phai co role "User" vi callback co `[Authorize(Roles = "User")]`
+
+## 4. CAU HINH SECURITY & ENVIRONMENT
+
+### A. Cau hinh CORS cho webhook
+Trong `Program.cs`, dam bao cho phep PayOS domain:
+
+```csharp
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowPayOS", policy =>
+    {
+        policy.WithOrigins(
+            "https://business.payos.vn",
+            "https://api-merchant.payos.vn",
+            "https://payos.vn",
+            "https://tndt.netlify.app" // Frontend domain
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod();
+    });
+});
+```
+
+### B. Cau hinh appsettings.json
+```json
+{
+  "PayOS": {
+    "ClientId": "your-client-id",
+    "ApiKey": "your-api-key", 
+    "CheckSum": "your-checksum-key"
+  },
+  "Jwt": {
+    "Key": "your-jwt-secret",
+    "Issuer": "your-issuer",
+    "Audience": "your-audience"
+  }
+}
+```
+
+### C. Firewall & Network Config
+Dam bao server cua ban cho phep incoming requests tu PayOS IPs:
+- Whitelist PayOS IP ranges
+- Mo port 443 (HTTPS) cho webhook endpoints
+- Kiem tra Load Balancer/Proxy settings
+
+## 5. FLOW HOAT DONG CUA WEBHOOK
+
+### Khi thanh toan thanh cong:
+```
+1. User thanh toan thanh cong tren PayOS
+2. PayOS gui POST request den: /api/payment-callback/paid/{orderCode}
+3. Backend nhan request va:
+   - Tim don hang bang orderCode (PayOS code hoac Order.Id)
+   - Cap nhat status = Paid
+   - Giam ton kho san pham
+   - Xoa items khoi gio hang
+   - Tang SoldCount cua san pham
+4. Tra ve response 200 OK cho PayOS
+5. PayOS redirect user den trang success
+```
+
+### Khi thanh toan bi huy:
+```
+1. User huy thanh toan tren PayOS
+2. PayOS gui POST request den: /api/payment-callback/cancelled/{orderCode}
+3. Backend nhan request va:
+   - Tim don hang bang orderCode
+   - Cap nhat status = Cancelled
+   - KHONG thay doi ton kho
+   - KHONG xoa gio hang
+4. Tra ve response 200 OK cho PayOS
+5. PayOS redirect user den trang cancel
+```
+
+## 6. TESTING & DEBUGGING
+
+### A. Test webhook locally voi ngrok
+1. Cai dat ngrok: https://ngrok.com/
+2. Chay application local: `dotnet run`
+3. Chay ngrok: `ngrok http https://localhost:7000`
+4. Lay public URL tu ngrok (vd: https://abc123.ngrok.io)
+5. Cau hinh webhook URL trong PayOS:
+   ```
+   https://abc123.ngrok.io/api/payment-callback/paid/{orderCode}
+   https://abc123.ngrok.io/api/payment-callback/cancelled/{orderCode}
+   ```
+
+### B. Test voi Postman
+```http
+POST /api/payment-callback/paid/1234567890
+Authorization: Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "orderCode": "1234567890",
+  "status": "PAID"
+}
+```
+
+### C. Logs de debug
+Kiem tra console logs:
+```
+PayOS PAID Callback received for orderCode: 1234567890
+Looking for order with PayOsOrderCode: 1234567890
+Found order: 08ddbb01-e8da-4601-87cb-1af7aab6006d
+Processing PAID status...
+Order status updated to PAID (status = 1)
+Stock updated and cart cleared
+```
+
+## 7. TROUBLESHOOTING PHO BIEN
+
+### Problem 1: Webhook khong duoc goi
+**Solutions:**
+- Kiem tra URL webhook trong PayOS Dashboard
+- Kiem tra firewall/security groups
+- Kiem tra SSL certificate hop le
+- Kiem tra server dang chay va accessible
+
+### Problem 2: Webhook bi 401 Unauthorized
+**Solutions:**
+- Kiem tra JWT token trong Authorization header
+- Kiem tra token chua expired
+- Kiem tra user co role "User"
+- Kiem tra JWT secret key dung
+
+### Problem 3: Webhook bi 404 Not Found
+**Solutions:**
+- Kiem tra route mapping trong controller
+- Kiem tra endpoint URL chinh xac
+- Kiem tra parameter {orderCode} format
+
+### Problem 4: Khong tim thay don hang
+**Solutions:**
+- Kiem tra PayOsOrderCode da duoc luu vao database
+- Kiem tra mapping giua PayOS orderCode va Order.Id
+- Kiem tra database connection
+
+## 8. MONITORING & ALERTING
+
+### A. Logs can monitor
+- Webhook call frequency
+- Success/failure rates
+- Response times
+- Authentication failures
+- Order processing errors
+
+### B. Metrics quan trong
+- Webhook success rate (nen > 99%)
+- Average response time (nen < 2 seconds)
+- Error rates theo tung endpoint
+- Payment conversion rates
+
+### C. Setup alerts
+- Webhook failures > 5 lan trong 10 phut
+- Database connection errors
+- JWT token expiration warnings
+- High response times
+
+## 9. PRODUCTION DEPLOYMENT CHECKLIST
+
+### Pre-deployment:
+- [ ] Test webhook endpoints tren staging
+- [ ] Verify SSL certificate
+- [ ] Check firewall rules
+- [ ] Verify database migrations
+- [ ] Test authentication flow
+
+### Post-deployment:
+- [ ] Update webhook URLs trong PayOS Dashboard
+- [ ] Monitor webhook calls
+- [ ] Check error logs
+- [ ] Verify payment flow end-to-end
+- [ ] Test both success va cancel scenarios
+
+### Security checklist:
+- [ ] HTTPS only cho webhook endpoints
+- [ ] JWT token authentication
+- [ ] Input validation cho orderCode
+- [ ] Rate limiting cho webhook endpoints
+- [ ] Logging nhung KHONG log sensitive data
+
+---
+**Created by:** Backend Team
+**Last Updated:** 15/01/2024 15:00
+**Version:** 1.0
+
+**Lien he support:**
+- Backend Lead: [Contact Info]
+- DevOps Team: [Contact Info]
+- PayOS Support: [Contact Info]

@@ -1,0 +1,379 @@
+# HUONG DAN TICH HOP THANH TOAN CHO FRONTEND
+# =================================================
+
+## API ENDPOINTS CHINH
+
+### 1. API Tra cuu Order tu PayOS Code
+**URL:** `GET /api/payment-callback/lookup/{payOsOrderCode}`
+**Mo ta:** Lay thong tin Order.Id va status tu PayOS orderCode
+**Headers:** Khong can Authorization
+**Response:**
+```json
+{
+  "orderId": "08ddbb01-e8da-4601-87cb-1af7aab6006d",
+  "payOsOrderCode": 1751637103,
+  "status": "Cancelled",
+  "statusValue": 2,
+  "totalAmount": 150000,
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+### 2. API Kiem tra trang thai thanh toan
+**URL:** `GET /api/Product/orders/{orderId}/payment-status`
+**Mo ta:** Kiem tra trang thai thanh toan cua don hang
+**Headers:** Authorization: Bearer {token}
+**Response:**
+```json
+{
+  "status": "Paid"
+}
+```
+
+## LUONG THIET KE UI/UX MOI
+
+### TRANG THANH TOAN THANH CONG
+**URL Pattern:** `https://tndt.netlify.app/payment-success?orderId={order-id}&orderCode={payos-code}`
+
+**JavaScript Implementation:**
+```javascript
+// payment-success.js
+class PaymentSuccessPage {
+    async init() {
+        this.showLoading();
+        
+        try {
+            // Lay parameters tu URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            const payOsOrderCode = urlParams.get('orderCode');
+            
+            if (!orderId && !payOsOrderCode) {
+                throw new Error('Thieu thong tin don hang');
+            }
+            
+            // Lay thong tin don hang
+            const orderInfo = await this.getOrderInfo(orderId, payOsOrderCode);
+            
+            // Hien thi thong tin
+            this.displaySuccessInfo(orderInfo);
+            
+            // Tu dong chuyen trang sau 10s (tuy chon)
+            this.startAutoRedirect();
+            
+        } catch (error) {
+            this.showError(error.message);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async getOrderInfo(orderId, payOsOrderCode) {
+        // Uu tien su dung orderId neu co
+        if (orderId) {
+            const response = await fetch(`/api/Product/orders/${orderId}/payment-status`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (response.ok) {
+                const statusData = await response.json();
+                return {
+                    orderId: orderId,
+                    status: statusData.status,
+                    payOsOrderCode: payOsOrderCode
+                };
+            }
+        }
+        
+        // Fallback: Su dung PayOS orderCode de tra cuu
+        if (payOsOrderCode) {
+            const response = await fetch(`/api/payment-callback/lookup/${payOsOrderCode}`);
+            
+            if (response.ok) {
+                return await response.json();
+            }
+        }
+        
+        throw new Error('Khong the lay thong tin don hang');
+    }
+    
+    displaySuccessInfo(orderInfo) {
+        document.getElementById('order-id').textContent = orderInfo.orderId;
+        document.getElementById('total-amount').textContent = 
+            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                .format(orderInfo.totalAmount);
+        document.getElementById('created-at').textContent = 
+            new Date(orderInfo.createdAt).toLocaleString('vi-VN');
+        document.getElementById('status').textContent = orderInfo.status;
+        
+        // Animate success icon
+        this.animateSuccess();
+    }
+    
+    animateSuccess() {
+        // CSS animation cho checkmark
+        const checkmark = document.querySelector('.success-checkmark');
+        checkmark.classList.add('animate-check');
+    }
+    
+    startAutoRedirect() {
+        let countdown = 10;
+        const countdownEl = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {
+            countdownEl.textContent = countdown;
+            countdown--;
+            
+            if (countdown < 0) {
+                clearInterval(timer);
+                window.location.href = '/';
+            }
+        }, 1000);
+    }
+    
+    showLoading() {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('content').style.display = 'none';
+    }
+    
+    hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+    }
+    
+    showError(message) {
+        document.getElementById('error-message').textContent = message;
+        document.getElementById('error').style.display = 'block';
+    }
+}
+
+// Khoi tao khi trang load
+document.addEventListener('DOMContentLoaded', () => {
+    new PaymentSuccessPage().init();
+});
+```
+
+### TRANG THANH TOAN BI HUY
+**URL Pattern:** `https://tndt.netlify.app/payment-cancel?orderId={order-id}&orderCode={payos-code}`
+
+**JavaScript Implementation:**
+```javascript
+// payment-cancel.js
+class PaymentCancelPage {
+    async init() {
+        this.showLoading();
+        
+        try {
+            // Lay parameters tu URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            const payOsOrderCode = urlParams.get('orderCode');
+            
+            if (!orderId && !payOsOrderCode) {
+                throw new Error('Thieu thong tin don hang');
+            }
+            
+            // Lay thong tin don hang
+            const orderInfo = await this.getOrderInfo(orderId, payOsOrderCode);
+            
+            // Hien thi thong tin
+            this.displayCancelInfo(orderInfo);
+            
+            // Setup retry button
+            this.setupRetryButton(orderInfo.orderId);
+            
+        } catch (error) {
+            this.showError(error.message);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async getOrderInfo(orderId, payOsOrderCode) {
+        // Tuong tu nhu PaymentSuccessPage
+        if (orderId) {
+            const response = await fetch(`/api/Product/orders/${orderId}/payment-status`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (response.ok) {
+                const statusData = await response.json();
+                return {
+                    orderId: orderId,
+                    status: statusData.status,
+                    payOsOrderCode: payOsOrderCode
+                };
+            }
+        }
+        
+        if (payOsOrderCode) {
+            const response = await fetch(`/api/payment-callback/lookup/${payOsOrderCode}`);
+            
+            if (response.ok) {
+                return await response.json();
+            }
+        }
+        
+        throw new Error('Khong the lay thong tin don hang');
+    }
+    
+    displayCancelInfo(orderInfo) {
+        document.getElementById('order-id').textContent = orderInfo.orderId;
+        document.getElementById('total-amount').textContent = 
+            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                .format(orderInfo.totalAmount);
+        document.getElementById('created-at').textContent = 
+            new Date(orderInfo.createdAt).toLocaleString('vi-VN');
+        document.getElementById('status').textContent = orderInfo.status;
+        
+        // Animate cancel icon
+        this.animateCancel();
+    }
+    
+    animateCancel() {
+        const cancelIcon = document.querySelector('.cancel-icon');
+        cancelIcon.classList.add('animate-cancel');
+    }
+    
+    setupRetryButton(orderId) {
+        const retryBtn = document.getElementById('retry-payment');
+        retryBtn.addEventListener('click', () => {
+            // Chuyen ve trang checkout voi orderId de thu lai
+            window.location.href = `/checkout/retry?orderId=${orderId}`;
+        });
+    }
+}
+
+// Khoi tao khi trang load
+document.addEventListener('DOMContentLoaded', () => {
+    new PaymentCancelPage().init();
+});
+```
+
+## CSS ANIMATIONS & STYLING
+
+```css
+/* Success Animation */
+.success-checkmark {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: block;
+    stroke-width: 2;
+    stroke: #4CAF50;
+    stroke-miterlimit: 10;
+    margin: 10% auto;
+    box-shadow: inset 0px 0px 0px #4CAF50;
+    animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+}
+
+/* Cancel Animation */
+.cancel-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #f44336;
+    position: relative;
+    margin: 20px auto;
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 20%, 40%, 60%, 80%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+```
+
+## ERROR HANDLING
+
+```javascript
+// error-handler.js
+class PaymentErrorHandler {
+    static async handleApiError(error, context) {
+        console.error(`Payment API Error in ${context}:`, error);
+        
+        let userMessage = 'Co loi xay ra. Vui long thu lai sau.';
+        
+        if (error.status === 404) {
+            userMessage = 'Khong tim thay thong tin don hang.';
+        } else if (error.status === 401) {
+            userMessage = 'Phien dang nhap da het han. Vui long dang nhap lai.';
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        } else if (error.status >= 500) {
+            userMessage = 'Loi he thong. Vui long lien he ho tro.';
+        }
+        
+        this.showErrorToast(userMessage);
+    }
+    
+    static showErrorToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'error-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 5000);
+    }
+}
+```
+
+## CHECKLIST CHO DEVELOPER
+
+### API Integration
+- [ ] Implement lookup API call for PayOS orderCode
+- [ ] Implement order status check API call
+- [ ] Handle authentication for protected endpoints
+- [ ] Implement proper error handling
+
+### UI/UX
+- [ ] Design success page with clear order information
+- [ ] Design cancel page with retry options
+- [ ] Implement loading states
+- [ ] Add success/error animations
+- [ ] Responsive design for mobile
+
+### URL Handling
+- [ ] Parse `orderId` parameter from URL
+- [ ] Parse `orderCode` parameter as fallback
+- [ ] Handle missing parameters gracefully
+
+### User Experience
+- [ ] Auto-redirect option for success page
+- [ ] Retry payment functionality
+- [ ] Clear navigation options
+- [ ] Toast notifications for errors
+
+### Testing
+- [ ] Test with valid orderId
+- [ ] Test with PayOS orderCode only
+- [ ] Test error scenarios (404, 401, 500)
+- [ ] Test on mobile devices
+- [ ] Test loading states
+
+---
+**Created by:** Backend Team
+**Version:** 1.0

@@ -1,0 +1,481 @@
+# H??NG D?N TÍCH H?P THANH TOÁN CHO FRONTEND
+# =================================================
+
+## ?? API ENDPOINTS CHÍNH
+
+### 1. API Tra c?u Order t? PayOS Code
+**URL:** `GET /api/payment-callback/lookup/{payOsOrderCode}`
+**Mô t?:** L?y thông tin Order.Id và status t? PayOS orderCode
+**Headers:** Không c?n Authorization
+**Response:**
+```json
+{
+  "orderId": "08ddbb01-e8da-4601-87cb-1af7aab6006d",
+  "payOsOrderCode": 1751637103,
+  "status": "Cancelled",
+  "statusValue": 2,
+  "totalAmount": 150000,
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+### 2. API Ki?m tra tr?ng thái thanh toán
+**URL:** `GET /api/Product/orders/{orderId}/payment-status`
+**Mô t?:** Ki?m tra tr?ng thái thanh toán c?a ??n hàng
+**Headers:** Authorization: Bearer {token}
+**Response:**
+```json
+{
+  "status": "Paid"
+}
+```
+
+## ?? LU?NG THI?T K? UI/UX M?I
+
+### ?? TRANG THANH TOÁN THÀNH CÔNG
+**URL Pattern:** `https://tndt.netlify.app/payment-success?orderId={order-id}&orderCode={payos-code}`
+
+**Layout ?? xu?t:**
+```
+???????????????????????????????????????
+?              HEADER                 ?
+???????????????????????????????????????
+?    ? THANH TOÁN THÀNH CÔNG!       ?
+?                                     ?
+?    ?? C?m ?n b?n ?ã mua hàng!      ?
+?                                     ?
+?    ?? Thông tin ??n hàng:          ?
+?    • Mã ??n hàng: #ABC123          ?
+?    • T?ng ti?n: 150,000 VN?        ?
+?    • Th?i gian: 15/01/2024 10:30   ?
+?    • Tr?ng thái: ? ?ã thanh toán  ?
+?                                     ?
+?    [?? V? trang ch?] [?? ??n hàng] ?
+???????????????????????????????????????
+```
+
+**JavaScript Implementation:**
+```javascript
+// payment-success.js
+class PaymentSuccessPage {
+    async init() {
+        this.showLoading();
+        
+        try {
+            // L?y parameters t? URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            const payOsOrderCode = urlParams.get('orderCode');
+            
+            if (!orderId && !payOsOrderCode) {
+                throw new Error('Thi?u thông tin ??n hàng');
+            }
+            
+            // L?y thông tin ??n hàng
+            const orderInfo = await this.getOrderInfo(orderId, payOsOrderCode);
+            
+            // Hi?n th? thông tin
+            this.displaySuccessInfo(orderInfo);
+            
+            // T? ??ng chuy?n trang sau 10s (tùy ch?n)
+            this.startAutoRedirect();
+            
+        } catch (error) {
+            this.showError(error.message);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async getOrderInfo(orderId, payOsOrderCode) {
+        // ?u tiên s? d?ng orderId n?u có
+        if (orderId) {
+            const response = await fetch(`/api/Product/orders/${orderId}/payment-status`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (response.ok) {
+                const statusData = await response.json();
+                return {
+                    orderId: orderId,
+                    status: statusData.status,
+                    payOsOrderCode: payOsOrderCode
+                };
+            }
+        }
+        
+        // Fallback: S? d?ng PayOS orderCode ?? tra c?u
+        if (payOsOrderCode) {
+            const response = await fetch(`/api/payment-callback/lookup/${payOsOrderCode}`);
+            
+            if (response.ok) {
+                return await response.json();
+            }
+        }
+        
+        throw new Error('Không th? l?y thông tin ??n hàng');
+    }
+    
+    displaySuccessInfo(orderInfo) {
+        document.getElementById('order-id').textContent = orderInfo.orderId;
+        document.getElementById('total-amount').textContent = 
+            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                .format(orderInfo.totalAmount);
+        document.getElementById('created-at').textContent = 
+            new Date(orderInfo.createdAt).toLocaleString('vi-VN');
+        document.getElementById('status').textContent = orderInfo.status;
+        
+        // Animate success icon
+        this.animateSuccess();
+    }
+    
+    animateSuccess() {
+        // CSS animation cho checkmark
+        const checkmark = document.querySelector('.success-checkmark');
+        checkmark.classList.add('animate-check');
+    }
+    
+    startAutoRedirect() {
+        let countdown = 10;
+        const countdownEl = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {
+            countdownEl.textContent = countdown;
+            countdown--;
+            
+            if (countdown < 0) {
+                clearInterval(timer);
+                window.location.href = '/';
+            }
+        }, 1000);
+    }
+    
+    showLoading() {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('content').style.display = 'none';
+    }
+    
+    hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+    }
+    
+    showError(message) {
+        document.getElementById('error-message').textContent = message;
+        document.getElementById('error').style.display = 'block';
+    }
+}
+
+// Kh?i t?o khi trang load
+document.addEventListener('DOMContentLoaded', () => {
+    new PaymentSuccessPage().init();
+});
+```
+
+### ?? TRANG THANH TOÁN B? H?Y
+**URL Pattern:** `https://tndt.netlify.app/payment-cancel?orderId={order-id}&orderCode={payos-code}`
+
+**Layout ?? xu?t:**
+```
+???????????????????????????????????????
+?              HEADER                 ?
+???????????????????????????????????????
+?    ? THANH TOÁN B? H?Y!           ?
+?                                     ?
+?    ?? ??n hàng ch?a ???c thanh toán ?
+?                                     ?
+?    ?? Thông tin ??n hàng:          ?
+?    • Mã ??n hàng: #ABC123          ?
+?    • T?ng ti?n: 150,000 VN?        ?
+?    • Th?i gian: 15/01/2024 10:30   ?
+?    • Tr?ng thái: ? ?ã h?y         ?
+?                                     ?
+?    ?? B?n có th?:                  ?
+?    • Th? thanh toán l?i            ?
+?    • Liên h? h? tr? khách hàng     ?
+?    • Quay v? gi? hàng              ?
+?                                     ?
+?    [?? Th? l?i] [?? V? trang ch?]  ?
+???????????????????????????????????????
+```
+
+**JavaScript Implementation:**
+```javascript
+// payment-cancel.js
+class PaymentCancelPage {
+    async init() {
+        this.showLoading();
+        
+        try {
+            // L?y parameters t? URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('orderId');
+            const payOsOrderCode = urlParams.get('orderCode');
+            
+            if (!orderId && !payOsOrderCode) {
+                throw new Error('Thi?u thông tin ??n hàng');
+            }
+            
+            // L?y thông tin ??n hàng
+            const orderInfo = await this.getOrderInfo(orderId, payOsOrderCode);
+            
+            // Hi?n th? thông tin
+            this.displayCancelInfo(orderInfo);
+            
+            // Setup retry button
+            this.setupRetryButton(orderInfo.orderId);
+            
+        } catch (error) {
+            this.showError(error.message);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async getOrderInfo(orderId, payOsOrderCode) {
+        // T??ng t? nh? PaymentSuccessPage
+        if (orderId) {
+            const response = await fetch(`/api/Product/orders/${orderId}/payment-status`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (response.ok) {
+                const statusData = await response.json();
+                return {
+                    orderId: orderId,
+                    status: statusData.status,
+                    payOsOrderCode: payOsOrderCode
+                };
+            }
+        }
+        
+        if (payOsOrderCode) {
+            const response = await fetch(`/api/payment-callback/lookup/${payOsOrderCode}`);
+            
+            if (response.ok) {
+                return await response.json();
+            }
+        }
+        
+        throw new Error('Không th? l?y thông tin ??n hàng');
+    }
+    
+    displayCancelInfo(orderInfo) {
+        document.getElementById('order-id').textContent = orderInfo.orderId;
+        document.getElementById('total-amount').textContent = 
+            new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                .format(orderInfo.totalAmount);
+        document.getElementById('created-at').textContent = 
+            new Date(orderInfo.createdAt).toLocaleString('vi-VN');
+        document.getElementById('status').textContent = orderInfo.status;
+        
+        // Animate cancel icon
+        this.animateCancel();
+    }
+    
+    animateCancel() {
+        const cancelIcon = document.querySelector('.cancel-icon');
+        cancelIcon.classList.add('animate-cancel');
+    }
+    
+    setupRetryButton(orderId) {
+        const retryBtn = document.getElementById('retry-payment');
+        retryBtn.addEventListener('click', () => {
+            // Chuy?n v? trang checkout v?i orderId ?? th? l?i
+            window.location.href = `/checkout/retry?orderId=${orderId}`;
+        });
+    }
+    
+    // Các method khác t??ng t? PaymentSuccessPage...
+}
+
+// Kh?i t?o khi trang load
+document.addEventListener('DOMContentLoaded', () => {
+    new PaymentCancelPage().init();
+});
+```
+
+## ?? CSS ANIMATIONS & STYLING
+
+```css
+/* Success Animation */
+.success-checkmark {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: block;
+    stroke-width: 2;
+    stroke: #4CAF50;
+    stroke-miterlimit: 10;
+    margin: 10% auto;
+    box-shadow: inset 0px 0px 0px #4CAF50;
+    animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+}
+
+.success-checkmark__circle {
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    stroke-width: 2;
+    stroke-miterlimit: 10;
+    stroke: #4CAF50;
+    fill: none;
+    animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+.success-checkmark__check {
+    transform-origin: 50% 50%;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+}
+
+/* Cancel Animation */
+.cancel-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #f44336;
+    position: relative;
+    margin: 20px auto;
+    animation: shake 0.5s ease-in-out;
+}
+
+.cancel-icon::before,
+.cancel-icon::after {
+    content: '';
+    position: absolute;
+    width: 40px;
+    height: 3px;
+    background: white;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.cancel-icon::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+@keyframes shake {
+    0%, 20%, 40%, 60%, 80%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+```
+
+## ?? ERROR HANDLING
+
+```javascript
+// error-handler.js
+class PaymentErrorHandler {
+    static async handleApiError(error, context) {
+        console.error(`Payment API Error in ${context}:`, error);
+        
+        let userMessage = 'Có l?i x?y ra. Vui lòng th? l?i sau.';
+        
+        if (error.status === 404) {
+            userMessage = 'Không tìm th?y thông tin ??n hàng.';
+        } else if (error.status === 401) {
+            userMessage = 'Phiên ??ng nh?p ?ã h?t h?n. Vui lòng ??ng nh?p l?i.';
+            // Redirect to login
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        } else if (error.status >= 500) {
+            userMessage = 'L?i h? th?ng. Vui lòng liên h? h? tr?.';
+        }
+        
+        this.showErrorToast(userMessage);
+    }
+    
+    static showErrorToast(message) {
+        // Implement your toast notification here
+        const toast = document.createElement('div');
+        toast.className = 'error-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 5000);
+    }
+}
+```
+
+## ?? CHECKLIST CHO DEVELOPER
+
+### ? API Integration
+- [ ] Implement lookup API call for PayOS orderCode
+- [ ] Implement order status check API call
+- [ ] Handle authentication for protected endpoints
+- [ ] Implement proper error handling
+
+### ? UI/UX
+- [ ] Design success page with clear order information
+- [ ] Design cancel page with retry options
+- [ ] Implement loading states
+- [ ] Add success/error animations
+- [ ] Responsive design for mobile
+
+### ? URL Handling
+- [ ] Parse `orderId` parameter from URL
+- [ ] Parse `orderCode` parameter as fallback
+- [ ] Handle missing parameters gracefully
+
+### ? User Experience
+- [ ] Auto-redirect option for success page
+- [ ] Retry payment functionality
+- [ ] Clear navigation options
+- [ ] Toast notifications for errors
+
+### ? Testing
+- [ ] Test with valid orderId
+- [ ] Test with PayOS orderCode only
+- [ ] Test error scenarios (404, 401, 500)
+- [ ] Test on mobile devices
+- [ ] Test loading states
+
+## ?? DEPLOYMENT NOTES
+
+1. **Environment Variables:**
+   - ??m b?o API base URL ???c config ?úng
+   - Check CORS settings cho domain tndt.netlify.app
+
+2. **Security:**
+   - Validate t?t c? input t? URL parameters
+   - Sanitize data tr??c khi hi?n th?
+   - Handle XSS attacks
+
+3. **Performance:**
+   - Lazy load animations
+   - Optimize images
+   - Cache API responses n?u c?n
+
+4. **Analytics:**
+   - Track payment success/cancel events
+   - Monitor API call success rates
+   - Log errors cho debugging
+
+---
+**Created by:** Backend Team
+**Last Updated:** $(Get-Date -Format "dd/MM/yyyy HH:mm")
+**Version:** 1.0

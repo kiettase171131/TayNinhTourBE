@@ -22,7 +22,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             _config = config;
         }
-        public async Task<string?> CreatePaymentUrlAsync(decimal amount, string orderCode, string returnUrl)
+        public async Task<(string? checkoutUrl, long payOsOrderCode)> CreatePaymentUrlAsync(decimal amount, string orderCode, string returnUrl)
         {
             var clientId = _config["PayOS:ClientId"];
             var apiKey = _config["PayOS:ApiKey"];
@@ -36,11 +36,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
              amount: (int)amount,
              description: $"{orderCode2}",
              items: items,
-             cancelUrl: "https://tndt.netlify.app/about",
-             returnUrl: "https://tndt.netlify.app/blog",
+             cancelUrl: $"https://tndt.netlify.app/payment-cancel?orderId={orderCode}",
+             returnUrl: $"https://tndt.netlify.app/payment-success?orderId={orderCode}",
              buyerName: "kiet");
             CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
-            return createPayment.checkoutUrl;
+            return (createPayment.checkoutUrl, orderCode2);
         }
         public async Task<OrderStatus> GetOrderPaymentStatusAsync(string orderCode)
         {
