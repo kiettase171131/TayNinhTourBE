@@ -5,12 +5,15 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -22,10 +25,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     public class SpecialtyShopService : BaseService, ISpecialtyShopService
     {
         private readonly ICurrentUserService _currentUserService;
+        private readonly IVoucherRepository _voucherRepository;
 
-        public SpecialtyShopService(IMapper mapper, IUnitOfWork unitOfWork, ICurrentUserService currentUserService) : base(mapper, unitOfWork)
+        public SpecialtyShopService(IMapper mapper, IUnitOfWork unitOfWork, ICurrentUserService currentUserService, IVoucherRepository voucherRepository) : base(mapper, unitOfWork)
         {
             _currentUserService = currentUserService;
+            _voucherRepository = voucherRepository;
         }
 
         /// <summary>
@@ -380,6 +385,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return ApiResponse<SpecialtyShopResponseDto>.Error(500, $"Lỗi khi lấy thông tin shop: {ex.Message}");
             }
         }
+
+        
+
+        
+        
+
+
+       
 
         // CreateShopAsync removed - timeline integration only needs to read existing SpecialtyShops
         // New SpecialtyShops are created through the shop application approval process

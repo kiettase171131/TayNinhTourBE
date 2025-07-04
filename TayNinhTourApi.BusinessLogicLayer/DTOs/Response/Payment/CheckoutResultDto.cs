@@ -6,10 +6,13 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment
 {
-    public class CheckoutResultDto
+    public class CheckoutResultDto : BaseResposeDto
     {
         public string CheckoutUrl { get; set; }
         public Guid OrderId { get; set; }
+        public decimal TotalOriginal { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal TotalAfterDiscount { get; set; }
     }
 
 }
