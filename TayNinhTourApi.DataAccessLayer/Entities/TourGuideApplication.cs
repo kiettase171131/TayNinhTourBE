@@ -127,5 +127,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Admin xử lý đơn (nếu có)
         /// </summary>
         public virtual User? ProcessedBy { get; set; }
+
+        /// <summary>
+        /// Approved TourGuide record (if application is approved)
+        /// One-to-One relationship
+        /// </summary>
+        public virtual TourGuide? ApprovedTourGuide { get; set; }
     }
 }

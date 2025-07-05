@@ -351,6 +351,38 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 await _context.SaveChangesAsync();
             }
 
+            // Seed additional tour guide application for English Guide
+            if (!await _context.TourGuideApplications.AnyAsync(x => x.Email == "englishguide@gmail.com"))
+            {
+                var englishGuideUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == "englishguide@gmail.com");
+                if (englishGuideUser != null)
+                {
+                    var englishGuideApplication = new TourGuideApplication
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = englishGuideUser.Id,
+                        FullName = "English Tour Guide",
+                        PhoneNumber = "0987654400",
+                        Email = "englishguide@gmail.com",
+                        Experience = "5 years of experience as an English-speaking tour guide. Specialized in cultural tours and historical sites. Fluent in English and Vietnamese.",
+                        Skills = "Vietnamese,English,History,Culture,Photography", // English skills
+                        CurriculumVitae = "https://example.com/cv-english-guide.pdf",
+                        Status = TourGuideApplicationStatus.Approved,
+                        SubmittedAt = DateTime.UtcNow.AddDays(-30),
+                        ProcessedAt = DateTime.UtcNow.AddDays(-25),
+                        ProcessedById = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de"), // Admin ID
+                        CreatedAt = DateTime.UtcNow.AddDays(-30),
+                        UpdatedAt = DateTime.UtcNow.AddDays(-25),
+                        IsDeleted = false,
+                        IsActive = true,
+                        CreatedById = englishGuideUser.Id
+                    };
+
+                    _context.TourGuideApplications.Add(englishGuideApplication);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             if (!await _context.Blogs.AnyAsync())
             {
                 var now = DateTime.UtcNow;

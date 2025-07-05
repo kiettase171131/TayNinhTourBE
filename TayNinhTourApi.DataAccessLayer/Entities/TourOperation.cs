@@ -92,6 +92,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public virtual User? Guide { get; set; }
 
         /// <summary>
+        /// TourGuide operational record for this tour (optional)
+        /// Relationship: Many-to-One with TourGuide
+        /// </summary>
+        public virtual TourGuide? TourGuide { get; set; }
+
+        /// <summary>
         /// User đã tạo tour operation này
         /// </summary>
         public virtual User CreatedBy { get; set; } = null!;

@@ -57,10 +57,10 @@ Sử dụng role "TourGuide" đã có trong Constants.RoleTourGuideName
 
 User Endpoints (Role: "User"):
 ------------------------------
-POST /api/Account/tourguide-application
+POST /api/Account/tourguide-application/upload
 - Authorization: Bearer token, Role "User"
 - Body: SubmitTourGuideApplicationDto (multipart/form-data)
-- Function: User nộp đơn đăng ký TourGuide với documents
+- Function: User nộp đơn đăng ký TourGuide với file upload
 - Response: TourGuideApplicationSubmitResponseDto
 
 GET /api/Account/my-tourguide-applications

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
@@ -145,6 +146,57 @@ namespace TayNinhTourApi.Controller.Controllers
                     Message = "Có lỗi xảy ra khi chấp nhận lời mời",
                     IsSuccess = false
                 });
+            }
+        }
+
+        /// <summary>
+        /// Test method để accept invitation bằng raw SQL
+        /// </summary>
+        [HttpPost("{invitationId}/test-accept")]
+        [Authorize(Roles = "Tour Guide")]
+        public async Task<ActionResult> TestAcceptInvitation(Guid invitationId)
+        {
+            try
+            {
+                var guideId = GetCurrentUserId();
+
+                // Simple raw SQL update to test
+                var sql = @"UPDATE TourGuideInvitations
+                           SET Status = 2,
+                               RespondedAt = UTC_TIMESTAMP(),
+                               UpdatedAt = UTC_TIMESTAMP()
+                           WHERE Id = @invitationId AND GuideId = @guideId AND Status = 1";
+
+                var parameters = new[]
+                {
+                    new MySqlConnector.MySqlParameter("@invitationId", invitationId.ToString()),
+                    new MySqlConnector.MySqlParameter("@guideId", guideId.ToString())
+                };
+
+                // Get DbContext from service
+                var context = _invitationService.GetType()
+                    .GetProperty("Context", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.GetValue(_invitationService) as Microsoft.EntityFrameworkCore.DbContext;
+
+                if (context == null)
+                {
+                    return StatusCode(500, new { message = "Cannot access DbContext" });
+                }
+
+                var rowsAffected = await context.Database.ExecuteSqlRawAsync(sql, parameters);
+
+                if (rowsAffected > 0)
+                {
+                    return Ok(new { message = "Invitation accepted successfully", rowsAffected, invitationId, guideId });
+                }
+                else
+                {
+                    return BadRequest(new { message = "No invitation found or already processed", invitationId, guideId });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Error: {ex.Message}", innerException = ex.InnerException?.Message, stackTrace = ex.StackTrace });
             }
         }
 

@@ -82,9 +82,10 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             {
                 invitation.Status = InvitationStatus.Expired;
                 invitation.UpdatedAt = DateTime.UtcNow;
+                _context.Set<TourGuideInvitation>().Update(invitation);
             }
 
-            await _context.SaveChangesAsync();
+            // Don't save here - let UnitOfWork handle it
             return invitationsToExpire.Count;
         }
 

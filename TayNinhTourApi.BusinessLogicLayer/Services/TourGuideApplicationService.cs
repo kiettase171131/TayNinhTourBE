@@ -12,6 +12,7 @@ using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
+using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -24,6 +25,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly ITourGuideApplicationRepository _applicationRepository;
         private readonly IUserRepository _userRepository;
         private readonly IRoleRepository _roleRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly Microsoft.AspNetCore.Hosting.IHostingEnvironment _environment;
         private readonly IHttpContextAccessor _httpContextAccessor;
@@ -34,6 +36,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             ITourGuideApplicationRepository applicationRepository,
             IUserRepository userRepository,
             IRoleRepository roleRepository,
+            IUnitOfWork unitOfWork,
             IMapper mapper,
             Microsoft.AspNetCore.Hosting.IHostingEnvironment environment,
             IHttpContextAccessor httpContextAccessor,
@@ -43,6 +46,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _applicationRepository = applicationRepository;
             _userRepository = userRepository;
             _roleRepository = roleRepository;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
             _environment = environment;
             _httpContextAccessor = httpContextAccessor;
@@ -137,81 +141,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        /// <summary>
-        /// User nộp đơn đăng ký TourGuide (JSON version for API testing)
-        /// </summary>
-        public async Task<TourGuideApplicationSubmitResponseDto> SubmitApplicationJsonAsync(
-            SubmitTourGuideApplicationJsonDto dto,
-            CurrentUserObject currentUser)
-        {
-            // 1. Validate user chưa có đơn active
-            var hasActiveApplication = await _applicationRepository.HasActiveApplicationAsync(currentUser.Id);
-            if (hasActiveApplication)
-            {
-                return new TourGuideApplicationSubmitResponseDto
-                {
-                    StatusCode = 400,
-                    Message = "Bạn đã có đơn đăng ký đang chờ xử lý hoặc đã được duyệt. Vui lòng liên hệ support nếu cần hỗ trợ."
-                };
-            }
 
-            try
-            {
-                // 2. Tạo application entity (không cần upload file, dùng URL)
-                var application = new TourGuideApplication
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = currentUser.Id,
-                    FullName = dto.FullName,
-                    PhoneNumber = dto.PhoneNumber,
-                    Email = dto.Email,
-                    Experience = dto.Experience, // Use experience description
-                    Languages = null, // Languages field removed from DTO
-                    Skills = GetSkillsFromJsonDto(dto), // Enhanced skill system
-                    CurriculumVitae = dto.CurriculumVitaeUrl, // Store URL directly
-                    Status = TourGuideApplicationStatus.Pending,
-                    SubmittedAt = DateTime.UtcNow,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedById = currentUser.Id
-                };
-
-                // 3. Lưu application
-                await _applicationRepository.AddAsync(application);
-                await _applicationRepository.SaveChangesAsync();
-
-                // 4. Send confirmation email (with error handling)
-                try
-                {
-                    await _emailSender.SendTourGuideApplicationSubmittedAsync(
-                        application.Email,
-                        application.FullName,
-                        application.SubmittedAt);
-                }
-                catch (Exception emailEx)
-                {
-                    // Log email error but don't fail the application submission
-                    Console.WriteLine($"Email sending failed: {emailEx.Message}");
-                }
-
-                return new TourGuideApplicationSubmitResponseDto
-                {
-                    StatusCode = 200,
-                    Message = "Đơn đăng ký hướng dẫn viên đã được gửi thành công",
-                    ApplicationId = application.Id,
-                    FullName = application.FullName,
-                    CurriculumVitaeUrl = application.CurriculumVitae,
-                    SubmittedAt = application.SubmittedAt
-                };
-            }
-            catch (Exception ex)
-            {
-                return new TourGuideApplicationSubmitResponseDto
-                {
-                    StatusCode = 500,
-                    Message = $"Có lỗi xảy ra khi gửi đơn đăng ký: {ex.Message}"
-                };
-            }
-        }
 
         /// <summary>
         /// User xem danh sách đơn đăng ký của mình
@@ -262,27 +192,27 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         public async Task<BaseResposeDto> ApproveApplicationAsync(Guid applicationId, CurrentUserObject adminUser)
         {
-            var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId);
-            if (application == null)
-            {
-                return new BaseResposeDto
-                {
-                    StatusCode = 404,
-                    Message = "Không tìm thấy đơn đăng ký"
-                };
-            }
-
-            if (application.Status != TourGuideApplicationStatus.Pending)
-            {
-                return new BaseResposeDto
-                {
-                    StatusCode = 400,
-                    Message = "Đơn đăng ký không ở trạng thái chờ xử lý"
-                };
-            }
-
+            using var transaction = _unitOfWork.BeginTransaction();
             try
             {
+                var application = await _applicationRepository.GetByIdWithDetailsAsync(applicationId);
+                if (application == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy đơn đăng ký"
+                    };
+                }
+
+                if (application.Status != TourGuideApplicationStatus.Pending)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Đơn đăng ký không ở trạng thái chờ xử lý"
+                    };
+                }
                 // 1. Get TourGuide role
                 var tourGuideRole = await _roleRepository.GetRoleByNameAsync(Constants.RoleTourGuideName);
                 if (tourGuideRole == null)
@@ -312,16 +242,39 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 user.UpdatedAt = DateTime.UtcNow;
                 user.UpdatedById = adminUser.Id;
 
-                // 3. Update application status
+                // 3. Create TourGuide operational record
+                var tourGuide = new TourGuide
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = application.UserId,
+                    ApplicationId = application.Id,
+                    FullName = application.FullName,
+                    PhoneNumber = application.PhoneNumber,
+                    Email = application.Email,
+                    Experience = application.Experience,
+                    Skills = application.Skills,
+                    IsAvailable = true,
+                    Rating = 0,
+                    TotalToursGuided = 0,
+                    ApprovedAt = DateTime.UtcNow,
+                    ApprovedById = adminUser.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = adminUser.Id
+                };
+
+                await _unitOfWork.TourGuideRepository.AddAsync(tourGuide);
+
+                // 4. Update application status
                 application.Status = TourGuideApplicationStatus.Approved;
                 application.ProcessedAt = DateTime.UtcNow;
                 application.ProcessedById = adminUser.Id;
                 application.UpdatedAt = DateTime.UtcNow;
                 application.UpdatedById = adminUser.Id;
 
-                await _applicationRepository.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync();
+                await transaction.CommitAsync();
 
-                // 4. Send approval email
+                // 5. Send approval email
                 await _emailSender.SendTourGuideApplicationApprovedAsync(
                     application.Email,
                     application.FullName);
@@ -334,6 +287,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
@@ -475,13 +429,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <returns>Skills string for database storage</returns>
         private static string? GetSkillsFromDto(SubmitTourGuideApplicationDto dto)
         {
-            // Priority 1: Skills list (new system)
+            // Priority 1: Skills list (new system) - Required field
             if (dto.Skills != null && dto.Skills.Any())
             {
                 return TourGuideSkillUtility.SkillsToString(dto.Skills);
             }
 
-            // Priority 2: SkillsString (API compatibility)
+            // Priority 2: SkillsString (API compatibility) - Optional field
             if (!string.IsNullOrWhiteSpace(dto.SkillsString))
             {
                 // Validate and normalize the skills string
@@ -491,30 +445,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             }
 
-            // Default: Vietnamese if nothing is provided (should not happen due to validation)
+            // Skills list is required, so this should not happen due to validation
+            // But return Vietnamese as fallback
             return "Vietnamese";
         }
 
-        /// <summary>
-        /// Helper method để extract skills từ JSON DTO
-        /// Chỉ hỗ trợ SkillsString (Languages field đã bị loại bỏ)
-        /// </summary>
-        /// <param name="dto">SubmitTourGuideApplicationJsonDto</param>
-        /// <returns>Skills string for database storage</returns>
-        private static string? GetSkillsFromJsonDto(SubmitTourGuideApplicationJsonDto dto)
-        {
-            // Priority 1: SkillsString (required field)
-            if (!string.IsNullOrWhiteSpace(dto.SkillsString))
-            {
-                // Validate and normalize the skills string
-                if (TourGuideSkillUtility.IsValidSkillsString(dto.SkillsString))
-                {
-                    return dto.SkillsString;
-                }
-            }
 
-            // Default: Vietnamese if nothing is provided (should not happen due to validation)
-            return "Vietnamese";
-        }
     }
 }

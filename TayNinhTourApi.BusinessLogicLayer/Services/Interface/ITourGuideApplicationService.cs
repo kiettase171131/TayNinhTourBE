@@ -21,15 +21,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
             SubmitTourGuideApplicationDto dto,
             CurrentUserObject currentUser);
 
-        /// <summary>
-        /// User nộp đơn đăng ký TourGuide (JSON version for API testing)
-        /// </summary>
-        /// <param name="dto">Thông tin đăng ký (JSON format)</param>
-        /// <param name="currentUser">User hiện tại</param>
-        /// <returns>Response với thông tin đơn đã nộp</returns>
-        Task<TourGuideApplicationSubmitResponseDto> SubmitApplicationJsonAsync(
-            SubmitTourGuideApplicationJsonDto dto,
-            CurrentUserObject currentUser);
+
 
         /// <summary>
         /// User xem danh sách đơn đăng ký của mình

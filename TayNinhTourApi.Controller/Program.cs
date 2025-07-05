@@ -177,6 +177,7 @@ builder.Services.AddScoped<ITourBookingRepository, TourBookingRepository>();
 builder.Services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 builder.Services.AddScoped<ISupportTicketCommentRepository, SupportTicketCommentRepository>();
 builder.Services.AddScoped<ITourGuideApplicationRepository, TourGuideApplicationRepository>();
+builder.Services.AddScoped<ITourGuideRepository, TourGuideRepository>();
 builder.Services.AddScoped<IBlogRepository, BlogRepository>();
 builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();

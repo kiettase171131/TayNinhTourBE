@@ -789,6 +789,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 tourDetail.UpdatedAt = DateTime.UtcNow;
 
                 await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetail);
+
+                // Nếu reject, hủy tất cả invitation pending để có thể tạo mới khi approve lại
+                if (!request.IsApproved)
+                {
+                    await CancelPendingInvitationsAsync(tourDetailId);
+                }
+
                 await _unitOfWork.SaveChangesAsync();
 
                 var statusText = request.IsApproved ? "duyệt" : "từ chối";
@@ -1345,6 +1352,47 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending TourGuide invitations for TourDetails {TourDetailId}", tourDetail.Id);
+            }
+        }
+
+        /// <summary>
+        /// Hủy tất cả invitation pending cho tour details khi admin reject
+        /// </summary>
+        private async Task CancelPendingInvitationsAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Cancelling pending invitations for TourDetails {TourDetailsId}", tourDetailsId);
+
+                // Lấy tất cả invitation pending
+                var pendingInvitations = await _unitOfWork.TourGuideInvitationRepository
+                    .GetAllAsync(inv => inv.TourDetailsId == tourDetailsId &&
+                                       inv.Status == InvitationStatus.Pending &&
+                                       !inv.IsDeleted);
+
+                if (pendingInvitations.Any())
+                {
+                    foreach (var invitation in pendingInvitations)
+                    {
+                        invitation.Status = InvitationStatus.Expired;
+                        invitation.UpdatedAt = DateTime.UtcNow;
+                        invitation.RejectionReason = "Tour details bị từ chối bởi admin";
+
+                        await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(invitation);
+                    }
+
+                    _logger.LogInformation("Cancelled {Count} pending invitations for TourDetails {TourDetailsId}",
+                        pendingInvitations.Count(), tourDetailsId);
+                }
+                else
+                {
+                    _logger.LogInformation("No pending invitations found for TourDetails {TourDetailsId}", tourDetailsId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cancelling pending invitations for TourDetails {TourDetailsId}", tourDetailsId);
+                // Không throw exception để không ảnh hưởng đến flow chính
             }
         }
     }
