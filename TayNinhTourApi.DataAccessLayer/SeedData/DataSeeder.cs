@@ -736,87 +736,52 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 await _context.SaveChangesAsync();
             }
 
-            // Seed 3 TourGuides operational records (corresponding to approved applications)
+            // Seed TourGuides operational records from approved applications
             if (!await _context.TourGuides.AnyAsync())
             {
                 var now = DateTime.UtcNow;
                 var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
 
-                // Ensure users and applications exist before creating TourGuides
-                var existingTourGuideUsers = await _context.Users
-                    .Where(u => tourGuideUserIds.Contains(u.Id))
+                // Get all approved applications that don't have TourGuide records yet
+                var approvedApplications = await _context.TourGuideApplications
+                    .Where(a => a.Status == TourGuideApplicationStatus.Approved && a.IsActive)
+                    .Include(a => a.User)
                     .ToListAsync();
 
-                var existingApplications = await _context.TourGuideApplications
-                    .Where(a => tourGuideUserIds.Contains(a.UserId))
-                    .ToListAsync();
-
-                if (existingTourGuideUsers.Count < 3 || existingApplications.Count < 3)
+                if (!approvedApplications.Any())
                 {
-                    // Skip creating TourGuides if prerequisites don't exist
+                    // No approved applications to create TourGuides from
                     return;
                 }
 
-                var tourGuides = new List<TourGuide>
+                var tourGuides = new List<TourGuide>();
+
+                // Create TourGuide records from approved applications
+                foreach (var application in approvedApplications)
                 {
-                    // TourGuide 1 - History Specialist
-                    new TourGuide
+                    var tourGuide = new TourGuide
                     {
-                        Id = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
-                        UserId = tourGuideUserIds[0],
-                        ApplicationId = Guid.Parse("d1e2f3a4-b5c6-7890-def1-234567890abc"),
-                        FullName = "Nguyen Van Duc",
-                        PhoneNumber = "0987654321",
-                        Email = "tourguide1@example.com",
-                        Experience = "5 years specializing in historical tours of Cao Dai Temple and Cu Chi Tunnels. Expert in Vietnamese history and Cao Dai religion.",
-                        Skills = "History", // ONLY History skill
+                        Id = Guid.NewGuid(),
+                        UserId = application.UserId,
+                        ApplicationId = application.Id,
+                        FullName = application.FullName,
+                        PhoneNumber = application.PhoneNumber,
+                        Email = application.Email,
+                        Experience = application.Experience,
+                        Skills = application.Skills, // Copy skills from application
                         IsAvailable = true,
-                        Rating = 4.8m,
-                        TotalToursGuided = 127,
-                        ApprovedAt = now.AddDays(-10),
-                        ApprovedById = adminId,
-                        CreatedAt = now.AddDays(-10),
-                        CreatedById = adminId
-                    },
-                    // TourGuide 2 - Adventure Specialist
-                    new TourGuide
-                    {
-                        Id = Guid.Parse("b2c3d4e5-f6a7-8901-bcde-f23456789012"),
-                        UserId = tourGuideUserIds[1],
-                        ApplicationId = Guid.Parse("e2f3a4b5-c6d7-8901-efa2-345678901bcd"),
-                        FullName = "Tran Thi Mai",
-                        PhoneNumber = "0987654322",
-                        Email = "tourguide2@example.com",
-                        Experience = "4 years leading adventure tours in Ba Den Mountain and Dau Tieng Lake. Certified in mountain climbing and water sports.",
-                        Skills = "Adventure", // ONLY Adventure skill
-                        IsAvailable = true,
-                        Rating = 4.6m,
-                        TotalToursGuided = 89,
-                        ApprovedAt = now.AddDays(-8),
-                        ApprovedById = adminId,
-                        CreatedAt = now.AddDays(-8),
-                        CreatedById = adminId
-                    },
-                    // TourGuide 3 - Photography Specialist
-                    new TourGuide
-                    {
-                        Id = Guid.Parse("c3d4e5f6-a7b8-9012-cdef-345678901234"),
-                        UserId = tourGuideUserIds[2],
-                        ApplicationId = Guid.Parse("f3a4b5c6-d7e8-9012-fab3-456789012cde"),
-                        FullName = "Le Minh Quan",
-                        PhoneNumber = "0987654323",
-                        Email = "tourguide3@example.com",
-                        Experience = "3 years specializing in photography workshops and scenic tours. Expert in capturing beautiful moments and landscapes.",
-                        Skills = "Photography", // ONLY Photography skill
-                        IsAvailable = true,
-                        Rating = 4.9m,
-                        TotalToursGuided = 56,
-                        ApprovedAt = now.AddDays(-5),
-                        ApprovedById = adminId,
-                        CreatedAt = now.AddDays(-5),
-                        CreatedById = adminId
-                    }
-                };
+                        Rating = 0.00m, // Default rating for new guides
+                        TotalToursGuided = 0, // Default tours guided
+                        ApprovedAt = application.ProcessedAt ?? now,
+                        ApprovedById = application.ProcessedById ?? adminId,
+                        CreatedAt = now,
+                        CreatedById = adminId,
+                        IsActive = true,
+                        IsDeleted = false
+                    };
+
+                    tourGuides.Add(tourGuide);
+                }
 
                 _context.TourGuides.AddRange(tourGuides);
                 await _context.SaveChangesAsync();
