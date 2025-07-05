@@ -365,6 +365,33 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// Fix TourDetails status cho các case đã có guide accept nhưng status vẫn AwaitingGuideAssignment
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails cần fix</param>
+        /// <returns>Kết quả fix status</returns>
+        [HttpPost("fix-tourdetails-status/{tourDetailsId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<BaseResposeDto>> FixTourDetailsStatus(Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Admin fixing TourDetails {TourDetailsId} status", tourDetailsId);
+                var result = await _invitationService.FixTourDetailsStatusAsync(tourDetailsId);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fixing TourDetails {TourDetailsId} status", tourDetailsId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi fix TourDetails status",
+                    IsSuccess = false
+                });
+            }
+        }
+
+        /// <summary>
         /// Helper method để lấy current user ID từ JWT token
         /// </summary>
         private Guid GetCurrentUserId()

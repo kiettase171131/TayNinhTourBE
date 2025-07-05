@@ -1753,7 +1753,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<Guid>("GuideId")
                         .HasColumnType("char(36)")
-                        .HasComment("ID của User (TourGuide) được mời");
+                        .HasComment("ID của TourGuide được mời");
 
                     b.Property<int>("InvitationType")
                         .HasColumnType("int")
@@ -2627,12 +2627,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", "TourGuide")
                         .WithMany("Invitations")
                         .HasForeignKey("GuideId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Guide")
-                        .WithMany()
-                        .HasForeignKey("GuideId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -2648,8 +2642,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CreatedBy");
-
-                    b.Navigation("Guide");
 
                     b.Navigation("TourDetails");
 

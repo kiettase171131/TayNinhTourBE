@@ -1092,7 +1092,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     TourDetailsId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourDetails mà lời mời này thuộc về", collation: "ascii_general_ci"),
-                    GuideId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của User (TourGuide) được mời", collation: "ascii_general_ci"),
+                    GuideId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourGuide được mời", collation: "ascii_general_ci"),
                     InvitationType = table.Column<int>(type: "int", nullable: false, comment: "Loại lời mời (Automatic hoặc Manual)"),
                     Status = table.Column<int>(type: "int", nullable: false, defaultValue: 1, comment: "Trạng thái lời mời"),
                     InvitedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false, comment: "Thời gian gửi lời mời"),
@@ -1122,16 +1122,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         column: x => x.GuideId,
                         principalTable: "TourGuides",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_TourGuideInvitations_Users_CreatedById",
                         column: x => x.CreatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_TourGuideInvitations_Users_GuideId",
-                        column: x => x.GuideId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);

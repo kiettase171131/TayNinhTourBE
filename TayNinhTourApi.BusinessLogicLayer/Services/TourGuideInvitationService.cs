@@ -228,12 +228,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.SaveChangesAsync();
 
-                // 5. Update TourDetails status to AwaitingGuideAssignment
-                tourDetails.Status = TourDetailsStatus.AwaitingGuideAssignment;
-                tourDetails.UpdatedAt = DateTime.UtcNow;
-                tourDetails.UpdatedById = createdById;
-                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
-                await _unitOfWork.SaveChangesAsync();
+                // 5. Update TourDetails status to AwaitingGuideAssignment ONLY if no accepted invitation exists
+                var existingInvitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
+                var hasAcceptedInvitation = existingInvitations.Any(inv => inv.Status == InvitationStatus.Accepted && inv.IsActive);
+
+                if (!hasAcceptedInvitation)
+                {
+                    tourDetails.Status = TourDetailsStatus.AwaitingGuideAssignment;
+                    tourDetails.UpdatedAt = DateTime.UtcNow;
+                    tourDetails.UpdatedById = createdById;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    _logger.LogInformation("Updated TourDetails {TourDetailsId} status to AwaitingGuideAssignment", tourDetailsId);
+                }
+                else
+                {
+                    _logger.LogInformation("TourDetails {TourDetailsId} already has accepted invitation, keeping current status: {Status}",
+                        tourDetailsId, tourDetails.Status);
+                }
 
                 _logger.LogInformation("Created {Count} automatic invitations for TourDetails {TourDetailsId}",
                     invitationsCreated, tourDetailsId);
@@ -465,6 +478,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     await _unitOfWork.SaveChangesAsync();
                     _logger.LogInformation("Called SaveChangesAsync on unit of work");
+
+                    // 5. UPDATE TOURDETAILS STATUS: Khi guide accept invitation, cập nhật TourDetails status
+                    await UpdateTourDetailsStatusAfterGuideAcceptanceAsync(invitation.TourDetailsId, invitationId);
                 }
                 catch (Exception saveEx)
                 {
@@ -986,6 +1002,139 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             // Default: Vietnamese if no skills/languages specified
             return "Vietnamese";
+        }
+
+        /// <summary>
+        /// Fix TourDetails status cho các case đã có guide accept nhưng status vẫn AwaitingGuideAssignment
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails cần fix</param>
+        public async Task<BaseResposeDto> FixTourDetailsStatusAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Fixing TourDetails {TourDetailsId} status", tourDetailsId);
+
+                // 1. Get TourDetails
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                // 2. Check if has accepted invitation
+                var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
+                var acceptedInvitation = invitations.FirstOrDefault(i => i.Status == InvitationStatus.Accepted && i.IsActive);
+
+                if (acceptedInvitation == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "TourDetails này chưa có guide nào accept invitation",
+                        IsSuccess = false
+                    };
+                }
+
+                // 3. Update status if needed
+                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    tourDetails.Status = TourDetailsStatus.Approved;
+                    tourDetails.UpdatedAt = DateTime.UtcNow;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+
+                    // Expire other pending invitations
+                    var expiredCount = await _unitOfWork.TourGuideInvitationRepository
+                        .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitation.Id);
+
+                    await _unitOfWork.SaveChangesAsync();
+
+                    _logger.LogInformation("Fixed TourDetails {TourDetailsId} status from AwaitingGuideAssignment to Approved, expired {Count} pending invitations",
+                        tourDetailsId, expiredCount);
+
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 200,
+                        Message = $"Đã fix TourDetails status thành công. Expired {expiredCount} pending invitations.",
+                        IsSuccess = true
+                    };
+                }
+                else
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 200,
+                        Message = $"TourDetails đã ở status {tourDetails.Status}, không cần fix",
+                        IsSuccess = true
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fixing TourDetails {TourDetailsId} status", tourDetailsId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra: {ex.Message}",
+                    IsSuccess = false
+                };
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật TourDetails status sau khi guide accept invitation
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="acceptedInvitationId">ID của invitation được accept</param>
+        private async Task UpdateTourDetailsStatusAfterGuideAcceptanceAsync(Guid tourDetailsId, Guid acceptedInvitationId)
+        {
+            try
+            {
+                _logger.LogInformation("Updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
+
+                // 1. Get TourDetails
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    _logger.LogWarning("TourDetails {TourDetailsId} not found", tourDetailsId);
+                    return;
+                }
+
+                // 2. Only update if currently AwaitingGuideAssignment
+                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    // Update TourDetails status to WaitToPublic (guide assignment completed, waiting for tour company to activate public)
+                    tourDetails.Status = TourDetailsStatus.WaitToPublic;
+                    tourDetails.UpdatedAt = DateTime.UtcNow;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+
+                    _logger.LogInformation("Updated TourDetails {TourDetailsId} status from AwaitingGuideAssignment to WaitToPublic", tourDetailsId);
+
+                    // 3. Expire other pending invitations for this TourDetails
+                    var expiredCount = await _unitOfWork.TourGuideInvitationRepository
+                        .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitationId);
+
+                    _logger.LogInformation("Expired {Count} pending invitations for TourDetails {TourDetailsId}", expiredCount, tourDetailsId);
+
+                    // 4. Save all changes
+                    await _unitOfWork.SaveChangesAsync();
+
+                    _logger.LogInformation("Successfully updated TourDetails {TourDetailsId} status and expired pending invitations", tourDetailsId);
+                }
+                else
+                {
+                    _logger.LogInformation("TourDetails {TourDetailsId} status is {Status}, no update needed", tourDetailsId, tourDetails.Status);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
+                // Don't throw - this is a side effect, shouldn't break the main flow
+            }
         }
     }
 }

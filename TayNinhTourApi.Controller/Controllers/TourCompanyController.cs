@@ -222,6 +222,30 @@ namespace TayNinhTourApi.Controller.Controllers
             var response = await _tourTemplateService.CopyTourTemplateAsync(id, request.NewTitle, userId);
             return StatusCode(response.StatusCode, response);
         }
+
+        // ===== TOUR DETAILS ENDPOINTS =====
+
+        /// <summary>
+        /// Tour company kích hoạt public cho TourDetails
+        /// Chuyển status từ WaitToPublic sang Public
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <returns>Kết quả kích hoạt</returns>
+        [HttpPost("tourdetails/{tourDetailsId:guid}/activate-public")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<ActionResult<BaseResposeDto>> ActivatePublicTourDetails(Guid tourDetailsId)
+        {
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
+
+            if (userId == Guid.Empty)
+            {
+                return BadRequest("User ID not found in authentication context.");
+            }
+
+            var response = await _tourCompanyService.ActivatePublicTourDetailsAsync(tourDetailsId, userId);
+            return StatusCode(response.StatusCode, response);
+        }
     }
 
     /// <summary>

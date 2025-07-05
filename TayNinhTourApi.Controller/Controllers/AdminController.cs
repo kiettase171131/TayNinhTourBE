@@ -307,5 +307,64 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Fix TourDetails status manually - TEMPORARY for debugging
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <returns>Kết quả fix</returns>
+        [HttpPost("tourdetails/{tourDetailsId:guid}/fix-status")]
+        public async Task<IActionResult> FixTourDetailsStatus([FromRoute] Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Admin manually fixing TourDetails {TourDetailsId} status", tourDetailsId);
+
+                // Get TourDetails
+                var tourDetailsResponse = await _tourDetailsService.GetTourDetailByIdAsync(tourDetailsId);
+                if (!tourDetailsResponse.IsSuccess)
+                {
+                    return StatusCode(tourDetailsResponse.StatusCode, new
+                    {
+                        StatusCode = tourDetailsResponse.StatusCode,
+                        Message = "TourDetails không tồn tại"
+                    });
+                }
+
+                // Check if has accepted invitation
+                var invitationsResponse = await _invitationService.GetInvitationsForTourDetailsAsync(tourDetailsId);
+                if (!invitationsResponse.IsSuccess)
+                {
+                    return StatusCode(500, new
+                    {
+                        StatusCode = 500,
+                        Message = "Không thể kiểm tra invitations"
+                    });
+                }
+
+                var hasAcceptedInvitation = invitationsResponse.Invitations?.Any(i => i.Status == "Accepted") ?? false;
+                if (!hasAcceptedInvitation)
+                {
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "TourDetails này chưa có guide nào accept invitation"
+                    });
+                }
+
+                // Use invitation service to fix status
+                var result = await _invitationService.FixTourDetailsStatusAsync(tourDetailsId);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fixing TourDetails {TourDetailsId} status", tourDetailsId);
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi fix TourDetails status"
+                });
+            }
+        }
     }
 }
