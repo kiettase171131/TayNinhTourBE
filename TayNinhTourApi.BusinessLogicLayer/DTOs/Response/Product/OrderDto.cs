@@ -5,23 +5,21 @@ using System.Text;
 using System.Threading.Tasks;
 using TayNinhTourApi.DataAccessLayer.Enums;
 
-namespace TayNinhTourApi.DataAccessLayer.Entities
+namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
 {
-    public class Order :BaseEntity
+    public class OrderDto
     {
-        
+        public Guid Id { get; set; }
         public Guid UserId { get; set; }
         public decimal TotalAmount { get; set; }
-        public decimal TotalAfterDiscount { get; set; } 
         public decimal DiscountAmount { get; set; }
+        public decimal TotalAfterDiscount { get; set; }
         public OrderStatus Status { get; set; }
         public string? VoucherCode { get; set; }
-
-        /// <summary>
-        /// PayOS numeric order code for payment tracking
-        /// </summary>
         public long? PayOsOrderCode { get; set; }
-       
-        public virtual ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
+
+        public DateTime CreatedAt { get; set; }
+
+        public List<OrderDetailDto> OrderDetails { get; set; } = new();
     }
 }

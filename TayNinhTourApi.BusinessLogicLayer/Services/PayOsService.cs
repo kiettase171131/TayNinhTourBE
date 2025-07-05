@@ -31,10 +31,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             PayOS payOS = new PayOS(clientId, apiKey, checksumKey);
             var orderCode2 = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var orderCodeDisplay = $"TNDT{orderCode2}";
             PaymentData paymentData = new PaymentData(
              orderCode: orderCode2,
              amount: (int)amount,
-             description: $"{orderCode2}",
+             description: $"{orderCodeDisplay}",
              items: items,
              cancelUrl: "https://tndt.netlify.app/about",
              returnUrl: "https://tndt.netlify.app/blog",

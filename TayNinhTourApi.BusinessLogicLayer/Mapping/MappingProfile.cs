@@ -191,7 +191,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #endregion
             #region Voucher Mapping
             CreateMap<Voucher, VoucherDto>();
-   
+
+
+
+            #endregion
+            #region Order Mapping
+            CreateMap<OrderDetail, OrderDetailDto>()
+            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name));
+
+            // Order -> OrderDto
+            CreateMap<Order, OrderDto>()
+                .ForMember(dest => dest.OrderDetails, opt => opt.MapFrom(src => src.OrderDetails));
+
 
 
             #endregion

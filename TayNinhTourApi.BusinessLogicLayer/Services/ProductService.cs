@@ -644,15 +644,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             if (totalAfterDiscount <= 0)
                 throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
-
+            var payOsOrderCode = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            
             var order = new Order
             {
                 UserId = currentUser.Id,
                 TotalAmount = total,
+                DiscountAmount = discountAmount,
+                TotalAfterDiscount = totalAfterDiscount,
                 Status = OrderStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
                 CreatedById = currentUser.Id,
                 VoucherCode = voucherCode,
+                PayOsOrderCode= payOsOrderCode,
                 OrderDetails = cartItems.Select(x => new OrderDetail
                 {
                     ProductId = x.ProductId,
@@ -1004,7 +1008,48 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = "Xóa voucher thành công.",
                 IsSuccess = true
             };
-        }   
+        }
+        public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, long? payOsOrderCode, bool? status)
+        {       
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+            
+            var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted);
+
+            // lọc theo status (IsActive)
+            if (status.HasValue)
+            {
+                predicate = predicate.And(x => x.IsActive == status.Value);
+            }
+            if (payOsOrderCode.HasValue)
+            {
+                predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode.Value);
+            }
+
+            // lấy danh sách + phân trang
+            var orders = await _orderRepository.GenericGetPaginationAsync(
+                pageIndexValue,
+                pageSizeValue,
+                predicate,
+                new[] {
+            nameof(Order.OrderDetails),
+            $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                }
+            );
+
+            var totalOrders = orders.Count();
+            var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
+
+            return new ResponseGetOrdersDto
+            {
+                StatusCode = 200,
+                Data = _mapper.Map<List<OrderDto>>(orders),
+                TotalRecord = totalOrders,
+                TotalPages = totalPages
+            };
+        }
+
 
     }
 }
