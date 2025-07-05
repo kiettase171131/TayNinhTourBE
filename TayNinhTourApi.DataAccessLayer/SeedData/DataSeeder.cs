@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Linq;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
@@ -556,85 +557,175 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 await _context.SaveChangesAsync();
             }
 
-            // Seed Tour Guide Applications for testing
+            // Seed 3 TourGuide Users with different roles first
+            var tourGuideUsers = new List<User>();
+            var specialtyShopUsers = new List<User>();
+
+            // Create 3 TourGuide Users if they don't exist
+            var tourGuideUserIds = new[]
+            {
+                Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                Guid.Parse("33333333-3333-3333-3333-333333333333")
+            };
+
+            var specialtyShopUserIds = new[]
+            {
+                Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                Guid.Parse("66666666-6666-6666-6666-666666666666")
+            };
+
+            // Check and create TourGuide users
+            foreach (var userId in tourGuideUserIds)
+            {
+                if (!await _context.Users.AnyAsync(u => u.Id == userId))
+                {
+                    var index = Array.IndexOf(tourGuideUserIds, userId) + 1;
+                    tourGuideUsers.Add(new User
+                    {
+                        Id = userId,
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = $"tourguide{index}@example.com",
+                        PhoneNumber = $"098765432{index}",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("e2f4a6b8-c1d3-4e5f-a7b9-c2d4e6f8a0b2"), // Tour Guide role
+                        Name = $"Tour Guide {index}",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    });
+                }
+            }
+
+            // Check and create SpecialtyShop users
+            foreach (var userId in specialtyShopUserIds)
+            {
+                if (!await _context.Users.AnyAsync(u => u.Id == userId))
+                {
+                    var index = Array.IndexOf(specialtyShopUserIds, userId) + 1;
+                    specialtyShopUsers.Add(new User
+                    {
+                        Id = userId,
+                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
+                        Email = $"specialtyshop{index}@example.com",
+                        PhoneNumber = $"098765433{index}",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        IsDeleted = false,
+                        IsVerified = true,
+                        RoleId = Guid.Parse("f3e5b7c9-d2e4-5f6a-b8ca-d3e5f7a9b1c3"), // Specialty Shop role
+                        Name = $"Specialty Shop {index}",
+                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
+                        IsActive = true,
+                    });
+                }
+            }
+
+            if (tourGuideUsers.Any() || specialtyShopUsers.Any())
+            {
+                _context.Users.AddRange(tourGuideUsers.Concat(specialtyShopUsers));
+                await _context.SaveChangesAsync();
+            }
+
+            // Seed 3 TourGuide Applications with different skills
             if (!await _context.TourGuideApplications.AnyAsync())
             {
                 var now = DateTime.UtcNow;
-                var testUser1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
-                var testUser2Id = Guid.Parse("22222222-2222-2222-2222-222222222222");
                 var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
+
+                // Ensure users exist before creating applications
+                var existingTourGuideUsers = await _context.Users
+                    .Where(u => tourGuideUserIds.Contains(u.Id))
+                    .ToListAsync();
+
+                if (existingTourGuideUsers.Count < 3)
+                {
+                    // Skip creating applications if users don't exist
+                    return;
+                }
 
                 var applications = new List<TourGuideApplication>
                 {
-                    // Application 1 - Pending (for testing file upload)
+                    // TourGuide 1 - History Specialist (Approved)
                     new TourGuideApplication
                     {
                         Id = Guid.Parse("d1e2f3a4-b5c6-7890-def1-234567890abc"),
-                        UserId = testUser1Id,
-                        FullName = "Test User 1",
+                        UserId = tourGuideUserIds[0],
+                        FullName = "Nguyen Van Duc",
                         PhoneNumber = "0987654321",
-                        Email = "testuser1@example.com",
-                        Experience = "2",
-                        Languages = "Vietnamese, English", // Legacy field
-                        Skills = "Vietnamese,English,History,Culture", // New skill system
-                        CurriculumVitae = null, // No CV uploaded yet
-                        CvOriginalFileName = null,
-                        CvFileSize = null,
-                        CvContentType = null,
-                        CvFilePath = null,
-                        Status = TourGuideApplicationStatus.Pending,
-                        SubmittedAt = now.AddDays(-2),
-                        CreatedAt = now.AddDays(-2),
-                        CreatedById = testUser1Id,
+                        Email = "tourguide1@example.com",
+                        Experience = "5 years specializing in historical tours of Cao Dai Temple and Cu Chi Tunnels. Expert in Vietnamese history and Cao Dai religion.",
+                        Languages = "Vietnamese", // Legacy field
+                        Skills = "History", // ONLY History skill
+                        CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/tourguide1/cv.pdf",
+                        CvOriginalFileName = "NguyenVanDuc_CV.pdf",
+                        CvFileSize = 2048000, // 2MB
+                        CvContentType = "application/pdf",
+                        CvFilePath = "uploads/cv/2024/12/tourguide1/cv.pdf",
+                        Status = TourGuideApplicationStatus.Approved,
+                        SubmittedAt = now.AddDays(-15),
+                        ProcessedAt = now.AddDays(-10),
+                        ProcessedById = adminId,
+                        CreatedAt = now.AddDays(-15),
+                        CreatedById = tourGuideUserIds[0],
+                        UpdatedAt = now.AddDays(-10),
+                        UpdatedById = adminId,
                         IsActive = true,
                         IsDeleted = false
                     },
-                    // Application 2 - With CV file (for testing download)
+                    // TourGuide 2 - Adventure Specialist (Approved)
                     new TourGuideApplication
                     {
                         Id = Guid.Parse("e2f3a4b5-c6d7-8901-efa2-345678901bcd"),
-                        UserId = testUser2Id,
-                        FullName = "Test User 2",
+                        UserId = tourGuideUserIds[1],
+                        FullName = "Tran Thi Mai",
                         PhoneNumber = "0987654322",
-                        Email = "testuser2@example.com",
-                        Experience = "3",
-                        Languages = "Vietnamese, English, French", // Legacy field
-                        Skills = "Vietnamese,English,French,Geography,Photography", // New skill system
-                        CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/b2c3d4e5-f6a7-8901-bcde-f23456789012/sample_cv.pdf",
-                        CvOriginalFileName = "TestUser2_CV.pdf",
-                        CvFileSize = 1024000, // 1MB
+                        Email = "tourguide2@example.com",
+                        Experience = "4 years leading adventure tours in Ba Den Mountain and Dau Tieng Lake. Certified in mountain climbing and water sports.",
+                        Languages = "English", // Legacy field
+                        Skills = "Adventure", // ONLY Adventure skill
+                        CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/tourguide2/cv.pdf",
+                        CvOriginalFileName = "TranThiMai_CV.pdf",
+                        CvFileSize = 1800000, // 1.8MB
                         CvContentType = "application/pdf",
-                        CvFilePath = "uploads/cv/2024/12/b2c3d4e5-f6a7-8901-bcde-f23456789012/sample_cv.pdf",
-                        Status = TourGuideApplicationStatus.Pending,
-                        SubmittedAt = now.AddDays(-1),
-                        CreatedAt = now.AddDays(-1),
-                        CreatedById = testUser2Id,
+                        CvFilePath = "uploads/cv/2024/12/tourguide2/cv.pdf",
+                        Status = TourGuideApplicationStatus.Approved,
+                        SubmittedAt = now.AddDays(-12),
+                        ProcessedAt = now.AddDays(-8),
+                        ProcessedById = adminId,
+                        CreatedAt = now.AddDays(-12),
+                        CreatedById = tourGuideUserIds[1],
+                        UpdatedAt = now.AddDays(-8),
+                        UpdatedById = adminId,
                         IsActive = true,
                         IsDeleted = false
                     },
-                    // Application 3 - Approved
+                    // TourGuide 3 - Photography Specialist (Approved)
                     new TourGuideApplication
                     {
                         Id = Guid.Parse("f3a4b5c6-d7e8-9012-fab3-456789012cde"),
-                        UserId = Guid.Parse("c3d4e5f6-a7b8-9012-cdef-345678901234"), // Tour Guide user
-                        FullName = "Tour Guide 1",
+                        UserId = tourGuideUserIds[2],
+                        FullName = "Le Minh Quan",
                         PhoneNumber = "0987654323",
-                        Email = "tourguide1@example.com",
-                        Experience = "5",
-                        Languages = "Vietnamese, English, Japanese", // Legacy field
-                        Skills = "Vietnamese,English,Japanese,History,Culture,Religion,MountainClimbing,Trekking", // New skill system
-                        CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/c3d4e5f6-a7b8-9012-cdef-345678901234/approved_cv.pdf",
-                        CvOriginalFileName = "TourGuide1_CV.pdf",
-                        CvFileSize = 2048000, // 2MB
+                        Email = "tourguide3@example.com",
+                        Experience = "3 years specializing in photography workshops and scenic tours. Expert in capturing beautiful moments and landscapes.",
+                        Languages = "Japanese", // Legacy field
+                        Skills = "Photography", // ONLY Photography skill
+                        CurriculumVitae = "http://localhost:5267/uploads/cv/2024/12/tourguide3/cv.pdf",
+                        CvOriginalFileName = "LeMinhQuan_CV.pdf",
+                        CvFileSize = 2200000, // 2.2MB
                         CvContentType = "application/pdf",
-                        CvFilePath = "uploads/cv/2024/12/c3d4e5f6-a7b8-9012-cdef-345678901234/approved_cv.pdf",
+                        CvFilePath = "uploads/cv/2024/12/tourguide3/cv.pdf",
                         Status = TourGuideApplicationStatus.Approved,
-                        SubmittedAt = now.AddDays(-10),
-                        ProcessedAt = now.AddDays(-8),
+                        SubmittedAt = now.AddDays(-8),
+                        ProcessedAt = now.AddDays(-5),
                         ProcessedById = adminId,
-                        CreatedAt = now.AddDays(-10),
-                        CreatedById = Guid.Parse("c3d4e5f6-a7b8-9012-cdef-345678901234"),
-                        UpdatedAt = now.AddDays(-8),
+                        CreatedAt = now.AddDays(-8),
+                        CreatedById = tourGuideUserIds[2],
+                        UpdatedAt = now.AddDays(-5),
                         UpdatedById = adminId,
                         IsActive = true,
                         IsDeleted = false
@@ -642,6 +733,186 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 };
 
                 _context.TourGuideApplications.AddRange(applications);
+                await _context.SaveChangesAsync();
+            }
+
+            // Seed 3 TourGuides operational records (corresponding to approved applications)
+            if (!await _context.TourGuides.AnyAsync())
+            {
+                var now = DateTime.UtcNow;
+                var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
+
+                // Ensure users and applications exist before creating TourGuides
+                var existingTourGuideUsers = await _context.Users
+                    .Where(u => tourGuideUserIds.Contains(u.Id))
+                    .ToListAsync();
+
+                var existingApplications = await _context.TourGuideApplications
+                    .Where(a => tourGuideUserIds.Contains(a.UserId))
+                    .ToListAsync();
+
+                if (existingTourGuideUsers.Count < 3 || existingApplications.Count < 3)
+                {
+                    // Skip creating TourGuides if prerequisites don't exist
+                    return;
+                }
+
+                var tourGuides = new List<TourGuide>
+                {
+                    // TourGuide 1 - History Specialist
+                    new TourGuide
+                    {
+                        Id = Guid.Parse("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
+                        UserId = tourGuideUserIds[0],
+                        ApplicationId = Guid.Parse("d1e2f3a4-b5c6-7890-def1-234567890abc"),
+                        FullName = "Nguyen Van Duc",
+                        PhoneNumber = "0987654321",
+                        Email = "tourguide1@example.com",
+                        Experience = "5 years specializing in historical tours of Cao Dai Temple and Cu Chi Tunnels. Expert in Vietnamese history and Cao Dai religion.",
+                        Skills = "History", // ONLY History skill
+                        IsAvailable = true,
+                        Rating = 4.8m,
+                        TotalToursGuided = 127,
+                        ApprovedAt = now.AddDays(-10),
+                        ApprovedById = adminId,
+                        CreatedAt = now.AddDays(-10),
+                        CreatedById = adminId
+                    },
+                    // TourGuide 2 - Adventure Specialist
+                    new TourGuide
+                    {
+                        Id = Guid.Parse("b2c3d4e5-f6a7-8901-bcde-f23456789012"),
+                        UserId = tourGuideUserIds[1],
+                        ApplicationId = Guid.Parse("e2f3a4b5-c6d7-8901-efa2-345678901bcd"),
+                        FullName = "Tran Thi Mai",
+                        PhoneNumber = "0987654322",
+                        Email = "tourguide2@example.com",
+                        Experience = "4 years leading adventure tours in Ba Den Mountain and Dau Tieng Lake. Certified in mountain climbing and water sports.",
+                        Skills = "Adventure", // ONLY Adventure skill
+                        IsAvailable = true,
+                        Rating = 4.6m,
+                        TotalToursGuided = 89,
+                        ApprovedAt = now.AddDays(-8),
+                        ApprovedById = adminId,
+                        CreatedAt = now.AddDays(-8),
+                        CreatedById = adminId
+                    },
+                    // TourGuide 3 - Photography Specialist
+                    new TourGuide
+                    {
+                        Id = Guid.Parse("c3d4e5f6-a7b8-9012-cdef-345678901234"),
+                        UserId = tourGuideUserIds[2],
+                        ApplicationId = Guid.Parse("f3a4b5c6-d7e8-9012-fab3-456789012cde"),
+                        FullName = "Le Minh Quan",
+                        PhoneNumber = "0987654323",
+                        Email = "tourguide3@example.com",
+                        Experience = "3 years specializing in photography workshops and scenic tours. Expert in capturing beautiful moments and landscapes.",
+                        Skills = "Photography", // ONLY Photography skill
+                        IsAvailable = true,
+                        Rating = 4.9m,
+                        TotalToursGuided = 56,
+                        ApprovedAt = now.AddDays(-5),
+                        ApprovedById = adminId,
+                        CreatedAt = now.AddDays(-5),
+                        CreatedById = adminId
+                    }
+                };
+
+                _context.TourGuides.AddRange(tourGuides);
+                await _context.SaveChangesAsync();
+            }
+
+            // Seed 3 SpecialtyShops with different specialties
+            if (!await _context.SpecialtyShops.AnyAsync())
+            {
+                var now = DateTime.UtcNow;
+                var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
+
+                // Ensure users exist before creating SpecialtyShops
+                var existingSpecialtyShopUsers = await _context.Users
+                    .Where(u => specialtyShopUserIds.Contains(u.Id))
+                    .ToListAsync();
+
+                if (existingSpecialtyShopUsers.Count < 3)
+                {
+                    // Skip creating SpecialtyShops if users don't exist
+                    return;
+                }
+
+                var specialtyShops = new List<SpecialtyShop>
+                {
+                    // SpecialtyShop 1 - Traditional Handicrafts
+                    new SpecialtyShop
+                    {
+                        Id = Guid.Parse("d4e5f6a7-b8c9-0123-def4-456789012345"),
+                        UserId = specialtyShopUserIds[0],
+                        ShopName = "Tay Ninh Traditional Handicrafts",
+                        RepresentativeName = "Pham Van Thanh",
+                        PhoneNumber = "0987654331",
+                        Email = "specialtyshop1@example.com",
+                        Address = "123 Cao Dai Street, Tay Ninh City, Tay Ninh Province",
+                        Location = "123 Cao Dai Street, Tay Ninh City, Tay Ninh Province",
+                        Description = "Authentic traditional handicrafts made by local artisans. Specializing in bamboo products, pottery, and traditional textiles.",
+                        ShopType = "Handicrafts",
+                        BusinessLicense = "TN-BL-2024-001",
+                        OpeningHours = "08:00",
+                        ClosingHours = "18:00",
+                        IsShopActive = true,
+                        Rating = 4.7m,
+                        CreatedAt = now.AddDays(-25),
+                        CreatedById = specialtyShopUserIds[0],
+                        UpdatedAt = now.AddDays(-20),
+                        UpdatedById = adminId
+                    },
+                    // SpecialtyShop 2 - Local Food & Beverages
+                    new SpecialtyShop
+                    {
+                        Id = Guid.Parse("e5f6a7b8-c9d0-1234-efa5-567890123456"),
+                        UserId = specialtyShopUserIds[1],
+                        ShopName = "Tay Ninh Delicious Foods",
+                        RepresentativeName = "Nguyen Thi Lan",
+                        PhoneNumber = "0987654332",
+                        Email = "specialtyshop2@example.com",
+                        Address = "456 Market Street, Tay Ninh City, Tay Ninh Province",
+                        Location = "456 Market Street, Tay Ninh City, Tay Ninh Province",
+                        Description = "Authentic Tay Ninh local foods and beverages. Famous for rice paper, dried fruits, and traditional sweets.",
+                        ShopType = "Food",
+                        BusinessLicense = "TN-BL-2024-002",
+                        OpeningHours = "07:00",
+                        ClosingHours = "19:00",
+                        IsShopActive = true,
+                        Rating = 4.5m,
+                        CreatedAt = now.AddDays(-18),
+                        CreatedById = specialtyShopUserIds[1],
+                        UpdatedAt = now.AddDays(-15),
+                        UpdatedById = adminId
+                    },
+                    // SpecialtyShop 3 - Religious & Cultural Items
+                    new SpecialtyShop
+                    {
+                        Id = Guid.Parse("f6a7b8c9-d0e1-2345-fab6-678901234567"),
+                        UserId = specialtyShopUserIds[2],
+                        ShopName = "Cao Dai Religious Items",
+                        RepresentativeName = "Tran Van Minh",
+                        PhoneNumber = "0987654333",
+                        Email = "specialtyshop3@example.com",
+                        Address = "789 Temple Road, Tay Ninh City, Tay Ninh Province",
+                        Location = "789 Temple Road, Tay Ninh City, Tay Ninh Province",
+                        Description = "Religious and cultural items related to Cao Dai faith and Vietnamese traditions. Books, incense, and ceremonial items.",
+                        ShopType = "Religious",
+                        BusinessLicense = "TN-BL-2024-003",
+                        OpeningHours = "06:00",
+                        ClosingHours = "20:00",
+                        IsShopActive = true,
+                        Rating = 4.8m,
+                        CreatedAt = now.AddDays(-14),
+                        CreatedById = specialtyShopUserIds[2],
+                        UpdatedAt = now.AddDays(-12),
+                        UpdatedById = adminId
+                    }
+                };
+
+                _context.SpecialtyShops.AddRange(specialtyShops);
                 await _context.SaveChangesAsync();
             }
         }
