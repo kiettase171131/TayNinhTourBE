@@ -632,11 +632,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _orderRepository.AddAsync(order);
                 await _orderRepository.SaveChangesAsync();
 
-                var checkoutUrl = await _payOsService.CreatePaymentUrlAsync(
+                var (checkoutUrl, payOsOrderCode) = await _payOsService.CreatePaymentUrlAsync(
                     total,
                     order.Id.ToString(),
                     "https://tndt.netlify.app"
                 );
+
+                // Lưu PayOS order code vào database để map lại khi callback
+                order.PayOsOrderCode = payOsOrderCode;
+                await _orderRepository.UpdateAsync(order);
+                await _orderRepository.SaveChangesAsync();
 
                 return new CheckoutResultDto
                 {

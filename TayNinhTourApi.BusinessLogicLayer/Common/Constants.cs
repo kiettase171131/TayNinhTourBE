@@ -21,6 +21,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Common
 
         public const int PageSizeDefault = 10;
 
-        public const int PageIndexDefault = 0;
+        public const int PageIndexDefault = 1;
     }
 }

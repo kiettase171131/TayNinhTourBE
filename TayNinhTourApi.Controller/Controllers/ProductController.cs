@@ -156,12 +156,12 @@ namespace TayNinhTourApi.Controller.Controllers
             try
             {
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var url = await _productService.CheckoutCartAsync(dto.CartItemIds, currentUser);
+                var result = await _productService.CheckoutCartAsync(dto.CartItemIds, currentUser);
 
-                if (url == null)
+                if (result == null)
                     return BadRequest("Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho.");
 
-                return Ok(new { CheckoutUrl = url });
+                return Ok(result);
             }
             catch (InvalidOperationException ex)
             {

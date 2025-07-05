@@ -9,7 +9,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     public interface IPayOsService
     {
-        Task<string?> CreatePaymentUrlAsync(decimal amount, string orderCode, string returnUrl);
+        Task<(string? checkoutUrl, long payOsOrderCode)> CreatePaymentUrlAsync(decimal amount, string orderCode, string returnUrl);
         Task<OrderStatus> GetOrderPaymentStatusAsync(string orderCode);
         //Task<string> VerifyPaymentStatusAsync(string orderCode);
     }
