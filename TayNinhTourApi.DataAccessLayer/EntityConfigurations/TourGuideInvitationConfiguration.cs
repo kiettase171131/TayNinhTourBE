@@ -26,7 +26,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 
             builder.Property(i => i.GuideId)
                 .IsRequired()
-                .HasComment("ID của User (TourGuide) được mời");
+                .HasComment("ID của TourGuide được mời");
 
             builder.Property(i => i.InvitationType)
                 .IsRequired()
@@ -63,9 +63,9 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
 
-            // Guide relationship (Required)
-            builder.HasOne(i => i.Guide)
-                .WithMany()
+            // TourGuide relationship (Required)
+            builder.HasOne(i => i.TourGuide)
+                .WithMany(tg => tg.Invitations)
                 .HasForeignKey(i => i.GuideId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .IsRequired();

@@ -161,6 +161,20 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await GetByStatusAsync(newStatus);
         }
 
+        /// <summary>
+        /// Lấy danh sách approved applications chưa có TourGuide operational record
+        /// </summary>
+        public async Task<IEnumerable<TourGuideApplication>> GetApprovedApplicationsWithoutTourGuideAsync()
+        {
+            return await _context.TourGuideApplications
+                .Where(a => a.Status == TourGuideApplicationStatus.Approved && a.IsActive)
+                .Where(a => !_context.TourGuides.Any(tg => tg.ApplicationId == a.Id))
+                .Include(a => a.User)
+                .Include(a => a.ProcessedBy)
+                .OrderByDescending(a => a.ProcessedAt)
+                .ToListAsync();
+        }
+
         [Obsolete("Use GetByUserIdAsync instead")]
         public async Task<IEnumerable<TourGuideApplication>> ListByUserAsync(Guid userId)
         {

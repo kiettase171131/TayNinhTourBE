@@ -73,6 +73,12 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <returns>Số lượng applications</returns>
         Task<int> CountByStatusAsync(TourGuideApplicationStatus status);
 
+        /// <summary>
+        /// Lấy danh sách approved applications chưa có TourGuide operational record
+        /// </summary>
+        /// <returns>Danh sách applications cần migrate</returns>
+        Task<IEnumerable<TourGuideApplication>> GetApprovedApplicationsWithoutTourGuideAsync();
+
         // Legacy methods for backward compatibility
         [Obsolete("Use GetByStatusAsync instead")]
         Task<IEnumerable<TourGuideApplication>> ListByStatusAsync(ApplicationStatus status);

@@ -18,7 +18,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         public async Task<IEnumerable<TourGuideInvitation>> GetByTourDetailsAsync(Guid tourDetailsId)
         {
             return await _context.TourGuideInvitations
-                .Include(i => i.Guide)
+                .Include(i => i.TourGuide)
                 .Include(i => i.CreatedBy)
                 .Where(i => i.TourDetailsId == tourDetailsId && !i.IsDeleted)
                 .OrderByDescending(i => i.InvitedAt)
@@ -47,7 +47,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             return await _context.TourGuideInvitations
                 .Include(i => i.TourDetails)
-                .Include(i => i.Guide)
+                .Include(i => i.TourGuide)
                 .Where(i => i.Status == InvitationStatus.Pending
                            && i.ExpiresAt > DateTime.UtcNow
                            && !i.IsDeleted)
@@ -103,7 +103,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourGuideInvitations
                 .Include(i => i.TourDetails)
                     .ThenInclude(td => td.TourTemplate)
-                .Include(i => i.Guide)
+                .Include(i => i.TourGuide)
                 .Include(i => i.CreatedBy)
                 .Include(i => i.UpdatedBy)
                 .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);

@@ -111,6 +111,14 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="userId">User ID</param>
         /// <returns>True if user is already a tour guide</returns>
         Task<bool> IsUserTourGuideAsync(Guid userId);
+
+        /// <summary>
+        /// Lấy danh sách TourGuides có sẵn (available)
+        /// </summary>
+        /// <returns>Danh sách TourGuides available</returns>
+        Task<IEnumerable<TourGuide>> GetAvailableTourGuidesAsync();
+
+
     }
 
     /// <summary>

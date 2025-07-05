@@ -52,54 +52,46 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogInformation("TourDetails found: {Title}, SkillsRequired: {SkillsRequired}",
                     tourDetails.Title, tourDetails.SkillsRequired);
 
-                // 2. Lấy tất cả TourGuides (users với role TourGuide)
-                var tourGuides = await _unitOfWork.UserRepository.GetUsersByRoleAsync(Constants.RoleTourGuideName);
-                _logger.LogInformation("Found {Count} tour guides in system", tourGuides.Count());
+                // 2. Lấy tất cả TourGuide operational records (available guides)
+                var tourGuides = await _unitOfWork.TourGuideRepository.GetAvailableTourGuidesAsync();
+                _logger.LogInformation("Found {Count} available tour guides in system", tourGuides.Count());
 
                 if (!tourGuides.Any())
                 {
-                    _logger.LogWarning("No tour guides found in system");
+                    _logger.LogWarning("No available tour guides found in system");
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy TourGuide nào trong hệ thống",
+                        Message = "Không tìm thấy TourGuide nào có sẵn trong hệ thống",
                         IsSuccess = false
                     };
                 }
 
                 // 3. Filter TourGuides có skills phù hợp (Enhanced skill matching)
-                var matchingGuides = new List<(User guide, double matchScore, List<string> matchedSkills)>();
+                var matchingGuides = new List<(TourGuide guide, double matchScore, List<string> matchedSkills)>();
                 foreach (var guide in tourGuides)
                 {
                     _logger.LogInformation("Processing guide: {GuideId} - {GuideName} - {GuideEmail}",
-                        guide.Id, guide.Name, guide.Email);
+                        guide.Id, guide.FullName, guide.Email);
 
-                    // Lấy skills từ TourGuideApplication (ưu tiên Skills field, fallback về Languages)
-                    var application = await GetTourGuideApplicationAsync(guide.Id);
-                    if (application != null)
+                    // Sử dụng skills từ TourGuide record (đã có sẵn từ application)
+                    var guideSkills = guide.Skills ?? string.Empty;
+                    _logger.LogInformation("Guide {GuideId} skills: {GuideSkills}",
+                        guide.Id, guideSkills);
+
+                    // Sử dụng enhanced skill matching
+                    var isMatch = SkillsMatchingUtility.MatchSkillsEnhanced(tourDetails.SkillsRequired, guideSkills);
+                    _logger.LogInformation("Skill matching result for guide {GuideId}: {IsMatch} (Required: {RequiredSkills}, Guide: {GuideSkills})",
+                        guide.Id, isMatch, tourDetails.SkillsRequired, guideSkills);
+
+                    if (isMatch)
                     {
-                        var guideSkills = GetGuideSkillsString(application);
-                        _logger.LogInformation("Guide {GuideId} application found. Skills: {GuideSkills}, Raw Skills field: {RawSkills}",
-                            guide.Id, guideSkills, application.Skills);
+                        var matchScore = SkillsMatchingUtility.CalculateMatchScoreEnhanced(tourDetails.SkillsRequired, guideSkills);
+                        var matchedSkills = SkillsMatchingUtility.GetMatchedSkillsEnhanced(tourDetails.SkillsRequired, guideSkills);
 
-                        // Sử dụng enhanced skill matching
-                        var isMatch = SkillsMatchingUtility.MatchSkillsEnhanced(tourDetails.SkillsRequired, guideSkills);
-                        _logger.LogInformation("Skill matching result for guide {GuideId}: {IsMatch} (Required: {RequiredSkills}, Guide: {GuideSkills})",
-                            guide.Id, isMatch, tourDetails.SkillsRequired, guideSkills);
-
-                        if (isMatch)
-                        {
-                            var matchScore = SkillsMatchingUtility.CalculateMatchScoreEnhanced(tourDetails.SkillsRequired, guideSkills);
-                            var matchedSkills = SkillsMatchingUtility.GetMatchedSkillsEnhanced(tourDetails.SkillsRequired, guideSkills);
-
-                            matchingGuides.Add((guide, matchScore, matchedSkills));
-                            _logger.LogInformation("Guide {GuideId} added to matching list with score {MatchScore}",
-                                guide.Id, matchScore);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("No approved application found for guide {GuideId}", guide.Id);
+                        matchingGuides.Add((guide, matchScore, matchedSkills));
+                        _logger.LogInformation("Guide {GuideId} added to matching list with score {MatchScore}",
+                            guide.Id, matchScore);
                     }
                 }
 
@@ -147,13 +139,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         if (latestInvitation.Status == InvitationStatus.Pending)
                         {
                             _logger.LogInformation("Skipping guide {GuideId} - {GuideName} because pending invitation already exists",
-                                guide.Id, guide.Name);
+                                guide.Id, guide.FullName);
                             continue;
                         }
 
                         // Reuse existing invitation by updating it
                         _logger.LogInformation("Reusing existing invitation {InvitationId} for guide {GuideId} - {GuideName}",
-                            latestInvitation.Id, guide.Id, guide.Name);
+                            latestInvitation.Id, guide.Id, guide.FullName);
 
                         latestInvitation.Status = InvitationStatus.Pending;
                         latestInvitation.InvitedAt = DateTime.UtcNow;
@@ -174,7 +166,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             await _emailSender.SendTourGuideInvitationAsync(
                                 guide.Email,
-                                guide.Name,
+                                guide.FullName,
                                 tourDetails.Title,
                                 tourDetails.CreatedBy.Name,
                                 expiresAt,
@@ -191,7 +183,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     else
                     {
                         _logger.LogInformation("Creating new invitation for guide {GuideId} - {GuideName}",
-                            guide.Id, guide.Name);
+                            guide.Id, guide.FullName);
 
                         var invitation = new TourGuideInvitation
                         {
@@ -218,7 +210,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             await _emailSender.SendTourGuideInvitationAsync(
                                 guide.Email,
-                                guide.Name,
+                                guide.FullName,
                                 tourDetails.Title,
                                 tourDetails.CreatedBy.Name,
                                 expiresAt,
@@ -284,14 +276,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 2. Validate Guide exists and has TourGuide role
-                var guide = await _unitOfWork.UserRepository.GetByIdAsync(guideId, new[] { "Role" });
-                if (guide == null || guide.Role.Name != "TourGuide")
+                // 2. Validate TourGuide exists and is available
+                var guide = await _unitOfWork.TourGuideRepository.GetByIdWithDetailsAsync(guideId);
+                if (guide == null || !guide.IsActive || !guide.IsAvailable)
                 {
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "TourGuide không tồn tại hoặc không có quyền hướng dẫn viên",
+                        Message = "TourGuide không tồn tại hoặc không có sẵn",
                         IsSuccess = false
                     };
                 }
@@ -332,7 +324,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     await _emailSender.SendTourGuideInvitationAsync(
                         guide.Email,
-                        guide.Name,
+                        guide.FullName,
                         tourDetails.Title,
                         tourDetails.CreatedBy.Name,
                         invitation.ExpiresAt,
@@ -637,10 +629,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Id = inv.Id,
                     Guide = new UserBasicDto
                     {
-                        Id = inv.Guide?.Id ?? Guid.Empty,
-                        Name = inv.Guide?.Name ?? "Unknown",
-                        Email = inv.Guide?.Email ?? "Unknown",
-                        PhoneNumber = inv.Guide?.PhoneNumber
+                        Id = inv.TourGuide?.Id ?? Guid.Empty,
+                        Name = inv.TourGuide?.FullName ?? "Unknown",
+                        Email = inv.TourGuide?.Email ?? "Unknown",
+                        PhoneNumber = inv.TourGuide?.PhoneNumber
                     },
                     CreatedBy = new UserBasicDto
                     {
@@ -843,9 +835,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     },
                     Guide = new
                     {
-                        Id = invitation.Guide.Id,
-                        Name = invitation.Guide.Name,
-                        Email = invitation.Guide.Email
+                        Id = invitation.TourGuide.Id,
+                        Name = invitation.TourGuide.FullName,
+                        Email = invitation.TourGuide.Email
                     },
                     InvitationType = invitation.InvitationType.ToString(),
                     Status = invitation.Status.ToString(),

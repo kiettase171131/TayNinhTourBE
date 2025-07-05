@@ -220,14 +220,16 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tg => tg.TourOperations)
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.AssignedSlots)
-                .Include(tg => tg.Invitations)
                 .FirstOrDefaultAsync(tg => tg.Id == guideId && tg.IsActive);
 
             if (guide == null)
                 return null;
 
             var completedTours = guide.TourOperations.Count(to => to.Status == TourOperationStatus.Completed);
-            var activeInvitations = guide.Invitations.Count(inv => inv.Status == InvitationStatus.Pending);
+
+            // Get active invitations from TourGuideInvitations table directly
+            var activeInvitations = await _context.TourGuideInvitations
+                .CountAsync(inv => inv.GuideId == guide.UserId && inv.Status == InvitationStatus.Pending);
 
             // Get the most recent tour date from completed tours
             var lastTourDate = guide.TourOperations
@@ -257,5 +259,19 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourGuides
                 .AnyAsync(tg => tg.UserId == userId && tg.IsActive);
         }
+
+        /// <summary>
+        /// Lấy danh sách TourGuides có sẵn (available)
+        /// </summary>
+        public async Task<IEnumerable<TourGuide>> GetAvailableTourGuidesAsync()
+        {
+            return await _context.TourGuides
+                .Where(tg => tg.IsAvailable && tg.IsActive && !tg.IsDeleted)
+                .Include(tg => tg.User)
+                .Include(tg => tg.Application)
+                .ToListAsync();
+        }
+
+
     }
 }

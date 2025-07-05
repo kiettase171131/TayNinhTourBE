@@ -643,8 +643,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     guideInfo.AcceptedGuides.Add(new AcceptedGuideInfo
                     {
                         GuideId = invitation.GuideId,
-                        GuideName = invitation.Guide?.Name ?? "Unknown Guide",
-                        GuideEmail = invitation.Guide?.Email ?? "Unknown Email",
+                        GuideName = invitation.TourGuide?.FullName ?? "Unknown Guide",
+                        GuideEmail = invitation.TourGuide?.Email ?? "Unknown Email",
                         AcceptedAt = invitation.RespondedAt ?? invitation.UpdatedAt ?? DateTime.UtcNow
                     });
                 }
