@@ -287,7 +287,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             product.Description = request.Description ?? product.Description;
             product.Price = request.Price ?? product.Price;
             product.QuantityInStock = request.QuantityInStock ?? product.QuantityInStock;
-            
+
             product.IsSale = request.IsSale ?? product.IsSale;
             product.SalePercent = request.SalePercent ?? product.SalePercent;
 
@@ -523,7 +523,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 Console.WriteLine($"ClearCartAndUpdateInventoryAsync called for order: {orderId}");
-                
+
                 var order = await _orderRepository.GetByIdAsync(orderId, new[] { nameof(Order.OrderDetails) });
 
                 if (order == null)
@@ -545,7 +545,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 foreach (var detail in order.OrderDetails)
                 {
                     Console.WriteLine($"Processing product: {detail.ProductId}, Quantity to subtract: {detail.Quantity}");
-                    
+
                     var product = await _productRepository.GetByIdAsync(detail.ProductId);
                     if (product != null)
                     {
@@ -568,12 +568,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Console.WriteLine("Starting cart cleanup...");
                 var productIdsInOrder = order.OrderDetails.Select(x => x.ProductId).ToList();
                 Console.WriteLine($"Product IDs in order: {string.Join(", ", productIdsInOrder)}");
-                
-                var cartItemsToRemove = await _cartRepository.GetAllAsync(x => 
+
+                var cartItemsToRemove = await _cartRepository.GetAllAsync(x =>
                     x.UserId == order.UserId && productIdsInOrder.Contains(x.ProductId));
-                
+
                 Console.WriteLine($"Cart items to remove: {cartItemsToRemove.Count()}");
-                
+
                 if (cartItemsToRemove.Any())
                 {
                     _cartRepository.DeleteRange(cartItemsToRemove);
@@ -645,7 +645,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (totalAfterDiscount <= 0)
                 throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
             var payOsOrderCode = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            
             var order = new Order
             {
                 UserId = currentUser.Id,
@@ -656,7 +655,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 CreatedAt = DateTime.UtcNow,
                 CreatedById = currentUser.Id,
                 VoucherCode = voucherCode,
-                PayOsOrderCode= payOsOrderCode,
+                PayOsOrderCode = payOsOrderCode,
                 OrderDetails = cartItems.Select(x => new OrderDetail
                 {
                     ProductId = x.ProductId,
@@ -847,6 +846,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if ((dto.DiscountAmount <= 0) && (!dto.DiscountPercent.HasValue || dto.DiscountPercent <= 0))
             {
                 return new ResponseCreateVoucher
+
                 {   
                     StatusCode = 400,
                     Message = "Phải nhập số tiền giảm hoặc phần trăm giảm > 0."
@@ -1012,9 +1012,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, long? payOsOrderCode, bool? status)
         {       
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
-            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;           
 
-            
             var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted);
 
             // lọc theo status (IsActive)

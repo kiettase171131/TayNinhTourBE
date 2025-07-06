@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
@@ -39,6 +40,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailsId);
                 if (tourDetails == null)
                 {
+                    _logger.LogWarning("TourDetails {TourDetailsId} not found", tourDetailsId);
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
@@ -47,36 +49,49 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 2. Lấy tất cả TourGuides (users với role TourGuide)
-                var tourGuides = await _unitOfWork.UserRepository.GetUsersByRoleAsync(Constants.RoleTourGuideName);
+                _logger.LogInformation("TourDetails found: {Title}, SkillsRequired: {SkillsRequired}",
+                    tourDetails.Title, tourDetails.SkillsRequired);
+
+                // 2. Lấy tất cả TourGuide operational records (available guides)
+                var tourGuides = await _unitOfWork.TourGuideRepository.GetAvailableTourGuidesAsync();
+                _logger.LogInformation("Found {Count} available tour guides in system", tourGuides.Count());
+
                 if (!tourGuides.Any())
                 {
+                    _logger.LogWarning("No available tour guides found in system");
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy TourGuide nào trong hệ thống",
+                        Message = "Không tìm thấy TourGuide nào có sẵn trong hệ thống",
                         IsSuccess = false
                     };
                 }
 
                 // 3. Filter TourGuides có skills phù hợp (Enhanced skill matching)
-                var matchingGuides = new List<(User guide, double matchScore, List<string> matchedSkills)>();
+                var matchingGuides = new List<(TourGuide guide, double matchScore, List<string> matchedSkills)>();
                 foreach (var guide in tourGuides)
                 {
-                    // Lấy skills từ TourGuideApplication (ưu tiên Skills field, fallback về Languages)
-                    var application = await GetTourGuideApplicationAsync(guide.Id);
-                    if (application != null)
+                    _logger.LogInformation("Processing guide: {GuideId} - {GuideName} - {GuideEmail}",
+                        guide.Id, guide.FullName, guide.Email);
+
+                    // Sử dụng skills từ TourGuide record (đã có sẵn từ application)
+                    var guideSkills = guide.Skills ?? string.Empty;
+                    _logger.LogInformation("Guide {GuideId} skills: {GuideSkills}",
+                        guide.Id, guideSkills);
+
+                    // Sử dụng enhanced skill matching
+                    var isMatch = SkillsMatchingUtility.MatchSkillsEnhanced(tourDetails.SkillsRequired, guideSkills);
+                    _logger.LogInformation("Skill matching result for guide {GuideId}: {IsMatch} (Required: {RequiredSkills}, Guide: {GuideSkills})",
+                        guide.Id, isMatch, tourDetails.SkillsRequired, guideSkills);
+
+                    if (isMatch)
                     {
-                        var guideSkills = GetGuideSkillsString(application);
+                        var matchScore = SkillsMatchingUtility.CalculateMatchScoreEnhanced(tourDetails.SkillsRequired, guideSkills);
+                        var matchedSkills = SkillsMatchingUtility.GetMatchedSkillsEnhanced(tourDetails.SkillsRequired, guideSkills);
 
-                        // Sử dụng enhanced skill matching
-                        if (SkillsMatchingUtility.MatchSkillsEnhanced(tourDetails.SkillsRequired, guideSkills))
-                        {
-                            var matchScore = SkillsMatchingUtility.CalculateMatchScoreEnhanced(tourDetails.SkillsRequired, guideSkills);
-                            var matchedSkills = SkillsMatchingUtility.GetMatchedSkillsEnhanced(tourDetails.SkillsRequired, guideSkills);
-
-                            matchingGuides.Add((guide, matchScore, matchedSkills));
-                        }
+                        matchingGuides.Add((guide, matchScore, matchedSkills));
+                        _logger.LogInformation("Guide {GuideId} added to matching list with score {MatchScore}",
+                            guide.Id, matchScore);
                     }
                 }
 
@@ -86,8 +101,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                                 .Select(x => x.guide)
                                                 .ToList();
 
+                _logger.LogInformation("Found {Count} matching guides after skill filtering", sortedGuides.Count);
+
                 if (!sortedGuides.Any())
                 {
+                    _logger.LogWarning("No tour guides found with matching skills for TourDetails {TourDetailsId}", tourDetailsId);
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
@@ -102,12 +120,71 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 foreach (var guide in sortedGuides)
                 {
-                    // Check xem đã có invitation chưa
-                    var existingInvitation = await _unitOfWork.TourGuideInvitationRepository
-                        .HasPendingInvitationAsync(tourDetailsId, guide.Id);
+                    _logger.LogInformation("Checking existing invitation for guide {GuideId} and tour {TourDetailsId}",
+                        guide.Id, tourDetailsId);
 
-                    if (!existingInvitation)
+                    // Check xem đã có invitation nào (bất kể status) chưa
+                    var existingInvitation = await _unitOfWork.TourGuideInvitationRepository
+                        .GetAllAsync(inv => inv.TourDetailsId == tourDetailsId &&
+                                           inv.GuideId == guide.Id &&
+                                           !inv.IsDeleted);
+
+                    var latestInvitation = existingInvitation.OrderByDescending(inv => inv.InvitedAt).FirstOrDefault();
+
+                    if (latestInvitation != null)
                     {
+                        _logger.LogInformation("Found existing invitation {InvitationId} with status {Status} for guide {GuideId}",
+                            latestInvitation.Id, latestInvitation.Status, guide.Id);
+
+                        if (latestInvitation.Status == InvitationStatus.Pending)
+                        {
+                            _logger.LogInformation("Skipping guide {GuideId} - {GuideName} because pending invitation already exists",
+                                guide.Id, guide.FullName);
+                            continue;
+                        }
+
+                        // Reuse existing invitation by updating it
+                        _logger.LogInformation("Reusing existing invitation {InvitationId} for guide {GuideId} - {GuideName}",
+                            latestInvitation.Id, guide.Id, guide.FullName);
+
+                        latestInvitation.Status = InvitationStatus.Pending;
+                        latestInvitation.InvitedAt = DateTime.UtcNow;
+                        latestInvitation.ExpiresAt = expiresAt;
+                        latestInvitation.RespondedAt = null;
+                        latestInvitation.RejectionReason = null;
+                        latestInvitation.UpdatedAt = DateTime.UtcNow;
+                        latestInvitation.UpdatedById = createdById;
+
+                        await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(latestInvitation);
+                        invitationsCreated++;
+
+                        _logger.LogInformation("Successfully reused invitation {InvitationId} for guide {GuideId}",
+                            latestInvitation.Id, guide.Id);
+
+                        // Send invitation email
+                        try
+                        {
+                            await _emailSender.SendTourGuideInvitationAsync(
+                                guide.Email,
+                                guide.FullName,
+                                tourDetails.Title,
+                                tourDetails.CreatedBy.Name,
+                                expiresAt,
+                                latestInvitation.Id.ToString()
+                            );
+                            _logger.LogInformation("Successfully sent invitation email to {GuideEmail}", guide.Email);
+                        }
+                        catch (Exception emailEx)
+                        {
+                            _logger.LogWarning("Failed to send invitation email to {GuideEmail}: {Error}",
+                                guide.Email, emailEx.Message);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Creating new invitation for guide {GuideId} - {GuideName}",
+                            guide.Id, guide.FullName);
+
                         var invitation = new TourGuideInvitation
                         {
                             Id = Guid.NewGuid(),
@@ -125,17 +202,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         await _unitOfWork.TourGuideInvitationRepository.AddAsync(invitation);
                         invitationsCreated++;
 
+                        _logger.LogInformation("Successfully created invitation {InvitationId} for guide {GuideId}",
+                            invitation.Id, guide.Id);
+
                         // Send invitation email
                         try
                         {
                             await _emailSender.SendTourGuideInvitationAsync(
                                 guide.Email,
-                                guide.Name,
+                                guide.FullName,
                                 tourDetails.Title,
                                 tourDetails.CreatedBy.Name,
                                 expiresAt,
                                 invitation.Id.ToString()
                             );
+                            _logger.LogInformation("Successfully sent invitation email to {GuideEmail}", guide.Email);
                         }
                         catch (Exception emailEx)
                         {
@@ -147,12 +228,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.SaveChangesAsync();
 
-                // 5. Update TourDetails status to AwaitingGuideAssignment
-                tourDetails.Status = TourDetailsStatus.AwaitingGuideAssignment;
-                tourDetails.UpdatedAt = DateTime.UtcNow;
-                tourDetails.UpdatedById = createdById;
-                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
-                await _unitOfWork.SaveChangesAsync();
+                // 5. Update TourDetails status to AwaitingGuideAssignment ONLY if no accepted invitation exists
+                var existingInvitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
+                var hasAcceptedInvitation = existingInvitations.Any(inv => inv.Status == InvitationStatus.Accepted && inv.IsActive);
+
+                if (!hasAcceptedInvitation)
+                {
+                    tourDetails.Status = TourDetailsStatus.AwaitingGuideAssignment;
+                    tourDetails.UpdatedAt = DateTime.UtcNow;
+                    tourDetails.UpdatedById = createdById;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    _logger.LogInformation("Updated TourDetails {TourDetailsId} status to AwaitingGuideAssignment", tourDetailsId);
+                }
+                else
+                {
+                    _logger.LogInformation("TourDetails {TourDetailsId} already has accepted invitation, keeping current status: {Status}",
+                        tourDetailsId, tourDetails.Status);
+                }
 
                 _logger.LogInformation("Created {Count} automatic invitations for TourDetails {TourDetailsId}",
                     invitationsCreated, tourDetailsId);
@@ -195,14 +289,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 2. Validate Guide exists and has TourGuide role
-                var guide = await _unitOfWork.UserRepository.GetByIdAsync(guideId, new[] { "Role" });
-                if (guide == null || guide.Role.Name != "TourGuide")
+                // 2. Validate TourGuide exists and is available
+                var guide = await _unitOfWork.TourGuideRepository.GetByIdWithDetailsAsync(guideId);
+                if (guide == null || !guide.IsActive || !guide.IsAvailable)
                 {
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "TourGuide không tồn tại hoặc không có quyền hướng dẫn viên",
+                        Message = "TourGuide không tồn tại hoặc không có sẵn",
                         IsSuccess = false
                     };
                 }
@@ -243,7 +337,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     await _emailSender.SendTourGuideInvitationAsync(
                         guide.Email,
-                        guide.Name,
+                        guide.FullName,
                         tourDetails.Title,
                         tourDetails.CreatedBy.Name,
                         invitation.ExpiresAt,
@@ -285,10 +379,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogInformation("Guide {GuideId} accepting invitation {InvitationId}", guideId, invitationId);
 
-                // 1. Get invitation with details
-                var invitation = await _unitOfWork.TourGuideInvitationRepository.GetWithDetailsAsync(invitationId);
+                // 1. Get invitation
+                var invitation = await _unitOfWork.TourGuideInvitationRepository.GetByIdAsync(invitationId, null);
                 if (invitation == null)
                 {
+                    _logger.LogWarning("Invitation {InvitationId} not found", invitationId);
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
@@ -297,9 +392,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 2. Verify ownership
+                _logger.LogInformation("Found invitation: ID={InvitationId}, GuideId={GuideId}, Status={Status}, ExpiresAt={ExpiresAt}",
+                    invitation.Id, invitation.GuideId, invitation.Status, invitation.ExpiresAt);
+
+                // 2. Basic validations
                 if (invitation.GuideId != guideId)
                 {
+                    _logger.LogWarning("Guide {GuideId} trying to accept invitation {InvitationId} belonging to {OwnerGuideId}",
+                        guideId, invitationId, invitation.GuideId);
                     return new BaseResposeDto
                     {
                         StatusCode = 403,
@@ -308,9 +408,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 3. Check invitation status and expiry
                 if (invitation.Status != InvitationStatus.Pending)
                 {
+                    _logger.LogWarning("Invitation {InvitationId} has status {Status}, not Pending", invitationId, invitation.Status);
                     return new BaseResposeDto
                     {
                         StatusCode = 400,
@@ -321,6 +421,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (invitation.ExpiresAt <= DateTime.UtcNow)
                 {
+                    _logger.LogWarning("Invitation {InvitationId} expired at {ExpiresAt}, current time {Now}",
+                        invitationId, invitation.ExpiresAt, DateTime.UtcNow);
                     return new BaseResposeDto
                     {
                         StatusCode = 400,
@@ -329,101 +431,89 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 4. Update invitation status
+                // 3. Check if guide has other pending invitations that might conflict
+                var otherPendingInvitations = await _unitOfWork.TourGuideInvitationRepository.ListAsync(
+                    i => i.GuideId == guideId &&
+                         i.Id != invitationId &&
+                         i.Status == InvitationStatus.Pending &&
+                         !i.IsDeleted,
+                    null);
+
+                if (otherPendingInvitations.Any())
+                {
+                    _logger.LogWarning("Guide {GuideId} has {Count} other pending invitations. Expiring them to avoid conflicts.",
+                        guideId, otherPendingInvitations.Count());
+
+                    // Expire other pending invitations to avoid unique constraint conflicts
+                    foreach (var otherInvitation in otherPendingInvitations)
+                    {
+                        otherInvitation.Status = InvitationStatus.Expired;
+                        otherInvitation.UpdatedAt = DateTime.UtcNow;
+                        await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(otherInvitation);
+                    }
+
+                    // Save the expired invitations first
+                    await _unitOfWork.SaveChangesAsync();
+
+                    _logger.LogInformation("Expired {Count} other pending invitations for guide {GuideId}",
+                        otherPendingInvitations.Count(), guideId);
+                }
+
+                // 4. Try to update invitation status step by step
+                _logger.LogInformation("Starting invitation update process...");
+
+                // Update invitation properties
                 invitation.Status = InvitationStatus.Accepted;
                 invitation.RespondedAt = DateTime.UtcNow;
                 invitation.UpdatedAt = DateTime.UtcNow;
-                invitation.UpdatedById = guideId;
+                // Don't set UpdatedById for now to avoid FK issues
 
-                await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(invitation);
+                _logger.LogInformation("Updated invitation properties in memory");
 
-                // 5. Assign guide to TourOperation
-                var tourDetails = invitation.TourDetails;
-                if (tourDetails.TourOperation == null)
-                {
-                    // Create TourOperation if not exists
-                    var tourOperation = new TourOperation
-                    {
-                        Id = Guid.NewGuid(),
-                        TourDetailsId = tourDetails.Id,
-                        GuideId = guideId,
-                        Price = 0, // Will be set later
-                        MaxGuests = 20, // Default value
-                        Status = TourOperationStatus.Scheduled,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedById = guideId,
-                        IsActive = true
-                    };
-                    await _unitOfWork.TourOperationRepository.AddAsync(tourOperation);
-                }
-                else
-                {
-                    tourDetails.TourOperation.GuideId = guideId;
-                    tourDetails.TourOperation.UpdatedAt = DateTime.UtcNow;
-                    tourDetails.TourOperation.UpdatedById = guideId;
-                    await _unitOfWork.TourOperationRepository.UpdateAsync(tourDetails.TourOperation);
-                }
-
-                // 6. Update TourDetails status to AwaitingAdminApproval
-                tourDetails.Status = TourDetailsStatus.AwaitingAdminApproval;
-                tourDetails.UpdatedAt = DateTime.UtcNow;
-                tourDetails.UpdatedById = guideId;
-                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
-
-                // 7. Expire all other pending invitations for this TourDetails
-                await _unitOfWork.TourGuideInvitationRepository
-                    .ExpireInvitationsForTourDetailsAsync(tourDetails.Id, invitationId);
-
-                await _unitOfWork.SaveChangesAsync();
-
-                // 8. Send confirmation emails
+                // Try to save changes
                 try
                 {
-                    // To guide
-                    await _emailSender.SendGuideAssignmentConfirmationAsync(
-                        invitation.Guide.Email,
-                        invitation.Guide.Name,
-                        tourDetails.Title,
-                        tourDetails.CreatedBy.Name
-                    );
+                    await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(invitation);
+                    _logger.LogInformation("Called UpdateAsync on repository");
 
-                    // To admin (get first admin)
-                    var admins = await _unitOfWork.UserRepository.ListAdminsAsync();
-                    if (admins.Any())
-                    {
-                        var admin = admins.First();
-                        await _emailSender.SendAdminApprovalRequestAsync(
-                            admin.Email,
-                            admin.Name,
-                            tourDetails.Title,
-                            tourDetails.CreatedBy.Name,
-                            invitation.Guide.Name
-                        );
-                    }
+                    await _unitOfWork.SaveChangesAsync();
+                    _logger.LogInformation("Called SaveChangesAsync on unit of work");
+
+                    // 5. UPDATE TOURDETAILS STATUS: Khi guide accept invitation, cập nhật TourDetails status
+                    await UpdateTourDetailsStatusAfterGuideAcceptanceAsync(invitation.TourDetailsId, invitationId);
                 }
-                catch (Exception emailEx)
+                catch (Exception saveEx)
                 {
-                    _logger.LogWarning("Failed to send confirmation emails: {Error}", emailEx.Message);
+                    _logger.LogError(saveEx, "Failed to save invitation changes: {Message}. Inner: {InnerMessage}",
+                        saveEx.Message, saveEx.InnerException?.Message);
+
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 500,
+                        Message = $"Không thể lưu thay đổi: {saveEx.Message}",
+                        IsSuccess = false
+                    };
                 }
 
-                _logger.LogInformation("Guide {GuideId} successfully accepted invitation {InvitationId}",
-                    guideId, invitationId);
+                _logger.LogInformation("Successfully accepted invitation {InvitationId}", invitationId);
 
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "Đã chấp nhận lời mời thành công. Đang chờ admin phê duyệt.",
+                    Message = "Đã chấp nhận lời mời thành công",
                     IsSuccess = true
                 };
+
+
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error accepting invitation {InvitationId} by guide {GuideId}",
-                    invitationId, guideId);
+                _logger.LogError(ex, "Error accepting invitation {InvitationId} by guide {GuideId}. Full exception: {FullException}",
+                    invitationId, guideId, ex.ToString());
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"Có lỗi xảy ra khi chấp nhận lời mời: {ex.Message}",
+                    Message = $"Có lỗi xảy ra khi chấp nhận lời mời: {ex.Message}. Inner: {ex.InnerException?.Message}",
                     IsSuccess = false
                 };
             }
@@ -550,11 +640,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
 
-                var invitationDtos = invitations.Select(inv => new
+                var invitationDtos = invitations.Select(inv => new TourGuideInvitationDto
                 {
                     Id = inv.Id,
-                    GuideName = inv.Guide.Name,
-                    GuideEmail = inv.Guide.Email,
+                    Guide = new UserBasicDto
+                    {
+                        Id = inv.TourGuide?.Id ?? Guid.Empty,
+                        Name = inv.TourGuide?.FullName ?? "Unknown",
+                        Email = inv.TourGuide?.Email ?? "Unknown",
+                        PhoneNumber = inv.TourGuide?.PhoneNumber
+                    },
+                    CreatedBy = new UserBasicDto
+                    {
+                        Id = inv.CreatedBy?.Id ?? Guid.Empty,
+                        Name = inv.CreatedBy?.Name ?? "Unknown",
+                        Email = inv.CreatedBy?.Email ?? "Unknown",
+                        PhoneNumber = inv.CreatedBy?.PhoneNumber
+                    },
+                    TourDetails = new TourDetailsBasicDto(), // TODO: Map properly if needed
                     InvitationType = inv.InvitationType.ToString(),
                     Status = inv.Status.ToString(),
                     InvitedAt = inv.InvitedAt,
@@ -563,14 +666,27 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     RejectionReason = inv.RejectionReason
                 }).ToList();
 
+                // Calculate statistics
+                var stats = new InvitationStatisticsDto
+                {
+                    TotalInvitations = invitations.Count(),
+                    PendingCount = invitations.Count(i => i.Status == InvitationStatus.Pending),
+                    AcceptedCount = invitations.Count(i => i.Status == InvitationStatus.Accepted),
+                    RejectedCount = invitations.Count(i => i.Status == InvitationStatus.Rejected),
+                    ExpiredCount = invitations.Count(i => i.Status == InvitationStatus.Expired),
+                    LatestInvitation = invitations.OrderByDescending(i => i.InvitedAt).FirstOrDefault()?.InvitedAt,
+                    LatestResponse = invitations.Where(i => i.RespondedAt.HasValue).OrderByDescending(i => i.RespondedAt).FirstOrDefault()?.RespondedAt
+                };
+                // AcceptanceRate và RejectionRate là computed properties, không cần set
+
                 return new TourDetailsInvitationsResponseDto
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lời mời thành công",
                     IsSuccess = true,
                     TourDetails = new TourDetailsBasicDto(), // TODO: Map properly
-                    Invitations = new List<TourGuideInvitationDto>(),
-                    Statistics = new InvitationStatisticsDto()
+                    Invitations = invitationDtos,
+                    Statistics = stats
                 };
             }
             catch (Exception ex)
@@ -735,9 +851,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     },
                     Guide = new
                     {
-                        Id = invitation.Guide.Id,
-                        Name = invitation.Guide.Name,
-                        Email = invitation.Guide.Email
+                        Id = invitation.TourGuide.Id,
+                        Name = invitation.TourGuide.FullName,
+                        Email = invitation.TourGuide.Email
                     },
                     InvitationType = invitation.InvitationType.ToString(),
                     Status = invitation.Status.ToString(),
@@ -832,12 +948,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
+                _logger.LogInformation("Getting TourGuideApplication for user {UserId}", userId);
+
                 // Lấy application approved mới nhất của user
                 var applications = await _unitOfWork.TourGuideApplicationRepository
                     .GetAllAsync(app => app.UserId == userId &&
                                        app.Status == TourGuideApplicationStatus.Approved &&
                                        app.IsActive);
-                return applications.OrderByDescending(app => app.ProcessedAt).FirstOrDefault();
+
+                _logger.LogInformation("Found {Count} approved applications for user {UserId}", applications.Count(), userId);
+
+                var latestApplication = applications.OrderByDescending(app => app.ProcessedAt).FirstOrDefault();
+
+                if (latestApplication != null)
+                {
+                    _logger.LogInformation("Latest application for user {UserId}: Id={ApplicationId}, Skills={Skills}, Languages={Languages}",
+                        userId, latestApplication.Id, latestApplication.Skills, latestApplication.Languages);
+                }
+                else
+                {
+                    _logger.LogWarning("No approved application found for user {UserId}", userId);
+                }
+
+                return latestApplication;
             }
             catch (Exception ex)
             {
@@ -869,6 +1002,139 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             // Default: Vietnamese if no skills/languages specified
             return "Vietnamese";
+        }
+
+        /// <summary>
+        /// Fix TourDetails status cho các case đã có guide accept nhưng status vẫn AwaitingGuideAssignment
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails cần fix</param>
+        public async Task<BaseResposeDto> FixTourDetailsStatusAsync(Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Fixing TourDetails {TourDetailsId} status", tourDetailsId);
+
+                // 1. Get TourDetails
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                // 2. Check if has accepted invitation
+                var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
+                var acceptedInvitation = invitations.FirstOrDefault(i => i.Status == InvitationStatus.Accepted && i.IsActive);
+
+                if (acceptedInvitation == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "TourDetails này chưa có guide nào accept invitation",
+                        IsSuccess = false
+                    };
+                }
+
+                // 3. Update status if needed
+                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    tourDetails.Status = TourDetailsStatus.Approved;
+                    tourDetails.UpdatedAt = DateTime.UtcNow;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+
+                    // Expire other pending invitations
+                    var expiredCount = await _unitOfWork.TourGuideInvitationRepository
+                        .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitation.Id);
+
+                    await _unitOfWork.SaveChangesAsync();
+
+                    _logger.LogInformation("Fixed TourDetails {TourDetailsId} status from AwaitingGuideAssignment to Approved, expired {Count} pending invitations",
+                        tourDetailsId, expiredCount);
+
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 200,
+                        Message = $"Đã fix TourDetails status thành công. Expired {expiredCount} pending invitations.",
+                        IsSuccess = true
+                    };
+                }
+                else
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 200,
+                        Message = $"TourDetails đã ở status {tourDetails.Status}, không cần fix",
+                        IsSuccess = true
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fixing TourDetails {TourDetailsId} status", tourDetailsId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra: {ex.Message}",
+                    IsSuccess = false
+                };
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật TourDetails status sau khi guide accept invitation
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="acceptedInvitationId">ID của invitation được accept</param>
+        private async Task UpdateTourDetailsStatusAfterGuideAcceptanceAsync(Guid tourDetailsId, Guid acceptedInvitationId)
+        {
+            try
+            {
+                _logger.LogInformation("Updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
+
+                // 1. Get TourDetails
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    _logger.LogWarning("TourDetails {TourDetailsId} not found", tourDetailsId);
+                    return;
+                }
+
+                // 2. Only update if currently AwaitingGuideAssignment
+                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    // Update TourDetails status to WaitToPublic (guide assignment completed, waiting for tour company to activate public)
+                    tourDetails.Status = TourDetailsStatus.WaitToPublic;
+                    tourDetails.UpdatedAt = DateTime.UtcNow;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+
+                    _logger.LogInformation("Updated TourDetails {TourDetailsId} status from AwaitingGuideAssignment to WaitToPublic", tourDetailsId);
+
+                    // 3. Expire other pending invitations for this TourDetails
+                    var expiredCount = await _unitOfWork.TourGuideInvitationRepository
+                        .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitationId);
+
+                    _logger.LogInformation("Expired {Count} pending invitations for TourDetails {TourDetailsId}", expiredCount, tourDetailsId);
+
+                    // 4. Save all changes
+                    await _unitOfWork.SaveChangesAsync();
+
+                    _logger.LogInformation("Successfully updated TourDetails {TourDetailsId} status and expired pending invitations", tourDetailsId);
+                }
+                else
+                {
+                    _logger.LogInformation("TourDetails {TourDetailsId} status is {Status}, no update needed", tourDetailsId, tourDetails.Status);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
+                // Don't throw - this is a side effect, shouldn't break the main flow
+            }
         }
     }
 }

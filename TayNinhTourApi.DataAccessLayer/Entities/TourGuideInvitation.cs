@@ -16,7 +16,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public Guid TourDetailsId { get; set; }
 
         /// <summary>
-        /// ID của User (TourGuide) được mời
+        /// ID của TourGuide được mời
         /// </summary>
         [Required]
         public Guid GuideId { get; set; }
@@ -64,9 +64,9 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public virtual TourDetails TourDetails { get; set; } = null!;
 
         /// <summary>
-        /// User (TourGuide) được mời
+        /// TourGuide được mời
         /// </summary>
-        public virtual User Guide { get; set; } = null!;
+        public virtual TourGuide TourGuide { get; set; } = null!;
 
         /// <summary>
         /// User (TourCompany) đã tạo lời mời này

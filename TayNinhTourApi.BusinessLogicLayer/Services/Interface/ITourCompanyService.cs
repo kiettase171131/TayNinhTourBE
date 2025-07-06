@@ -12,5 +12,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> UpdateTourAsync(RequestUpdateTourDto request, Guid id, Guid updatedBy);
         Task<BaseResposeDto> CreateTourAsync(RequestCreateTourCmsDto request, Guid createdBy);
         Task<BaseResposeDto> DeleteTourAsync(Guid id);
+        Task<BaseResposeDto> ActivatePublicTourDetailsAsync(Guid tourDetailsId, Guid userId);
     }
 }

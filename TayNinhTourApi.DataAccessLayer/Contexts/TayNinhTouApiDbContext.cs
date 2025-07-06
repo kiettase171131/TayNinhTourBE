@@ -10,6 +10,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<SupportTicket> SupportTickets { get; set; } = null!;
         public DbSet<SupportTicketComment> SupportTicketComments { get; set; } = null!;
         public DbSet<TourGuideApplication> TourGuideApplications { get; set; } = null!;
+        public DbSet<TourGuide> TourGuides { get; set; } = null!;
         public DbSet<Image> Images { get; set; } = null!;
         public DbSet<Tour> Tours { get; set; } = null!;
         public DbSet<TourTemplate> TourTemplates { get; set; } = null!;

@@ -37,5 +37,15 @@
         /// SpecialtyShop information if user has "Specialty Shop" role (1:1 relationship)
         /// </summary>
         public virtual SpecialtyShop? SpecialtyShop { get; set; }
+
+        /// <summary>
+        /// TourGuide information if user has "Tour Guide" role (1:1 relationship)
+        /// </summary>
+        public virtual TourGuide? TourGuide { get; set; }
+
+        /// <summary>
+        /// Tour guides approved by this admin user
+        /// </summary>
+        public virtual ICollection<TourGuide> ApprovedTourGuides { get; set; } = new List<TourGuide>();
     }
 }

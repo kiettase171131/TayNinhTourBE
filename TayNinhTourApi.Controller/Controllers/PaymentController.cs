@@ -30,7 +30,6 @@ namespace TayNinhTourApi.Controller.Controllers
         /// Status = 1 (Paid) + Tr? stock + Xóa cart
         /// </summary>
         [HttpPost("paid/{orderCode}")]
-        [Authorize(Roles = "User")]
         public async Task<IActionResult> PaymentPaidCallback(string orderCode)
         {
             try
@@ -127,7 +126,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// Status = 2 (Cancelled) + KHÔNG tr? stock + KHÔNG xóa cart
         /// </summary>
         [HttpPost("cancelled/{orderCode}")]
-        [Authorize(Roles = "User")]
+
         public async Task<IActionResult> PaymentCancelledCallback(string orderCode)
         {
             try

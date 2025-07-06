@@ -231,5 +231,69 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = "Xóa tour thành công"
             };
         }
+
+        public async Task<BaseResposeDto> ActivatePublicTourDetailsAsync(Guid tourDetailsId, Guid userId)
+        {
+            try
+            {
+                // 1. Get TourDetails
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                // 2. Check if TourDetails is in WaitToPublic status
+                if (tourDetails.Status != DataAccessLayer.Enums.TourDetailsStatus.WaitToPublic)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = $"TourDetails phải ở trạng thái WaitToPublic để có thể kích hoạt public. Trạng thái hiện tại: {tourDetails.Status}",
+                        IsSuccess = false
+                    };
+                }
+
+                // 3. Check permission - only tour company who created this TourDetails can activate
+                if (tourDetails.CreatedById != userId)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "Bạn không có quyền kích hoạt public cho TourDetails này",
+                        IsSuccess = false
+                    };
+                }
+
+                // 4. Update status to Public
+                tourDetails.Status = DataAccessLayer.Enums.TourDetailsStatus.Public;
+                tourDetails.UpdatedAt = DateTime.UtcNow;
+                tourDetails.UpdatedById = userId;
+
+                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+                await _unitOfWork.SaveChangesAsync();
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Đã kích hoạt public cho TourDetails thành công. Khách hàng có thể booking tour này.",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi kích hoạt public: {ex.Message}",
+                    IsSuccess = false
+                };
+            }
+        }
     }
 }

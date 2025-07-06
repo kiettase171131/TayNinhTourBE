@@ -78,6 +78,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Common
     /// </summary>
     public class ValidSkillSelectionAttribute : ValidationAttribute
     {
+        /// <summary>
+        /// Cho phép SkillsString có thể null/empty (optional)
+        /// </summary>
+        public bool AllowEmpty { get; set; } = false;
+
         public override bool IsValid(object? value)
         {
             if (value is List<TourGuideSkill> skills)
@@ -104,8 +109,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Common
 
             if (value is string skillsString)
             {
+                // Cho phép empty nếu AllowEmpty = true
                 if (string.IsNullOrWhiteSpace(skillsString))
                 {
+                    if (AllowEmpty)
+                    {
+                        return true;
+                    }
                     ErrorMessage = "Ít nhất một kỹ năng phải được chọn";
                     return false;
                 }
@@ -114,10 +124,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Common
                 var skillsList = TayNinhTourApi.BusinessLogicLayer.Utilities.TourGuideSkillUtility.StringToSkills(skillsString);
                 if (!skillsList.Any())
                 {
+                    // Nếu AllowEmpty = true, cho phép invalid string (treat as empty)
+                    if (AllowEmpty)
+                    {
+                        return true;
+                    }
                     ErrorMessage = "Định dạng kỹ năng không hợp lệ";
                     return false;
                 }
 
+                return true;
+            }
+
+            // Cho phép null nếu AllowEmpty = true
+            if (value == null && AllowEmpty)
+            {
                 return true;
             }
 

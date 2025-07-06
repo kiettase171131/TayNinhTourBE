@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Contexts;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -20,13 +22,16 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         private readonly ITourGuideInvitationService _invitationService;
         private readonly ILogger<TourGuideInvitationController> _logger;
+        private readonly TayNinhTouApiDbContext _context;
 
         public TourGuideInvitationController(
             ITourGuideInvitationService invitationService,
-            ILogger<TourGuideInvitationController> logger)
+            ILogger<TourGuideInvitationController> logger,
+            TayNinhTouApiDbContext context)
         {
             _invitationService = invitationService;
             _logger = logger;
+            _context = context;
         }
 
         /// <summary>
@@ -51,6 +56,20 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
+                // Tìm TourGuide record từ User ID
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserId && tg.IsActive);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin TourGuide",
+                        IsSuccess = false
+                    });
+                }
+
                 // Parse status if provided
                 InvitationStatus? invitationStatus = null;
                 if (!string.IsNullOrEmpty(status))
@@ -70,7 +89,8 @@ namespace TayNinhTourApi.Controller.Controllers
                     }
                 }
 
-                var result = await _invitationService.GetMyInvitationsAsync(currentUserId, invitationStatus);
+                // Sử dụng TourGuide ID thay vì User ID
+                var result = await _invitationService.GetMyInvitationsAsync(tourGuide.Id, invitationStatus);
 
                 return StatusCode(result.StatusCode, result);
             }
@@ -132,7 +152,22 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                var result = await _invitationService.AcceptInvitationAsync(invitationId, currentUserId);
+                // Tìm TourGuide record từ User ID
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserId && tg.IsActive);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin TourGuide",
+                        IsSuccess = false
+                    });
+                }
+
+                // Sử dụng TourGuide ID thay vì User ID
+                var result = await _invitationService.AcceptInvitationAsync(invitationId, tourGuide.Id);
                 return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
@@ -147,6 +182,10 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+
+
+
+
 
         /// <summary>
         /// TourGuide từ chối invitation
@@ -184,9 +223,24 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
+                // Tìm TourGuide record từ User ID
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserId && tg.IsActive);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin TourGuide",
+                        IsSuccess = false
+                    });
+                }
+
+                // Sử dụng TourGuide ID thay vì User ID
                 var result = await _invitationService.RejectInvitationAsync(
                     invitationId,
-                    currentUserId,
+                    tourGuide.Id,
                     request.RejectionReason);
 
                 return StatusCode(result.StatusCode, result);
@@ -280,7 +334,22 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                var result = await _invitationService.ValidateInvitationAcceptanceAsync(invitationId, currentUserId);
+                // Tìm TourGuide record từ User ID
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserId && tg.IsActive);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin TourGuide",
+                        IsSuccess = false
+                    });
+                }
+
+                // Sử dụng TourGuide ID thay vì User ID
+                var result = await _invitationService.ValidateInvitationAcceptanceAsync(invitationId, tourGuide.Id);
                 return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
@@ -290,6 +359,33 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi validate lời mời",
+                    IsSuccess = false
+                });
+            }
+        }
+
+        /// <summary>
+        /// Fix TourDetails status cho các case đã có guide accept nhưng status vẫn AwaitingGuideAssignment
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails cần fix</param>
+        /// <returns>Kết quả fix status</returns>
+        [HttpPost("fix-tourdetails-status/{tourDetailsId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<BaseResposeDto>> FixTourDetailsStatus(Guid tourDetailsId)
+        {
+            try
+            {
+                _logger.LogInformation("Admin fixing TourDetails {TourDetailsId} status", tourDetailsId);
+                var result = await _invitationService.FixTourDetailsStatusAsync(tourDetailsId);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fixing TourDetails {TourDetailsId} status", tourDetailsId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi fix TourDetails status",
                     IsSuccess = false
                 });
             }

@@ -38,6 +38,16 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
         /// <summary>
         /// Chờ admin duyệt
         /// </summary>
-        AwaitingAdminApproval = 6
+        AwaitingAdminApproval = 6,
+
+        /// <summary>
+        /// Chờ tour company kích hoạt public
+        /// </summary>
+        WaitToPublic = 7,
+
+        /// <summary>
+        /// Đã được public, khách hàng có thể booking
+        /// </summary>
+        Public = 8
     }
 }

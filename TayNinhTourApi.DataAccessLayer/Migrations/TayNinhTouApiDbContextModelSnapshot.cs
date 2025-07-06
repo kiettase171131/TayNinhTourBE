@@ -425,7 +425,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<int>("Category")
-                        .HasMaxLength(100)
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
@@ -451,6 +450,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsSale")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -462,8 +464,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<int>("QuantityInStock")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SalePercent")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("ShopId")
                         .HasColumnType("char(36)");
+
+                    b.Property<int>("SoldCount")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -1476,6 +1484,135 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("char(36)")
+                        .HasComment("Foreign Key to approved TourGuideApplication");
+
+                    b.Property<DateTime>("ApprovedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasComment("Date when the tour guide was approved and became active");
+
+                    b.Property<Guid>("ApprovedById")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID of the admin who approved this tour guide");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasComment("Contact email address");
+
+                    b.Property<string>("Experience")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasComment("Tour guide experience description");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasComment("Full name of the tour guide");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsAvailable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasComment("Whether the tour guide is currently available for new tours");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasComment("Additional notes about the tour guide");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasComment("Contact phone number");
+
+                    b.Property<string>("ProfileImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Tour guide's profile image URL");
+
+                    b.Property<decimal>("Rating")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3, 2)
+                        .HasColumnType("decimal(3,2)")
+                        .HasDefaultValue(0.00m)
+                        .HasComment("Average rating from tour participants");
+
+                    b.Property<string>("Skills")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Tour guide skills (comma-separated TourGuideSkill enum values)");
+
+                    b.Property<int>("TotalToursGuided")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasComment("Total number of tours guided");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)")
+                        .HasComment("Foreign Key to User table - One-to-One relationship");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TourGuides_ApplicationId_Unique");
+
+                    b.HasIndex("ApprovedAt")
+                        .HasDatabaseName("IX_TourGuides_ApprovedAt");
+
+                    b.HasIndex("ApprovedById")
+                        .HasDatabaseName("IX_TourGuides_ApprovedById");
+
+                    b.HasIndex("IsAvailable")
+                        .HasDatabaseName("IX_TourGuides_IsAvailable");
+
+                    b.HasIndex("Rating")
+                        .HasDatabaseName("IX_TourGuides_Rating");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TourGuides_UserId_Unique");
+
+                    b.HasIndex("IsAvailable", "Rating")
+                        .HasDatabaseName("IX_TourGuides_Available_Rating");
+
+                    b.ToTable("TourGuides", (string)null);
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourGuideApplication", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1616,7 +1753,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<Guid>("GuideId")
                         .HasColumnType("char(36)")
-                        .HasComment("ID của User (TourGuide) được mời");
+                        .HasComment("ID của TourGuide được mời");
 
                     b.Property<int>("InvitationType")
                         .HasColumnType("int")
@@ -2434,6 +2571,33 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourGuideApplication", "Application")
+                        .WithOne("ApprovedTourGuide")
+                        .HasForeignKey("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", "ApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "ApprovedBy")
+                        .WithMany("ApprovedTourGuides")
+                        .HasForeignKey("ApprovedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
+                        .WithOne("TourGuide")
+                        .HasForeignKey("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Application");
+
+                    b.Navigation("ApprovedBy");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourGuideApplication", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "ProcessedBy")
@@ -2460,8 +2624,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Guide")
-                        .WithMany()
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", "TourGuide")
+                        .WithMany("Invitations")
                         .HasForeignKey("GuideId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -2479,9 +2643,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Navigation("CreatedBy");
 
-                    b.Navigation("Guide");
-
                     b.Navigation("TourDetails");
+
+                    b.Navigation("TourGuide");
 
                     b.Navigation("UpdatedBy");
                 });
@@ -2493,6 +2657,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", "TourGuide")
+                        .WithMany("TourOperations")
+                        .HasForeignKey("GuideId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Guide")
                         .WithMany("TourOperationsAsGuide")
@@ -2515,6 +2684,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("Guide");
 
                     b.Navigation("TourDetails");
+
+                    b.Navigation("TourGuide");
 
                     b.Navigation("UpdatedBy");
                 });
@@ -2635,6 +2806,18 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("TourOperation");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", b =>
+                {
+                    b.Navigation("Invitations");
+
+                    b.Navigation("TourOperations");
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourGuideApplication", b =>
+                {
+                    b.Navigation("ApprovedTourGuide");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", b =>
                 {
                     b.Navigation("TourBookings");
@@ -2649,6 +2832,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.User", b =>
                 {
+                    b.Navigation("ApprovedTourGuides");
+
                     b.Navigation("BlogComments");
 
                     b.Navigation("BlogReactions");
@@ -2666,6 +2851,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("TourDetailsCreated");
 
                     b.Navigation("TourDetailsUpdated");
+
+                    b.Navigation("TourGuide");
 
                     b.Navigation("TourOperationsAsGuide");
 

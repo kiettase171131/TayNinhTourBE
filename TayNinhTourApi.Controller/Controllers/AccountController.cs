@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -471,25 +471,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
 
-        /// <summary>
-        /// User nộp đơn đăng ký TourGuide (JSON version - deprecated, use upload version)
-        /// </summary>
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "User")]
-        [HttpPost("tourguide-application")]
-        public async Task<IActionResult> SubmitTourGuideApplication([FromBody] SubmitTourGuideApplicationJsonDto dto)
-        {
-            try
-            {
-                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var result = await _tourGuideApplicationService.SubmitApplicationJsonAsync(dto, currentUser);
-                return StatusCode(result.StatusCode, result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error submitting enhanced tour guide application");
-                return StatusCode(500, new { Error = "An error occurred while submitting application", Details = ex.Message });
-            }
-        }
+
 
         /// <summary>
         /// User xem danh sách đơn đăng ký TourGuide của mình

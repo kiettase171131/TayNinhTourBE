@@ -95,5 +95,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="guideId">ID của TourGuide</param>
         /// <returns>Kết quả validation</returns>
         Task<BaseResposeDto> ValidateInvitationAcceptanceAsync(Guid invitationId, Guid guideId);
+
+        /// <summary>
+        /// Fix TourDetails status cho các case đã có guide accept nhưng status vẫn AwaitingGuideAssignment
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails cần fix</param>
+        /// <returns>Kết quả fix status</returns>
+        Task<BaseResposeDto> FixTourDetailsStatusAsync(Guid tourDetailsId);
     }
 }

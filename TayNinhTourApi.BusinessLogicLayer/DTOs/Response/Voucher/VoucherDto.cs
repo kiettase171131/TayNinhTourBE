@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher
 {
     public class VoucherDto 
+
     {
         public Guid Id { get; set; }
         public string Code { get; set; } = null!;

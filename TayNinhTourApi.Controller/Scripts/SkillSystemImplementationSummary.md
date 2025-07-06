@@ -86,17 +86,15 @@
 
 ### **2. Enhanced Existing APIs**
 
-#### **POST /api/account/submit-tour-guide-application**
+#### **POST /api/account/tourguide-application/upload**
 **Enhancement**: Hỗ trợ skills field
 **Use Case**: Tour guide đăng ký với skills thay vì chỉ languages
-**Request Format**:
-```json
-{
-  "fullName": "Nguyễn Văn A",
-  "skills": "Vietnamese,English,History,Culture",
-  "experience": 3,
-  "curriculumVitae": "file upload"
-}
+**Request Format**: multipart/form-data
+```
+fullName: "Nguyễn Văn A"
+skills: "Vietnamese,English,History,Culture"
+experience: "3"
+curriculumVitae: [file upload]
 ```
 
 #### **POST /api/tour-details**

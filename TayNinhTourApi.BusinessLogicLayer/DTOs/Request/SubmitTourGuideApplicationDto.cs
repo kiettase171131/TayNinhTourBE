@@ -55,7 +55,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request
         /// Kỹ năng dưới dạng comma-separated string (for API compatibility)
         /// Ví dụ: "Vietnamese,English,History,MountainClimbing"
         /// </summary>
-        [ValidSkillSelection(ErrorMessage = "Ít nhất một kỹ năng hợp lệ phải được chọn")]
+        [ValidSkillSelection(AllowEmpty = true, ErrorMessage = "Định dạng kỹ năng không hợp lệ")]
         [StringLength(500, ErrorMessage = "Kỹ năng không được quá 500 ký tự")]
         public string? SkillsString { get; set; }
 

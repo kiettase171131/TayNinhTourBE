@@ -15,6 +15,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         ISpecialtyShopRepository SpecialtyShopRepository { get; }
         ISpecialtyShopApplicationRepository SpecialtyShopApplicationRepository { get; }
         ITourGuideApplicationRepository TourGuideApplicationRepository { get; }
+        ITourGuideRepository TourGuideRepository { get; }
         ITourSlotRepository TourSlotRepository { get; }
 
         ITourDetailsRepository TourDetailsRepository { get; }
