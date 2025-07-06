@@ -13,11 +13,14 @@ using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -34,7 +37,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IOrderRepository _orderRepository;
         private readonly IProductRatingRepository _ratingRepo;
         private readonly IProductReviewRepository _reviewRepo;
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating)
+        private readonly IVoucherRepository _voucherRepository;
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -46,6 +50,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _orderRepository = orderRepository;
             _ratingRepo = productRating;
             _reviewRepo = productReview;
+            _voucherRepository = voucherRepository;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
@@ -282,7 +287,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             product.Description = request.Description ?? product.Description;
             product.Price = request.Price ?? product.Price;
             product.QuantityInStock = request.QuantityInStock ?? product.QuantityInStock;
-            
+
             product.IsSale = request.IsSale ?? product.IsSale;
             product.SalePercent = request.SalePercent ?? product.SalePercent;
 
@@ -375,81 +380,93 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 IsSuccess = true
             };
         }
-        public async Task<BaseResposeDto> AddToCartAsync(RequestAddToCartDto request, CurrentUserObject currentUser)
+        public async Task<BaseResposeDto> AddToCartAsync(RequestAddMultipleToCartDto request, CurrentUserObject currentUser)
         {
-            // 1. Kiểm tra sản phẩm tồn tại và còn hoạt động
-            var product = await _productRepository.GetByIdAsync(request.ProductId);
-            if (product == null || product.IsDeleted || !product.IsActive)
+            var response = new BaseResposeDto
             {
-                return new BaseResposeDto
-                {
-                    StatusCode = 404,
-                    Message = "Sản phẩm không tồn tại"
-                };
-            }
+                StatusCode = 200,
+                IsSuccess = true,
+                Message = "Đã thêm các sản phẩm vào giỏ hàng"
+            };
 
-            // 2. Kiểm tra số lượng yêu cầu
-            if (request.Quantity <= 0)
+            if (request.Items == null || !request.Items.Any())
             {
                 return new BaseResposeDto
                 {
                     StatusCode = 400,
-                    Message = "Số lượng không hợp lệ"
+                    Message = "Danh sách sản phẩm rỗng",
+                    IsSuccess = false
                 };
             }
 
-            // 3. Lấy cart item hiện có (nếu có)
-            var existingCart = await _cartRepository.GetFirstOrDefaultAsync(x =>
-                x.UserId == currentUser.Id && x.ProductId == request.ProductId);
-
-            var totalQuantityRequested = request.Quantity;
-            if (existingCart != null)
-                totalQuantityRequested += existingCart.Quantity;
-
-            // 4. So sánh với tồn kho
-            if (totalQuantityRequested > product.QuantityInStock)
+            foreach (var item in request.Items)
             {
-                return new BaseResposeDto
+                var product = await _productRepository.GetByIdAsync(item.ProductId);
+                if (product == null || product.IsDeleted || !product.IsActive)
                 {
-                    StatusCode = 400,
-                    Message = $"Chỉ còn {product.QuantityInStock} sản phẩm trong kho"
-                };
-            }
+                    response.ValidationErrors.Add($"Sản phẩm {item.ProductId} không tồn tại hoặc ngưng hoạt động.");
+                    response.IsSuccess = false;
+                    continue;
+                }
 
-            // 5. Cập nhật cart
-            if (existingCart != null)
-            {
-                existingCart.Quantity += request.Quantity;
-                existingCart.UpdatedAt = DateTime.UtcNow;
-                existingCart.UpdatedById = currentUser.Id;
-                await _cartRepository.UpdateAsync(existingCart);
-            }
-            else
-            {
-                var newCart = new CartItem
+                if (item.Quantity <= 0)
                 {
-                    Id = Guid.NewGuid(),
-                    UserId = currentUser.Id,
-                    ProductId = request.ProductId,
-                    Quantity = request.Quantity,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedById = currentUser.Id
-                };
-                await _cartRepository.AddAsync(newCart);
+                    response.ValidationErrors.Add($"Sản phẩm {product.Name}: số lượng không hợp lệ.");
+                    response.IsSuccess = false;
+                    continue;
+                }
+
+                var existingCart = await _cartRepository.GetFirstOrDefaultAsync(x =>
+                    x.UserId == currentUser.Id && x.ProductId == item.ProductId);
+
+                var totalQuantityRequested = item.Quantity;
+                if (existingCart != null)
+                    totalQuantityRequested += existingCart.Quantity;
+
+                if (totalQuantityRequested > product.QuantityInStock)
+                {
+                    response.ValidationErrors.Add(
+                        $"Sản phẩm {product.Name}: chỉ còn {product.QuantityInStock} sản phẩm trong kho.");
+                    response.IsSuccess = false;
+                    continue;
+                }
+
+                if (existingCart != null)
+                {
+                    existingCart.Quantity += item.Quantity;
+                    existingCart.UpdatedAt = DateTime.UtcNow;
+                    existingCart.UpdatedById = currentUser.Id;
+                    await _cartRepository.UpdateAsync(existingCart);
+                }
+                else
+                {
+                    var newCart = new CartItem
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = currentUser.Id,
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedById = currentUser.Id
+                    };
+                    await _cartRepository.AddAsync(newCart);
+                }
             }
 
             await _cartRepository.SaveChangesAsync();
 
-            return new BaseResposeDto
+            if (!response.IsSuccess)
             {
-                StatusCode = 200,
-                Message = "Đã thêm vào giỏ hàng",
-                IsSuccess = true
-            };
+                response.StatusCode = 400;
+                response.Message = "Có lỗi với một số sản phẩm khi thêm vào giỏ hàng.";
+            }
+
+            return response;
         }
         public async Task<ResponseGetCartDto> GetCartAsync(CurrentUserObject currentUser)
         {
-            var include = new string[] { nameof(CartItem.Product), $"{nameof(CartItem.Product)}.{nameof(Product.ProductImages)}" };
+            var include = new string[] { nameof(CartItem.Product), $"{nameof(CartItem.Product)}.{nameof(Product.ProductImages)}",
+             $"{nameof(CartItem.Product)}.{nameof(Product.Shop)}"};
 
             var cartItems = await _cartRepository.GetAllAsync(x => x.UserId == currentUser.Id, include);
 
@@ -458,6 +475,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 CartItemId = x.Id,
                 ProductId = x.ProductId,
                 ProductName = x.Product.Name,
+                ShopName = x.Product.Shop.Name,
                 Quantity = x.Quantity,
                 Price = x.Product.Price,
                 Total = x.Quantity * x.Product.Price,
@@ -472,26 +490,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalAmount = items.Sum(i => i.Total)
             };
         }
-        public async Task<BaseResposeDto> RemoveFromCartAsync(Guid cartItemId, CurrentUserObject currentUser)
+        public async Task<BaseResposeDto> RemoveFromCartAsync(CurrentUserObject currentUser)
         {
-            var cartItem = await _cartRepository.GetFirstOrDefaultAsync(x => x.Id == cartItemId && x.UserId == currentUser.Id);
+            var cartItems = await _cartRepository.GetAllAsync(x => x.UserId == currentUser.Id);
 
-            if (cartItem == null)
+            if (!cartItems.Any())
             {
                 return new BaseResposeDto
                 {
                     StatusCode = 404,
-                    Message = "Không tìm thấy sản phẩm trong giỏ"
+                    Message = "Giỏ hàng của bạn đang trống.",
+                    IsSuccess = false
                 };
             }
 
-            await _cartRepository.DeleteAsync(cartItem.Id);
+            foreach (var item in cartItems)
+            {
+                await _cartRepository.DeleteAsync(item.Id);
+            }
+
             await _cartRepository.SaveChangesAsync();
 
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Đã xoá khỏi giỏ hàng",
+                Message = "Đã xoá toàn bộ sản phẩm khỏi giỏ hàng",
                 IsSuccess = true
             };
         }
@@ -500,7 +523,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 Console.WriteLine($"ClearCartAndUpdateInventoryAsync called for order: {orderId}");
-                
+
                 var order = await _orderRepository.GetByIdAsync(orderId, new[] { nameof(Order.OrderDetails) });
 
                 if (order == null)
@@ -522,7 +545,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 foreach (var detail in order.OrderDetails)
                 {
                     Console.WriteLine($"Processing product: {detail.ProductId}, Quantity to subtract: {detail.Quantity}");
-                    
+
                     var product = await _productRepository.GetByIdAsync(detail.ProductId);
                     if (product != null)
                     {
@@ -545,12 +568,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Console.WriteLine("Starting cart cleanup...");
                 var productIdsInOrder = order.OrderDetails.Select(x => x.ProductId).ToList();
                 Console.WriteLine($"Product IDs in order: {string.Join(", ", productIdsInOrder)}");
-                
-                var cartItemsToRemove = await _cartRepository.GetAllAsync(x => 
+
+                var cartItemsToRemove = await _cartRepository.GetAllAsync(x =>
                     x.UserId == order.UserId && productIdsInOrder.Contains(x.ProductId));
-                
+
                 Console.WriteLine($"Cart items to remove: {cartItemsToRemove.Count()}");
-                
+
                 if (cartItemsToRemove.Any())
                 {
                     _cartRepository.DeleteRange(cartItemsToRemove);
@@ -572,91 +595,97 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser)
+        public async Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, string? voucherCode = null)
         {
-            try
+            if (cartItemIds == null || !cartItemIds.Any())
+                throw new ArgumentException("Danh sách sản phẩm không được để trống.");
+
+            if (currentUser == null)
+                throw new ArgumentException("Thông tin người dùng không hợp lệ.");
+
+            var include = new[] { nameof(CartItem.Product) };
+
+            var cartItems = await _cartRepository.GetAllAsync(
+                x => cartItemIds.Contains(x.Id) && x.UserId == currentUser.Id && !x.IsDeleted,
+                include);
+
+            cartItems = cartItems
+                .Where(x => x.Product != null && !x.Product.IsDeleted && x.Product.IsActive)
+                .ToList();
+
+            if (!cartItems.Any())
+                throw new InvalidOperationException("Không tìm thấy sản phẩm hợp lệ trong giỏ hàng.");
+
+            foreach (var item in cartItems)
             {
-                // ✅ Validation đầu vào
-                if (cartItemIds == null || !cartItemIds.Any())
+                if (item.Quantity > item.Product.QuantityInStock)
+                    throw new InvalidOperationException($"Sản phẩm '{item.Product.Name}' chỉ còn {item.Product.QuantityInStock} trong kho.");
+            }
+
+            var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
+            decimal discountAmount = 0m;
+            decimal totalAfterDiscount = total;
+
+            var cartItemDtos = cartItems.Select(x => new CartItemDto
+            {
+                ProductId = x.ProductId,
+                Quantity = x.Quantity
+            }).ToList();
+
+            if (!string.IsNullOrEmpty(voucherCode))
+            {
+                var voucherResult = await ApplyVoucherForCartAsync(voucherCode, cartItemDtos);
+                if (!voucherResult.IsSuccess)
+                    throw new InvalidOperationException(voucherResult.Message);
+
+                totalAfterDiscount = voucherResult.FinalPrice;
+                discountAmount = voucherResult.DiscountAmount;
+            }
+
+            if (totalAfterDiscount <= 0)
+                throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
+            var payOsOrderCode = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            var order = new Order
+            {
+                UserId = currentUser.Id,
+                TotalAmount = total,
+                DiscountAmount = discountAmount,
+                TotalAfterDiscount = totalAfterDiscount,
+                Status = OrderStatus.Pending,
+                CreatedAt = DateTime.UtcNow,
+                CreatedById = currentUser.Id,
+                VoucherCode = voucherCode,
+                PayOsOrderCode = payOsOrderCode,
+                OrderDetails = cartItems.Select(x => new OrderDetail
                 {
-                    throw new ArgumentException("Danh sách cart item không được để trống");
-                }
-
-                if (currentUser == null)
-                {
-                    throw new ArgumentException("Thông tin người dùng không hợp lệ");
-                }
-
-                var include = new[] { nameof(CartItem.Product) };
-
-                var cartItems = await _cartRepository.GetAllAsync(
-                    x => cartItemIds.Contains(x.Id) && x.UserId == currentUser.Id && !x.IsDeleted,
-                    include
-                );
-
-                cartItems = cartItems
-                    .Where(x => x.Product != null && !x.Product.IsDeleted && x.Product.IsActive)
-                    .ToList();
-
-                if (!cartItems.Any())
-                {
-                    throw new InvalidOperationException("Không tìm thấy sản phẩm hợp lệ trong giỏ hàng");
-                }
-
-                // Kiểm tra tồn kho
-                foreach (var item in cartItems)
-                {
-                    if (item.Quantity > item.Product.QuantityInStock)
-                        throw new InvalidOperationException($"Sản phẩm '{item.Product.Name}' chỉ còn {item.Product.QuantityInStock} trong kho.");
-                }
-
-                var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
-
-                var order = new Order
-                {
-                    UserId = currentUser.Id,
-                    TotalAmount = total,
-                    Status = OrderStatus.Pending,
+                    ProductId = x.ProductId,
+                    Quantity = x.Quantity,
+                    UnitPrice = x.Product.Price,
                     CreatedAt = DateTime.UtcNow,
-                    CreatedById = currentUser.Id,
-                    OrderDetails = cartItems.Select(x => new OrderDetail
-                    {
-                        ProductId = x.ProductId,
-                        Quantity = x.Quantity,
-                        UnitPrice = x.Product.Price,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedById = currentUser.Id
-                    }).ToList()
-                };
+                    CreatedById = currentUser.Id
+                }).ToList()
+            };
 
-                await _orderRepository.AddAsync(order);
-                await _orderRepository.SaveChangesAsync();
+            await _orderRepository.AddAsync(order);
+            await _orderRepository.SaveChangesAsync();
 
-                var (checkoutUrl, payOsOrderCode) = await _payOsService.CreatePaymentUrlAsync(
-                    total,
-                    order.Id.ToString(),
-                    "https://tndt.netlify.app"
-                );
+            var checkoutUrl = await _payOsService.CreatePaymentUrlAsync(
+                totalAfterDiscount,
+                order.Id.ToString(),
+                "https://tndt.netlify.app"
+            );
 
-                // Lưu PayOS order code vào database để map lại khi callback
-                order.PayOsOrderCode = payOsOrderCode;
-                await _orderRepository.UpdateAsync(order);
-                await _orderRepository.SaveChangesAsync();
-
-                return new CheckoutResultDto
-                {
-                    CheckoutUrl = checkoutUrl,
-                    OrderId = order.Id
-                };
-            }
-            catch (Exception ex)
+            return new CheckoutResultDto
             {
-                // ✅ Log lỗi chi tiết để debug
-                Console.WriteLine($"CheckoutCartAsync Error: {ex.Message}");
-                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
-                throw; // Re-throw để controller xử lý
-            }
+                CheckoutUrl = checkoutUrl,
+                OrderId = order.Id,
+                TotalOriginal = total,
+                DiscountAmount = discountAmount,
+                TotalAfterDiscount = totalAfterDiscount
+            };
         }
+
 
         public async Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId)
         {
@@ -740,5 +769,287 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 CreatedAt = r.CreatedAt
             });
         }
+
+        public async Task<ApplyVoucherResult> ApplyVoucherForCartAsync(string voucherCode, List<CartItemDto> cartItems)
+        {
+            if (!cartItems.Any())
+                return new ApplyVoucherResult
+                {
+                    StatusCode = 400,
+                    Message = "Giỏ hàng không có sản phẩm nào để áp dụng voucher.",
+                    IsSuccess = false
+                };
+
+            var now = DateTime.UtcNow;
+
+            var voucher = await _voucherRepository.GetFirstOrDefaultAsync(v =>
+                v.Code == voucherCode.Trim() &&
+                v.IsActive &&
+                v.StartDate <= now &&
+                v.EndDate >= now);
+
+            if (voucher == null)
+                return new ApplyVoucherResult
+                {
+                    StatusCode = 404,
+                    Message = "Voucher không hợp lệ hoặc đã hết hạn.",
+                    IsSuccess = false
+                };
+
+            decimal totalOriginal = 0m;
+
+            foreach (var item in cartItems)
+            {
+                var product = await _productRepository.GetByIdAsync(item.ProductId);
+                if (product == null) continue;
+
+                totalOriginal += product.Price * item.Quantity;
+            }
+
+            if (totalOriginal <= 0)
+            {
+                return new ApplyVoucherResult
+                {
+                    StatusCode = 400,
+                    Message = "Tổng tiền giỏ hàng không hợp lệ.",
+                    IsSuccess = false
+                };
+            }
+
+            decimal discount = 0m;
+
+            if (voucher.DiscountAmount > 0)
+                discount = voucher.DiscountAmount;
+            else if (voucher.DiscountPercent.HasValue)
+                discount = totalOriginal * voucher.DiscountPercent.Value / 100m;
+
+            if (discount > totalOriginal)
+                discount = totalOriginal;
+
+            var finalPrice = totalOriginal - discount;
+
+            // PayOS yêu cầu >=1
+            if (finalPrice < 1m)
+                finalPrice = 1m;
+
+            return new ApplyVoucherResult
+            {
+                StatusCode = 200,
+                Message = "Áp dụng voucher thành công.",
+                IsSuccess = true,
+                FinalPrice = finalPrice,
+                DiscountAmount = discount
+            };
+        }
+
+        public async Task<ResponseCreateVoucher> CreateAsync(CreateVoucherDto dto, Guid userId)
+        {
+            if ((dto.DiscountAmount <= 0) && (!dto.DiscountPercent.HasValue || dto.DiscountPercent <= 0))
+            {
+                return new ResponseCreateVoucher
+                {
+                    StatusCode = 400,
+                    Message = "Phải nhập số tiền giảm hoặc phần trăm giảm > 0."
+                };
+            }
+
+            if (dto.DiscountAmount > 0 && dto.DiscountPercent.HasValue && dto.DiscountPercent > 0)
+            {
+                return new ResponseCreateVoucher
+                {
+                    StatusCode = 400,
+                    Message = "Chỉ được chọn một trong hai: số tiền giảm hoặc phần trăm giảm."
+                };
+            }
+
+            if (dto.StartDate >= dto.EndDate)
+            {
+                return new ResponseCreateVoucher
+                {
+                    StatusCode = 400,
+                    Message = "Ngày bắt đầu phải nhỏ hơn ngày kết thúc."
+                };
+            }
+            var voucher = new Voucher
+            {
+                Id = Guid.NewGuid(),
+                Code = dto.Code,
+                DiscountAmount = dto.DiscountAmount,
+                DiscountPercent = dto.DiscountPercent,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                CreatedById = userId
+            };
+
+            await _voucherRepository.AddAsync(voucher);
+            await _voucherRepository.SaveChangesAsync();
+
+            return new ResponseCreateVoucher
+            {
+                VoucherId = voucher.Id,
+                StatusCode = 200,
+                Message = "Voucher created successfully",
+            };
+        }
+        public async Task<ResponseGetVouchersDto> GetAllVouchersAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
+        {
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+            // predicate mặc định: chưa xóa
+            var predicate = PredicateBuilder.New<Voucher>(x => !x.IsDeleted);
+
+            // lọc theo textSearch (mã voucher)
+            if (!string.IsNullOrEmpty(textSearch))
+            {
+                predicate = predicate.And(x => x.Code.Contains(textSearch, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // lọc theo status (IsActive)
+            if (status.HasValue)
+            {
+                predicate = predicate.And(x => x.IsActive == status.Value);
+            }
+
+            var vouchers = await _voucherRepository.GenericGetPaginationAsync(
+                pageIndexValue,
+                pageSizeValue,
+                predicate
+            );
+
+            var totalVouchers = vouchers.Count();
+            var totalPages = (int)Math.Ceiling((double)totalVouchers / pageSizeValue);
+
+            return new ResponseGetVouchersDto
+            {
+                StatusCode = 200,
+                Data = _mapper.Map<List<VoucherDto>>(vouchers),
+                TotalRecord = totalVouchers,
+                TotalPages = totalPages
+            };
+        }
+        public async Task<ResponseGetVoucherDto> GetVoucherByIdAsync(Guid id)
+        {
+            var voucher = await _voucherRepository.GetFirstOrDefaultAsync(
+                x => x.Id == id && !x.IsDeleted
+            );
+
+            if (voucher == null)
+            {
+                return new ResponseGetVoucherDto
+                {
+                    StatusCode = 200,
+                    Message = "Không tìm thấy voucher."
+                };
+            }
+
+            return new ResponseGetVoucherDto
+            {
+                StatusCode = 200,
+                Data = _mapper.Map<VoucherDto>(voucher)
+            };
+        }
+        public async Task<BaseResposeDto> UpdateVoucherAsync(Guid id, UpdateVoucherDto dto, Guid userId)
+        {
+            var voucher = await _voucherRepository.GetByIdAsync(id);
+
+            if (voucher == null || voucher.IsDeleted)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "Không tìm thấy voucher."
+                };
+            }
+
+            voucher.Code = dto.Code ?? voucher.Code;
+            voucher.DiscountAmount = dto.DiscountAmount ?? voucher.DiscountAmount;
+            voucher.DiscountPercent = dto.DiscountPercent ?? voucher.DiscountPercent;
+            voucher.StartDate = dto.StartDate ?? voucher.StartDate;
+            voucher.EndDate = dto.EndDate ?? voucher.EndDate;
+            voucher.IsActive = dto.IsActive ?? voucher.IsActive;
+            voucher.UpdatedAt = DateTime.UtcNow;
+            voucher.UpdatedById = userId;
+
+            await _voucherRepository.UpdateAsync(voucher);
+            await _voucherRepository.SaveChangesAsync();
+
+            return new BaseResposeDto
+            {
+                StatusCode = 200,
+                Message = "Cập nhật voucher thành công.",
+                IsSuccess = true
+            };
+        }
+        public async Task<BaseResposeDto> DeleteVoucherAsync(Guid id)
+        {
+            var voucher = await _voucherRepository.GetByIdAsync(id);
+
+            if (voucher == null || voucher.IsDeleted)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "Không tìm thấy voucher."
+                };
+            }
+
+            voucher.IsDeleted = true;
+            voucher.UpdatedAt = DateTime.UtcNow;
+
+            await _voucherRepository.UpdateAsync(voucher);
+            await _voucherRepository.SaveChangesAsync();
+
+            return new BaseResposeDto
+            {
+                StatusCode = 200,
+                Message = "Xóa voucher thành công.",
+                IsSuccess = true
+            };
+        }
+        public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, long? payOsOrderCode, bool? status)
+        {
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+
+            var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted);
+
+            // lọc theo status (IsActive)
+            if (status.HasValue)
+            {
+                predicate = predicate.And(x => x.IsActive == status.Value);
+            }
+            if (payOsOrderCode.HasValue)
+            {
+                predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode.Value);
+            }
+
+            // lấy danh sách + phân trang
+            var orders = await _orderRepository.GenericGetPaginationAsync(
+                pageIndexValue,
+                pageSizeValue,
+                predicate,
+                new[] {
+            nameof(Order.OrderDetails),
+            $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                }
+            );
+
+            var totalOrders = orders.Count();
+            var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
+
+            return new ResponseGetOrdersDto
+            {
+                StatusCode = 200,
+                Data = _mapper.Map<List<OrderDto>>(orders),
+                TotalRecord = totalOrders,
+                TotalPages = totalPages
+            };
+        }
+
+
     }
 }
