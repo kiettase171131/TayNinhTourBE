@@ -6,7 +6,12 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher
 {
-    internal class ResponseGetVouchersDto
+    public class ResponseGetVouchersDto
     {
+        public int StatusCode { get; set; }
+        public List<VoucherDto> Data { get; set; } = new();
+        public int TotalRecord { get; set; }
+        public int TotalPages { get; set; }
     }
+
 }
