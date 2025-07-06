@@ -22,15 +22,64 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             _config = config;
         }
-
-        public Task<(string? checkoutUrl, long payOsOrderCode)> CreatePaymentUrlAsync(decimal amount, string orderCode, string returnUrl)
+        public async Task<string?> CreatePaymentUrlAsync(decimal amount, string orderCode, string returnUrl)
         {
-            throw new NotImplementedException();
+            var clientId = _config["PayOS:ClientId"];
+            var apiKey = _config["PayOS:ApiKey"];
+            var checksumKey = _config["PayOS:CheckSum"];
+            List<ItemData> items = new List<ItemData>();
+
+            PayOS payOS = new PayOS(clientId, apiKey, checksumKey);
+            var orderCode2 = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var orderCodeDisplay = $"TNDT{orderCode2}";
+            PaymentData paymentData = new PaymentData(
+             orderCode: orderCode2,
+             amount: (int)amount,
+             description: $"{orderCodeDisplay}",
+             items: items,
+             cancelUrl: "https://tndt.netlify.app/about",
+             returnUrl: "https://tndt.netlify.app/blog",
+             buyerName: "kiet");
+            CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
+            return createPayment.checkoutUrl;
+        }
+        public async Task<OrderStatus> GetOrderPaymentStatusAsync(string orderCode)
+        {
+            var clientId = _config["PayOS:ClientId"];
+            var apiKey = _config["PayOS:ApiKey"];
+            var url = $"https://api-merchant.payos.vn/v2/payment-requests/{orderCode}";
+
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add("x-client-id", clientId);
+                client.DefaultRequestHeaders.Add("x-api-key", apiKey);
+
+                var response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception("Không lấy được trạng thái thanh toán từ PayOS");
+
+                var content = await response.Content.ReadAsStringAsync();
+                var json = JObject.Parse(content);
+                var statusStr = json["data"]?["status"]?.ToString();
+
+                return statusStr switch
+                {
+                    "PAID" => OrderStatus.Paid,
+                    "CANCELLED" => OrderStatus.Cancelled,
+                    _ => OrderStatus.Pending
+                };
+            }
         }
 
-        public Task<OrderStatus> GetOrderPaymentStatusAsync(string orderCode)
-        {
-            throw new NotImplementedException();
-        }
+
+
+        //public async Task<string> VerifyPaymentStatusAsync(PayOsStatusResponseDto dto)
+        //{
+        //    if (dto.RawQueryCollection == null || dto.Code == "01")
+        //        return "Duong dan tra ve khong hop ly";
+        //    var orderCode = dto.OrderCode.ToString();
+
+        //}
+
     }
 }
