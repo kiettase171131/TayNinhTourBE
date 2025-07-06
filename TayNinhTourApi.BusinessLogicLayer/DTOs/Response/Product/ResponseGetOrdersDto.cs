@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TayNinhTourApi.BusinessLogicLayer.Common.ResponseDTOs;
+using TayNinhTourApi.DataAccessLayer.Repositories;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
 {
-    internal class ResponseGetOrdersDto
+    public class ResponseGetOrdersDto : GenericResponsePagination<OrderDto>
     {
     }
 }
