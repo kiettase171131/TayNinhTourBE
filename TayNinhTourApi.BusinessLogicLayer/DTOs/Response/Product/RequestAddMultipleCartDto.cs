@@ -6,9 +6,8 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
 {
-    public class RequestAddMultipleToCartDto
+    public class RequestAddMultipleCartDto
     {
         public List<RequestAddToCartDto> Items { get; set; } = new();
     }
-
 }
