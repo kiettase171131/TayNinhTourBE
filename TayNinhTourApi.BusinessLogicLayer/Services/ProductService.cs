@@ -645,7 +645,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (totalAfterDiscount <= 0)
                 throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
             var payOsOrderCode = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
             var order = new Order
             {
                 UserId = currentUser.Id,
@@ -759,7 +758,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<IEnumerable<ProductReviewDto>> GetProductReviewsAsync(Guid productId)
         {
-            var includes = new[] { "User" };
+                var includes = new[] { "User" };
             var reviews = await _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
 
             return reviews.Select(r => new ProductReviewDto
@@ -847,7 +846,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if ((dto.DiscountAmount <= 0) && (!dto.DiscountPercent.HasValue || dto.DiscountPercent <= 0))
             {
                 return new ResponseCreateVoucher
-                {
+
+                {   
                     StatusCode = 400,
                     Message = "Phải nhập số tiền giảm hoặc phần trăm giảm > 0."
                 };
@@ -1010,10 +1010,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
         }
         public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, long? payOsOrderCode, bool? status)
-        {
+        {       
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
-            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
-
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;           
 
             var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted);
 

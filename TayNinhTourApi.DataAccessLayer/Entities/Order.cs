@@ -12,8 +12,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         
         public Guid UserId { get; set; }
         public decimal TotalAmount { get; set; }
+        public decimal TotalAfterDiscount { get; set; } 
+        public decimal DiscountAmount { get; set; }
         public OrderStatus Status { get; set; }
-        
+        public string? VoucherCode { get; set; }
+
         /// <summary>
         /// PayOS numeric order code for payment tracking
         /// </summary>

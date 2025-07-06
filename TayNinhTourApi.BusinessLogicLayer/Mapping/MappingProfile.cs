@@ -16,6 +16,7 @@ using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 {
@@ -187,6 +188,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.TotalGuests, opt => opt.MapFrom(src => src.NumberOfGuests))
                 .ForMember(dest => dest.StatusName, opt => opt.Ignore()) // Will set in service
                 .ForMember(dest => dest.TourOperation, opt => opt.Ignore()); // Will set in service
+            #endregion
+            #region Voucher Mapping
+            CreateMap<Voucher, VoucherDto>();
+
+
+
+            #endregion
+            #region Order Mapping
+            CreateMap<OrderDetail, OrderDetailDto>()
+            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name));
+
+            // Order -> OrderDto
+            CreateMap<Order, OrderDto>()
+                .ForMember(dest => dest.OrderDetails, opt => opt.MapFrom(src => src.OrderDetails));
+
+
+
             #endregion
         }
 

@@ -195,6 +195,7 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 // TourGuide Invitation Workflow Repositories
 builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
 
 
 // Register utilities

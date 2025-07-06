@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -42,7 +42,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     TotalAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    TotalAfterDiscount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    DiscountAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
+                    VoucherCode = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     PayOsOrderCode = table.Column<long>(type: "bigint", nullable: true),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
@@ -78,6 +82,31 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Roles", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Vouchers",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Code = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DiscountAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    DiscountPercent = table.Column<int>(type: "int", nullable: true),
+                    StartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Vouchers", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1929,6 +1958,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             migrationBuilder.DropTable(
                 name: "TourSlots");
+
+            migrationBuilder.DropTable(
+                name: "Vouchers");
 
             migrationBuilder.DropTable(
                 name: "Blogs");

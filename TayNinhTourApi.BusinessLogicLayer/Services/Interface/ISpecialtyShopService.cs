@@ -1,8 +1,10 @@
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
@@ -104,6 +106,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="id">ID của SpecialtyShop</param>
         /// <returns>Thông tin chi tiết SpecialtyShop</returns>
         Task<ApiResponse<SpecialtyShopResponseDto>> GetShopByIdForTimelineAsync(Guid id);
+        
     }
 
     /// <summary>

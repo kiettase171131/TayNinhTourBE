@@ -175,6 +175,8 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
         [HttpGet("GetAll-Voucher")]
+
+
         public async Task<IActionResult> GetAllVoucher([FromQuery] int? pageIndex, [FromQuery] int? pageSize, [FromQuery] string? textSearch, [FromQuery] bool? status)
         {
             var result = await _productService.GetAllVouchersAsync(pageIndex, pageSize, textSearch, status);
