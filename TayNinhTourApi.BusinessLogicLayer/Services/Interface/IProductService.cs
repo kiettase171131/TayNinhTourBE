@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
@@ -20,15 +22,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> DeleteProductAsync(Guid id);
         Task<ResponseCreateProductDto> CreateProductAsync(RequestCreateProductDto request, CurrentUserObject currentUserObject);
         Task<BaseResposeDto> UpdateProductAsync(RequestUpdateProductDto request, Guid id, CurrentUserObject currentUserObject);
-        Task<BaseResposeDto> AddToCartAsync(RequestAddToCartDto request, CurrentUserObject currentUser);
+        Task<BaseResposeDto> AddToCartAsync(RequestAddMultipleToCartDto request, CurrentUserObject currentUser);
         Task<ResponseGetCartDto> GetCartAsync(CurrentUserObject currentUser);
-        Task<BaseResposeDto> RemoveFromCartAsync(Guid cartItemId, CurrentUserObject currentUser);
+        Task<BaseResposeDto> RemoveFromCartAsync(CurrentUserObject currentUser);
         Task ClearCartAndUpdateInventoryAsync(Guid orderId);
-        Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser);
+        Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, string? voucherCode = null);
         Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId);
         Task<BaseResposeDto> RateProductAsync(CreateProductRatingDto dto, Guid userId);
         Task<BaseResposeDto> ReviewProductAsync(CreateProductReviewDto dto, Guid userId);
         Task<double> GetAverageRatingAsync(Guid productId);
         Task<IEnumerable<ProductReviewDto>> GetProductReviewsAsync(Guid productId);
+        Task<ApplyVoucherResult> ApplyVoucherForCartAsync(string voucherCode, List<CartItemDto> cartItems);
+        Task<ResponseCreateVoucher> CreateAsync(CreateVoucherDto dto, Guid userId);
+        Task<ResponseGetVouchersDto> GetAllVouchersAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status);
+        Task<ResponseGetVoucherDto> GetVoucherByIdAsync(Guid id);
+        Task<BaseResposeDto> UpdateVoucherAsync(Guid id, UpdateVoucherDto dto, Guid userId);
+        Task<BaseResposeDto> DeleteVoucherAsync(Guid id);
+        Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, long? payOsOrderCode, bool? status);
     }
 }
