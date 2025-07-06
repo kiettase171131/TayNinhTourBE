@@ -2,9 +2,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Asn1.Ocsp;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.Services;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
@@ -76,7 +78,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
         [HttpPost("AddtoCart")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> AddToCart([FromBody] RequestAddToCartDto dto)
+        public async Task<IActionResult> AddToCart([FromBody] RequestAddMultipleToCartDto dto)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             var result = await _productService.AddToCartAsync(dto, currentUser);
@@ -98,12 +100,12 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <summary>
         /// Xoá 1 item khỏi giỏ hàng
         /// </summary>
-        [HttpDelete("RemoveCart/{cartItemId}")]
+        [HttpDelete("RemoveCart")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> RemoveCartItem(Guid cartItemId)
+        public async Task<IActionResult> RemoveCartItem()
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _productService.RemoveFromCartAsync(cartItemId, currentUser);
+            var result = await _productService.RemoveFromCartAsync(currentUser);
             return StatusCode(result.StatusCode, result);
         }
         [HttpPost("rate")]
@@ -156,12 +158,12 @@ namespace TayNinhTourApi.Controller.Controllers
             try
             {
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var result = await _productService.CheckoutCartAsync(dto.CartItemIds, currentUser);
+                var url = await _productService.CheckoutCartAsync(dto.CartItemIds, currentUser, dto.VoucherCode);
 
-                if (result == null)
+                if (url == null)
                     return BadRequest("Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho.");
 
-                return Ok(result);
+                return Ok(new { CheckoutUrl = url });
             }
             catch (InvalidOperationException ex)
             {
@@ -172,7 +174,50 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, "Có lỗi xảy ra: " + ex.Message);
             }
         }
+        [HttpGet("GetAll-Voucher")]
+        public async Task<IActionResult> GetAllVoucher([FromQuery] int? pageIndex, [FromQuery] int? pageSize, [FromQuery] string? textSearch, [FromQuery] bool? status)
+        {
+            var result = await _productService.GetAllVouchersAsync(pageIndex, pageSize, textSearch, status);
+            return StatusCode(result.StatusCode, result);
+        }
 
+        [HttpGet("GetVoucher/{id}")]
+        public async Task<IActionResult> GetVoucherById(Guid id)
+        {
+            var result = await _productService.GetVoucherByIdAsync(id);
+            return StatusCode(result.StatusCode, result);
+        }
 
+        [HttpPost("Create-Voucher")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+        public async Task<IActionResult> CreateVoucher([FromBody] CreateVoucherDto dto)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.CreateAsync(dto, currentUser.Id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPut("Update-Voucher/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+        public async Task<IActionResult> UpdateVoucher(Guid id, [FromBody] UpdateVoucherDto dto)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.UpdateVoucherAsync(id, dto, currentUser.Id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpDelete("Voucher/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Admin")]
+        public async Task<IActionResult> DeleteVoucher(Guid id)
+        {
+            var result = await _productService.DeleteVoucherAsync(id);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("Order")]
+        public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, long? payOsOrderCode, bool? status)
+        {
+            var result = await _productService.GetAllOrdersAsync(pageIndex, pageSize, payOsOrderCode, status);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
