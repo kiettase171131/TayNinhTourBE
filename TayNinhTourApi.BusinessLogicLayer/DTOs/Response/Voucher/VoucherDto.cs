@@ -6,12 +6,17 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher
 {
-    public class ResponseGetVouchersDto
+    public class VoucherDto
     {
-        public int StatusCode { get; set; }
-        public List<VoucherDto> Data { get; set; } = new();
-        public int TotalRecord { get; set; }
-        public int TotalPages { get; set; }
+        public Guid Id { get; set; }
+        public string Code { get; set; } = null!;
+        public decimal DiscountAmount { get; set; }
+        public int? DiscountPercent { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 
 }
