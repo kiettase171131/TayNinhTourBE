@@ -1150,13 +1150,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     _logger.LogInformation("Updated TourDetails {TourDetailsId} status from AwaitingGuideAssignment to WaitToPublic", tourDetailsId);
 
-                    // 3. Expire other pending invitations for this TourDetails
+                    // 3. Update TourOperation with accepted guide information
+                    await UpdateTourOperationWithGuideAsync(tourDetailsId, acceptedInvitationId);
+
+                    // 4. Expire other pending invitations for this TourDetails
                     var expiredCount = await _unitOfWork.TourGuideInvitationRepository
                         .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitationId);
 
                     _logger.LogInformation("Expired {Count} pending invitations for TourDetails {TourDetailsId}", expiredCount, tourDetailsId);
 
-                    // 4. Save all changes
+                    // 5. Save all changes
                     await _unitOfWork.SaveChangesAsync();
 
                     _logger.LogInformation("Successfully updated TourDetails {TourDetailsId} status and expired pending invitations", tourDetailsId);
@@ -1169,6 +1172,161 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
+                // Don't throw - this is a side effect, shouldn't break the main flow
+            }
+        }
+
+        /// <summary>
+        /// Debug method để manually update TourOperation với guide info
+        /// </summary>
+        /// <param name="invitationId">ID của invitation đã được accept</param>
+        /// <returns>Kết quả debug</returns>
+        public async Task<BaseResposeDto> DebugUpdateTourOperationAsync(Guid invitationId)
+        {
+            try
+            {
+                _logger.LogInformation("Debug: Starting manual TourOperation update for invitation {InvitationId}", invitationId);
+
+                // 1. Get the invitation
+                var invitation = await _unitOfWork.TourGuideInvitationRepository.GetByIdAsync(invitationId);
+                if (invitation == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Invitation không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                _logger.LogInformation("Debug: Found invitation - Status: {Status}, TourDetailsId: {TourDetailsId}, GuideId: {GuideId}",
+                    invitation.Status, invitation.TourDetailsId, invitation.GuideId);
+
+                if (invitation.Status != InvitationStatus.Accepted)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Invitation chưa được accept",
+                        IsSuccess = false
+                    };
+                }
+
+                // 2. Update TourDetails status if needed
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(invitation.TourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        IsSuccess = false
+                    };
+                }
+
+                _logger.LogInformation("Debug: Found TourDetails - Status: {Status}", tourDetails.Status);
+
+                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    tourDetails.Status = TourDetailsStatus.WaitToPublic;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+                    _logger.LogInformation("Debug: Updated TourDetails status to WaitToPublic");
+                }
+
+                // 3. Update TourOperation
+                await UpdateTourOperationWithGuideAsync(invitation.TourDetailsId, invitationId);
+
+                // 4. Save changes
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Debug: Successfully completed manual TourOperation update");
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Debug update thành công",
+                    IsSuccess = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Debug: Error in manual TourOperation update for invitation {InvitationId}: {Message}",
+                    invitationId, ex.Message);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi debug: {ex.Message}",
+                    IsSuccess = false
+                };
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật TourOperation với thông tin guide khi invitation được accept
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="acceptedInvitationId">ID của invitation được accept</param>
+        private async Task UpdateTourOperationWithGuideAsync(Guid tourDetailsId, Guid acceptedInvitationId)
+        {
+            try
+            {
+                _logger.LogInformation("Updating TourOperation with guide info for TourDetails {TourDetailsId}", tourDetailsId);
+
+                // 1. Get the accepted invitation to get guide info
+                var acceptedInvitation = await _unitOfWork.TourGuideInvitationRepository.GetByIdAsync(acceptedInvitationId);
+                if (acceptedInvitation == null)
+                {
+                    _logger.LogWarning("Accepted invitation {InvitationId} not found", acceptedInvitationId);
+                    return;
+                }
+                _logger.LogInformation("Found accepted invitation: GuideId={GuideId}", acceptedInvitation.GuideId);
+
+                // 2. Get TourOperation for this TourDetails
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
+                if (tourOperation == null)
+                {
+                    _logger.LogWarning("TourOperation not found for TourDetails {TourDetailsId}", tourDetailsId);
+                    return;
+                }
+                _logger.LogInformation("Found TourOperation: Id={OperationId}, CurrentTourGuideId={CurrentTourGuideId}",
+                    tourOperation.Id, tourOperation.TourGuideId);
+
+                // 3. Get guide User info from TourGuide
+                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(acceptedInvitation.GuideId);
+                if (tourGuide == null)
+                {
+                    _logger.LogWarning("TourGuide {GuideId} not found", acceptedInvitation.GuideId);
+                    return;
+                }
+                _logger.LogInformation("Found TourGuide: Id={TourGuideId}, UserId={UserId}",
+                    tourGuide.Id, tourGuide.UserId);
+
+                var guideUser = await _unitOfWork.UserRepository.GetByIdAsync(tourGuide.UserId);
+                if (guideUser == null)
+                {
+                    _logger.LogWarning("Guide User {UserId} not found", tourGuide.UserId);
+                    return;
+                }
+                _logger.LogInformation("Found Guide User: Id={UserId}, Name={Name}, Email={Email}",
+                    guideUser.Id, guideUser.Name, guideUser.Email);
+
+                // 4. Update TourOperation with guide info
+                var oldTourGuideId = tourOperation.TourGuideId;
+                tourOperation.TourGuideId = tourGuide.Id; // Use TourGuide ID
+                tourOperation.UpdatedAt = DateTime.UtcNow;
+
+                _logger.LogInformation("Updating TourOperation {OperationId}: TourGuideId {OldTourGuideId} -> {NewTourGuideId} (TourGuide: {TourGuideName})",
+                    tourOperation.Id, oldTourGuideId, tourGuide.Id, tourGuide.FullName);
+
+                await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
+
+                _logger.LogInformation("Successfully updated TourOperation {OperationId} with TourGuide {TourGuideId} (User: {UserId}) for TourDetails {TourDetailsId}",
+                    tourOperation.Id, tourGuide.Id, guideUser.Id, tourDetailsId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating TourOperation with guide info for TourDetails {TourDetailsId}: {Message}. StackTrace: {StackTrace}",
+                    tourDetailsId, ex.Message, ex.StackTrace);
                 // Don't throw - this is a side effect, shouldn't break the main flow
             }
         }

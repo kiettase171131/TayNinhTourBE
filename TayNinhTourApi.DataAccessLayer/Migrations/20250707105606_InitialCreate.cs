@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -1173,7 +1173,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     TourDetailsId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourDetails mà operation này thuộc về", collation: "ascii_general_ci"),
-                    GuideId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của User làm hướng dẫn viên cho tour này (optional)", collation: "ascii_general_ci"),
+                    TourGuideId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của TourGuide làm hướng dẫn viên cho tour này (optional)", collation: "ascii_general_ci"),
                     Price = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Giá tour cho operation này"),
                     MaxGuests = table.Column<int>(type: "int", nullable: false, comment: "Số lượng khách tối đa cho tour operation này"),
                     Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true, comment: "Mô tả bổ sung cho tour operation")
@@ -1184,6 +1184,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true, comment: "Trạng thái hoạt động của tour operation"),
                     CurrentBookings = table.Column<int>(type: "int", nullable: false, defaultValue: 0, comment: "Số lượng khách đã booking hiện tại"),
                     RowVersion = table.Column<DateTime>(type: "timestamp(6)", rowVersion: true, nullable: false, comment: "Row version cho optimistic concurrency control"),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
@@ -1205,8 +1206,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_TourOperations_TourGuides_GuideId",
-                        column: x => x.GuideId,
+                        name: "FK_TourOperations_TourGuides_TourGuideId",
+                        column: x => x.TourGuideId,
                         principalTable: "TourGuides",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
@@ -1217,17 +1218,16 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_TourOperations_Users_GuideId",
-                        column: x => x.GuideId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
                         name: "FK_TourOperations_Users_UpdatedById",
                         column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TourOperations_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1765,16 +1765,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 columns: new[] { "CurrentBookings", "MaxGuests" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_TourOperations_GuideId",
-                table: "TourOperations",
-                column: "GuideId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TourOperations_GuideId_IsActive",
-                table: "TourOperations",
-                columns: new[] { "GuideId", "IsActive" });
-
-            migrationBuilder.CreateIndex(
                 name: "IX_TourOperations_IsActive",
                 table: "TourOperations",
                 column: "IsActive");
@@ -1786,9 +1776,24 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_TourOperations_TourGuideId",
+                table: "TourOperations",
+                column: "TourGuideId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourOperations_TourGuideId_IsActive",
+                table: "TourOperations",
+                columns: new[] { "TourGuideId", "IsActive" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TourOperations_UpdatedById",
                 table: "TourOperations",
                 column: "UpdatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourOperations_UserId",
+                table: "TourOperations",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Tours_CreatedById",

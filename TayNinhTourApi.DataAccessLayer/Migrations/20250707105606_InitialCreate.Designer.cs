@@ -12,8 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250706151108_Init")]
-    partial class Init
+    [Migration("20250707105606_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1860,10 +1860,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("varchar(1000)")
                         .HasComment("Mô tả bổ sung cho tour operation");
 
-                    b.Property<Guid?>("GuideId")
-                        .HasColumnType("char(36)")
-                        .HasComment("ID của User làm hướng dẫn viên cho tour này (optional)");
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
@@ -1900,10 +1896,17 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("char(36)")
                         .HasComment("ID của TourDetails mà operation này thuộc về");
 
+                    b.Property<Guid?>("TourGuideId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của TourGuide làm hướng dẫn viên cho tour này (optional)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("char(36)");
 
                     b.HasKey("Id");
@@ -1913,9 +1916,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.HasIndex("CurrentBookings")
                         .HasDatabaseName("IX_TourOperations_CurrentBookings");
 
-                    b.HasIndex("GuideId")
-                        .HasDatabaseName("IX_TourOperations_GuideId");
-
                     b.HasIndex("IsActive")
                         .HasDatabaseName("IX_TourOperations_IsActive");
 
@@ -1923,13 +1923,18 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_TourOperations_TourDetailsId_Unique");
 
+                    b.HasIndex("TourGuideId")
+                        .HasDatabaseName("IX_TourOperations_TourGuideId");
+
                     b.HasIndex("UpdatedById");
+
+                    b.HasIndex("UserId");
 
                     b.HasIndex("CurrentBookings", "MaxGuests")
                         .HasDatabaseName("IX_TourOperations_CurrentBookings_MaxGuests");
 
-                    b.HasIndex("GuideId", "IsActive")
-                        .HasDatabaseName("IX_TourOperations_GuideId_IsActive");
+                    b.HasIndex("TourGuideId", "IsActive")
+                        .HasDatabaseName("IX_TourOperations_TourGuideId_IsActive");
 
                     b.ToTable("TourOperations", null, t =>
                         {
@@ -2719,30 +2724,27 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", "TourGuide")
-                        .WithMany("TourOperations")
-                        .HasForeignKey("GuideId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Guide")
-                        .WithMany("TourOperationsAsGuide")
-                        .HasForeignKey("GuideId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourDetails", "TourDetails")
                         .WithOne("TourOperation")
                         .HasForeignKey("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", "TourDetailsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", "TourGuide")
+                        .WithMany("TourOperations")
+                        .HasForeignKey("TourGuideId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
                         .WithMany("TourOperationsUpdated")
                         .HasForeignKey("UpdatedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("CreatedBy");
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", null)
+                        .WithMany("TourOperationsAsGuide")
+                        .HasForeignKey("UserId");
 
-                    b.Navigation("Guide");
+                    b.Navigation("CreatedBy");
 
                     b.Navigation("TourDetails");
 

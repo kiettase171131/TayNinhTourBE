@@ -30,7 +30,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         public int MaxSeats { get; set; }
 
         /// <summary>
-        /// ID của User làm hướng dẫn viên cho tour này (optional)
+        /// ID của TourGuide làm hướng dẫn viên cho tour này (optional)
         /// </summary>
         public Guid? GuideId { get; set; }
 

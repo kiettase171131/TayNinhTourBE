@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
@@ -179,9 +180,9 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="tourDetailsId">ID của TourDetails</param>
         /// <returns>Operation của TourDetails</returns>
         [HttpGet("details/{tourDetailsId:guid}")]
-        [ProducesResponseType(typeof(TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto), 200)]
+        [ProducesResponseType(typeof(ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>), 200)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>> GetOperationByTourDetails(Guid tourDetailsId)
+        public async Task<ActionResult<ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>>> GetOperationByTourDetails(Guid tourDetailsId)
         {
             try
             {
@@ -191,22 +192,30 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (operation == null)
                 {
-                    return NotFound(new BaseResposeDto
+                    return NotFound(new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
                     {
                         IsSuccess = false,
-                        Message = "TourDetails chưa có operation"
+                        Message = "TourDetails chưa có operation",
+                        StatusCode = 404
                     });
                 }
 
-                return Ok(operation);
+                return Ok(new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
+                {
+                    IsSuccess = true,
+                    Message = "Lấy thông tin operation thành công",
+                    StatusCode = 200,
+                    Data = operation
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting operation for TourDetails {TourDetailsId}", tourDetailsId);
-                return StatusCode(500, new BaseResposeDto
+                return StatusCode(500, new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
                 {
                     IsSuccess = false,
-                    Message = "Lỗi hệ thống khi lấy operation"
+                    Message = "Lỗi hệ thống khi lấy operation",
+                    StatusCode = 500
                 });
             }
         }

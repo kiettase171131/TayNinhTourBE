@@ -475,7 +475,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 var booking = await _unitOfWork.TourBookingRepository.GetByIdAsync(bookingId,
-                    new[] { "TourOperation", "TourOperation.TourDetails", "TourOperation.TourDetails.TourTemplate", "TourOperation.Guide", "User" });
+                    new[] { "TourOperation", "TourOperation.TourDetails", "TourOperation.TourDetails.TourTemplate", "TourOperation.TourGuide", "User" });
 
                 if (booking == null) return null;
 
@@ -793,8 +793,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     MaxGuests = booking.TourOperation.MaxGuests,
                     TourTitle = booking.TourOperation.TourDetails?.TourTemplate?.Title ?? "N/A",
                     TourDescription = null, // TourTemplate doesn't have Description field
-                    GuideName = booking.TourOperation.Guide?.Name,
-                    GuidePhone = booking.TourOperation.Guide?.PhoneNumber
+                    GuideName = booking.TourOperation.TourGuide?.FullName,
+                    GuidePhone = booking.TourOperation.TourGuide?.PhoneNumber
                 };
 
                 // Get tour date from TourSlot if available

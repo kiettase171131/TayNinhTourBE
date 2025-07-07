@@ -1123,8 +1123,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
 
                 // Get assigned guide info if exists
-                var assignedGuide = tourDetails.TourOperation?.GuideId != null
-                    ? await _unitOfWork.UserRepository.GetByIdAsync(tourDetails.TourOperation.GuideId.Value)
+                var assignedGuide = tourDetails.TourOperation?.TourGuideId != null
+                    ? await _unitOfWork.TourGuideRepository.GetByIdAsync(tourDetails.TourOperation.TourGuideId.Value)
                     : null;
 
                 var statusInfo = new
@@ -1136,7 +1136,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     AssignedGuide = assignedGuide != null ? new
                     {
                         Id = assignedGuide.Id,
-                        Name = assignedGuide.Name,
+                        Name = assignedGuide.FullName,
                         Email = assignedGuide.Email
                     } : null,
                     InvitationsSummary = new

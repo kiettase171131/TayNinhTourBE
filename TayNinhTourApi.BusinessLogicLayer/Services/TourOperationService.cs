@@ -75,8 +75,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // 4. VALIDATE TOUR READINESS: Skip for initial creation, only validate for updates
                 // Allow creating TourOperation for Pending TourDetails during wizard flow
-                // Validation will be enforced when TourDetails is approved by admin
-                if (tourDetails.Status == TourDetailsStatus.Approved)
+                // Validation will be enforced when TourDetails is approved by admin or public
+                if (tourDetails.Status == TourDetailsStatus.Approved || tourDetails.Status == TourDetailsStatus.Public)
                 {
                     var (isReady, readinessError) = await ValidateTourDetailsReadinessAsync(request.TourDetailsId);
                     if (!isReady)
@@ -91,16 +91,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 5. Validate Guide (nếu có)
+                // 5. Validate TourGuide (nếu có)
                 if (request.GuideId.HasValue)
                 {
-                    var guide = await _unitOfWork.UserRepository.GetByIdAsync(request.GuideId.Value);
-                    if (guide == null)
+                    var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(request.GuideId.Value);
+                    if (tourGuide == null)
                     {
                         return new ResponseCreateOperationDto
                         {
                             IsSuccess = false,
-                            Message = "Guide không hợp lệ"
+                            Message = "TourGuide không hợp lệ"
                         };
                     }
                 }
@@ -113,7 +113,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Price = request.Price,
                     MaxGuests = request.MaxSeats,
                     Description = request.Description,
-                    GuideId = request.GuideId,
+                    TourGuideId = request.GuideId,
                     Notes = request.Notes,
                     IsActive = request.IsActive,
                     CreatedAt = DateTime.UtcNow,
@@ -227,16 +227,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     // MaxGuests validation removed - now managed at operation level
                 }
 
-                // 3. Validate Guide (nếu thay đổi)
+                // 3. Validate TourGuide (nếu thay đổi)
                 if (request.GuideId.HasValue)
                 {
-                    var guide = await _unitOfWork.UserRepository.GetByIdAsync(request.GuideId.Value);
-                    if (guide == null)
+                    var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(request.GuideId.Value);
+                    if (tourGuide == null)
                     {
                         return new ResponseUpdateOperationDto
                         {
                             IsSuccess = false,
-                            Message = "Guide không hợp lệ"
+                            Message = "TourGuide không hợp lệ"
                         };
                     }
                 }
@@ -245,7 +245,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (request.Price.HasValue) operation.Price = request.Price.Value;
                 if (request.MaxSeats.HasValue) operation.MaxGuests = request.MaxSeats.Value;
                 if (request.Description != null) operation.Description = request.Description;
-                if (request.GuideId.HasValue) operation.GuideId = request.GuideId;
+                if (request.GuideId.HasValue) operation.TourGuideId = request.GuideId;
                 if (request.Notes != null) operation.Notes = request.Notes;
                 if (request.IsActive.HasValue) operation.IsActive = request.IsActive.Value;
 
@@ -379,12 +379,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // MaxGuests validation removed - now managed at operation level
 
-                // Check guide if provided
+                // Check TourGuide if provided
                 if (request.GuideId.HasValue)
                 {
-                    var guide = await _unitOfWork.UserRepository.GetByIdAsync(request.GuideId.Value);
-                    if (guide == null)
-                        return (false, "Guide không hợp lệ");
+                    var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(request.GuideId.Value);
+                    if (tourGuide == null)
+                        return (false, "TourGuide không hợp lệ");
                 }
 
                 return (true, string.Empty);
@@ -435,15 +435,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Allow creating TourOperation for Pending TourDetails (initial creation)
                 // Only require approval for updates or when TourGuide assignment is needed
-                if (tourDetails.Status != TourDetailsStatus.Approved && tourDetails.Status != TourDetailsStatus.Pending)
+                // Also allow Public status for ongoing operation management
+                if (tourDetails.Status != TourDetailsStatus.Approved &&
+                    tourDetails.Status != TourDetailsStatus.Pending &&
+                    tourDetails.Status != TourDetailsStatus.Public)
                 {
-                    return (false, "TourDetails phải ở trạng thái Pending hoặc Approved");
+                    return (false, "TourDetails phải ở trạng thái Pending, Approved hoặc Public");
                 }
 
                 var missingRequirements = new List<string>();
 
-                // 2. Check TourGuide Assignment (only for approved tours)
-                if (tourDetails.Status == TourDetailsStatus.Approved)
+                // 2. Check TourGuide Assignment (only for approved and public tours)
+                if (tourDetails.Status == TourDetailsStatus.Approved || tourDetails.Status == TourDetailsStatus.Public)
                 {
                     bool hasTourGuide = await ValidateTourGuideAssignmentAsync(tourDetailsId);
                     if (!hasTourGuide)
@@ -452,9 +455,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 3. Check SpecialtyShop Participation (only for approved tours)
+                // 3. Check SpecialtyShop Participation (only for approved and public tours)
                 // For pending tours, shops can be selected in timeline but not invited yet
-                if (tourDetails.Status == TourDetailsStatus.Approved)
+                if (tourDetails.Status == TourDetailsStatus.Approved || tourDetails.Status == TourDetailsStatus.Public)
                 {
                     bool hasSpecialtyShop = await ValidateSpecialtyShopParticipationAsync(tourDetailsId);
                     if (!hasSpecialtyShop)
@@ -551,12 +554,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                // 1. Check if TourDetails already has TourOperation with GuideId
+                // 1. Check if TourDetails already has TourOperation with TourGuideId
                 var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
-                if (existingOperation?.GuideId != null)
+                if (existingOperation?.TourGuideId != null)
                 {
-                    _logger.LogInformation("TourDetails {TourDetailsId} has direct guide assignment: {GuideId}",
-                        tourDetailsId, existingOperation.GuideId);
+                    _logger.LogInformation("TourDetails {TourDetailsId} has direct guide assignment: {TourGuideId}",
+                        tourDetailsId, existingOperation.TourGuideId);
                     return true;
                 }
 
@@ -619,13 +622,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // 1. Check direct assignment in TourOperation
                 var existingOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
-                if (existingOperation?.GuideId != null)
+                if (existingOperation?.TourGuideId != null)
                 {
                     guideInfo.HasDirectAssignment = true;
-                    guideInfo.DirectlyAssignedGuideId = existingOperation.GuideId;
+                    guideInfo.DirectlyAssignedGuideId = existingOperation.TourGuideId;
 
-                    var guide = await _unitOfWork.UserRepository.GetByIdAsync(existingOperation.GuideId.Value);
-                    guideInfo.DirectlyAssignedGuideName = guide?.Name ?? "Unknown Guide";
+                    var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(existingOperation.TourGuideId.Value);
+                    guideInfo.DirectlyAssignedGuideName = tourGuide?.FullName ?? "Unknown Guide";
                 }
 
                 // 2. Get invitation statistics

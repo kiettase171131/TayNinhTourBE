@@ -119,7 +119,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             // One-to-Many relationship with TourOperations
             builder.HasMany(tg => tg.TourOperations)
                 .WithOne(to => to.TourGuide)
-                .HasForeignKey(to => to.GuideId)
+                .HasForeignKey(to => to.TourGuideId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 

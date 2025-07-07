@@ -197,6 +197,31 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+        /// <summary>
+        /// Debug method để manually update TourOperation với guide info
+        /// </summary>
+        /// <param name="invitationId">ID của invitation đã được accept</param>
+        /// <returns>Kết quả debug</returns>
+        [HttpPost("{invitationId}/debug-update-tour-operation")]
+        [Authorize(Roles = "Tour Guide,Admin")]
+        public async Task<ActionResult<BaseResposeDto>> DebugUpdateTourOperation(Guid invitationId)
+        {
+            try
+            {
+                var result = await _invitationService.DebugUpdateTourOperationAsync(invitationId);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in debug update tour operation {InvitationId}", invitationId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Đã xảy ra lỗi khi debug update tour operation",
+                    IsSuccess = false
+                });
+            }
+        }
 
 
 

@@ -201,8 +201,8 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // 4. Lấy danh sách guide IDs đã busy
                 var busyGuideIds = existingOperations
-                    .Where(op => op.GuideId.HasValue)
-                    .Select(op => op.GuideId.Value)
+                    .Where(op => op.TourGuideId.HasValue)
+                    .Select(op => op.TourGuideId.Value)
                     .ToHashSet();
 
                 // 5. Filter available guides
