@@ -47,7 +47,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     Status = table.Column<int>(type: "int", nullable: false),
                     VoucherCode = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    PayOsOrderCode = table.Column<long>(type: "bigint", nullable: true),
+                    PayOsOrderCode = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),

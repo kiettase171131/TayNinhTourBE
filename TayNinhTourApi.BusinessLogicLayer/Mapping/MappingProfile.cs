@@ -197,7 +197,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #endregion
             #region Order Mapping
             CreateMap<OrderDetail, OrderDetailDto>()
-            .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product.Name));
+                .ForMember(dest => dest.ProductName, opt => opt.MapFrom(src => src.Product != null ? src.Product.Name : "N/A"));
 
             // Order -> OrderDto
             CreateMap<Order, OrderDto>()

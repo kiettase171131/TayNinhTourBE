@@ -26,8 +26,8 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <summary>
         /// PayOS callback khi thanh toán thành công
         /// URL: /api/payment-callback/paid/{orderCode}
-        /// Supports both numeric PayOsOrderCode and GUID Order.Id
-        /// Status = 1 (Paid) + Tr? stock + Xóa cart
+        /// Supports both string PayOsOrderCode (TNDT format) and GUID Order.Id
+        /// Status = 1 (Paid) + Trừ stock + Xóa cart
         /// </summary>
         [HttpPost("paid/{orderCode}")]
         public async Task<IActionResult> PaymentPaidCallback(string orderCode)
@@ -44,12 +44,9 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 Order? order = null;
 
-                // Try parse as numeric PayOsOrderCode first
-                if (long.TryParse(orderCode, out long numericOrderCode))
-                {
-                    Console.WriteLine($"Looking for order with PayOsOrderCode: {numericOrderCode}");
-                    order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == numericOrderCode, includes: new[] { "OrderDetails" });
-                }
+                // Try to find by PayOsOrderCode first (now string with TNDT format)
+                Console.WriteLine($"Looking for order with PayOsOrderCode: {orderCode}");
+                order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == orderCode, includes: new[] { "OrderDetails" });
 
                 // If not found, try parse as GUID Order.Id
                 if (order == null && Guid.TryParse(orderCode, out Guid orderGuid))
@@ -62,7 +59,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 if (order == null)
                 {
                     Console.WriteLine($"Order not found with orderCode: {orderCode}");
-                    return NotFound($"Không tìm th?y don hàng v?i orderCode: {orderCode}");
+                    return NotFound($"Không tìm thấy đơn hàng với orderCode: {orderCode}");
                 }
 
                 Console.WriteLine($"Found order: {order.Id}, Current Status: {order.Status}");
@@ -99,7 +96,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new
                 {
-                    message = "Thanh toán thành công - Ðã c?p nh?t tr?ng thái và tr? stock",
+                    message = "Thanh toán thành công - Đã cập nhật trạng thái và trừ stock",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status, // = 1
@@ -113,20 +110,19 @@ namespace TayNinhTourApi.Controller.Controllers
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return StatusCode(StatusCodes.Status500InternalServerError, new
                 {
-                    message = "Có l?i x?y ra khi x? lý thanh toán thành công.",
+                    message = "Có lỗi xảy ra khi xử lý thanh toán thành công.",
                     error = ex.Message
                 });
             }
         }
 
         /// <summary>
-        /// PayOS callback khi thanh toán b? h?y
+        /// PayOS callback khi thanh toán bị hủy
         /// URL: /api/payment-callback/cancelled/{orderCode}
-        /// Supports both numeric PayOsOrderCode and GUID Order.Id
-        /// Status = 2 (Cancelled) + KHÔNG tr? stock + KHÔNG xóa cart
+        /// Supports both string PayOsOrderCode (TNDT format) and GUID Order.Id
+        /// Status = 2 (Cancelled) + KHÔNG trừ stock + KHÔNG xóa cart
         /// </summary>
         [HttpPost("cancelled/{orderCode}")]
-
         public async Task<IActionResult> PaymentCancelledCallback(string orderCode)
         {
             try
@@ -141,12 +137,9 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 Order? order = null;
 
-                // Try parse as numeric PayOsOrderCode first
-                if (long.TryParse(orderCode, out long numericOrderCode))
-                {
-                    Console.WriteLine($"Looking for order with PayOsOrderCode: {numericOrderCode}");
-                    order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == numericOrderCode);
-                }
+                // Try to find by PayOsOrderCode first (now string with TNDT format)
+                Console.WriteLine($"Looking for order with PayOsOrderCode: {orderCode}");
+                order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == orderCode);
 
                 // If not found, try parse as GUID Order.Id
                 if (order == null && Guid.TryParse(orderCode, out Guid orderGuid))
@@ -158,12 +151,12 @@ namespace TayNinhTourApi.Controller.Controllers
                 if (order == null)
                 {
                     Console.WriteLine($"Order not found with orderCode: {orderCode}");
-                    return NotFound($"Không tìm th?y don hàng v?i orderCode: {orderCode}");
+                    return NotFound($"Không tìm thấy đơn hàng với orderCode: {orderCode}");
                 }
 
                 Console.WriteLine($"Found order: {order.Id}, Current Status: {order.Status}");
 
-                // ? Ch? d?i status thành CANCELLED - KHÔNG tr? stock, KHÔNG xóa cart
+                // Chỉ đổi status thành CANCELLED - KHÔNG trừ stock, KHÔNG xóa cart
                 Console.WriteLine("Processing CANCELLED status...");
                 order.Status = OrderStatus.Cancelled;
                 await _orderRepository.UpdateAsync(order);
@@ -172,13 +165,13 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new
                 {
-                    message = "Thanh toán dã b? h?y - Ch? c?p nh?t tr?ng thái, KHÔNG tr? stock",
+                    message = "Thanh toán đã bị hủy - Chỉ cập nhật trạng thái, KHÔNG trừ stock",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status, // = 2
                     stockUpdated = false,
                     cartCleared = false,
-                    note = "Stock và cart du?c gi? nguyên"
+                    note = "Stock và cart được giữ nguyên"
                 });
             }
             catch (Exception ex)
@@ -187,7 +180,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return StatusCode(StatusCodes.Status500InternalServerError, new
                 {
-                    message = "Có l?i x?y ra khi x? lý h?y thanh toán.",
+                    message = "Có lỗi xảy ra khi xử lý hủy thanh toán.",
                     error = ex.Message
                 });
             }

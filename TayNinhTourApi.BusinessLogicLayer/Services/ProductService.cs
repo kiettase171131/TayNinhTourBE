@@ -644,7 +644,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             if (totalAfterDiscount <= 0)
                 throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
-            var payOsOrderCode = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                
+            // Tạo PayOsOrderCode với format TNDT + 10 số
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+            var random = new Random().Next(100, 999).ToString(); // 3 số random
+            var payOsOrderCodeString = $"TNDT{timestamp.Substring(Math.Max(0, timestamp.Length - 7))}{random}";
+            
+            // Lưu vào DB dưới dạng string thay vì long
             var order = new Order
             {
                 UserId = currentUser.Id,
@@ -655,7 +661,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 CreatedAt = DateTime.UtcNow,
                 CreatedById = currentUser.Id,
                 VoucherCode = voucherCode,
-                PayOsOrderCode = payOsOrderCode,
+                PayOsOrderCode = payOsOrderCodeString, // Lưu string với prefix TNDT
                 OrderDetails = cartItems.Select(x => new OrderDetail
                 {
                     ProductId = x.ProductId,
@@ -669,9 +675,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             await _orderRepository.AddAsync(order);
             await _orderRepository.SaveChangesAsync();
 
+            // Truyền PayOsOrderCode thay vì order.Id để URL callback hiển thị đúng mã đơn hàng
             var checkoutUrl = await _payOsService.CreatePaymentUrlAsync(
                 totalAfterDiscount,
-                order.Id.ToString(),
+                payOsOrderCodeString, // Sử dụng PayOsOrderCode thay vì order.Id.ToString()
                 "https://tndt.netlify.app"
             );
 
@@ -692,7 +699,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (order == null)
                 throw new Exception("Không tìm thấy đơn hàng");
 
-            var status = await _payOsService.GetOrderPaymentStatusAsync(order.Id.ToString());
+            var status = await _payOsService.GetOrderPaymentStatusAsync(order.PayOsOrderCode.ToString());
 
             // Nếu muốn cập nhật status trong DB thì xử lý tại service này (không ở controller)
             if (order.Status != status)
@@ -1009,46 +1016,62 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 IsSuccess = true
             };
         }
-        public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, long? payOsOrderCode, bool? status)
-        {       
-            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
-            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;           
-
-            var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted);
-
-            // lọc theo status (IsActive)
-            if (status.HasValue)
+        public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
+        {
+            try
             {
-                predicate = predicate.And(x => x.IsActive == status.Value);
-            }
-            if (payOsOrderCode.HasValue)
-            {
-                predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode.Value);
-            }
+                var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+                var pageSizeValue = pageSize ?? Constants.PageSizeDefault;           
 
-            // lấy danh sách + phân trang
-            var orders = await _orderRepository.GenericGetPaginationAsync(
-                pageIndexValue,
-                pageSizeValue,
-                predicate,
-                new[] {
-            nameof(Order.OrderDetails),
-            $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted);
+
+                // lọc theo status (IsActive)
+                if (status.HasValue)
+                {
+                    predicate = predicate.And(x => x.IsActive == status.Value);
                 }
-            );
+                if (!string.IsNullOrEmpty(payOsOrderCode))
+                {
+                    predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode);
+                }
 
-            var totalOrders = orders.Count();
-            var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
+                // lấy danh sách + phân trang
+                var orders = await _orderRepository.GenericGetPaginationAsync(
+                    pageIndexValue,
+                    pageSizeValue,
+                    predicate,
+                    new[] {
+                nameof(Order.OrderDetails),
+                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                    }
+                );
 
-            return new ResponseGetOrdersDto
+                var totalOrders = orders.Count();
+                var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
+
+                // Debug: Log thông tin orders trước khi mapping
+                Console.WriteLine($"Found {totalOrders} orders to map");
+                
+                if (orders.Any())
+                {
+                    var firstOrder = orders.First();
+                    Console.WriteLine($"First order - Id: {firstOrder.Id}, PayOsOrderCode: {firstOrder.PayOsOrderCode}, OrderDetails count: {firstOrder.OrderDetails?.Count}");
+                }
+
+                return new ResponseGetOrdersDto
+                {
+                    StatusCode = 200,
+                    Data = _mapper.Map<List<OrderDto>>(orders),
+                    TotalRecord = totalOrders,
+                    TotalPages = totalPages
+                };
+            }
+            catch (Exception ex)
             {
-                StatusCode = 200,
-                Data = _mapper.Map<List<OrderDto>>(orders),
-                TotalRecord = totalOrders,
-                TotalPages = totalPages
-            };
+                Console.WriteLine($"GetAllOrdersAsync error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw; // Re-throw để controller có thể handle
+            }
         }
-
-
     }
 }

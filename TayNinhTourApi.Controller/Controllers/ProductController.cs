@@ -216,10 +216,26 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
         }
         [HttpGet("Order")]
-        public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, long? payOsOrderCode, bool? status)
+        public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
         {
-            var result = await _productService.GetAllOrdersAsync(pageIndex, pageSize, payOsOrderCode, status);
-            return StatusCode(result.StatusCode, result);
+            try
+            {
+                var result = await _productService.GetAllOrdersAsync(pageIndex, pageSize, payOsOrderCode, status);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetAllOrder Controller error: {ex.Message}");
+                Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                
+                return StatusCode(500, new 
+                { 
+                    message = "Internal server error", 
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message 
+                });
+            }
         }
     }
 }

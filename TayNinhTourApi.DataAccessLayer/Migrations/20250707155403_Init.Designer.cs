@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250706151108_Init")]
+    [Migration("20250707155403_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -353,8 +353,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<long?>("PayOsOrderCode")
-                        .HasColumnType("bigint");
+                    b.Property<string>("PayOsOrderCode")
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

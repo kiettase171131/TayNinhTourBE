@@ -30,15 +30,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             List<ItemData> items = new List<ItemData>();
 
             PayOS payOS = new PayOS(clientId, apiKey, checksumKey);
-            var orderCode2 = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var orderCodeDisplay = $"TNDT{orderCode2}";
+            
+            // orderCode đã được truyền vào với format TNDT + 10 số
+            var payOsOrderCodeString = orderCode; // Sử dụng orderCode đã truyền vào
+            
+            // PayOS yêu cầu orderCode phải là số, nên chỉ lấy phần số từ orderCode (loại bỏ "TNDT")
+            var numericPart = orderCode.StartsWith("TNDT") ? orderCode.Substring(4) : orderCode;
+            var orderCode2 = long.Parse(numericPart);
+            
+            var orderCodeDisplay = payOsOrderCodeString;
             PaymentData paymentData = new PaymentData(
              orderCode: orderCode2,
              amount: (int)amount,
              description: $"{orderCodeDisplay}",
              items: items,
-             cancelUrl: "https://tndt.netlify.app/about",
-             returnUrl: "https://tndt.netlify.app/blog",
+             cancelUrl: $"https://tndt.netlify.app/payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+             returnUrl: $"https://tndt.netlify.app/payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
              buyerName: "kiet");
             CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
             return createPayment.checkoutUrl;

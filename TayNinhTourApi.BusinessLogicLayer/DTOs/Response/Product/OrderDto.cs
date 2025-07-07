@@ -16,7 +16,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
         public decimal TotalAfterDiscount { get; set; }
         public OrderStatus Status { get; set; }
         public string? VoucherCode { get; set; }
-        public long? PayOsOrderCode { get; set; }
+        public string? PayOsOrderCode { get; set; } // Thay đổi từ long? thành string? để phù hợp với Order entity
 
         public DateTime CreatedAt { get; set; }
 

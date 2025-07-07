@@ -18,9 +18,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string? VoucherCode { get; set; }
 
         /// <summary>
-        /// PayOS numeric order code for payment tracking
+        /// PayOS order code with TNDT prefix for display and tracking
+        /// Format: TNDT + 10 digits (7 from timestamp + 3 random)
         /// </summary>
-        public long? PayOsOrderCode { get; set; }
+        public string? PayOsOrderCode { get; set; }
        
         public virtual ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
     }
