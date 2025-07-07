@@ -55,9 +55,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.InvitedSpecialtyShops, opt => opt.MapFrom(src => src.InvitedSpecialtyShops));
 
             CreateMap<TimelineItem, TimelineItemDto>()
-                .ForMember(dest => dest.CheckInTime, opt => opt.MapFrom(src => src.CheckInTime.ToString(@"hh\:mm")));
-            // TODO: Update SpecialtyShop mapping after DTO updates
-            // .ForMember(dest => dest.SpecialtyShop, opt => opt.MapFrom(src => src.SpecialtyShop));
+                .ForMember(dest => dest.CheckInTime, opt => opt.MapFrom(src => src.CheckInTime.ToString(@"hh\:mm")))
+                .ForMember(dest => dest.SpecialtyShop, opt => opt.MapFrom(src => src.SpecialtyShop));
 
             // TourDetailsSpecialtyShop mappings
             CreateMap<TourDetailsSpecialtyShop, TourDetailsSpecialtyShopDto>()

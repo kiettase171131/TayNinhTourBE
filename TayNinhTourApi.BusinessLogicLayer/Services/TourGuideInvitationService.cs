@@ -598,26 +598,62 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByGuideAsync(guideId, status);
 
-                // Map to DTOs (simplified for now)
-                var invitationDtos = invitations.Select(inv => new
+                // Map to proper DTOs
+                var invitationDtos = invitations.Select(inv => new TourGuideInvitationDto
                 {
                     Id = inv.Id,
-                    TourTitle = inv.TourDetails.Title,
-                    TourCompany = inv.CreatedBy.Name,
+                    TourDetails = new TourDetailsBasicDto
+                    {
+                        Id = inv.TourDetails.Id,
+                        Title = inv.TourDetails.Title,
+                        Description = inv.TourDetails.Description,
+                        SkillsRequired = inv.TourDetails.SkillsRequired,
+                        Status = inv.TourDetails.Status.ToString(),
+                        CreatedAt = inv.TourDetails.CreatedAt
+                    },
+                    Guide = new UserBasicDto
+                    {
+                        Id = inv.TourGuide?.Id ?? Guid.Empty,
+                        Name = inv.TourGuide?.FullName ?? "Unknown",
+                        Email = inv.TourGuide?.Email ?? "Unknown",
+                        PhoneNumber = inv.TourGuide?.PhoneNumber
+                    },
+                    CreatedBy = new UserBasicDto
+                    {
+                        Id = inv.CreatedBy?.Id ?? Guid.Empty,
+                        Name = inv.CreatedBy?.Name ?? "Unknown",
+                        Email = inv.CreatedBy?.Email ?? "Unknown",
+                        PhoneNumber = inv.CreatedBy?.PhoneNumber
+                    },
                     InvitationType = inv.InvitationType.ToString(),
                     Status = inv.Status.ToString(),
                     InvitedAt = inv.InvitedAt,
                     ExpiresAt = inv.ExpiresAt,
-                    RespondedAt = inv.RespondedAt
+                    RespondedAt = inv.RespondedAt,
+                    RejectionReason = inv.RejectionReason,
+                    ImprovementSuggestion = null // TODO: Add if needed
+                    // Note: HoursUntilExpiry, CanAccept, CanReject are computed properties
                 }).ToList();
+
+                // Calculate statistics
+                var stats = new InvitationStatisticsDto
+                {
+                    TotalInvitations = invitations.Count(),
+                    PendingCount = invitations.Count(i => i.Status == InvitationStatus.Pending),
+                    AcceptedCount = invitations.Count(i => i.Status == InvitationStatus.Accepted),
+                    RejectedCount = invitations.Count(i => i.Status == InvitationStatus.Rejected),
+                    ExpiredCount = invitations.Count(i => i.Status == InvitationStatus.Expired),
+                    LatestInvitation = invitations.OrderByDescending(i => i.InvitedAt).FirstOrDefault()?.InvitedAt,
+                    LatestResponse = invitations.Where(i => i.RespondedAt.HasValue).OrderByDescending(i => i.RespondedAt).FirstOrDefault()?.RespondedAt
+                };
 
                 return new MyInvitationsResponseDto
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lời mời thành công",
                     IsSuccess = true,
-                    Invitations = new List<TourGuideInvitationDto>(), // TODO: Map properly
-                    Statistics = new InvitationStatisticsDto()
+                    Invitations = invitationDtos,
+                    Statistics = stats
                 };
             }
             catch (Exception ex)

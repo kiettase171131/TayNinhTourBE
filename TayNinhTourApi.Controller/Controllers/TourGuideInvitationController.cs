@@ -57,18 +57,33 @@ namespace TayNinhTourApi.Controller.Controllers
                 }
 
                 // Tìm TourGuide record từ User ID
+                _logger.LogInformation("Looking for TourGuide with UserId: {UserId}", currentUserId);
+
+                // Debug: Kiểm tra tất cả TourGuides
+                var allTourGuides = await _context.TourGuides.ToListAsync();
+                _logger.LogInformation("Total TourGuides in database: {Count}", allTourGuides.Count);
+                foreach (var tg in allTourGuides)
+                {
+                    _logger.LogInformation("TourGuide: Id={Id}, UserId={UserId}, IsActive={IsActive}, FullName={FullName}",
+                        tg.Id, tg.UserId, tg.IsActive, tg.FullName);
+                }
+
                 var tourGuide = await _context.TourGuides
                     .FirstOrDefaultAsync(tg => tg.UserId == currentUserId && tg.IsActive);
 
                 if (tourGuide == null)
                 {
+                    _logger.LogWarning("TourGuide not found for UserId: {UserId}", currentUserId);
                     return NotFound(new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy thông tin TourGuide",
+                        Message = $"Không tìm thấy thông tin TourGuide cho UserId: {currentUserId}",
                         IsSuccess = false
                     });
                 }
+
+                _logger.LogInformation("Found TourGuide: Id={GuideId}, UserId={UserId}, FullName={FullName}",
+                    tourGuide.Id, tourGuide.UserId, tourGuide.FullName);
 
                 // Parse status if provided
                 InvitationStatus? invitationStatus = null;
@@ -255,6 +270,56 @@ namespace TayNinhTourApi.Controller.Controllers
                     Message = "Có lỗi xảy ra khi từ chối lời mời",
                     IsSuccess = false
                 });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Kiểm tra TourGuide records cho User ID
+        /// </summary>
+        [HttpGet("debug/tourguide/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> DebugTourGuideMapping(Guid userId)
+        {
+            try
+            {
+                var tourGuides = await _context.TourGuides
+                    .Where(tg => tg.UserId == userId)
+                    .Select(tg => new
+                    {
+                        tg.Id,
+                        tg.UserId,
+                        tg.FullName,
+                        tg.Email,
+                        tg.Skills,
+                        tg.IsActive,
+                        tg.CreatedAt
+                    })
+                    .ToListAsync();
+
+                var invitations = await _context.TourGuideInvitations
+                    .Where(i => tourGuides.Select(tg => tg.Id).Contains(i.GuideId))
+                    .Select(i => new
+                    {
+                        i.Id,
+                        i.GuideId,
+                        i.TourDetailsId,
+                        i.Status,
+                        i.InvitedAt
+                    })
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    UserId = userId,
+                    TourGuides = tourGuides,
+                    Invitations = invitations,
+                    Message = $"Found {tourGuides.Count} TourGuide records and {invitations.Count} invitations"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error debugging TourGuide mapping for {UserId}", userId);
+                return StatusCode(500, new { Error = ex.Message });
             }
         }
 

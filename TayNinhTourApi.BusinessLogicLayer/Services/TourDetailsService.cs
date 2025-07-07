@@ -849,8 +849,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TourDetailsId = request.TourDetailsId,
                     CheckInTime = TimeSpan.Parse(request.CheckInTime),
                     Activity = request.Activity,
-                    // TODO: Update after DTO changes
-                    // SpecialtyShopId = request.SpecialtyShopId,
+                    SpecialtyShopId = request.SpecialtyShopId,
                     SortOrder = await GetNextSortOrderAsync(request.TourDetailsId),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
@@ -963,8 +962,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             TourDetailsId = request.TourDetailsId,
                             CheckInTime = checkInTime,
                             Activity = itemRequest.Activity,
-                            // TODO: Update after DTO changes
-                            // SpecialtyShopId = itemRequest.SpecialtyShopId,
+                            SpecialtyShopId = itemRequest.SpecialtyShopId,
                             SortOrder = itemRequest.SortOrder.HasValue ? itemRequest.SortOrder.Value : (++currentMaxSortOrder),
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,
@@ -1332,22 +1330,35 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return;
                 }
 
-                _logger.LogInformation("Triggering TourGuide invitations for TourDetails {TourDetailId} with skills: {Skills}",
-                    tourDetail.Id, tourDetail.SkillsRequired);
+                _logger.LogInformation("=== STARTING TOURGUIDE INVITATION PROCESS ===");
+                _logger.LogInformation("TourDetails ID: {TourDetailId}", tourDetail.Id);
+                _logger.LogInformation("TourDetails Title: {Title}", tourDetail.Title);
+                _logger.LogInformation("Skills Required: {SkillsRequired}", tourDetail.SkillsRequired);
+                _logger.LogInformation("Admin ID: {AdminId}", adminId);
 
                 using var scope = _serviceProvider.CreateScope();
                 var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
+
+                _logger.LogInformation("TourGuideInvitationService resolved successfully");
+
                 var invitationResult = await invitationService.CreateAutomaticInvitationsAsync(tourDetail.Id, adminId);
+
+                _logger.LogInformation("CreateAutomaticInvitationsAsync completed");
+                _logger.LogInformation("Result Success: {IsSuccess}", invitationResult.IsSuccess);
+                _logger.LogInformation("Result Message: {Message}", invitationResult.Message);
+                _logger.LogInformation("Result StatusCode: {StatusCode}", invitationResult.StatusCode);
 
                 if (invitationResult.IsSuccess)
                 {
-                    _logger.LogInformation("Successfully created TourGuide invitations for TourDetails {TourDetailId}", tourDetail.Id);
+                    _logger.LogInformation("✅ Successfully created TourGuide invitations for TourDetails {TourDetailId}", tourDetail.Id);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to create TourGuide invitations for TourDetails {TourDetailId}: {Message}",
+                    _logger.LogWarning("❌ Failed to create TourGuide invitations for TourDetails {TourDetailId}: {Message}",
                         tourDetail.Id, invitationResult.Message);
                 }
+
+                _logger.LogInformation("=== TOURGUIDE INVITATION PROCESS COMPLETED ===");
             }
             catch (Exception ex)
             {
