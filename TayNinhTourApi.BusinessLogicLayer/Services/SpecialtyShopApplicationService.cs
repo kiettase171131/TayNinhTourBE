@@ -65,7 +65,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 400,
                     Message = "You already have an active specialty shop application. Please wait for processing or contact support.",
-                    IsSuccess = false,
+                    success = false,
                     Instructions = "Please wait for your current application to be processed or contact support for assistance."
                 };
             }
@@ -109,7 +109,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = businessLicenseUrl,
-                        IsSuccess = false,
+                        success = false,
                         Instructions = "Please check your business license file and try again. Make sure the file is in correct format and size."
                     };
                 }
@@ -130,7 +130,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = logoUrl,
-                        IsSuccess = false,
+                        success = false,
                         Instructions = "Please check your logo file and try again. Make sure the file is in correct format and size."
                     };
                 }
@@ -150,7 +150,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Specialty shop application submitted successfully",
-                    IsSuccess = true,
+                    success = true,
                     ApplicationId = application.Id,
                     ShopName = application.ShopName,
                     LogoUrl = application.LogoUrl,
@@ -165,7 +165,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"An error occurred while submitting application: {ex.Message}",
-                    IsSuccess = false,
+                    success = false,
                     Instructions = "An unexpected error occurred. Please try again later or contact support if the problem persists."
                 };
             }

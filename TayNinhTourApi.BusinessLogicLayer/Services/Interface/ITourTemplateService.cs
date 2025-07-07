@@ -159,7 +159,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="overwriteExisting">Có ghi đè slots đã tồn tại không</param>
         /// <param name="autoActivate">Có tự động kích hoạt slots không</param>
         /// <returns>Response với thông tin slots đã tạo</returns>
-        Task<(bool IsSuccess, string Message, int CreatedSlotsCount)> GenerateSlotsForTemplateAsync(
+        Task<(bool success, string Message, int CreatedSlotsCount)> GenerateSlotsForTemplateAsync(
             Guid templateId, int month, int year, bool overwriteExisting = false, bool autoActivate = true);
     }
 }

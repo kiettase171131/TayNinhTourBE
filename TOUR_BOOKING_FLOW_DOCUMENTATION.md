@@ -291,7 +291,7 @@ using var transaction = await _context.Database
 {
   "statusCode": 400,
   "message": "Tour đã hết chỗ hoặc không đủ chỗ cho số lượng khách yêu cầu",
-  "isSuccess": false
+  "success": false
 }
 ```
 
@@ -300,7 +300,7 @@ using var transaction = await _context.Database
 {
   "statusCode": 409,
   "message": "Có người khác đã đặt tour, vui lòng thử lại",
-  "isSuccess": false
+  "success": false
 }
 ```
 
@@ -309,7 +309,7 @@ using var transaction = await _context.Database
 {
   "statusCode": 404,
   "message": "Tour operation không tồn tại hoặc không còn hoạt động",
-  "isSuccess": false
+  "success": false
 }
 ```
 
@@ -579,7 +579,7 @@ services.AddLogging(builder => {
   },
   "statusCode": 201,
   "message": "Đặt tour thành công",
-  "isSuccess": true
+  "success": true
 }
 ```
 

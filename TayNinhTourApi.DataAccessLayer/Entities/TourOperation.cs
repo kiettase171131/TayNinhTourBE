@@ -17,10 +17,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public Guid TourDetailsId { get; set; }
 
         /// <summary>
-        /// ID của User làm hướng dẫn viên cho tour này (optional)
-        /// Relationship: Many-to-One với User (Guide)
+        /// ID của TourGuide làm hướng dẫn viên cho tour này (optional)
+        /// Relationship: Many-to-One với TourGuide
         /// </summary>
-        public Guid? GuideId { get; set; }
+        public Guid? TourGuideId { get; set; }
 
         /// <summary>
         /// Giá tour cho operation này
@@ -86,13 +86,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public virtual TourDetails TourDetails { get; set; } = null!;
 
         /// <summary>
-        /// User làm hướng dẫn viên cho tour này (optional)
-        /// Relationship: Many-to-One
-        /// </summary>
-        public virtual User? Guide { get; set; }
-
-        /// <summary>
-        /// TourGuide operational record for this tour (optional)
+        /// TourGuide làm hướng dẫn viên cho tour này (optional)
         /// Relationship: Many-to-One with TourGuide
         /// </summary>
         public virtual TourGuide? TourGuide { get; set; }

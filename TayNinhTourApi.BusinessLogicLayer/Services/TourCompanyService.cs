@@ -244,7 +244,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourDetails không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -255,7 +255,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = $"TourDetails phải ở trạng thái WaitToPublic để có thể kích hoạt public. Trạng thái hiện tại: {tourDetails.Status}",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -266,7 +266,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 403,
                         Message = "Bạn không có quyền kích hoạt public cho TourDetails này",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -282,7 +282,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Đã kích hoạt public cho TourDetails thành công. Khách hàng có thể booking tour này.",
-                    IsSuccess = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -291,7 +291,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi kích hoạt public: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }

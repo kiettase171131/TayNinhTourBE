@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
@@ -52,14 +53,14 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return BadRequest(new BaseResposeDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Dữ liệu không hợp lệ"
                     });
                 }
 
                 var result = await _tourOperationService.CreateOperationAsync(request);
 
-                if (!result.IsSuccess)
+                if (!result.success)
                 {
                     // Handle different types of validation errors with appropriate HTTP status codes
                     if (result.Message.Contains("không tồn tại"))
@@ -89,7 +90,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error creating operation for TourDetails {TourDetailsId}", request.TourDetailsId);
                 return StatusCode(500, new BaseResposeDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Lỗi hệ thống khi tạo operation"
                 });
             }
@@ -126,7 +127,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error checking readiness for TourDetails {TourDetailsId}", tourDetailsId);
                 return StatusCode(500, new BaseResposeDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Lỗi hệ thống khi kiểm tra tính sẵn sàng"
                 });
             }
@@ -154,7 +155,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     TourDetailsId = tourDetailsId,
                     CanCreate = isReady,
                     Message = isReady ? "Tour có thể được public" : errorMessage,
-                    IsSuccess = true
+                    success = true
                 };
 
                 _logger.LogInformation("Can create operation check for TourDetails {TourDetailsId}: {CanCreate}",
@@ -167,7 +168,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error checking if can create operation for TourDetails {TourDetailsId}", tourDetailsId);
                 return StatusCode(500, new BaseResposeDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Lỗi hệ thống khi kiểm tra khả năng tạo operation"
                 });
             }
@@ -179,9 +180,9 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="tourDetailsId">ID của TourDetails</param>
         /// <returns>Operation của TourDetails</returns>
         [HttpGet("details/{tourDetailsId:guid}")]
-        [ProducesResponseType(typeof(TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto), 200)]
+        [ProducesResponseType(typeof(ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>), 200)]
         [ProducesResponseType(404)]
-        public async Task<ActionResult<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>> GetOperationByTourDetails(Guid tourDetailsId)
+        public async Task<ActionResult<ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>>> GetOperationByTourDetails(Guid tourDetailsId)
         {
             try
             {
@@ -191,22 +192,30 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (operation == null)
                 {
-                    return NotFound(new BaseResposeDto
+                    return NotFound(new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
                     {
-                        IsSuccess = false,
-                        Message = "TourDetails chưa có operation"
+                        success = false,
+                        Message = "TourDetails chưa có operation",
+                        StatusCode = 404
                     });
                 }
 
-                return Ok(operation);
+                return Ok(new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
+                {
+                    success = true,
+                    Message = "Lấy thông tin operation thành công",
+                    StatusCode = 200,
+                    Data = operation
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting operation for TourDetails {TourDetailsId}", tourDetailsId);
-                return StatusCode(500, new BaseResposeDto
+                return StatusCode(500, new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
                 {
-                    IsSuccess = false,
-                    Message = "Lỗi hệ thống khi lấy operation"
+                    success = false,
+                    Message = "Lỗi hệ thống khi lấy operation",
+                    StatusCode = 500
                 });
             }
         }
@@ -234,14 +243,14 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return BadRequest(new BaseResposeDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Dữ liệu không hợp lệ"
                     });
                 }
 
                 var result = await _tourOperationService.UpdateOperationAsync(id, request);
 
-                if (!result.IsSuccess)
+                if (!result.success)
                 {
                     if (result.Message.Contains("không tồn tại"))
                         return NotFound(result);
@@ -256,7 +265,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error updating operation {OperationId}", id);
                 return StatusCode(500, new BaseResposeDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Lỗi hệ thống khi cập nhật operation"
                 });
             }
@@ -280,7 +289,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var result = await _tourOperationService.DeleteOperationAsync(id);
 
-                if (!result.IsSuccess)
+                if (!result.success)
                 {
                     if (result.Message.Contains("không tồn tại"))
                         return NotFound(result);
@@ -295,7 +304,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error deleting operation {OperationId}", id);
                 return StatusCode(500, new BaseResposeDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Lỗi hệ thống khi xóa operation"
                 });
             }

@@ -65,7 +65,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Change Password successfully",
-                    IsSuccess = true
+                    success = true
                 };
             }
             else
@@ -92,7 +92,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetProfileDto
             {
                 StatusCode = 200,
-                IsSuccess = true,
+                success = true,
                 Data = profile,
             };
         }
@@ -175,7 +175,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Update Avatar successfully",
-                IsSuccess = true,
+                success = true,
                 Data = fullAvatarUrl
             };
 
@@ -244,7 +244,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Update Profile successfully",
-                IsSuccess = true
+                success = true
             };
         }
 

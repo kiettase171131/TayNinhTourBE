@@ -66,7 +66,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "User deleted successfully",
-                IsSuccess = true
+                success = true
             };
         }
 
@@ -113,7 +113,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog found successfully",
-                IsSuccess = true,
+                success = true,
                 Data = dtos,
                 TotalRecord = totalblogs,
                 TotalPages = totalPages,
@@ -135,14 +135,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Không tìm thấy chi nhánh này",
-                    IsSuccess = true
+                    success = true
                 };
             }
 
             return new ResponseGetTourDto
             {
                 StatusCode = 200,
-                IsSuccess = true,
+                success = true,
                 Data = _mapper.Map<TourDto>(tour)
             };
         }
@@ -179,7 +179,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetToursDto
             {
                 StatusCode = 200,
-                IsSuccess = true,
+                success = true,
                 Data = _mapper.Map<List<TourDto>>(tours),
                 TotalRecord = totalTours,
                 TotalPages = totalPages,
@@ -240,7 +240,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetUserByIdCmsDto
             {
                 StatusCode = 200,
-                IsSuccess = true,
+                success = true,
                 Data = _mapper.Map<UserCmsDto>(user)
             };
         }
@@ -291,7 +291,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 201,
                 Message = "Tạo user thành công",
-                IsSuccess = true
+                success = true
             };
         }
 
@@ -349,7 +349,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog updated successfully",
-                IsSuccess = true
+                success = true
             };
         }
 
@@ -406,7 +406,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Cập nhật Tour thành công",
-                IsSuccess = true
+                success = true
             };
         }
 
@@ -437,7 +437,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "User updated successfully",
-                IsSuccess = true
+                success = true
             };
         }
     }

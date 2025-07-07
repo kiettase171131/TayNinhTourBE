@@ -9,7 +9,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
     public class RequestUpdateOperationDto
     {
         /// <summary>
-        /// ID của User làm hướng dẫn viên cho tour này
+        /// ID của TourGuide làm hướng dẫn viên cho tour này
         /// </summary>
         public Guid? GuideId { get; set; }
 

@@ -22,10 +22,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         public string? Activity { get; set; }
 
         /// <summary>
-        /// ID của shop liên quan (nếu có)
-        /// Nullable - chỉ có giá trị khi hoạt động liên quan đến một shop cụ thể
+        /// ID của specialty shop liên quan (nếu có)
+        /// Nullable - chỉ có giá trị khi hoạt động liên quan đến một specialty shop cụ thể
         /// </summary>
-        public Guid? ShopId { get; set; }
+        public Guid? SpecialtyShopId { get; set; }
 
         /// <summary>
         /// Thứ tự sắp xếp trong timeline

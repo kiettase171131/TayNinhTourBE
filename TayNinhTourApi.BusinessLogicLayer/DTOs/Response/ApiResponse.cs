@@ -30,7 +30,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
             Data = data;
             StatusCode = statusCode;
             Message = message;
-            IsSuccess = statusCode >= 200 && statusCode < 300;
+            success = statusCode >= 200 && statusCode < 300;
         }
 
         /// <summary>
@@ -43,7 +43,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         {
             StatusCode = statusCode;
             Message = message;
-            IsSuccess = false;
+            success = false;
             ValidationErrors = validationErrors ?? new List<string>();
         }
 

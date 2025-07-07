@@ -156,7 +156,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         autoActivate: true);
 
                     // Thêm thông tin về slots vào response message
-                    if (slotsResult.IsSuccess)
+                    if (slotsResult.success)
                     {
                         response.Message += $" và đã tạo {slotsResult.CreatedSlotsCount} slots cho tháng {request.Month}/{request.Year}";
                     }

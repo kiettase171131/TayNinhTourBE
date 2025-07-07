@@ -29,9 +29,9 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired()
                 .HasComment("ID của TourDetails mà operation này thuộc về");
 
-            builder.Property(to => to.GuideId)
+            builder.Property(to => to.TourGuideId)
                 .IsRequired(false)
-                .HasComment("ID của User làm hướng dẫn viên cho tour này (optional)");
+                .HasComment("ID của TourGuide làm hướng dẫn viên cho tour này (optional)");
 
             builder.Property(to => to.Price)
                 .IsRequired()
@@ -75,12 +75,12 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired();
 
-            // Guide/User relationship (Many-to-One)
-            builder.HasOne(to => to.Guide)
-                .WithMany(u => u.TourOperationsAsGuide) // Many TourOperations can have the same Guide
-                .HasForeignKey(to => to.GuideId)
-                .OnDelete(DeleteBehavior.Restrict) // Prevent deleting User if they have TourOperations
-                .IsRequired(false); // GuideId is optional - TourOperation can be created without a Guide
+            // TourGuide relationship (Many-to-One)
+            builder.HasOne(to => to.TourGuide)
+                .WithMany(tg => tg.TourOperations)
+                .HasForeignKey(to => to.TourGuideId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
 
             // CreatedBy relationship
             builder.HasOne(to => to.CreatedBy)
@@ -110,17 +110,17 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsUnique()
                 .HasDatabaseName("IX_TourOperations_TourDetailsId_Unique");
 
-            // Index for GuideId (for guide-related queries)
-            builder.HasIndex(to => to.GuideId)
-                .HasDatabaseName("IX_TourOperations_GuideId");
+            // Index for TourGuideId (for guide-related queries)
+            builder.HasIndex(to => to.TourGuideId)
+                .HasDatabaseName("IX_TourOperations_TourGuideId");
 
             // Index for IsActive (for filtering active operations)
             builder.HasIndex(to => to.IsActive)
                 .HasDatabaseName("IX_TourOperations_IsActive");
 
-            // Composite index for GuideId + IsActive (for active operations by guide)
-            builder.HasIndex(to => new { to.GuideId, to.IsActive })
-                .HasDatabaseName("IX_TourOperations_GuideId_IsActive");
+            // Composite index for TourGuideId + IsActive (for active operations by guide)
+            builder.HasIndex(to => new { to.TourGuideId, to.IsActive })
+                .HasDatabaseName("IX_TourOperations_TourGuideId_IsActive");
 
             // Index for CurrentBookings (for capacity queries)
             builder.HasIndex(to => to.CurrentBookings)

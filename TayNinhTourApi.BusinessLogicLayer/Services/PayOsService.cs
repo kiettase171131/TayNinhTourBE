@@ -62,7 +62,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 client.DefaultRequestHeaders.Add("x-api-key", apiKey);
 
                 var response = await client.GetAsync(url);
-                if (!response.IsSuccessStatusCode)
+                if (!response.successStatusCode)
                     throw new Exception("Không lấy được trạng thái thanh toán từ PayOS");
 
                 var content = await response.Content.ReadAsStringAsync();

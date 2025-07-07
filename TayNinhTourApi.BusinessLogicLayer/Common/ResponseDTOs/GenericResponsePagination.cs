@@ -4,7 +4,7 @@
     {
         public int StatusCode { get; set; }
         public string? Message { get; set; }
-        public bool IsSuccess { get; set; }
+        public bool success { get; set; }
         public List<T>? Data { get; set; }
         public int? TotalPages { get; set; }
         public int? TotalRecord { get; set; }

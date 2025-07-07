@@ -137,7 +137,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog created successfully",
-                IsSuccess = true,
+                success = true,
                 BlogId = blog.Id,
                 ImageUrls = uploadedUrls
             };
@@ -168,7 +168,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog deleted successfully",
-                IsSuccess = true
+                success = true
             };
         }
 
@@ -212,7 +212,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog found successfully",
-                IsSuccess = true,
+                success = true,
                 Data = dto
             };
         }
@@ -261,7 +261,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog found successfully",
-                IsSuccess = true,
+                success = true,
                 Data = dtos,
                 TotalRecord = totalblogs,
                 TotalPages = totalPages,
@@ -318,7 +318,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog found successfully",
-                IsSuccess = true,
+                success = true,
                 Data = dtos,
                 TotalRecord = totalblogs,
                 TotalPages = totalPages,
@@ -444,7 +444,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Blog updated successfully",
-                IsSuccess = true
+                success = true
             };
         }
     }

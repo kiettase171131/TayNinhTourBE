@@ -113,7 +113,7 @@ Content-Type: application/json
 {
   "data": true,
   "message": "Skills string hợp lệ",
-  "isSuccess": true
+  "success": true
 }
 ```
 
@@ -147,7 +147,7 @@ const validateSkills = async (skillsString: string) => {
     body: JSON.stringify(skillsString)
   });
   const data = await response.json();
-  return data.isSuccess;
+  return data.success;
 };
 
 // 5. Submit tour guide application

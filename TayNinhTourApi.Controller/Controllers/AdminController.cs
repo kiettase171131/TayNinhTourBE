@@ -53,7 +53,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     pageSize,
                     includeInactive: false);
 
-                if (response.IsSuccess && response.Data != null)
+                if (response.success && response.Data != null)
                 {
                     // Filter only AwaitingAdminApproval status
                     var pendingApprovalDetails = response.Data
@@ -204,7 +204,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 var allTourDetailsResponse = await _tourDetailsService.GetTourDetailsPaginatedAsync(
                     0, 1000, includeInactive: true); // Get large page to get all
 
-                if (!allTourDetailsResponse.IsSuccess || allTourDetailsResponse.Data == null)
+                if (!allTourDetailsResponse.success || allTourDetailsResponse.Data == null)
                 {
                     return StatusCode(500, new
                     {
@@ -272,7 +272,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // Get TourDetails details
                 var tourDetailsResponse = await _tourDetailsService.GetTourDetailByIdAsync(tourDetailsId);
-                if (!tourDetailsResponse.IsSuccess)
+                if (!tourDetailsResponse.success)
                 {
                     return StatusCode(tourDetailsResponse.StatusCode, tourDetailsResponse);
                 }
@@ -286,8 +286,8 @@ namespace TayNinhTourApi.Controller.Controllers
                 var reviewData = new
                 {
                     TourDetails = tourDetailsResponse.Data,
-                    GuideAssignmentStatus = assignmentStatusResponse.IsSuccess ? "Assignment status available" : null,
-                    Invitations = invitationsResponse.IsSuccess ? invitationsResponse.Invitations : null
+                    GuideAssignmentStatus = assignmentStatusResponse.success ? "Assignment status available" : null,
+                    Invitations = invitationsResponse.success ? invitationsResponse.Invitations : null
                 };
 
                 return Ok(new
@@ -322,7 +322,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // Get TourDetails
                 var tourDetailsResponse = await _tourDetailsService.GetTourDetailByIdAsync(tourDetailsId);
-                if (!tourDetailsResponse.IsSuccess)
+                if (!tourDetailsResponse.success)
                 {
                     return StatusCode(tourDetailsResponse.StatusCode, new
                     {
@@ -333,7 +333,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // Check if has accepted invitation
                 var invitationsResponse = await _invitationService.GetInvitationsForTourDetailsAsync(tourDetailsId);
-                if (!invitationsResponse.IsSuccess)
+                if (!invitationsResponse.success)
                 {
                     return StatusCode(500, new
                     {

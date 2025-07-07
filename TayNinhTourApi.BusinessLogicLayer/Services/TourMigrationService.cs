@@ -57,7 +57,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         var migrationItem = await MigrateSingleTourAsync(tour, migratedById, dryRun);
                         result.MigrationItems.Add(migrationItem);
 
-                        if (migrationItem.IsSuccess)
+                        if (migrationItem.success)
                         {
                             result.SuccessCount++;
                         }
@@ -73,7 +73,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             OriginalTourId = tour.Id,
                             OriginalTourTitle = tour.Title,
-                            IsSuccess = false,
+                            success = false,
                             ErrorMessage = ex.Message
                         });
                         result.FailureCount++;
@@ -173,7 +173,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     migrationItem.MigratedImagesCount = tour.Images?.Count ?? 0;
                 }
 
-                migrationItem.IsSuccess = true;
+                migrationItem.success = true;
                 migrationItem.Notes = $"Successfully migrated to {templateType} template with {scheduleDay} schedule";
 
                 return migrationItem;
@@ -181,7 +181,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error migrating tour {TourId}", tour.Id);
-                migrationItem.IsSuccess = false;
+                migrationItem.success = false;
                 migrationItem.ErrorMessage = ex.Message;
                 return migrationItem;
             }
@@ -274,7 +274,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             OriginalTourId = tour.Id,
                             OriginalTourTitle = tour.Title,
-                            IsSuccess = true,
+                            success = true,
                             Notes = "Rollback completed - migration marker removed"
                         });
 
@@ -287,7 +287,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             OriginalTourId = tour.Id,
                             OriginalTourTitle = tour.Title,
-                            IsSuccess = false,
+                            success = false,
                             ErrorMessage = ex.Message
                         });
                         result.FailureCount++;

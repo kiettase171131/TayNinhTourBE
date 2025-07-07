@@ -779,7 +779,7 @@ components:
             data:
               type: object
               properties:
-                isSuccess:
+                success:
                   type: boolean
                 createdSlotsCount:
                   type: integer

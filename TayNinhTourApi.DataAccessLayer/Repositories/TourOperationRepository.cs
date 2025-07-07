@@ -23,7 +23,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     .ThenInclude(td => td.TourTemplate)
                 .Include(to => to.TourDetails)
                     .ThenInclude(td => td.AssignedSlots)
-                .Include(to => to.Guide)
+                .Include(to => to.TourGuide)
                 .Include(to => to.CreatedBy)
                 .Include(to => to.UpdatedBy)
                 .FirstOrDefaultAsync(to => to.TourDetailsId == tourDetailsId && !to.IsDeleted);
@@ -34,7 +34,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var query = _context.TourOperations
                 .Include(to => to.TourDetails)
                     .ThenInclude(td => td.TourTemplate)
-                .Include(to => to.Guide)
+                .Include(to => to.TourGuide)
                 .Include(to => to.CreatedBy)
                 .Include(to => to.UpdatedBy)
                 .Where(to => to.Status == status);
@@ -57,7 +57,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                         .ThenInclude(ti => ti.SpecialtyShop)
                 .Include(to => to.TourDetails)
                     .ThenInclude(td => td.AssignedSlots)
-                .Include(to => to.Guide)
+                .Include(to => to.TourGuide)
                 .Include(to => to.CreatedBy)
                 .Include(to => to.UpdatedBy)
                 .FirstOrDefaultAsync(to => to.Id == id && !to.IsDeleted);
@@ -68,10 +68,10 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var query = _context.TourOperations
                 .Include(to => to.TourDetails)
                     .ThenInclude(td => td.TourTemplate)
-                .Include(to => to.Guide)
+                .Include(to => to.TourGuide)
                 .Include(to => to.CreatedBy)
                 .Include(to => to.UpdatedBy)
-                .Where(to => to.GuideId == guideId);
+                .Where(to => to.TourGuideId == guideId);
 
             if (!includeInactive)
             {
@@ -108,7 +108,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var query = _context.TourOperations
                 .Include(to => to.TourDetails)
                     .ThenInclude(td => td.TourTemplate)
-                .Include(to => to.Guide)
+                .Include(to => to.TourGuide)
                 .Include(to => to.CreatedBy)
                 .Include(to => to.UpdatedBy)
                 .AsQueryable();
@@ -121,7 +121,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
             if (guideId.HasValue)
             {
-                query = query.Where(to => to.GuideId == guideId.Value);
+                query = query.Where(to => to.TourGuideId == guideId.Value);
             }
 
             if (tourTemplateId.HasValue)
@@ -149,7 +149,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     .ThenInclude(td => td.TourTemplate)
                 .Include(to => to.TourDetails)
                     .ThenInclude(td => td.AssignedSlots)
-                .Include(to => to.Guide)
+                .Include(to => to.TourGuide)
                 .Include(to => to.CreatedBy)
                 .Include(to => to.UpdatedBy)
                 .Where(to => to.TourDetails.AssignedSlots.Any(slot => slot.TourDate == date));

@@ -145,7 +145,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     .Take(10)
                     .ToListAsync();
 
-                report.IsSuccessful = report.ApplicationsNeedingMigration == 0;
+                report.successful = report.ApplicationsNeedingMigration == 0;
 
                 return report;
             }
@@ -199,7 +199,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public int ApplicationsWithSkills { get; set; }
         public int ApplicationsNeedingMigration { get; set; }
         public int ApplicationsWithBoth { get; set; }
-        public bool IsSuccessful { get; set; }
+        public bool successful { get; set; }
         public List<SampleMigration> SampleMigrations { get; set; } = new();
     }
 

@@ -45,7 +45,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourDetails không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -63,7 +63,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy TourGuide nào có sẵn trong hệ thống",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -110,7 +110,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy TourGuide nào có skills phù hợp",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -255,7 +255,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = $"Đã tạo {invitationsCreated} lời mời tự động cho các hướng dẫn viên phù hợp",
-                    IsSuccess = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -265,7 +265,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi tạo lời mời: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -285,7 +285,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourDetails không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -297,7 +297,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourGuide không tồn tại hoặc không có sẵn",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -310,7 +310,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "TourGuide này đã có lời mời pending cho tour này",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -357,7 +357,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Đã gửi lời mời thành công đến hướng dẫn viên",
-                    IsSuccess = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -368,7 +368,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi tạo lời mời: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -388,7 +388,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Lời mời không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -404,7 +404,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 403,
                         Message = "Bạn không có quyền chấp nhận lời mời này",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -415,7 +415,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Lời mời này đã được xử lý hoặc đã hết hạn",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -427,7 +427,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Lời mời đã hết hạn",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -491,7 +491,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 500,
                         Message = $"Không thể lưu thay đổi: {saveEx.Message}",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -501,7 +501,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Đã chấp nhận lời mời thành công",
-                    IsSuccess = true
+                    success = true
                 };
 
 
@@ -514,7 +514,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi chấp nhận lời mời: {ex.Message}. Inner: {ex.InnerException?.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -533,7 +533,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Lời mời không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -544,7 +544,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 403,
                         Message = "Bạn không có quyền từ chối lời mời này",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -555,7 +555,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Lời mời này đã được xử lý",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -576,7 +576,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Đã từ chối lời mời thành công",
-                    IsSuccess = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -587,7 +587,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi từ chối lời mời: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -598,26 +598,62 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByGuideAsync(guideId, status);
 
-                // Map to DTOs (simplified for now)
-                var invitationDtos = invitations.Select(inv => new
+                // Map to proper DTOs
+                var invitationDtos = invitations.Select(inv => new TourGuideInvitationDto
                 {
                     Id = inv.Id,
-                    TourTitle = inv.TourDetails.Title,
-                    TourCompany = inv.CreatedBy.Name,
+                    TourDetails = new TourDetailsBasicDto
+                    {
+                        Id = inv.TourDetails.Id,
+                        Title = inv.TourDetails.Title,
+                        Description = inv.TourDetails.Description,
+                        SkillsRequired = inv.TourDetails.SkillsRequired,
+                        Status = inv.TourDetails.Status.ToString(),
+                        CreatedAt = inv.TourDetails.CreatedAt
+                    },
+                    Guide = new UserBasicDto
+                    {
+                        Id = inv.TourGuide?.Id ?? Guid.Empty,
+                        Name = inv.TourGuide?.FullName ?? "Unknown",
+                        Email = inv.TourGuide?.Email ?? "Unknown",
+                        PhoneNumber = inv.TourGuide?.PhoneNumber
+                    },
+                    CreatedBy = new UserBasicDto
+                    {
+                        Id = inv.CreatedBy?.Id ?? Guid.Empty,
+                        Name = inv.CreatedBy?.Name ?? "Unknown",
+                        Email = inv.CreatedBy?.Email ?? "Unknown",
+                        PhoneNumber = inv.CreatedBy?.PhoneNumber
+                    },
                     InvitationType = inv.InvitationType.ToString(),
                     Status = inv.Status.ToString(),
                     InvitedAt = inv.InvitedAt,
                     ExpiresAt = inv.ExpiresAt,
-                    RespondedAt = inv.RespondedAt
+                    RespondedAt = inv.RespondedAt,
+                    RejectionReason = inv.RejectionReason,
+                    ImprovementSuggestion = null // TODO: Add if needed
+                    // Note: HoursUntilExpiry, CanAccept, CanReject are computed properties
                 }).ToList();
+
+                // Calculate statistics
+                var stats = new InvitationStatisticsDto
+                {
+                    TotalInvitations = invitations.Count(),
+                    PendingCount = invitations.Count(i => i.Status == InvitationStatus.Pending),
+                    AcceptedCount = invitations.Count(i => i.Status == InvitationStatus.Accepted),
+                    RejectedCount = invitations.Count(i => i.Status == InvitationStatus.Rejected),
+                    ExpiredCount = invitations.Count(i => i.Status == InvitationStatus.Expired),
+                    LatestInvitation = invitations.OrderByDescending(i => i.InvitedAt).FirstOrDefault()?.InvitedAt,
+                    LatestResponse = invitations.Where(i => i.RespondedAt.HasValue).OrderByDescending(i => i.RespondedAt).FirstOrDefault()?.RespondedAt
+                };
 
                 return new MyInvitationsResponseDto
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lời mời thành công",
-                    IsSuccess = true,
-                    Invitations = new List<TourGuideInvitationDto>(), // TODO: Map properly
-                    Statistics = new InvitationStatisticsDto()
+                    success = true,
+                    Invitations = invitationDtos,
+                    Statistics = stats
                 };
             }
             catch (Exception ex)
@@ -627,7 +663,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false,
+                    success = false,
                     Invitations = new List<TourGuideInvitationDto>(),
                     Statistics = new InvitationStatisticsDto()
                 };
@@ -683,7 +719,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lời mời thành công",
-                    IsSuccess = true,
+                    success = true,
                     TourDetails = new TourDetailsBasicDto(), // TODO: Map properly
                     Invitations = invitationDtos,
                     Statistics = stats
@@ -696,7 +732,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false,
+                    success = false,
                     TourDetails = new TourDetailsBasicDto(),
                     Invitations = new List<TourGuideInvitationDto>(),
                     Statistics = new InvitationStatisticsDto()
@@ -834,7 +870,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Lời mời không tồn tại",
-                        IsSuccess = false,
+                        success = false,
                         Invitation = new TourGuideInvitationDetailDto()
                     };
                 }
@@ -867,7 +903,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy thông tin lời mời thành công",
-                    IsSuccess = true,
+                    success = true,
                     Invitation = new TourGuideInvitationDetailDto() // TODO: Map properly
                 };
             }
@@ -878,7 +914,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false,
+                    success = false,
                     Invitation = new TourGuideInvitationDetailDto()
                 };
             }
@@ -895,7 +931,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Lời mời không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -925,7 +961,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = validationErrors.Any() ? 400 : 200,
                     Message = validationErrors.Any() ? "Validation failed" : "Có thể chấp nhận lời mời",
-                    IsSuccess = !validationErrors.Any(),
+                    success = !validationErrors.Any(),
                     ValidationErrors = validationErrors
                 };
             }
@@ -936,7 +972,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -1022,7 +1058,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourDetails không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -1036,7 +1072,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "TourDetails này chưa có guide nào accept invitation",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -1060,7 +1096,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 200,
                         Message = $"Đã fix TourDetails status thành công. Expired {expiredCount} pending invitations.",
-                        IsSuccess = true
+                        success = true
                     };
                 }
                 else
@@ -1069,7 +1105,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 200,
                         Message = $"TourDetails đã ở status {tourDetails.Status}, không cần fix",
-                        IsSuccess = true
+                        success = true
                     };
                 }
             }
@@ -1080,7 +1116,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -1114,13 +1150,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     _logger.LogInformation("Updated TourDetails {TourDetailsId} status from AwaitingGuideAssignment to WaitToPublic", tourDetailsId);
 
-                    // 3. Expire other pending invitations for this TourDetails
+                    // 3. Update TourOperation with accepted guide information
+                    await UpdateTourOperationWithGuideAsync(tourDetailsId, acceptedInvitationId);
+
+                    // 4. Expire other pending invitations for this TourDetails
                     var expiredCount = await _unitOfWork.TourGuideInvitationRepository
                         .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitationId);
 
                     _logger.LogInformation("Expired {Count} pending invitations for TourDetails {TourDetailsId}", expiredCount, tourDetailsId);
 
-                    // 4. Save all changes
+                    // 5. Save all changes
                     await _unitOfWork.SaveChangesAsync();
 
                     _logger.LogInformation("Successfully updated TourDetails {TourDetailsId} status and expired pending invitations", tourDetailsId);
@@ -1133,6 +1172,161 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
+                // Don't throw - this is a side effect, shouldn't break the main flow
+            }
+        }
+
+        /// <summary>
+        /// Debug method để manually update TourOperation với guide info
+        /// </summary>
+        /// <param name="invitationId">ID của invitation đã được accept</param>
+        /// <returns>Kết quả debug</returns>
+        public async Task<BaseResposeDto> DebugUpdateTourOperationAsync(Guid invitationId)
+        {
+            try
+            {
+                _logger.LogInformation("Debug: Starting manual TourOperation update for invitation {InvitationId}", invitationId);
+
+                // 1. Get the invitation
+                var invitation = await _unitOfWork.TourGuideInvitationRepository.GetByIdAsync(invitationId);
+                if (invitation == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Invitation không tồn tại",
+                        success = false
+                    };
+                }
+
+                _logger.LogInformation("Debug: Found invitation - Status: {Status}, TourDetailsId: {TourDetailsId}, GuideId: {GuideId}",
+                    invitation.Status, invitation.TourDetailsId, invitation.GuideId);
+
+                if (invitation.Status != InvitationStatus.Accepted)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Invitation chưa được accept",
+                        success = false
+                    };
+                }
+
+                // 2. Update TourDetails status if needed
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(invitation.TourDetailsId);
+                if (tourDetails == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "TourDetails không tồn tại",
+                        success = false
+                    };
+                }
+
+                _logger.LogInformation("Debug: Found TourDetails - Status: {Status}", tourDetails.Status);
+
+                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    tourDetails.Status = TourDetailsStatus.WaitToPublic;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+                    _logger.LogInformation("Debug: Updated TourDetails status to WaitToPublic");
+                }
+
+                // 3. Update TourOperation
+                await UpdateTourOperationWithGuideAsync(invitation.TourDetailsId, invitationId);
+
+                // 4. Save changes
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Debug: Successfully completed manual TourOperation update");
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Debug update thành công",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Debug: Error in manual TourOperation update for invitation {InvitationId}: {Message}",
+                    invitationId, ex.Message);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi debug: {ex.Message}",
+                    success = false
+                };
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật TourOperation với thông tin guide khi invitation được accept
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="acceptedInvitationId">ID của invitation được accept</param>
+        private async Task UpdateTourOperationWithGuideAsync(Guid tourDetailsId, Guid acceptedInvitationId)
+        {
+            try
+            {
+                _logger.LogInformation("Updating TourOperation with guide info for TourDetails {TourDetailsId}", tourDetailsId);
+
+                // 1. Get the accepted invitation to get guide info
+                var acceptedInvitation = await _unitOfWork.TourGuideInvitationRepository.GetByIdAsync(acceptedInvitationId);
+                if (acceptedInvitation == null)
+                {
+                    _logger.LogWarning("Accepted invitation {InvitationId} not found", acceptedInvitationId);
+                    return;
+                }
+                _logger.LogInformation("Found accepted invitation: GuideId={GuideId}", acceptedInvitation.GuideId);
+
+                // 2. Get TourOperation for this TourDetails
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
+                if (tourOperation == null)
+                {
+                    _logger.LogWarning("TourOperation not found for TourDetails {TourDetailsId}", tourDetailsId);
+                    return;
+                }
+                _logger.LogInformation("Found TourOperation: Id={OperationId}, CurrentTourGuideId={CurrentTourGuideId}",
+                    tourOperation.Id, tourOperation.TourGuideId);
+
+                // 3. Get guide User info from TourGuide
+                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(acceptedInvitation.GuideId);
+                if (tourGuide == null)
+                {
+                    _logger.LogWarning("TourGuide {GuideId} not found", acceptedInvitation.GuideId);
+                    return;
+                }
+                _logger.LogInformation("Found TourGuide: Id={TourGuideId}, UserId={UserId}",
+                    tourGuide.Id, tourGuide.UserId);
+
+                var guideUser = await _unitOfWork.UserRepository.GetByIdAsync(tourGuide.UserId);
+                if (guideUser == null)
+                {
+                    _logger.LogWarning("Guide User {UserId} not found", tourGuide.UserId);
+                    return;
+                }
+                _logger.LogInformation("Found Guide User: Id={UserId}, Name={Name}, Email={Email}",
+                    guideUser.Id, guideUser.Name, guideUser.Email);
+
+                // 4. Update TourOperation with guide info
+                var oldTourGuideId = tourOperation.TourGuideId;
+                tourOperation.TourGuideId = tourGuide.Id; // Use TourGuide ID
+                tourOperation.UpdatedAt = DateTime.UtcNow;
+
+                _logger.LogInformation("Updating TourOperation {OperationId}: TourGuideId {OldTourGuideId} -> {NewTourGuideId} (TourGuide: {TourGuideName})",
+                    tourOperation.Id, oldTourGuideId, tourGuide.Id, tourGuide.FullName);
+
+                await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
+
+                _logger.LogInformation("Successfully updated TourOperation {OperationId} with TourGuide {TourGuideId} (User: {UserId}) for TourDetails {TourDetailsId}",
+                    tourOperation.Id, tourGuide.Id, guideUser.Id, tourDetailsId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating TourOperation with guide info for TourDetails {TourDetailsId}: {Message}. StackTrace: {StackTrace}",
+                    tourDetailsId, ex.Message, ex.StackTrace);
                 // Don't throw - this is a side effect, shouldn't break the main flow
             }
         }

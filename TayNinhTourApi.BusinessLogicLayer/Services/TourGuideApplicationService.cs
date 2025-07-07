@@ -79,7 +79,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (dto.CurriculumVitae != null)
                 {
                     fileResult = await _fileStorageService.StoreCvFileAsync(dto.CurriculumVitae, currentUser.Id);
-                    if (!fileResult.IsSuccess)
+                    if (!fileResult.success)
                     {
                         return new TourGuideApplicationSubmitResponseDto
                         {

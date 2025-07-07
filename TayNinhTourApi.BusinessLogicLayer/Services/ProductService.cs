@@ -86,7 +86,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Get product list successfully",
-                IsSuccess = true,
+                success = true,
                 Data = _mapper.Map<List<ProductDto>>(products),
                 TotalRecord = totalProducts,
                 TotalPages = totalPages
@@ -151,7 +151,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetProductByIdDto
             {
                 StatusCode = 200,
-                IsSuccess = true,
+                success = true,
                 Data = _mapper.Map<ProductDto>(product)
             };
         }
@@ -180,7 +180,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Product deleted succcessfully !",
-                IsSuccess = true
+                success = true
             };
         }
         public async Task<ResponseCreateProductDto> CreateProductAsync(RequestCreateProductDto request, CurrentUserObject currentUserObject)
@@ -262,7 +262,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Create successful products",
-                IsSuccess = true,
+                success = true,
                 ProductId = product.Id,
                 ImageUrls = uploadedUrls
             };
@@ -377,7 +377,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Product update successful",
-                IsSuccess = true
+                success = true
             };
         }
         public async Task<BaseResposeDto> AddToCartAsync(RequestAddMultipleToCartDto request, CurrentUserObject currentUser)
@@ -385,7 +385,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var response = new BaseResposeDto
             {
                 StatusCode = 200,
-                IsSuccess = true,
+                success = true,
                 Message = "Đã thêm các sản phẩm vào giỏ hàng"
             };
 
@@ -395,7 +395,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 400,
                     Message = "Danh sách sản phẩm rỗng",
-                    IsSuccess = false
+                    success = false
                 };
             }
 
@@ -405,14 +405,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (product == null || product.IsDeleted || !product.IsActive)
                 {
                     response.ValidationErrors.Add($"Sản phẩm {item.ProductId} không tồn tại hoặc ngưng hoạt động.");
-                    response.IsSuccess = false;
+                    response.success = false;
                     continue;
                 }
 
                 if (item.Quantity <= 0)
                 {
                     response.ValidationErrors.Add($"Sản phẩm {product.Name}: số lượng không hợp lệ.");
-                    response.IsSuccess = false;
+                    response.success = false;
                     continue;
                 }
 
@@ -427,7 +427,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     response.ValidationErrors.Add(
                         $"Sản phẩm {product.Name}: chỉ còn {product.QuantityInStock} sản phẩm trong kho.");
-                    response.IsSuccess = false;
+                    response.success = false;
                     continue;
                 }
 
@@ -455,7 +455,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             await _cartRepository.SaveChangesAsync();
 
-            if (!response.IsSuccess)
+            if (!response.success)
             {
                 response.StatusCode = 400;
                 response.Message = "Có lỗi với một số sản phẩm khi thêm vào giỏ hàng.";
@@ -485,7 +485,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetCartDto
             {
                 StatusCode = 200,
-                IsSuccess = true,
+                success = true,
                 Data = items,
                 TotalAmount = items.Sum(i => i.Total)
             };
@@ -500,7 +500,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 404,
                     Message = "Giỏ hàng của bạn đang trống.",
-                    IsSuccess = false
+                    success = false
                 };
             }
 
@@ -515,7 +515,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Đã xoá toàn bộ sản phẩm khỏi giỏ hàng",
-                IsSuccess = true
+                success = true
             };
         }
         public async Task ClearCartAndUpdateInventoryAsync(Guid orderId)
@@ -635,7 +635,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (!string.IsNullOrEmpty(voucherCode))
             {
                 var voucherResult = await ApplyVoucherForCartAsync(voucherCode, cartItemDtos);
-                if (!voucherResult.IsSuccess)
+                if (!voucherResult.success)
                     throw new InvalidOperationException(voucherResult.Message);
 
                 totalAfterDiscount = voucherResult.FinalPrice;
@@ -783,7 +783,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 400,
                     Message = "Giỏ hàng không có sản phẩm nào để áp dụng voucher.",
-                    IsSuccess = false
+                    success = false
                 };
 
             var now = DateTime.UtcNow;
@@ -799,7 +799,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 404,
                     Message = "Voucher không hợp lệ hoặc đã hết hạn.",
-                    IsSuccess = false
+                    success = false
                 };
 
             decimal totalOriginal = 0m;
@@ -818,7 +818,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 400,
                     Message = "Tổng tiền giỏ hàng không hợp lệ.",
-                    IsSuccess = false
+                    success = false
                 };
             }
 
@@ -842,7 +842,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Áp dụng voucher thành công.",
-                IsSuccess = true,
+                success = true,
                 FinalPrice = finalPrice,
                 DiscountAmount = discount
             };
@@ -987,7 +987,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Cập nhật voucher thành công.",
-                IsSuccess = true
+                success = true
             };
         }
         public async Task<BaseResposeDto> DeleteVoucherAsync(Guid id)
@@ -1013,7 +1013,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 StatusCode = 200,
                 Message = "Xóa voucher thành công.",
-                IsSuccess = true
+                success = true
             };
         }
         public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)

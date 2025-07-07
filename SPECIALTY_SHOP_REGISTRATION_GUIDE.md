@@ -71,7 +71,7 @@ formData.append('Logo', logoFile); // PNG/JPG/JPEG/WEBP file
   },
   "statusCode": 201,
   "message": "Specialty shop application submitted successfully",
-  "isSuccess": true
+  "success": true
 }
 ```
 
@@ -80,7 +80,7 @@ formData.append('Logo', logoFile); // PNG/JPG/JPEG/WEBP file
 {
   "statusCode": 400,
   "message": "Business license file and logo are required",
-  "isSuccess": false,
+  "success": false,
   "validationErrors": ["ShopName is required", "Email format is invalid"]
 }
 ```
@@ -115,7 +115,7 @@ Authorization: Bearer {USER_JWT_TOKEN}
   },
   "statusCode": 200,
   "message": "Application retrieved successfully",
-  "isSuccess": true
+  "success": true
 }
 ```
 
@@ -165,7 +165,7 @@ Authorization: Bearer {ADMIN_JWT_TOKEN}
   },
   "statusCode": 200,
   "message": "Applications retrieved successfully",
-  "isSuccess": true
+  "success": true
 }
 ```
 
@@ -186,7 +186,7 @@ Authorization: Bearer {ADMIN_JWT_TOKEN}
 {
   "statusCode": 200,
   "message": "Specialty shop application approved successfully",
-  "isSuccess": true
+  "success": true
 }
 ```
 
@@ -226,7 +226,7 @@ const submitApplication = async (formData) => {
     
     const result = await response.json();
     
-    if (result.isSuccess) {
+    if (result.success) {
       alert('Đơn đăng ký đã được nộp thành công!');
       // Redirect to status page
     } else {
@@ -254,7 +254,7 @@ const checkApplicationStatus = async () => {
     
     const result = await response.json();
     
-    if (result.isSuccess) {
+    if (result.success) {
       const status = result.data.status;
       const statusText = status === 0 ? 'Đang chờ duyệt' : 
                         status === 1 ? 'Đã duyệt' : 'Bị từ chối';
@@ -311,7 +311,7 @@ const approveApplication = async (applicationId) => {
     
     const result = await response.json();
     
-    if (result.isSuccess) {
+    if (result.success) {
       alert('Đơn đăng ký đã được phê duyệt!');
       // Refresh applications list
     }
@@ -335,7 +335,7 @@ const rejectApplication = async (applicationId, reason) => {
     
     const result = await response.json();
     
-    if (result.isSuccess) {
+    if (result.success) {
       alert('Đơn đăng ký đã bị từ chối!');
       // Refresh applications list
     }
@@ -373,7 +373,7 @@ const rejectApplication = async (applicationId, reason) => {
 - Handle file upload errors gracefully
 
 ### Error Handling:
-- Always check `isSuccess` field in API responses
+- Always check `success` field in API responses
 - Display `validationErrors` array for form validation
 - Handle network errors and timeouts
 - Provide user-friendly error messages
@@ -438,7 +438,7 @@ Nếu có vấn đề với API hoặc cần hỗ trợ thêm, vui lòng liên h
 {
   "statusCode": 400,
   "message": "File size exceeds maximum limit of 10MB",
-  "isSuccess": false
+  "success": false
 }
 
 // Solution: Validate file size before upload
@@ -458,7 +458,7 @@ const validateFileSize = (file, maxSizeMB = 10) => {
 {
   "statusCode": 401,
   "message": "Token has expired",
-  "isSuccess": false
+  "success": false
 }
 
 // Solution: Implement token refresh or redirect to login
@@ -476,7 +476,7 @@ const handleAuthError = (response) => {
 {
   "statusCode": 400,
   "message": "Validation failed",
-  "isSuccess": false,
+  "success": false,
   "validationErrors": [
     "ShopName is required",
     "Email format is invalid",
@@ -524,7 +524,7 @@ const useSpecialtyShopApplication = () => {
 
       const result = await response.json();
 
-      if (result.isSuccess) {
+      if (result.success) {
         setApplication(result.data);
         return { success: true, data: result.data };
       } else {
@@ -552,7 +552,7 @@ const useSpecialtyShopApplication = () => {
       });
 
       const result = await response.json();
-      if (result.isSuccess) {
+      if (result.success) {
         setApplication(result.data);
       }
     } catch (err) {
@@ -597,7 +597,7 @@ export function useSpecialtyShopApplication() {
 
       const result = await response.json();
 
-      if (result.isSuccess) {
+      if (result.success) {
         application.value = result.data;
         return { success: true };
       } else {

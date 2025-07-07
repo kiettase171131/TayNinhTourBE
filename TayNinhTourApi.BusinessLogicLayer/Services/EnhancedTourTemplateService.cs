@@ -697,7 +697,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<(bool IsSuccess, string Message, int CreatedSlotsCount)> GenerateSlotsForTemplateAsync(
+        public async Task<(bool success, string Message, int CreatedSlotsCount)> GenerateSlotsForTemplateAsync(
             Guid templateId, int month, int year, bool overwriteExisting = false, bool autoActivate = true)
         {
             try

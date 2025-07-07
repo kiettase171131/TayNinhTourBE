@@ -113,13 +113,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Migration
         /// Lấy danh sách tours migrate thành công
         /// </summary>
         public List<TourMigrationItem> SuccessfulMigrations => 
-            MigrationItems.Where(item => item.IsSuccess).ToList();
+            MigrationItems.Where(item => item.success).ToList();
 
         /// <summary>
         /// Lấy danh sách tours migrate thất bại
         /// </summary>
         public List<TourMigrationItem> FailedMigrations => 
-            MigrationItems.Where(item => !item.IsSuccess).ToList();
+            MigrationItems.Where(item => !item.success).ToList();
 
         /// <summary>
         /// Lấy thống kê theo loại template
@@ -187,7 +187,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Migration
         /// <summary>
         /// Có thành công không
         /// </summary>
-        public bool IsSuccess { get; set; }
+        public bool success { get; set; }
 
         /// <summary>
         /// Thông báo lỗi nếu thất bại

@@ -53,7 +53,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return BadRequest(new ResponseWeekendDatesDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = validation.Message,
                         StatusCode = validation.StatusCode
                     });
@@ -75,7 +75,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var response = new ResponseWeekendDatesDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = $"Tìm thấy {weekendDates.Count} ngày weekend trong tháng {month}/{year}",
                     StatusCode = 200,
                     Year = year,
@@ -93,7 +93,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting weekend dates for {Year}/{Month}", year, month);
                 return StatusCode(500, new ResponseWeekendDatesDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi lấy danh sách ngày weekend",
                     StatusCode = 500
                 });
@@ -119,7 +119,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return BadRequest(new ResponseGenerateSlotDatesDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = validation.Message,
                         StatusCode = validation.StatusCode
                     });
@@ -153,7 +153,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var response = new ResponseGenerateSlotDatesDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = $"Đã generate thành công {slotDates.Count} slot dates",
                     StatusCode = 200,
                     Year = request.Year,
@@ -173,7 +173,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error generating slot dates");
                 return StatusCode(500, new ResponseGenerateSlotDatesDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi generate slot dates",
                     StatusCode = 500
                 });
@@ -248,7 +248,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var response = new ResponseNextAvailableSlotsDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = $"Tìm thấy {availableSlots.Count} available slots",
                     StatusCode = 200,
                     TourTemplateId = request.TourTemplateId,
@@ -274,7 +274,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting next available slots");
                 return StatusCode(500, new ResponseNextAvailableSlotsDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi lấy available slots",
                     StatusCode = 500
                 });
@@ -300,7 +300,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return BadRequest(new ResponseOptimalDistributionDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = validation.Message,
                         StatusCode = validation.StatusCode
                     });
@@ -335,7 +335,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var response = new ResponseOptimalDistributionDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = $"Đã tính toán optimal distribution thành công",
                     StatusCode = 200,
                     Year = request.Year,
@@ -362,7 +362,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error calculating optimal distribution");
                 return StatusCode(500, new ResponseOptimalDistributionDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi tính optimal distribution",
                     StatusCode = 500
                 });
@@ -384,7 +384,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var response = new
                 {
-                    IsSuccess = results.FailedTests == 0,
+                    success = results.FailedTests == 0,
                     Message = results.FailedTests == 0
                         ? "Tất cả tests đã pass thành công"
                         : $"Có {results.FailedTests} tests failed",
@@ -417,7 +417,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error running SchedulingService tests");
                 return StatusCode(500, new
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi chạy tests",
                     StatusCode = 500,
                     Error = ex.Message
@@ -441,7 +441,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var response = new
                 {
-                    IsSuccess = result.Passed,
+                    success = result.Passed,
                     Message = result.Passed
                         ? $"Test '{testName}' đã pass thành công"
                         : $"Test '{testName}' failed",
@@ -462,7 +462,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error running specific test: {TestName}", testName);
                 return StatusCode(500, new
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi chạy test '{testName}'",
                     StatusCode = 500,
                     Error = ex.Message

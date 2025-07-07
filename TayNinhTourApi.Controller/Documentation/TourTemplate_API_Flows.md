@@ -227,7 +227,7 @@ await _unitOfWork.SaveChangesAsync();
   "statusCode": 200,
   "message": "Tạo 4 tour slots thành công",
   "data": {
-    "isSuccess": true,
+    "success": true,
     "createdSlotsCount": 4,
     "skippedSlotsCount": 0,
     "createdSlots": [

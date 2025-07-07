@@ -56,9 +56,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.InvitedSpecialtyShops, opt => opt.MapFrom(src => src.InvitedSpecialtyShops));
 
             CreateMap<TimelineItem, TimelineItemDto>()
-                .ForMember(dest => dest.CheckInTime, opt => opt.MapFrom(src => src.CheckInTime.ToString(@"hh\:mm")));
-            // TODO: Update SpecialtyShop mapping after DTO updates
-            // .ForMember(dest => dest.SpecialtyShop, opt => opt.MapFrom(src => src.SpecialtyShop));
+                .ForMember(dest => dest.CheckInTime, opt => opt.MapFrom(src => src.CheckInTime.ToString(@"hh\:mm")))
+                .ForMember(dest => dest.SpecialtyShop, opt => opt.MapFrom(src => src.SpecialtyShop));
 
             // TourDetailsSpecialtyShop mappings
             CreateMap<TourDetailsSpecialtyShop, TourDetailsSpecialtyShopDto>()
@@ -156,19 +155,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
             CreateMap<TourOperation, TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>()
                 .ForMember(dest => dest.MaxSeats, opt => opt.MapFrom(src => src.MaxGuests))
-                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
-                .ForMember(dest => dest.GuidePhone, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null));
+                .ForMember(dest => dest.GuideId, opt => opt.MapFrom(src => src.TourGuideId))
+                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.TourGuide != null ? src.TourGuide.FullName : null))
+                .ForMember(dest => dest.GuidePhone, opt => opt.MapFrom(src => src.TourGuide != null ? src.TourGuide.PhoneNumber : null));
             CreateMap<TourOperation, OperationSummaryDto>()
                 .ForMember(dest => dest.TourDate, opt => opt.Ignore()) // Will set in service
-                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
-                .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Email : null))
-                .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null))
+                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.TourGuide != null ? src.TourGuide.FullName : null))
+                .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.TourGuide != null ? src.TourGuide.Email : null))
+                .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.TourGuide != null ? src.TourGuide.PhoneNumber : null))
                 .ForMember(dest => dest.Price, opt => opt.MapFrom(src => src.Price))
                 .ForMember(dest => dest.CurrentBookings, opt => opt.Ignore()); // Will set in service
             CreateMap<TourOperation, TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany.TourOperationDto>()
-                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Name : null))
-                .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.Email : null))
-                .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.Guide != null ? src.Guide.PhoneNumber : null))
+                .ForMember(dest => dest.GuideName, opt => opt.MapFrom(src => src.TourGuide != null ? src.TourGuide.FullName : null))
+                .ForMember(dest => dest.GuideEmail, opt => opt.MapFrom(src => src.TourGuide != null ? src.TourGuide.Email : null))
+                .ForMember(dest => dest.GuidePhoneNumber, opt => opt.MapFrom(src => src.TourGuide != null ? src.TourGuide.PhoneNumber : null))
                 .ForMember(dest => dest.CurrentBookings, opt => opt.Ignore()) // Will set in service
                 .ForMember(dest => dest.StatusName, opt => opt.Ignore()); // Will set in service
             #endregion

@@ -66,7 +66,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ApiResponse<SkillCategoriesDto>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Lấy danh sách skills thành công",
                     Data = skillCategories,
                     StatusCode = 200
@@ -76,7 +76,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ApiResponse<SkillCategoriesDto>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi lấy danh sách skills: {ex.Message}",
                     StatusCode = 500
                 };
@@ -113,7 +113,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ApiResponse<List<SkillInfoDto>>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Lấy danh sách tất cả skills thành công",
                     Data = allSkills.OrderBy(s => s.Category).ThenBy(s => s.DisplayName).ToList(),
                     StatusCode = 200
@@ -123,7 +123,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ApiResponse<List<SkillInfoDto>>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi lấy danh sách skills: {ex.Message}",
                     StatusCode = 500
                 };
@@ -145,7 +145,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ApiResponse<bool>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = isValid ? "Skills string hợp lệ" : "Skills string không hợp lệ",
                     Data = isValid,
                     StatusCode = 200
@@ -155,7 +155,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ApiResponse<bool>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi validate skills: {ex.Message}",
                     Data = false,
                     StatusCode = 500
@@ -178,7 +178,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ApiResponse<string>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Chuyển đổi skills thành công",
                     Data = skillsString,
                     StatusCode = 200
@@ -188,7 +188,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ApiResponse<string>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi chuyển đổi skills: {ex.Message}",
                     Data = string.Empty,
                     StatusCode = 500
@@ -211,7 +211,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ApiResponse<List<TourGuideSkill>>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Chuyển đổi skills string thành công",
                     Data = skills,
                     StatusCode = 200
@@ -221,7 +221,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ApiResponse<List<TourGuideSkill>>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi chuyển đổi skills string: {ex.Message}",
                     Data = new List<TourGuideSkill>(),
                     StatusCode = 500
@@ -245,7 +245,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ApiResponse<double>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Tính toán match score thành công",
                     Data = matchScore,
                     StatusCode = 200
@@ -255,7 +255,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 return new ApiResponse<double>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi tính toán match score: {ex.Message}",
                     Data = 0.0,
                     StatusCode = 500
