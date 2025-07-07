@@ -42,6 +42,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
 
         public DbSet<ProductRating> ProductRatings { get; set; } = null!;
         public DbSet<ProductReview> ProductReviews { get; set; } = null!;
+        public DbSet<Voucher> Vouchers { get; set; } = null!;
 
 
 
