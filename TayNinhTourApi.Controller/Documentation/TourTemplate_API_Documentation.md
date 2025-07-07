@@ -537,7 +537,7 @@ POST /api/TourSlot/generate
   "statusCode": 200,
   "message": "Tạo tour slots thành công",
   "data": {
-    "isSuccess": true,
+    "success": true,
     "createdSlotsCount": 4,
     "skippedSlotsCount": 0,
     "createdSlots": [

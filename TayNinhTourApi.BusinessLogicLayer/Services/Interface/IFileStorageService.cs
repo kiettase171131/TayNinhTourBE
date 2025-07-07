@@ -42,7 +42,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
     /// </summary>
     public class FileStorageResult
     {
-        public bool IsSuccess { get; set; }
+        public bool success { get; set; }
         public string? ErrorMessage { get; set; }
         public string? FilePath { get; set; }
         public string? AccessUrl { get; set; }

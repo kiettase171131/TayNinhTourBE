@@ -150,7 +150,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting guides list");
                 return StatusCode(500, new BaseResposeDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Lỗi hệ thống khi lấy danh sách hướng dẫn viên"
                 });
             }
@@ -178,7 +178,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return BadRequest(new BaseResposeDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Không thể chọn ngày trong quá khứ"
                     });
                 }
@@ -234,7 +234,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting available guides for date {Date}", date);
                 return StatusCode(500, new BaseResposeDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Lỗi hệ thống khi lấy danh sách hướng dẫn viên"
                 });
             }
@@ -429,7 +429,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return Ok(new ApiResponse<object>
                     {
-                        IsSuccess = true,
+                        success = true,
                         Message = "No specialty shop application found",
                         Data = null
                     });
@@ -437,7 +437,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<SpecialtyShopApplicationDto>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Specialty shop application retrieved successfully",
                     Data = application
                 });
@@ -487,7 +487,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<IEnumerable<TourGuideApplicationSummaryDto>>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Tour guide applications retrieved successfully",
                     Data = applications
                 });
@@ -515,7 +515,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return NotFound(new ApiResponse<object>
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Tour guide application not found or you don't have permission to view it",
                         Data = null
                     });
@@ -523,7 +523,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<TourGuideApplicationDto>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Tour guide application retrieved successfully",
                     Data = application
                 });
@@ -608,7 +608,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<object>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = canSubmit ? "You can submit a new application" : "You already have an active application",
                     Data = new { CanSubmit = canSubmit }
                 });

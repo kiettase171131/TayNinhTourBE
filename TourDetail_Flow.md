@@ -403,7 +403,7 @@ Authorization: Bearer {tour-company-token}
   "tourDetailsId": "detail-uuid",
   "canCreate": false,
   "message": "TourDetails chưa được admin duyệt",
-  "isSuccess": true
+  "success": true
 }
 ```
 
@@ -439,7 +439,7 @@ Content-Type: application/json
 **Response (200 OK):**
 ```json
 {
-  "isSuccess": true,
+  "success": true,
   "message": "Tạo tour operation thành công",
   "operation": {
     "id": "operation-uuid",
@@ -461,7 +461,7 @@ Content-Type: application/json
 **Error Response (400 Bad Request):**
 ```json
 {
-  "isSuccess": false,
+  "success": false,
   "message": "Tour cần có đầy đủ hướng dẫn viên và cửa hàng đặc sản trước khi public",
   "validationErrors": [
     "Chưa có hướng dẫn viên được phân công",

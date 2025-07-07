@@ -44,7 +44,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateOperationDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "TourDetails không tồn tại"
                     };
                 }
@@ -55,7 +55,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateOperationDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "TourDetails đã có operation"
                     };
                 }
@@ -66,7 +66,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateOperationDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Template không tồn tại"
                     };
                 }
@@ -85,7 +85,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             request.TourDetailsId, readinessError);
                         return new ResponseCreateOperationDto
                         {
-                            IsSuccess = false,
+                            success = false,
                             Message = readinessError
                         };
                     }
@@ -99,7 +99,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         return new ResponseCreateOperationDto
                         {
-                            IsSuccess = false,
+                            success = false,
                             Message = "TourGuide không hợp lệ"
                         };
                     }
@@ -130,7 +130,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseCreateOperationDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Tạo operation thành công",
                     Operation = operationDto
                 };
@@ -140,7 +140,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error creating operation for TourDetails {TourDetailsId}", request.TourDetailsId);
                 return new ResponseCreateOperationDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi tạo operation"
                 };
             }
@@ -213,7 +213,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseUpdateOperationDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Operation không tồn tại"
                     };
                 }
@@ -235,7 +235,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         return new ResponseUpdateOperationDto
                         {
-                            IsSuccess = false,
+                            success = false,
                             Message = "TourGuide không hợp lệ"
                         };
                     }
@@ -260,7 +260,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseUpdateOperationDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Cập nhật operation thành công",
                     Operation = operationDto
                 };
@@ -270,7 +270,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error updating operation {OperationId}", id);
                 return new ResponseUpdateOperationDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi cập nhật operation"
                 };
             }
@@ -290,7 +290,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new BaseResposeDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Operation không tồn tại"
                     };
                 }
@@ -306,7 +306,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new BaseResposeDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Xóa operation thành công"
                 };
             }
@@ -315,7 +315,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error deleting operation {OperationId}", id);
                 return new BaseResposeDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi xóa operation"
                 };
             }

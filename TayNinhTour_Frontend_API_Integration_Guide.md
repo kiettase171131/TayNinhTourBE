@@ -55,7 +55,7 @@
 {
   "statusCode": 201,
   "message": "Tạo 1 timeline items thành công",
-  "isSuccess": true,
+  "success": true,
   "data": [
     {
       "id": "32da4669-30d7-4e1b-a19a-f095caac5f4d",
@@ -100,7 +100,7 @@
 {
   "statusCode": 200,
   "message": "Lấy timeline thành công",
-  "isSuccess": true,
+  "success": true,
   "data": {
     "tourTemplateId": "b740b8a6-716f-41a6-a7e7-f7f9e09d7925",
     "tourTemplateTitle": "Tour Núi Bà Đen",
@@ -394,7 +394,7 @@ interface CreateSingleTimelineItemRequest {
 interface TimelineResponse {
   statusCode: number;
   message: string;
-  isSuccess: boolean;
+  success: boolean;
   data: Timeline;
 }
 

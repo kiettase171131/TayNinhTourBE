@@ -46,7 +46,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error creating booking");
                 return StatusCode(500, new ResponseCreateBookingDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi tạo booking",
                     StatusCode = 500
                 });
@@ -73,7 +73,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting user bookings");
                 return StatusCode(500, new ResponseGetBookingsDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi lấy danh sách booking",
                     StatusCode = 500
                 });
@@ -100,7 +100,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting bookings");
                 return StatusCode(500, new ResponseGetBookingsDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi lấy danh sách booking",
                     StatusCode = 500
                 });
@@ -182,7 +182,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error cancelling booking {BookingId}", id);
                 return StatusCode(500, new ResponseCreateBookingDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi hủy booking",
                     StatusCode = 500
                 });
@@ -208,7 +208,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error checking capacity for operation {OperationId}", operationId);
                 return StatusCode(500, new ResponseCapacityCheckDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi kiểm tra capacity",
                     StatusCode = 500,
                     TourOperationId = operationId
@@ -236,7 +236,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error confirming booking {BookingId}", id);
                 return StatusCode(500, new ResponseCreateBookingDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi confirm booking",
                     StatusCode = 500
                 });
@@ -264,7 +264,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error updating booking status {BookingId}", id);
                 return StatusCode(500, new ResponseCreateBookingDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi cập nhật trạng thái booking",
                     StatusCode = 500
                 });

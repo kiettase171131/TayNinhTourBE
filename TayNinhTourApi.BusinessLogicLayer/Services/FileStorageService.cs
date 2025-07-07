@@ -38,7 +38,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new FileStorageResult
                     {
-                        IsSuccess = false,
+                        success = false,
                         ErrorMessage = validationResult.ErrorMessage
                     };
                 }
@@ -77,7 +77,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new FileStorageResult
                 {
-                    IsSuccess = true,
+                    success = true,
                     FilePath = relativeFilePath,
                     AccessUrl = accessUrl,
                     OriginalFileName = file.FileName,
@@ -90,7 +90,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error storing CV file for user {UserId}", userId);
                 return new FileStorageResult
                 {
-                    IsSuccess = false,
+                    success = false,
                     ErrorMessage = "An error occurred while storing the file"
                 };
             }

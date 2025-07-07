@@ -45,7 +45,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourDetails không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -63,7 +63,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy TourGuide nào có sẵn trong hệ thống",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -110,7 +110,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy TourGuide nào có skills phù hợp",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -255,7 +255,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = $"Đã tạo {invitationsCreated} lời mời tự động cho các hướng dẫn viên phù hợp",
-                    IsSuccess = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -265,7 +265,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi tạo lời mời: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -285,7 +285,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourDetails không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -297,7 +297,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourGuide không tồn tại hoặc không có sẵn",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -310,7 +310,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "TourGuide này đã có lời mời pending cho tour này",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -357,7 +357,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Đã gửi lời mời thành công đến hướng dẫn viên",
-                    IsSuccess = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -368,7 +368,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi tạo lời mời: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -388,7 +388,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Lời mời không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -404,7 +404,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 403,
                         Message = "Bạn không có quyền chấp nhận lời mời này",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -415,7 +415,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Lời mời này đã được xử lý hoặc đã hết hạn",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -427,7 +427,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Lời mời đã hết hạn",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -491,7 +491,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 500,
                         Message = $"Không thể lưu thay đổi: {saveEx.Message}",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -501,7 +501,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Đã chấp nhận lời mời thành công",
-                    IsSuccess = true
+                    success = true
                 };
 
 
@@ -514,7 +514,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi chấp nhận lời mời: {ex.Message}. Inner: {ex.InnerException?.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -533,7 +533,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Lời mời không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -544,7 +544,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 403,
                         Message = "Bạn không có quyền từ chối lời mời này",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -555,7 +555,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Lời mời này đã được xử lý",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -576,7 +576,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Đã từ chối lời mời thành công",
-                    IsSuccess = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -587,7 +587,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi từ chối lời mời: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -651,7 +651,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lời mời thành công",
-                    IsSuccess = true,
+                    success = true,
                     Invitations = invitationDtos,
                     Statistics = stats
                 };
@@ -663,7 +663,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false,
+                    success = false,
                     Invitations = new List<TourGuideInvitationDto>(),
                     Statistics = new InvitationStatisticsDto()
                 };
@@ -719,7 +719,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách lời mời thành công",
-                    IsSuccess = true,
+                    success = true,
                     TourDetails = new TourDetailsBasicDto(), // TODO: Map properly
                     Invitations = invitationDtos,
                     Statistics = stats
@@ -732,7 +732,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false,
+                    success = false,
                     TourDetails = new TourDetailsBasicDto(),
                     Invitations = new List<TourGuideInvitationDto>(),
                     Statistics = new InvitationStatisticsDto()
@@ -870,7 +870,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Lời mời không tồn tại",
-                        IsSuccess = false,
+                        success = false,
                         Invitation = new TourGuideInvitationDetailDto()
                     };
                 }
@@ -903,7 +903,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Lấy thông tin lời mời thành công",
-                    IsSuccess = true,
+                    success = true,
                     Invitation = new TourGuideInvitationDetailDto() // TODO: Map properly
                 };
             }
@@ -914,7 +914,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false,
+                    success = false,
                     Invitation = new TourGuideInvitationDetailDto()
                 };
             }
@@ -931,7 +931,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Lời mời không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -961,7 +961,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = validationErrors.Any() ? 400 : 200,
                     Message = validationErrors.Any() ? "Validation failed" : "Có thể chấp nhận lời mời",
-                    IsSuccess = !validationErrors.Any(),
+                    success = !validationErrors.Any(),
                     ValidationErrors = validationErrors
                 };
             }
@@ -972,7 +972,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -1058,7 +1058,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourDetails không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -1072,7 +1072,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "TourDetails này chưa có guide nào accept invitation",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -1096,7 +1096,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 200,
                         Message = $"Đã fix TourDetails status thành công. Expired {expiredCount} pending invitations.",
-                        IsSuccess = true
+                        success = true
                     };
                 }
                 else
@@ -1105,7 +1105,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 200,
                         Message = $"TourDetails đã ở status {tourDetails.Status}, không cần fix",
-                        IsSuccess = true
+                        success = true
                     };
                 }
             }
@@ -1116,7 +1116,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }
@@ -1195,7 +1195,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Invitation không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -1208,7 +1208,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 400,
                         Message = "Invitation chưa được accept",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -1220,7 +1220,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "TourDetails không tồn tại",
-                        IsSuccess = false
+                        success = false
                     };
                 }
 
@@ -1245,7 +1245,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Debug update thành công",
-                    IsSuccess = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -1256,7 +1256,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Lỗi debug: {ex.Message}",
-                    IsSuccess = false
+                    success = false
                 };
             }
         }

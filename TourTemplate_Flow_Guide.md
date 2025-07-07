@@ -73,7 +73,7 @@ GET /api/TourCompany/template?pageIndex=1&pageSize=10&templateType=FreeScenic&st
 {
   "statusCode": 200,
   "message": "Lấy danh sách tour templates thành công",
-  "isSuccess": true,
+  "success": true,
   "data": {
     "items": [
       {
@@ -134,7 +134,7 @@ Authorization: Bearer {jwt-token}
 {
   "statusCode": 201,
   "message": "Tạo tour template thành công và đã tạo 5 slots cho tháng 7/2025",
-  "isSuccess": true,
+  "success": true,
   "data": {
     "id": "new-template-guid",
     "title": "Tour Núi Bà Đen VIP",
@@ -182,7 +182,7 @@ DELETE /api/TourCompany/template/{id}
 {
   "statusCode": 200,
   "message": "Xóa tour template thành công",
-  "isSuccess": true
+  "success": true
 }
 ```
 
@@ -208,7 +208,7 @@ POST /api/TourCompany/details
 {
   "statusCode": 201,
   "message": "Tạo tour details thành công và đã clone 5 TourSlots",
-  "isSuccess": true,
+  "success": true,
   "data": {
     "id": "details-guid",
     "title": "Lịch trình VIP Núi Bà Đen",
@@ -454,7 +454,7 @@ const subscribeToUpdates = () => {
 {
   "statusCode": 400,
   "message": "Dữ liệu không hợp lệ",
-  "isSuccess": false,
+  "success": false,
   "validationErrors": [
     "Chỉ được chọn Thứ 7 (Saturday) hoặc Chủ nhật (Sunday) cho tour template"
   ],

@@ -48,7 +48,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = validation.ErrorMessage,
                         StatusCode = 400
                     };
@@ -62,7 +62,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Tour operation không tồn tại",
                         StatusCode = 404
                     };
@@ -80,7 +80,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         return new ResponseCreateBookingDto
                         {
-                            IsSuccess = false,
+                            success = false,
                             Message = "Tour đã hết chỗ hoặc có người khác đang đặt cùng lúc. Vui lòng thử lại.",
                             StatusCode = 409
                         };
@@ -132,7 +132,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = true,
+                        success = true,
                         Message = "Đặt tour thành công",
                         StatusCode = 201,
                         BookingData = bookingResponse,
@@ -151,7 +151,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error creating booking for TourOperation {TourOperationId}", request.TourOperationId);
                 return new ResponseCreateBookingDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi đặt tour. Vui lòng thử lại.",
                     StatusCode = 500
                 };
@@ -174,7 +174,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Booking không tồn tại",
                         StatusCode = 404
                     };
@@ -185,7 +185,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Bạn không có quyền hủy booking này",
                         StatusCode = 403
                     };
@@ -196,7 +196,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Booking đã được hủy trước đó",
                         StatusCode = 400
                     };
@@ -213,7 +213,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         return new ResponseCreateBookingDto
                         {
-                            IsSuccess = false,
+                            success = false,
                             Message = "Không thể hủy booking",
                             StatusCode = 500
                         };
@@ -239,7 +239,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseCreateBookingDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Hủy booking thành công",
                     StatusCode = 200
                 };
@@ -249,7 +249,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error cancelling booking {BookingId}", bookingId);
                 return new ResponseCreateBookingDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi hủy booking",
                     StatusCode = 500
                 };
@@ -270,7 +270,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Bạn không có quyền confirm booking",
                         StatusCode = 403
                     };
@@ -283,7 +283,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Booking không tồn tại",
                         StatusCode = 404
                     };
@@ -294,7 +294,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Chỉ có thể confirm booking đang ở trạng thái Pending",
                         StatusCode = 400
                     };
@@ -308,7 +308,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Không thể confirm booking",
                         StatusCode = 500
                     };
@@ -318,7 +318,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseCreateBookingDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Confirm booking thành công",
                     StatusCode = 200
                 };
@@ -328,7 +328,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error confirming booking {BookingId}", bookingId);
                 return new ResponseCreateBookingDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi confirm booking",
                     StatusCode = 500
                 };
@@ -353,7 +353,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseGetBookingsDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Lấy danh sách booking thành công",
                     StatusCode = 200,
                     Bookings = bookingResponses,
@@ -373,7 +373,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error getting bookings for user {UserId}", currentUser.Id);
                 return new ResponseGetBookingsDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi lấy danh sách booking",
                     StatusCode = 500
                 };
@@ -440,7 +440,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseGetBookingsDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Lấy danh sách booking thành công",
                     StatusCode = 200,
                     Bookings = bookingResponses,
@@ -460,7 +460,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error getting bookings with filter");
                 return new ResponseGetBookingsDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi lấy danh sách booking",
                     StatusCode = 500
                 };
@@ -525,7 +525,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCapacityCheckDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Tour operation không tồn tại",
                         StatusCode = 404,
                         TourOperationId = tourOperationId
@@ -551,7 +551,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseCapacityCheckDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Kiểm tra capacity thành công",
                     StatusCode = 200,
                     TourOperationId = tourOperationId,
@@ -566,7 +566,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error checking capacity for TourOperation {TourOperationId}", tourOperationId);
                 return new ResponseCapacityCheckDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi kiểm tra capacity",
                     StatusCode = 500,
                     TourOperationId = tourOperationId
@@ -585,7 +585,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Bạn không có quyền cập nhật trạng thái booking",
                         StatusCode = 403
                     };
@@ -597,7 +597,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseCreateBookingDto
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Không thể cập nhật trạng thái booking",
                         StatusCode = 404
                     };
@@ -605,7 +605,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseCreateBookingDto
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Cập nhật trạng thái booking thành công",
                     StatusCode = 200
                 };
@@ -615,7 +615,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error updating booking status {BookingId}", bookingId);
                 return new ResponseCreateBookingDto
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = "Có lỗi xảy ra khi cập nhật trạng thái",
                     StatusCode = 500
                 };

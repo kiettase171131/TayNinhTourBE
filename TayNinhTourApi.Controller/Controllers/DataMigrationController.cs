@@ -38,7 +38,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<int>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = $"Migration completed successfully. {migratedCount} records migrated.",
                     Data = migratedCount,
                     StatusCode = 200
@@ -49,7 +49,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error during Languages to Skills migration");
                 return StatusCode(500, new ApiResponse<int>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Migration failed: {ex.Message}",
                     Data = 0,
                     StatusCode = 500
@@ -70,7 +70,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<MigrationValidationReport>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Migration validation completed",
                     Data = report,
                     StatusCode = 200
@@ -81,7 +81,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error during migration validation");
                 return StatusCode(500, new ApiResponse<MigrationValidationReport>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Validation failed: {ex.Message}",
                     StatusCode = 500
                 });
@@ -103,7 +103,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<int>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = $"Rollback completed successfully. {rolledBackCount} records rolled back.",
                     Data = rolledBackCount,
                     StatusCode = 200
@@ -114,7 +114,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error during migration rollback");
                 return StatusCode(500, new ApiResponse<int>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Rollback failed: {ex.Message}",
                     Data = 0,
                     StatusCode = 500
@@ -139,7 +139,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     ApplicationsWithSkills = report.ApplicationsWithSkills,
                     ApplicationsNeedingMigration = report.ApplicationsNeedingMigration,
                     ApplicationsWithBoth = report.ApplicationsWithBoth,
-                    MigrationComplete = report.IsSuccessful,
+                    MigrationComplete = report.successful,
                     MigrationProgress = report.TotalApplications > 0 
                         ? (double)report.ApplicationsWithSkills / report.TotalApplications * 100 
                         : 0,
@@ -148,7 +148,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<object>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Migration status retrieved successfully",
                     Data = status,
                     StatusCode = 200
@@ -159,7 +159,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting migration status");
                 return StatusCode(500, new ApiResponse<object>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Failed to get migration status: {ex.Message}",
                     StatusCode = 500
                 });
@@ -198,7 +198,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<object>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Skill matching test completed",
                     Data = result,
                     StatusCode = 200
@@ -209,7 +209,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error during skill matching test");
                 return StatusCode(500, new ApiResponse<object>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Skill matching test failed: {ex.Message}",
                     StatusCode = 500
                 });

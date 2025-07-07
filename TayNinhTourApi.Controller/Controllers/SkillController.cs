@@ -120,7 +120,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<SkillInfoDto>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Lấy thông tin skill thành công",
                     Data = skillInfo,
                     StatusCode = 200
@@ -130,7 +130,7 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 return StatusCode(500, new ApiResponse<SkillInfoDto>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra: {ex.Message}",
                     StatusCode = 500
                 });
@@ -152,7 +152,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return Ok(new ApiResponse<bool>
                     {
-                        IsSuccess = true,
+                        success = true,
                         Message = "Skills string trống - hợp lệ",
                         Data = true,
                         StatusCode = 200
@@ -163,7 +163,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<bool>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = isValid ? "Skills string hợp lệ" : "Skills string chứa giá trị không hợp lệ",
                     Data = isValid,
                     StatusCode = 200
@@ -173,7 +173,7 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 return StatusCode(500, new ApiResponse<bool>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi validate skills string: {ex.Message}",
                     Data = false,
                     StatusCode = 500
@@ -196,7 +196,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<List<string>>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Lấy danh sách tên skills thành công",
                     Data = skillNames,
                     StatusCode = 200
@@ -206,7 +206,7 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 return StatusCode(500, new ApiResponse<List<string>>
                 {
-                    IsSuccess = false,
+                    success = false,
                     Message = $"Có lỗi xảy ra khi lấy danh sách skill names: {ex.Message}",
                     Data = new List<string>(),
                     StatusCode = 500

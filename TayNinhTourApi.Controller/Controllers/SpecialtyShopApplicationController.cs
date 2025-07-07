@@ -47,7 +47,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 
                 return Ok(new ApiResponse<object>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Applications retrieved successfully",
                     Data = new
                     {
@@ -80,7 +80,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     return NotFound(new ApiResponse<object>
                     {
-                        IsSuccess = false,
+                        success = false,
                         Message = "Specialty shop application not found",
                         Data = null
                     });
@@ -88,7 +88,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new ApiResponse<SpecialtyShopApplicationDto>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Specialty shop application retrieved successfully",
                     Data = application
                 });
@@ -164,7 +164,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 
                 return Ok(new ApiResponse<object>
                 {
-                    IsSuccess = true,
+                    success = true,
                     Message = "Application statistics retrieved successfully",
                     Data = stats
                 });

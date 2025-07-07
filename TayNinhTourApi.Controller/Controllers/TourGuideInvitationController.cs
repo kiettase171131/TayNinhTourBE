@@ -52,7 +52,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 401,
                         Message = "Không thể xác thực người dùng",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -78,7 +78,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 404,
                         Message = $"Không tìm thấy thông tin TourGuide cho UserId: {currentUserId}",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -99,7 +99,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         {
                             StatusCode = 400,
                             Message = $"Status không hợp lệ: {status}",
-                            IsSuccess = false
+                            success = false
                         });
                     }
                 }
@@ -116,7 +116,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi lấy danh sách lời mời",
-                    IsSuccess = false
+                    success = false
                 });
             }
         }
@@ -142,7 +142,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 401,
                         Message = "Không thể xác thực người dùng",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -153,7 +153,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 400,
                         Message = "InvitationId trong URL và body không khớp",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -163,7 +163,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 400,
                         Message = "Cần xác nhận đã hiểu yêu cầu tour",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -177,7 +177,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy thông tin TourGuide",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -193,7 +193,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi chấp nhận lời mời",
-                    IsSuccess = false
+                    success = false
                 });
             }
         }
@@ -218,7 +218,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Đã xảy ra lỗi khi debug update tour operation",
-                    IsSuccess = false
+                    success = false
                 });
             }
         }
@@ -248,7 +248,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 401,
                         Message = "Không thể xác thực người dùng",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -259,7 +259,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 400,
                         Message = "InvitationId trong URL và body không khớp",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -273,7 +273,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy thông tin TourGuide",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -293,7 +293,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi từ chối lời mời",
-                    IsSuccess = false
+                    success = false
                 });
             }
         }
@@ -370,7 +370,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi lấy thông tin lời mời",
-                    IsSuccess = false
+                    success = false
                 });
             }
         }
@@ -397,7 +397,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi lấy danh sách lời mời",
-                    IsSuccess = false
+                    success = false
                 });
             }
         }
@@ -420,7 +420,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 401,
                         Message = "Không thể xác thực người dùng",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -434,7 +434,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy thông tin TourGuide",
-                        IsSuccess = false
+                        success = false
                     });
                 }
 
@@ -449,7 +449,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi validate lời mời",
-                    IsSuccess = false
+                    success = false
                 });
             }
         }
@@ -476,7 +476,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi fix TourDetails status",
-                    IsSuccess = false
+                    success = false
                 });
             }
         }
