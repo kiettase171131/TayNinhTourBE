@@ -12,13 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-<<<<<<<< HEAD:TayNinhTourApi.DataAccessLayer/Migrations/20250707155403_Init.Designer.cs
-    [Migration("20250707155403_Init")]
+    [Migration("20250707164235_Init")]
     partial class Init
-========
-    [Migration("20250707105606_InitialCreate")]
-    partial class InitialCreate
->>>>>>>> main:TayNinhTourApi.DataAccessLayer/Migrations/20250707105606_InitialCreate.Designer.cs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
