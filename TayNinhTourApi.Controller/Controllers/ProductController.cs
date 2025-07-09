@@ -109,6 +109,7 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
         }
         [HttpPost("rate")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> RateProduct([FromBody] CreateProductRatingDto dto)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
@@ -117,6 +118,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpPost("review")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> ReviewProduct([FromBody] CreateProductReviewDto dto)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
@@ -238,6 +240,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
         [HttpGet("GetOrder-ByUser")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> GetOrderByUser(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
         {
             try
@@ -261,6 +264,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
         [HttpGet("GetOrder-ByShop")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> GetOrdersByShop(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
         {
             CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
