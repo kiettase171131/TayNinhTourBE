@@ -215,7 +215,7 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _productService.DeleteVoucherAsync(id);
             return StatusCode(result.StatusCode, result);
         }
-        [HttpGet("Order")]
+        [HttpGet("AllOrder")]
         public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
         {
             try

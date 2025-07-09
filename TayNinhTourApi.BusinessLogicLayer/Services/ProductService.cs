@@ -961,7 +961,33 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<BaseResposeDto> UpdateVoucherAsync(Guid id, UpdateVoucherDto dto, Guid userId)
         {
             var voucher = await _voucherRepository.GetByIdAsync(id);
+            if ((dto.DiscountAmount <= 0) && (!dto.DiscountPercent.HasValue || dto.DiscountPercent <= 0))
+            {
+                return new ResponseCreateVoucher
 
+                {
+                    StatusCode = 400,
+                    Message = "Phải nhập số tiền giảm hoặc phần trăm giảm > 0."
+                };
+            }
+
+            if (dto.DiscountAmount > 0 && dto.DiscountPercent.HasValue && dto.DiscountPercent > 0)
+            {
+                return new ResponseCreateVoucher
+                {
+                    StatusCode = 400,
+                    Message = "Chỉ được chọn một trong hai: số tiền giảm hoặc phần trăm giảm."
+                };
+            }
+
+            if (dto.StartDate >= dto.EndDate)
+            {
+                return new ResponseCreateVoucher
+                {
+                    StatusCode = 400,
+                    Message = "Ngày bắt đầu phải nhỏ hơn ngày kết thúc."
+                };
+            }
             if (voucher == null || voucher.IsDeleted)
             {
                 return new BaseResposeDto
