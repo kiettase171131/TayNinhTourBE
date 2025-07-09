@@ -237,5 +237,28 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+        [HttpGet("GetOrder-ByUser")]
+        public async Task<IActionResult> GetOrderByUser(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _productService.GetOrdersByUserAsync(pageIndex, pageSize, payOsOrderCode, status, currentUser);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetAllOrder Controller error: {ex.Message}");
+                Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+
+                return StatusCode(500, new
+                {
+                    message = "Internal server error",
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message
+                });
+            }
+        }
     }
 }

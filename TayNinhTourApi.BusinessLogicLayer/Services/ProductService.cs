@@ -1099,5 +1099,63 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 throw; // Re-throw để controller có thể handle
             }
         }
+
+        public async Task<ResponseGetOrdersDto> GetOrdersByUserAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, CurrentUserObject currentUserObject)
+        {
+            try
+            {
+                var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+                var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+                var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted && x.CreatedById == currentUserObject.Id);
+
+                // lọc theo status (IsActive)
+                if (status.HasValue)
+                {
+                    predicate = predicate.And(x => x.IsActive == status.Value);
+                }
+                if (!string.IsNullOrEmpty(payOsOrderCode))
+                {
+                    predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode);
+                }
+
+                // lấy danh sách + phân trang
+                var orders = await _orderRepository.GenericGetPaginationAsync(
+                    pageIndexValue,
+                    pageSizeValue,
+                    predicate,
+                    new[] {
+                nameof(Order.OrderDetails),
+                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                    }
+                );
+
+                var totalOrders = orders.Count();
+                var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
+
+                // Debug: Log thông tin orders trước khi mapping
+                Console.WriteLine($"Found {totalOrders} orders to map");
+
+                if (orders.Any())
+                {
+                    var firstOrder = orders.First();
+                    Console.WriteLine($"First order - Id: {firstOrder.Id}, PayOsOrderCode: {firstOrder.PayOsOrderCode}, OrderDetails count: {firstOrder.OrderDetails?.Count}");
+                }
+
+                return new ResponseGetOrdersDto
+                {
+                    StatusCode = 200,
+                    Data = _mapper.Map<List<OrderDto>>(orders),
+                    TotalRecord = totalOrders,
+                    TotalPages = totalPages
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetAllOrdersAsync error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw; // Re-throw để controller có thể handle
+            }
+        }
     }
 }
