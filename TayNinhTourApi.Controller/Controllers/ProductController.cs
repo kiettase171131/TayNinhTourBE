@@ -248,7 +248,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GetAllOrder Controller error: {ex.Message}");
+                Console.WriteLine($"GetOrderByUser Controller error: {ex.Message}");
                 Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
 
@@ -260,5 +260,13 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+        [HttpGet("GetOrder-ByShop")]
+        public async Task<IActionResult> GetOrdersByShop(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
+        {
+            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.GetOrdersByCurrentShopAsync(pageIndex, pageSize, payOsOrderCode, status, currentUser);
+            return Ok(result);
+        }
+
     }
 }

@@ -12,5 +12,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
         public string ProductName { get; set; } = null!;
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
+        public Guid ShopId { get; set; }
     }
 }
