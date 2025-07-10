@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250707164235_Init")]
+    [Migration("20250710050109_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -353,8 +353,23 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsQRCodeUsed")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("PayOsOrderCode")
                         .HasColumnType("longtext");
+
+                    b.Property<string>("QRCodeData")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("QRCodeImageUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("QRCodeUsedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("QRCodeUsedByShopId")
+                        .HasColumnType("char(36)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

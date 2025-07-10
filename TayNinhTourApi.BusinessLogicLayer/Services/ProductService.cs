@@ -38,7 +38,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IProductRatingRepository _ratingRepo;
         private readonly IProductReviewRepository _reviewRepo;
         private readonly IVoucherRepository _voucherRepository;
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository)
+        private readonly IQRCodeService _qrCodeService;
+
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IQRCodeService qrCodeService)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -51,6 +53,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _ratingRepo = productRating;
             _reviewRepo = productReview;
             _voucherRepository = voucherRepository;
+            _qrCodeService = qrCodeService;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
@@ -583,6 +586,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 else
                 {
                     Console.WriteLine("No cart items to remove");
+                }
+
+                // ✅ 3. Tạo mã QR cho khách hàng sau khi thanh toán thành công
+                Console.WriteLine("Starting QR code generation...");
+                try
+                {
+                    var qrResult = await _qrCodeService.GenerateQRCodeAsync(orderId);
+                    if (qrResult.success)
+                    {
+                        Console.WriteLine($"QR code generated successfully for order {orderId}: {qrResult.QRCodeImageUrl}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Failed to generate QR code for order {orderId}: {qrResult.Message}");
+                    }
+                }
+                catch (Exception qrEx)
+                {
+                    Console.WriteLine($"Error generating QR code: {qrEx.Message}");
+                    // QR code generation failure shouldn't stop the main process
                 }
 
                 Console.WriteLine("ClearCartAndUpdateInventoryAsync completed successfully");
