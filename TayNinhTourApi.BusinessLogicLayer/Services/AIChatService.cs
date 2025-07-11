@@ -181,6 +181,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var aiResponse = await _geminiAIService.GenerateContentAsync(request.Message, conversationHistory);
 
                 AIChatMessage? aiMessage = null;
+                string responseMessage = "G?i tin nh?n thành công";
+                
                 if (aiResponse.Success)
                 {
                     // T?o tin nh?n ph?n h?i t? AI
@@ -192,6 +194,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         MessageType = "AI",
                         TokensUsed = aiResponse.TokensUsed,
                         ResponseTimeMs = aiResponse.ResponseTimeMs,
+                        Metadata = aiResponse.IsFallback ? "{\"isFallback\": true}" : null,
                         CreatedById = userId,
                         CreatedAt = DateTime.UtcNow,
                         IsActive = true,
@@ -202,17 +205,45 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     // C?p nh?t th?i gian tin nh?n cu?i
                     await _unitOfWork.AIChatSessionRepository.UpdateLastMessageTimeAsync(request.SessionId);
+                    
+                    if (aiResponse.IsFallback)
+                    {
+                        responseMessage = "G?i tin nh?n thành công (AI t?m th?i b?n, s? d?ng ph?n h?i t? ??ng)";
+                        _logger.LogInformation("Used fallback response for session {SessionId}", request.SessionId);
+                    }
+                }
+                else
+                {
+                    // N?u AI không ph?n h?i, t?o message thông báo l?i
+                    aiMessage = new AIChatMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        SessionId = request.SessionId,
+                        Content = "Xin l?i, tôi hi?n ?ang g?p khó kh?n k? thu?t. Vui lòng th? l?i sau ho?c liên h? h? tr?.",
+                        MessageType = "AI",
+                        Metadata = "{\"isError\": true}",
+                        CreatedById = userId,
+                        CreatedAt = DateTime.UtcNow,
+                        IsActive = true,
+                        IsDeleted = false
+                    };
+
+                    await _unitOfWork.AIChatMessageRepository.AddAsync(aiMessage);
+                    responseMessage = "G?i tin nh?n thành công nh?ng AI không th? ph?n h?i";
+                    
+                    _logger.LogWarning("AI failed to respond for session {SessionId}: {Error}", 
+                        request.SessionId, aiResponse.ErrorMessage);
                 }
 
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Processed message for session {SessionId}, AI response: {Success}", 
-                    request.SessionId, aiResponse.Success);
+                _logger.LogInformation("Processed message for session {SessionId}, AI response: {Success}, IsFallback: {IsFallback}", 
+                    request.SessionId, aiResponse.Success, aiResponse.IsFallback);
 
                 return new ResponseSendMessageDto
                 {
                     success = true,
-                    Message = aiResponse.Success ? "G?i tin nh?n thành công" : "G?i tin nh?n thành công nh?ng AI không ph?n h?i",
+                    Message = responseMessage,
                     StatusCode = 200,
                     UserMessage = new AIChatMessageDto
                     {
@@ -221,18 +252,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         MessageType = userMessage.MessageType,
                         CreatedAt = userMessage.CreatedAt
                     },
-                    AIResponse = aiMessage != null ? new AIChatMessageDto
+                    AIResponse = new AIChatMessageDto
                     {
                         Id = aiMessage.Id,
                         Content = aiMessage.Content,
                         MessageType = aiMessage.MessageType,
                         CreatedAt = aiMessage.CreatedAt,
                         TokensUsed = aiMessage.TokensUsed,
-                        ResponseTimeMs = aiMessage.ResponseTimeMs
-                    } : null,
+                        ResponseTimeMs = aiMessage.ResponseTimeMs,
+                        IsFallback = aiResponse.IsFallback,
+                        IsError = !aiResponse.Success
+                    },
                     TokensUsed = aiResponse.TokensUsed,
                     ResponseTimeMs = aiResponse.ResponseTimeMs,
-                    Error = aiResponse.Success ? null : aiResponse.ErrorMessage
+                    Error = aiResponse.Success ? null : aiResponse.ErrorMessage,
+                    IsFallback = aiResponse.IsFallback
                 };
             }
             catch (Exception ex)
@@ -323,7 +357,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     MessageType = m.MessageType,
                     CreatedAt = m.CreatedAt,
                     TokensUsed = m.TokensUsed,
-                    ResponseTimeMs = m.ResponseTimeMs
+                    ResponseTimeMs = m.ResponseTimeMs,
+                    IsFallback = m.Metadata?.Contains("\"isFallback\": true") == true,
+                    IsError = m.Metadata?.Contains("\"isError\": true") == true
                 }).ToList();
 
                 return new ResponseGetMessagesDto

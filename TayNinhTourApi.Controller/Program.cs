@@ -122,13 +122,22 @@ if (builder.Environment.IsDevelopment())
 }
 */
 
-// Configure Gemini AI settings
+// Configure AI settings
 builder.Services.Configure<GeminiSettings>(builder.Configuration.GetSection("GeminiSettings"));
+builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAISettings"));
 
-// Register HttpClient for Gemini API với timeout
+// Register HttpClient for Gemini API với timeout và retry policy
 builder.Services.AddHttpClient<IGeminiAIService, GeminiAIService>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(15); // Timeout 15s để tránh chờ quá lâu
+    client.Timeout = TimeSpan.FromSeconds(30); // Tăng timeout lên 30s cho Gemini API
+    client.DefaultRequestHeaders.Add("User-Agent", "TayNinhTourAPI/1.0");
+})
+.ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler();
+    // Tắt automatic decompression để tránh conflict
+    handler.AutomaticDecompression = System.Net.DecompressionMethods.None;
+    return handler;
 });
 
 // Register services layer

@@ -40,7 +40,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     _logger.LogInformation("Gemini API attempt {Attempt}/{MaxRetries}", attempt, maxRetries);
 
-                    // T?o request payload
+                    // T?o request payload v?i c?u hình t?i ?u
                     var requestPayload = CreateRequestPayload(prompt, conversationHistory);
                     var jsonPayload = JsonSerializer.Serialize(requestPayload, new JsonSerializerOptions
                     {
@@ -55,15 +55,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     if (attempt == 1)
                     {
                         _logger.LogInformation("Sending request to Gemini API. Model: {Model}", _geminiSettings.Model);
-                        // Ch? log request payload ? development
-                        if (_logger.IsEnabled(LogLevel.Debug))
-                        {
-                            _logger.LogDebug("Request payload: {Payload}", jsonPayload);
-                        }
                     }
 
+                    // Timeout ng?n ?? nhanh fail-over
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    
                     // G?i request
-                    var response = await _httpClient.PostAsync(url, content);
+                    var response = await _httpClient.PostAsync(url, content, cts.Token);
                     var responseContent = await response.Content.ReadAsStringAsync();
 
                     _logger.LogInformation("Attempt {Attempt}: Gemini API response status: {Status}", attempt, response.StatusCode);
@@ -79,14 +77,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                 continue;
                             }
                             
-                            stopwatch.Stop();
-                            return new GeminiResponse
-                            {
-                                Success = false,
-                                Content = string.Empty,
-                                ErrorMessage = "API tr? v? response body r?ng sau nhi?u l?n th?",
-                                ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds
-                            };
+                            return CreateFallbackResponse(prompt, stopwatch);
                         }
 
                         try
@@ -144,7 +135,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         _logger.LogWarning("Attempt {Attempt}: Gemini API failed. Status: {Status}, Response: {Response}", 
                             attempt, response.StatusCode, responseContent);
 
-                        // Retry on server errors (5xx) or rate limiting (429) or overloaded (503)
+                        // N?u là 503 (overload), fail nhanh và dùng fallback
+                        if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                        {
+                            _logger.LogWarning("Model overloaded (503), using fallback immediately");
+                            return CreateFallbackResponse(prompt, stopwatch, "Gemini API is overloaded");
+                        }
+
+                        // Retry on other server errors (5xx) or rate limiting (429)
                         if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                         {
                             if (attempt < maxRetries)
@@ -157,15 +155,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         }
 
                         // Don't retry on client errors (4xx except 429)
-                        stopwatch.Stop();
-                        return new GeminiResponse
-                        {
-                            Success = false,
-                            Content = string.Empty,
-                            ErrorMessage = $"API request failed: {response.StatusCode} - {responseContent}",
-                            ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds
-                        };
+                        return CreateFallbackResponse(prompt, stopwatch, $"API request failed: {response.StatusCode}");
                     }
+                }
+                catch (TaskCanceledException)
+                {
+                    _logger.LogWarning("Attempt {Attempt}: Request timeout, using fallback", attempt);
+                    return CreateFallbackResponse(prompt, stopwatch, "Request timeout");
                 }
                 catch (Exception ex) when (attempt < maxRetries)
                 {
@@ -175,40 +171,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
                 catch (Exception ex)
                 {
-                    stopwatch.Stop();
                     _logger.LogError(ex, "Final attempt failed: Error calling Gemini API");
-                    
-                    return new GeminiResponse
-                    {
-                        Success = false,
-                        Content = string.Empty,
-                        ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds,
-                        ErrorMessage = ex.Message
-                    };
+                    return CreateFallbackResponse(prompt, stopwatch, ex.Message);
                 }
             }
 
-            stopwatch.Stop();
-            return new GeminiResponse
-            {
-                Success = false,
-                Content = string.Empty,
-                ErrorMessage = $"Gemini API failed after {maxRetries} attempts",
-                ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds
-            };
+            // N?u h?t retry attempts, tr? v? fallback response
+            return CreateFallbackResponse(prompt, stopwatch, $"Gemini API failed after {maxRetries} attempts");
         }
 
         public async Task<string> GenerateTitleAsync(string firstMessage)
         {
             try
             {
-                var titlePrompt = $"Hãy t?o m?t tiêu ?? ng?n g?n (t?i ?a 50 ký t?) cho cu?c trò chuy?n b?t ??u b?ng tin nh?n: \"{firstMessage}\". Ch? tr? v? tiêu ??, không c?n gi?i thích thêm.";
+                var titlePrompt = $"T?o tiêu ?? ng?n cho: {firstMessage}";
                 
                 var response = await GenerateContentAsync(titlePrompt);
                 
                 if (response.Success && !string.IsNullOrWhiteSpace(response.Content))
                 {
-                    // Làm s?ch và c?t ng?n tiêu ??
                     var title = response.Content.Trim().Replace("\"", "");
                     if (title.Length > 50)
                     {
@@ -218,7 +199,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
                 else
                 {
-                    // Fallback: t?o tiêu ?? t? tin nh?n ??u tiên
                     var fallbackTitle = firstMessage.Length > 30 
                         ? firstMessage.Substring(0, 27) + "..." 
                         : firstMessage;
@@ -229,7 +209,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogError(ex, "Error generating title");
                 
-                // Fallback: t?o tiêu ?? t? tin nh?n ??u tiên
                 var fallbackTitle = firstMessage.Length > 30 
                     ? firstMessage.Substring(0, 27) + "..." 
                     : firstMessage;
@@ -237,11 +216,61 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        private GeminiResponse CreateFallbackResponse(string prompt, Stopwatch stopwatch, string? errorMessage = null)
+        {
+            stopwatch.Stop();
+            
+            var fallbackContent = GenerateFallbackContent(prompt);
+            
+            _logger.LogInformation("Using fallback response for prompt: {Prompt}", prompt.Substring(0, Math.Min(50, prompt.Length)));
+            
+            return new GeminiResponse
+            {
+                Success = true,
+                Content = fallbackContent,
+                TokensUsed = EstimateTokens(fallbackContent),
+                ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds,
+                ErrorMessage = errorMessage,
+                IsFallback = true
+            };
+        }
+
+        private string GenerateFallbackContent(string prompt)
+        {
+            var lowerPrompt = prompt.ToLower();
+            
+            if (lowerPrompt.Contains("tây ninh") || lowerPrompt.Contains("tour") || lowerPrompt.Contains("du l?ch"))
+            {
+                return "Tây Ninh là ?i?m ??n du l?ch tâm linh n?i ti?ng v?i Núi Bà ?en và di tích l?ch s?. B?n mu?n bi?t v? tour nào?";
+            }
+            
+            if (lowerPrompt.Contains("núi bà ?en") || lowerPrompt.Contains("núi bà"))
+            {
+                return "Núi Bà ?en cao nh?t Nam B?, có cáp treo và chùa linh thiêng. ?i?m ??n h?p d?n c?a Tây Ninh.";
+            }
+            
+            if (lowerPrompt.Contains("chào") || lowerPrompt.Contains("xin chào") || lowerPrompt.Contains("hello"))
+            {
+                return "Xin chào! Tôi là tr? lý AI du l?ch Tây Ninh. Tôi có th? giúp gì cho b?n?";
+            }
+            
+            if (lowerPrompt.Contains("giá") || lowerPrompt.Contains("chi phí"))
+            {
+                return "Giá tour tùy theo lo?i hình và th?i gian. Vui lòng liên h? ?? ???c t? v?n chi ti?t.";
+            }
+            
+            if (lowerPrompt.Contains("?n") || lowerPrompt.Contains("món"))
+            {
+                return "Tây Ninh có bánh tráng n??ng, bánh canh cua ??ng, cà ri dê Ninh S?n. B?n mu?n bi?t thêm?";
+            }
+            
+            return "H? th?ng AI t?m b?n. Tôi s?n sàng h? tr? v? du l?ch Tây Ninh!";
+        }
+
         private object CreateRequestPayload(string prompt, List<GeminiMessage>? conversationHistory)
         {
             var contents = new List<object>();
 
-            // Thêm system message
             if (!string.IsNullOrEmpty(_geminiSettings.SystemPrompt))
             {
                 contents.Add(new
@@ -251,22 +280,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 });
             }
 
-            // Thêm conversation history n?u có (gi?i h?n context)
             if (conversationHistory?.Any() == true)
             {
-                // Ch? l?y 3 tin nh?n g?n nh?t ?? gi?m context
-                var recentHistory = conversationHistory.TakeLast(3);
-                foreach (var message in recentHistory)
+                var lastMessage = conversationHistory.Last();
+                contents.Add(new
                 {
-                    contents.Add(new
-                    {
-                        role = message.Role == "AI" ? "model" : "user",
-                        parts = new[] { new { text = message.Content } }
-                    });
-                }
+                    role = lastMessage.Role == "AI" ? "model" : "user",
+                    parts = new[] { new { text = lastMessage.Content } }
+                });
             }
 
-            // Thêm prompt hi?n t?i
             contents.Add(new
             {
                 role = "user",
@@ -278,23 +301,28 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 contents = contents,
                 generationConfig = new
                 {
-                    temperature = _geminiSettings.Temperature,
-                    maxOutputTokens = _geminiSettings.MaxTokens,
-                    topP = 0.9, // T?ng topP ?? ?u tiên câu tr? l?i chính xác h?n
-                    topK = 20,  // T?ng topK ?? có nhi?u l?a ch?n t? h?n
-                    candidateCount = 1, // Ch? t?o 1 candidate ?? nhanh h?n
-                    stopSequences = new[] { "\n\n\n", "---" } // D?ng khi g?p d?u hi?u k?t thúc
+                    temperature = Math.Min(_geminiSettings.Temperature, 0.3),
+                    maxOutputTokens = Math.Min(_geminiSettings.MaxTokens, 300),
+                    topP = 0.7,
+                    topK = 10,
+                    candidateCount = 1,
+                    stopSequences = new[] { "\n\n", "---" }
+                },
+                safetySettings = new[]
+                {
+                    new { category = "HARM_CATEGORY_HARASSMENT", threshold = "BLOCK_ONLY_HIGH" },
+                    new { category = "HARM_CATEGORY_HATE_SPEECH", threshold = "BLOCK_ONLY_HIGH" },
+                    new { category = "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold = "BLOCK_ONLY_HIGH" },
+                    new { category = "HARM_CATEGORY_DANGEROUS_CONTENT", threshold = "BLOCK_ONLY_HIGH" }
                 }
             };
         }
 
         private int EstimateTokens(string text)
         {
-            // ??c tính ??n gi?n: 1 token ? 4 ký t? cho ti?ng Vi?t
             return (int)Math.Ceiling(text.Length / 4.0);
         }
 
-        // Classes cho deserialize Gemini API response
         private class GeminiApiResponse
         {
             [JsonPropertyName("candidates")]

@@ -40,5 +40,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public int TokensUsed { get; set; }
         public int ResponseTimeMs { get; set; }
         public string? ErrorMessage { get; set; }
+        
+        /// <summary>
+        /// ?ánh d?u response này là fallback content
+        /// </summary>
+        public bool IsFallback { get; set; } = false;
     }
 }

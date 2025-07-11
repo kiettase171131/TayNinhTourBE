@@ -11,6 +11,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
         public DateTime CreatedAt { get; set; }
         public int? TokensUsed { get; set; }
         public int? ResponseTimeMs { get; set; }
+        public bool IsFallback { get; set; } = false;
+        public bool IsError { get; set; } = false;
     }
 
     /// <summary>
@@ -64,6 +66,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
         public int? TokensUsed { get; set; }
         public int? ResponseTimeMs { get; set; }
         public string? Error { get; set; }
+        public bool IsFallback { get; set; } = false;
     }
 
     /// <summary>
