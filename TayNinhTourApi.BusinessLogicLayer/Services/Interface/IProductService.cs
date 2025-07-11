@@ -39,5 +39,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> UpdateVoucherAsync(Guid id, UpdateVoucherDto dto, Guid userId);
         Task<BaseResposeDto> DeleteVoucherAsync(Guid id);
         Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status);
+        Task<ResponseGetOrdersDto> GetOrdersByUserAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, CurrentUserObject currentUserObject);
+        Task<ResponseGetOrdersDto> GetOrdersByCurrentShopAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, CurrentUserObject currentUserObject);
     }
 }

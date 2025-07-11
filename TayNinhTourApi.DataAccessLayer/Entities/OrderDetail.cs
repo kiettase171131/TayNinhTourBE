@@ -13,7 +13,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public Guid ProductId { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
-
+            
         [ForeignKey(nameof(OrderId))]
         public virtual Order Order { get; set; } = null!;
 

@@ -984,7 +984,33 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<BaseResposeDto> UpdateVoucherAsync(Guid id, UpdateVoucherDto dto, Guid userId)
         {
             var voucher = await _voucherRepository.GetByIdAsync(id);
+            if ((dto.DiscountAmount <= 0) && (!dto.DiscountPercent.HasValue || dto.DiscountPercent <= 0))
+            {
+                return new ResponseCreateVoucher
 
+                {
+                    StatusCode = 400,
+                    Message = "Phải nhập số tiền giảm hoặc phần trăm giảm > 0."
+                };
+            }
+
+            if (dto.DiscountAmount > 0 && dto.DiscountPercent.HasValue && dto.DiscountPercent > 0)
+            {
+                return new ResponseCreateVoucher
+                {
+                    StatusCode = 400,
+                    Message = "Chỉ được chọn một trong hai: số tiền giảm hoặc phần trăm giảm."
+                };
+            }
+
+            if (dto.StartDate >= dto.EndDate)
+            {
+                return new ResponseCreateVoucher
+                {
+                    StatusCode = 400,
+                    Message = "Ngày bắt đầu phải nhỏ hơn ngày kết thúc."
+                };
+            }
             if (voucher == null || voucher.IsDeleted)
             {
                 return new BaseResposeDto
@@ -1096,5 +1122,129 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 throw; // Re-throw để controller có thể handle
             }
         }
+
+        public async Task<ResponseGetOrdersDto> GetOrdersByUserAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, CurrentUserObject currentUserObject)
+        {
+            try
+            {
+                var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+                var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+                var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted && x.CreatedById == currentUserObject.Id);
+
+                // lọc theo status (IsActive)
+                if (status.HasValue)
+                {
+                    predicate = predicate.And(x => x.IsActive == status.Value);
+                }
+                if (!string.IsNullOrEmpty(payOsOrderCode))
+                {
+                    predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode);
+                }
+
+                // lấy danh sách + phân trang
+                var orders = await _orderRepository.GenericGetPaginationAsync(
+                    pageIndexValue,
+                    pageSizeValue,
+                    predicate,
+                    new[] {
+                nameof(Order.OrderDetails),
+                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                    }
+                );
+
+                var totalOrders = orders.Count();
+                var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
+
+                // Debug: Log thông tin orders trước khi mapping
+                Console.WriteLine($"Found {totalOrders} orders to map");
+
+                if (orders.Any())
+                {
+                    var firstOrder = orders.First();
+                    Console.WriteLine($"First order - Id: {firstOrder.Id}, PayOsOrderCode: {firstOrder.PayOsOrderCode}, OrderDetails count: {firstOrder.OrderDetails?.Count}");
+                }
+
+                return new ResponseGetOrdersDto
+                {
+                    StatusCode = 200,
+                    Data = _mapper.Map<List<OrderDto>>(orders),
+                    TotalRecord = totalOrders,
+                    TotalPages = totalPages
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetAllOrdersAsync error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw; // Re-throw để controller có thể handle
+            }
+        }
+        public async Task<ResponseGetOrdersDto> GetOrdersByCurrentShopAsync(int? pageIndex,int? pageSize,string? payOsOrderCode,bool? status,CurrentUserObject currentUserObject)
+        {
+            try
+            {
+                var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+                var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+                var shopId = currentUserObject.Id;
+
+                var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted);
+
+                // chỉ lấy các Order có ít nhất 1 sản phẩm thuộc shop này
+                predicate = predicate.And(x => x.OrderDetails.Any(od => od.Product.ShopId == shopId));
+
+                if (status.HasValue)
+                {
+                    predicate = predicate.And(x => x.IsActive == status.Value);
+                }
+
+                if (!string.IsNullOrEmpty(payOsOrderCode))
+                {
+                    predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode);
+                }
+
+                var orders = await _orderRepository.GenericGetPaginationAsync(
+                    pageIndexValue,
+                    pageSizeValue,
+                    predicate,
+                    new[]
+                    {
+                nameof(Order.OrderDetails),
+                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                    }
+                );
+
+                var totalOrders = orders.Count();
+                var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
+
+                Console.WriteLine($"Found {totalOrders} orders to map");
+
+                if (orders.Any())
+                {
+                    var firstOrder = orders.First();
+                    Console.WriteLine($"First order - Id: {firstOrder.Id}, PayOsOrderCode: {firstOrder.PayOsOrderCode}, OrderDetails count: {firstOrder.OrderDetails?.Count}");
+                }
+
+                return new ResponseGetOrdersDto
+                {
+                    StatusCode = 200,
+                    Data = _mapper.Map<List<OrderDto>>(orders),
+                    TotalRecord = totalOrders,
+                    TotalPages = totalPages
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetOrdersByCurrentShopAsync error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw;
+            }
+        }
+
+
+
     }
+
 }
+

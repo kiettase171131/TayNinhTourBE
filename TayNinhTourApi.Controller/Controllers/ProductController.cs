@@ -109,6 +109,7 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
         }
         [HttpPost("rate")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> RateProduct([FromBody] CreateProductRatingDto dto)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
@@ -117,6 +118,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpPost("review")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<IActionResult> ReviewProduct([FromBody] CreateProductReviewDto dto)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
@@ -215,7 +217,7 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _productService.DeleteVoucherAsync(id);
             return StatusCode(result.StatusCode, result);
         }
-        [HttpGet("Order")]
+        [HttpGet("AllOrder")]
         public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
         {
             try
@@ -237,5 +239,38 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+        [HttpGet("GetOrder-ByUser")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetOrderByUser(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
+        {
+            try
+            {
+                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _productService.GetOrdersByUserAsync(pageIndex, pageSize, payOsOrderCode, status, currentUser);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"GetOrderByUser Controller error: {ex.Message}");
+                Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+
+                return StatusCode(500, new
+                {
+                    message = "Internal server error",
+                    error = ex.Message,
+                    innerError = ex.InnerException?.Message
+                });
+            }
+        }
+        [HttpGet("GetOrder-ByShop")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetOrdersByShop(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
+        {
+            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.GetOrdersByCurrentShopAsync(pageIndex, pageSize, payOsOrderCode, status, currentUser);
+            return Ok(result);
+        }
+
     }
 }
