@@ -26,6 +26,10 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         ITimelineItemRepository TimelineItemRepository { get; }
         IBlogRepository BlogRepository { get; }
 
+        // AI Chat repositories
+        IAIChatSessionRepository AIChatSessionRepository { get; }
+        IAIChatMessageRepository AIChatMessageRepository { get; }
+
         Task<int> SaveChangesAsync();
         IDbContextTransaction BeginTransaction();
     }

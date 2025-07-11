@@ -122,6 +122,12 @@ if (builder.Environment.IsDevelopment())
 }
 */
 
+// Configure Gemini AI settings
+builder.Services.Configure<GeminiSettings>(builder.Configuration.GetSection("GeminiSettings"));
+
+// Register HttpClient for Gemini API
+builder.Services.AddHttpClient<IGeminiAIService, GeminiAIService>();
+
 // Register services layer
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
@@ -163,7 +169,9 @@ builder.Services.AddScoped<ISkillManagementService, SkillManagementService>();
 // Data Migration Services
 builder.Services.AddScoped<DataMigrationService>();
 
-
+// AI Chat Services
+builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
+builder.Services.AddScoped<IAIChatService, AIChatService>();
 
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -198,6 +206,9 @@ builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRe
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
 
+// AI Chat Repositories
+builder.Services.AddScoped<IAIChatSessionRepository, AIChatSessionRepository>();
+builder.Services.AddScoped<IAIChatMessageRepository, AIChatMessageRepository>();
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();
@@ -241,10 +252,6 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
-
-
-
-
 
 var app = builder.Build();
 

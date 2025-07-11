@@ -33,6 +33,9 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private ITimelineItemRepository _timelineItemRepository = null!;
         private IBlogRepository _blogRepository = null!;
 
+        // AI Chat repositories
+        private IAIChatSessionRepository _aiChatSessionRepository = null!;
+        private IAIChatMessageRepository _aiChatMessageRepository = null!;
 
         public UnitOfWork(TayNinhTouApiDbContext context)
         {
@@ -130,8 +133,6 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
-
-
         public ITourDetailsRepository TourDetailsRepository
         {
             get
@@ -185,6 +186,23 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             get
             {
                 return _blogRepository ??= new BlogRepository(_context);
+            }
+        }
+
+        // AI Chat repositories implementation
+        public IAIChatSessionRepository AIChatSessionRepository
+        {
+            get
+            {
+                return _aiChatSessionRepository ??= new AIChatSessionRepository(_context);
+            }
+        }
+
+        public IAIChatMessageRepository AIChatMessageRepository
+        {
+            get
+            {
+                return _aiChatMessageRepository ??= new AIChatMessageRepository(_context);
             }
         }
 
