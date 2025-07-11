@@ -17,23 +17,30 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly HttpClient _httpClient;
         private readonly GeminiSettings _geminiSettings;
         private readonly ILogger<GeminiAIService> _logger;
+        private readonly IAITourDataService _tourDataService;
 
         public GeminiAIService(
             HttpClient httpClient,
             IOptions<GeminiSettings> geminiSettings,
-            ILogger<GeminiAIService> logger)
+            ILogger<GeminiAIService> logger,
+            IAITourDataService tourDataService)
         {
             _httpClient = httpClient;
             _geminiSettings = geminiSettings.Value;
             _logger = logger;
+            _tourDataService = tourDataService;
         }
 
         public async Task<GeminiResponse> GenerateContentAsync(string prompt, List<GeminiMessage>? conversationHistory = null)
         {
             var stopwatch = Stopwatch.StartNew();
+
+            // Enrich prompt v?i thông tin tour n?u có t? khóa liên quan
+            var enrichedPrompt = await EnrichPromptWithTourDataAsync(prompt);
+
             const int maxRetries = 3;
             const int baseDelayMs = 1000;
-            
+
             for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
                 try
@@ -41,7 +48,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     _logger.LogInformation("Gemini API attempt {Attempt}/{MaxRetries}", attempt, maxRetries);
 
                     // T?o request payload v?i c?u hình t?i ?u
-                    var requestPayload = CreateRequestPayload(prompt, conversationHistory);
+                    var requestPayload = CreateRequestPayload(enrichedPrompt, conversationHistory);
                     var jsonPayload = JsonSerializer.Serialize(requestPayload, new JsonSerializerOptions
                     {
                         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -59,7 +66,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     // Timeout ng?n ?? nhanh fail-over
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    
+
                     // G?i request
                     var response = await _httpClient.PostAsync(url, content, cts.Token);
                     var responseContent = await response.Content.ReadAsStringAsync();
@@ -76,8 +83,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                 await Task.Delay(baseDelayMs * attempt);
                                 continue;
                             }
-                            
-                            return CreateFallbackResponse(prompt, stopwatch);
+
+                            return await CreateFallbackResponseAsync(prompt, stopwatch);
                         }
 
                         try
@@ -99,7 +106,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                         var tokensUsed = EstimateTokens(prompt + generatedText);
 
                                         stopwatch.Stop();
-                                        _logger.LogInformation("Attempt {Attempt}: Gemini API success. Text length: {Length}, Tokens: {Tokens}, Time: {Time}ms", 
+                                        _logger.LogInformation("Attempt {Attempt}: Gemini API success. Text length: {Length}, Tokens: {Tokens}, Time: {Time}ms",
                                             attempt, generatedText.Length, tokensUsed, stopwatch.ElapsedMilliseconds);
 
                                         return new GeminiResponse
@@ -132,14 +139,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                     else
                     {
-                        _logger.LogWarning("Attempt {Attempt}: Gemini API failed. Status: {Status}, Response: {Response}", 
+                        _logger.LogWarning("Attempt {Attempt}: Gemini API failed. Status: {Status}, Response: {Response}",
                             attempt, response.StatusCode, responseContent);
 
                         // N?u là 503 (overload), fail nhanh và dùng fallback
                         if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
                         {
                             _logger.LogWarning("Model overloaded (503), using fallback immediately");
-                            return CreateFallbackResponse(prompt, stopwatch, "Gemini API is overloaded");
+                            return await CreateFallbackResponseAsync(prompt, stopwatch, "Gemini API is overloaded");
                         }
 
                         // Retry on other server errors (5xx) or rate limiting (429)
@@ -155,13 +162,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         }
 
                         // Don't retry on client errors (4xx except 429)
-                        return CreateFallbackResponse(prompt, stopwatch, $"API request failed: {response.StatusCode}");
+                        return await CreateFallbackResponseAsync(prompt, stopwatch, $"API request failed: {response.StatusCode}");
                     }
                 }
                 catch (TaskCanceledException)
                 {
                     _logger.LogWarning("Attempt {Attempt}: Request timeout, using fallback", attempt);
-                    return CreateFallbackResponse(prompt, stopwatch, "Request timeout");
+                    return await CreateFallbackResponseAsync(prompt, stopwatch, "Request timeout");
                 }
                 catch (Exception ex) when (attempt < maxRetries)
                 {
@@ -172,12 +179,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Final attempt failed: Error calling Gemini API");
-                    return CreateFallbackResponse(prompt, stopwatch, ex.Message);
+                    return await CreateFallbackResponseAsync(prompt, stopwatch, ex.Message);
                 }
             }
 
             // N?u h?t retry attempts, tr? v? fallback response
-            return CreateFallbackResponse(prompt, stopwatch, $"Gemini API failed after {maxRetries} attempts");
+            return await CreateFallbackResponseAsync(prompt, stopwatch, $"Gemini API failed after {maxRetries} attempts");
         }
 
         public async Task<string> GenerateTitleAsync(string firstMessage)
@@ -185,9 +192,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 var titlePrompt = $"T?o tiêu ?? ng?n cho: {firstMessage}";
-                
+
                 var response = await GenerateContentAsync(titlePrompt);
-                
+
                 if (response.Success && !string.IsNullOrWhiteSpace(response.Content))
                 {
                     var title = response.Content.Trim().Replace("\"", "");
@@ -199,8 +206,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
                 else
                 {
-                    var fallbackTitle = firstMessage.Length > 30 
-                        ? firstMessage.Substring(0, 27) + "..." 
+                    var fallbackTitle = firstMessage.Length > 30
+                        ? firstMessage.Substring(0, 27) + "..."
                         : firstMessage;
                     return fallbackTitle;
                 }
@@ -208,22 +215,113 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating title");
-                
-                var fallbackTitle = firstMessage.Length > 30 
-                    ? firstMessage.Substring(0, 27) + "..." 
+
+                var fallbackTitle = firstMessage.Length > 30
+                    ? firstMessage.Substring(0, 27) + "..."
                     : firstMessage;
                 return fallbackTitle;
             }
         }
 
-        private GeminiResponse CreateFallbackResponse(string prompt, Stopwatch stopwatch, string? errorMessage = null)
+        private async Task<string> EnrichPromptWithTourDataAsync(string prompt)
+        {
+            try
+            {
+                var lowerPrompt = prompt.ToLower();
+
+                // Ki?m tra t? khóa liên quan ??n tour
+                var tourKeywords = new[] { "tour", "du l?ch", "núi bà ?en", "tây ninh", "giá", "booking", "??t tour", "?i du l?ch" };
+
+                if (!tourKeywords.Any(keyword => lowerPrompt.Contains(keyword)))
+                {
+                    return prompt; // Không liên quan ??n tour
+                }
+
+                var tourData = new StringBuilder();
+
+                // L?y thông tin tours ph? bi?n
+                if (lowerPrompt.Contains("tour") || lowerPrompt.Contains("du l?ch"))
+                {
+                    var availableTours = await _tourDataService.GetAvailableToursAsync(5);
+                    if (availableTours.Any())
+                    {
+                        tourData.AppendLine("\n=== THÔNG TIN TOURS HI?N CÓ ===");
+                        foreach (var tour in availableTours)
+                        {
+                            tourData.AppendLine($"• {tour.Title}");
+                            tourData.AppendLine($"  - T?: {tour.StartLocation} ? {tour.EndLocation}");
+                            tourData.AppendLine($"  - Phí d?ch v?: {tour.Price:N0} VN?");
+                            tourData.AppendLine($"  - Ch? tr?ng: {tour.AvailableSlots}/{tour.MaxGuests}");
+                            tourData.AppendLine($"  - Lo?i: {tour.TourType}");
+
+                            // Thêm thông tin v? c?u trúc phí
+                            if (tour.TourType == "FreeScenic")
+                            {
+                                tourData.AppendLine($"  - Ghi chú: Ch? phí d?ch v?, không t?n vé vào c?a");
+                            }
+                            else if (tour.TourType == "PaidAttraction")
+                            {
+                                tourData.AppendLine($"  - Ghi chú: Phí d?ch v? + vé vào c?a ??a ?i?m");
+                            }
+
+                            if (tour.Highlights.Any())
+                            {
+                                tourData.AppendLine($"  - ?i?m n?i b?t: {string.Join(", ", tour.Highlights.Take(2))}");
+                            }
+                            tourData.AppendLine();
+                        }
+                    }
+                }
+
+                // Tìm ki?m c? th?
+                if (lowerPrompt.Contains("núi bà ?en"))
+                {
+                    var nuiBaDenTours = await _tourDataService.SearchToursAsync("Núi Bà ?en", 3);
+                    if (nuiBaDenTours.Any())
+                    {
+                        tourData.AppendLine("\n=== TOURS NÚI BÀ ?EN ===");
+                        foreach (var tour in nuiBaDenTours)
+                        {
+                            tourData.AppendLine($"• {tour.Title} - {tour.Price:N0} VN? (phí d?ch v?)");
+                        }
+                    }
+                }
+
+                // Tìm theo giá n?u có t? khóa v? giá
+                if (lowerPrompt.Contains("r?") || lowerPrompt.Contains("ti?t ki?m"))
+                {
+                    var cheapTours = await _tourDataService.GetToursByPriceRangeAsync(0, 300000, 3);
+                    if (cheapTours.Any())
+                    {
+                        tourData.AppendLine("\n=== TOURS PHÍ D?CH V? H?P LÝ ===");
+                        foreach (var tour in cheapTours)
+                        {
+                            tourData.AppendLine($"• {tour.Title} - {tour.Price:N0} VN?");
+                            if (tour.TourType == "FreeScenic")
+                            {
+                                tourData.AppendLine($"  (Không t?n vé vào c?a, ch? phí d?ch v?)");
+                            }
+                        }
+                    }
+                }
+
+                return prompt + tourData.ToString();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error enriching prompt with tour data");
+                return prompt; // Tr? v? prompt g?c n?u có l?i
+            }
+        }
+
+        private async Task<GeminiResponse> CreateFallbackResponseAsync(string prompt, Stopwatch stopwatch, string? errorMessage = null)
         {
             stopwatch.Stop();
-            
-            var fallbackContent = GenerateFallbackContent(prompt);
-            
+
+            var fallbackContent = await GenerateFallbackContentAsync(prompt);
+
             _logger.LogInformation("Using fallback response for prompt: {Prompt}", prompt.Substring(0, Math.Min(50, prompt.Length)));
-            
+
             return new GeminiResponse
             {
                 Success = true,
@@ -235,36 +333,67 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
         }
 
-        private string GenerateFallbackContent(string prompt)
+        private async Task<string> GenerateFallbackContentAsync(string prompt)
         {
             var lowerPrompt = prompt.ToLower();
-            
-            if (lowerPrompt.Contains("tây ninh") || lowerPrompt.Contains("tour") || lowerPrompt.Contains("du l?ch"))
+
+            // Fallback v?i thông tin tour th?c t?
+            if (lowerPrompt.Contains("tour") || lowerPrompt.Contains("du l?ch"))
             {
-                return "Tây Ninh là ?i?m ??n du l?ch tâm linh n?i ti?ng v?i Núi Bà ?en và di tích l?ch s?. B?n mu?n bi?t v? tour nào?";
+                try
+                {
+                    var tours = await _tourDataService.GetAvailableToursAsync(3);
+                    if (tours.Any())
+                    {
+                        var tourList = string.Join(", ", tours.Select(t => $"{t.Title} ({t.Price:N0} VN?)"));
+                        return $"Hi?n t?i chúng tôi có các tour: {tourList}. B?n mu?n bi?t thêm chi ti?t tour nào?";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in fallback tour data");
+                }
+
+                return "Tây Ninh có nhi?u tour h?p d?n nh? th?m Núi Bà ?en, di tích l?ch s?. T?t c? tours ??u có phí d?ch v? h?p lý. B?n mu?n bi?t v? tour nào?";
             }
-            
+
             if (lowerPrompt.Contains("núi bà ?en") || lowerPrompt.Contains("núi bà"))
             {
-                return "Núi Bà ?en cao nh?t Nam B?, có cáp treo và chùa linh thiêng. ?i?m ??n h?p d?n c?a Tây Ninh.";
+                return "Núi Bà ?en cao nh?t Nam B?, có cáp treo và chùa linh thiêng. Chúng tôi có tour ?i Núi Bà ?en v?i d?ch v? chuyên nghi?p!";
             }
-            
+
             if (lowerPrompt.Contains("chào") || lowerPrompt.Contains("xin chào") || lowerPrompt.Contains("hello"))
             {
-                return "Xin chào! Tôi là tr? lý AI du l?ch Tây Ninh. Tôi có th? giúp gì cho b?n?";
+                return "Xin chào! Tôi là tr? lý AI du l?ch Tây Ninh. B?n mu?n tìm hi?u v? tour nào? Chúng tôi có tour Núi Bà ?en, di tích l?ch s? v?i phí d?ch v? h?p lý!";
             }
-            
+
             if (lowerPrompt.Contains("giá") || lowerPrompt.Contains("chi phí"))
             {
-                return "Giá tour tùy theo lo?i hình và th?i gian. Vui lòng liên h? ?? ???c t? v?n chi ti?t.";
+                try
+                {
+                    var cheapTours = await _tourDataService.GetToursByPriceRangeAsync(0, 500000, 2);
+                    if (cheapTours.Any())
+                    {
+                        var tourInfo = string.Join(", ", cheapTours.Select(t => $"{t.Title} ({t.Price:N0} VN?)"));
+                        return $"Chúng tôi có các tour v?i giá h?p lý: {tourInfo}. B?n mu?n bi?t thêm chi ti?t?";
+                    }
+                }
+                catch { }
+
+                return "Giá tour tùy theo lo?i hình. Chúng tôi có tour danh lam th?ng c?nh (không t?n vé vào c?a) và tour khu vui ch?i (có vé vào c?a) v?i nhi?u m?c giá khác nhau.";
             }
-            
+
             if (lowerPrompt.Contains("?n") || lowerPrompt.Contains("món"))
             {
-                return "Tây Ninh có bánh tráng n??ng, bánh canh cua ??ng, cà ri dê Ninh S?n. B?n mu?n bi?t thêm?";
+                return "Tây Ninh có bánh tráng n??ng, bánh canh cua ??ng, cà ri dê Ninh S?n. Các tour c?a chúng tôi th??ng k?t h?p th??ng th?c ?m th?c ??a ph??ng!";
             }
-            
-            return "H? th?ng AI t?m b?n. Tôi s?n sàng h? tr? v? du l?ch Tây Ninh!";
+
+            if (lowerPrompt.Contains("r?") || lowerPrompt.Contains("ti?t ki?m"))
+            {
+                return "Chúng tôi có tour danh lam th?ng c?nh v?i giá h?p lý (ch? phí d?ch v?, không t?n vé vào c?a). ?ây là l?a ch?n ti?t ki?m ?? khám phá Tây Ninh!";
+            }
+
+            return "Tôi là tr? lý du l?ch Tây Ninh! Chúng tôi có nhi?u tour h?p d?n: Núi Bà ?en, di tích l?ch s?, ?m th?c ??a ph??ng v?i phí d?ch v? h?p lý. B?n quan tâm tour nào?";
         }
 
         private object CreateRequestPayload(string prompt, List<GeminiMessage>? conversationHistory)

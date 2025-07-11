@@ -70,6 +70,47 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// Test endpoint ?? test tour recommendations (không c?n authentication)
+        /// </summary>
+        /// <param name="request">Request v?i query v? tour</param>
+        /// <returns>Ph?n h?i t? AI v?i thông tin tour</returns>
+        [HttpPost("test-tour-recommendations")]
+        public async Task<ActionResult> TestTourRecommendations([FromBody] TestTourRecommendationRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Testing tour recommendations with query: {Query}", request.Query);
+
+                var response = await _geminiAIService.GenerateContentAsync(request.Query);
+
+                return Ok(new
+                {
+                    success = response.Success,
+                    message = response.Success ? "Tour recommendation test thành công" : "Tour recommendation test th?t b?i",
+                    data = new
+                    {
+                        userQuery = request.Query,
+                        aiResponse = response.Content,
+                        tokensUsed = response.TokensUsed,
+                        responseTimeMs = response.ResponseTimeMs,
+                        isFallback = response.IsFallback,
+                        errorMessage = response.ErrorMessage
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing tour recommendations");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có l?i x?y ra khi test tour recommendations",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
         /// T?o phiên chat m?i
         /// </summary>
         /// <param name="request">Thông tin phiên chat m?i</param>
@@ -353,5 +394,13 @@ namespace TayNinhTourApi.Controller.Controllers
     public class TestGeminiRequest
     {
         public string Message { get; set; } = null!;
+    }
+
+    /// <summary>
+    /// Request DTO ?? test tour recommendations
+    /// </summary>
+    public class TestTourRecommendationRequest
+    {
+        public string Query { get; set; } = null!;
     }
 }

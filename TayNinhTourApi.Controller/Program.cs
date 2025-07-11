@@ -184,6 +184,7 @@ builder.Services.AddScoped<DataMigrationService>();
 // AI Chat Services
 builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
 builder.Services.AddScoped<IAIChatService, AIChatService>();
+builder.Services.AddScoped<IAITourDataService, AITourDataService>();
 
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
