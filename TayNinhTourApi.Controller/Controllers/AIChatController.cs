@@ -13,18 +13,60 @@ namespace TayNinhTourApi.Controller.Controllers
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class AIChatController : ControllerBase
     {
         private readonly IAIChatService _aiChatService;
+        private readonly IGeminiAIService _geminiAIService;
         private readonly ILogger<AIChatController> _logger;
 
         public AIChatController(
             IAIChatService aiChatService,
+            IGeminiAIService geminiAIService,
             ILogger<AIChatController> logger)
         {
             _aiChatService = aiChatService;
+            _geminiAIService = geminiAIService;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Test endpoint ?? ki?m tra Gemini API (không c?n authentication)
+        /// </summary>
+        /// <param name="message">Tin nh?n test</param>
+        /// <returns>Ph?n h?i t? Gemini AI</returns>
+        [HttpPost("test-gemini")]
+        public async Task<ActionResult> TestGemini([FromBody] TestGeminiRequest request)
+        {
+            try
+            {
+                _logger.LogInformation("Testing Gemini API with message: {Message}", request.Message);
+
+                var response = await _geminiAIService.GenerateContentAsync(request.Message);
+
+                return Ok(new
+                {
+                    success = response.Success,
+                    message = response.Success ? "Gemini API test thành công" : "Gemini API test th?t b?i",
+                    data = new
+                    {
+                        userMessage = request.Message,
+                        aiResponse = response.Content,
+                        tokensUsed = response.TokensUsed,
+                        responseTimeMs = response.ResponseTimeMs,
+                        errorMessage = response.ErrorMessage
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing Gemini API");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có l?i x?y ra khi test Gemini API",
+                    error = ex.Message
+                });
+            }
         }
 
         /// <summary>
@@ -33,21 +75,37 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin phiên chat m?i</param>
         /// <returns>K?t qu? t?o phiên chat</returns>
         [HttpPost("sessions")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseCreateChatSessionDto>> CreateChatSession([FromBody] RequestCreateChatSessionDto request)
         {
             try
             {
+                _logger.LogInformation("Creating chat session, getting current user...");
+                
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUser == null)
+                {
+                    _logger.LogWarning("Current user is null");
+                    return StatusCode(401, new ResponseCreateChatSessionDto
+                    {
+                        success = false,
+                        Message = "Không th? xác th?c ng??i dùng",
+                        StatusCode = 401
+                    });
+                }
+
+                _logger.LogInformation("Current user ID: {UserId}, Email: {Email}", currentUser.UserId, currentUser.Email);
+                
                 var response = await _aiChatService.CreateChatSessionAsync(request, currentUser.UserId);
                 return StatusCode(response.StatusCode, response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating chat session");
+                _logger.LogError(ex, "Error creating chat session. Stack trace: {StackTrace}", ex.StackTrace);
                 return StatusCode(500, new ResponseCreateChatSessionDto
                 {
-                    Success = false,
-                    Message = "Có l?i x?y ra khi t?o phiên chat",
+                    success = false,
+                    Message = $"Có l?i x?y ra khi t?o phiên chat: {ex.Message}",
                     StatusCode = 500
                 });
             }
@@ -59,6 +117,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Thông tin tin nh?n</param>
         /// <returns>Ph?n h?i t? AI</returns>
         [HttpPost("messages")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSendMessageDto>> SendMessage([FromBody] RequestSendMessageDto request)
         {
             try
@@ -72,7 +131,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error sending message");
                 return StatusCode(500, new ResponseSendMessageDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi g?i tin nh?n",
                     StatusCode = 500
                 });
@@ -87,6 +146,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="status">Tr?ng thái session (Active, Archived, All)</param>
         /// <returns>Danh sách phiên chat</returns>
         [HttpGet("sessions")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseGetChatSessionsDto>> GetChatSessions(
             [FromQuery] int page = 0,
             [FromQuery] int pageSize = 20,
@@ -110,7 +170,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting chat sessions");
                 return StatusCode(500, new ResponseGetChatSessionsDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi l?y danh sách phiên chat",
                     StatusCode = 500
                 });
@@ -125,6 +185,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="pageSize">S? l??ng messages per page</param>
         /// <returns>Tin nh?n trong phiên chat</returns>
         [HttpGet("sessions/{sessionId}/messages")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseGetMessagesDto>> GetMessages(
             [FromRoute] Guid sessionId,
             [FromQuery] int page = 0,
@@ -148,7 +209,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting messages for session {SessionId}", sessionId);
                 return StatusCode(500, new ResponseGetMessagesDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi l?y tin nh?n",
                     StatusCode = 500
                 });
@@ -161,6 +222,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="sessionId">ID c?a phiên chat</param>
         /// <returns>K?t qu? thao tác</returns>
         [HttpPut("sessions/{sessionId}/archive")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> ArchiveSession([FromRoute] Guid sessionId)
         {
             try
@@ -174,7 +236,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error archiving session {SessionId}", sessionId);
                 return StatusCode(500, new ResponseSessionActionDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi l?u tr? phiên chat",
                     StatusCode = 500
                 });
@@ -187,6 +249,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="sessionId">ID c?a phiên chat</param>
         /// <returns>K?t qu? thao tác</returns>
         [HttpDelete("sessions/{sessionId}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> DeleteSession([FromRoute] Guid sessionId)
         {
             try
@@ -200,7 +263,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error deleting session {SessionId}", sessionId);
                 return StatusCode(500, new ResponseSessionActionDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi xóa phiên chat",
                     StatusCode = 500
                 });
@@ -214,6 +277,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="request">Tiêu ?? m?i</param>
         /// <returns>K?t qu? thao tác</returns>
         [HttpPut("sessions/{sessionId}/title")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> UpdateSessionTitle(
             [FromRoute] Guid sessionId,
             [FromBody] UpdateSessionTitleRequest request)
@@ -229,7 +293,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error updating session title {SessionId}", sessionId);
                 return StatusCode(500, new ResponseSessionActionDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi c?p nh?t tiêu ??",
                     StatusCode = 500
                 });
@@ -241,6 +305,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// </summary>
         /// <returns>Th?ng kê chat</returns>
         [HttpGet("stats")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<object>> GetChatStats()
         {
             try
@@ -253,7 +318,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 
                 return Ok(new
                 {
-                    Success = true,
+                    success = true,
                     Message = "L?y th?ng kê thành công",
                     Data = new
                     {
@@ -267,7 +332,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting chat stats");
                 return StatusCode(500, new
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi l?y th?ng kê"
                 });
             }
@@ -280,5 +345,13 @@ namespace TayNinhTourApi.Controller.Controllers
     public class UpdateSessionTitleRequest
     {
         public string Title { get; set; } = null!;
+    }
+
+    /// <summary>
+    /// Request DTO ?? test Gemini API
+    /// </summary>
+    public class TestGeminiRequest
+    {
+        public string Message { get; set; } = null!;
     }
 }

@@ -39,7 +39,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UserId = userId,
                     Title = request.CustomTitle ?? "Cu?c trò chuy?n m?i",
                     Status = "Active",
-                    LastMessageAt = DateTime.UtcNow
+                    LastMessageAt = DateTime.UtcNow,
+                    CreatedById = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    IsDeleted = false
                 };
 
                 await _unitOfWork.AIChatSessionRepository.AddAsync(session);
@@ -53,7 +57,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Id = Guid.NewGuid(),
                         SessionId = session.Id,
                         Content = request.FirstMessage,
-                        MessageType = "User"
+                        MessageType = "User",
+                        CreatedById = userId,
+                        CreatedAt = DateTime.UtcNow,
+                        IsActive = true,
+                        IsDeleted = false
                     };
 
                     await _unitOfWork.AIChatMessageRepository.AddAsync(userMessage);
@@ -71,7 +79,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             Content = aiResponse.Content,
                             MessageType = "AI",
                             TokensUsed = aiResponse.TokensUsed,
-                            ResponseTimeMs = aiResponse.ResponseTimeMs
+                            ResponseTimeMs = aiResponse.ResponseTimeMs,
+                            CreatedById = userId,
+                            CreatedAt = DateTime.UtcNow,
+                            IsActive = true,
+                            IsDeleted = false
                         };
 
                         await _unitOfWork.AIChatMessageRepository.AddAsync(aiMessage);
@@ -91,7 +103,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseCreateChatSessionDto
                 {
-                    Success = true,
+                    success = true,
                     Message = "T?o phiên chat thành công",
                     StatusCode = 201,
                     ChatSession = new AIChatSessionDto
@@ -111,7 +123,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseCreateChatSessionDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi t?o phiên chat",
                     StatusCode = 500
                 };
@@ -130,7 +142,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseSendMessageDto
                     {
-                        Success = false,
+                        success = false,
                         Message = "Không tìm th?y phiên chat",
                         StatusCode = 404
                     };
@@ -142,7 +154,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Id = Guid.NewGuid(),
                     SessionId = request.SessionId,
                     Content = request.Message,
-                    MessageType = "User"
+                    MessageType = "User",
+                    CreatedById = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    IsDeleted = false
                 };
 
                 await _unitOfWork.AIChatMessageRepository.AddAsync(userMessage);
@@ -175,7 +191,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Content = aiResponse.Content,
                         MessageType = "AI",
                         TokensUsed = aiResponse.TokensUsed,
-                        ResponseTimeMs = aiResponse.ResponseTimeMs
+                        ResponseTimeMs = aiResponse.ResponseTimeMs,
+                        CreatedById = userId,
+                        CreatedAt = DateTime.UtcNow,
+                        IsActive = true,
+                        IsDeleted = false
                     };
 
                     await _unitOfWork.AIChatMessageRepository.AddAsync(aiMessage);
@@ -191,7 +211,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseSendMessageDto
                 {
-                    Success = true,
+                    success = true,
                     Message = aiResponse.Success ? "G?i tin nh?n thành công" : "G?i tin nh?n thành công nh?ng AI không ph?n h?i",
                     StatusCode = 200,
                     UserMessage = new AIChatMessageDto
@@ -221,7 +241,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseSendMessageDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi g?i tin nh?n",
                     StatusCode = 500,
                     Error = ex.Message
@@ -257,7 +277,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseGetChatSessionsDto
                 {
-                    Success = true,
+                    success = true,
                     Message = "L?y danh sách phiên chat thành công",
                     StatusCode = 200,
                     Sessions = sessionDtos,
@@ -272,7 +292,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseGetChatSessionsDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi l?y danh sách phiên chat",
                     StatusCode = 500
                 };
@@ -290,7 +310,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseGetMessagesDto
                     {
-                        Success = false,
+                        success = false,
                         Message = "Không tìm th?y phiên chat",
                         StatusCode = 404
                     };
@@ -308,7 +328,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 return new ResponseGetMessagesDto
                 {
-                    Success = true,
+                    success = true,
                     Message = "L?y tin nh?n thành công",
                     StatusCode = 200,
                     ChatSession = new AIChatSessionWithMessagesDto
@@ -328,7 +348,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseGetMessagesDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi l?y tin nh?n",
                     StatusCode = 500
                 };
@@ -343,7 +363,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseSessionActionDto
                 {
-                    Success = true,
+                    success = true,
                     Message = "L?u tr? phiên chat thành công",
                     StatusCode = 200
                 };
@@ -354,7 +374,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseSessionActionDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi l?u tr? phiên chat",
                     StatusCode = 500
                 };
@@ -369,7 +389,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseSessionActionDto
                 {
-                    Success = true,
+                    success = true,
                     Message = "Xóa phiên chat thành công",
                     StatusCode = 200
                 };
@@ -380,7 +400,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseSessionActionDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi xóa phiên chat",
                     StatusCode = 500
                 };
@@ -396,7 +416,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     return new ResponseSessionActionDto
                     {
-                        Success = false,
+                        success = false,
                         Message = "Không tìm th?y phiên chat",
                         StatusCode = 404
                     };
@@ -408,7 +428,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseSessionActionDto
                 {
-                    Success = true,
+                    success = true,
                     Message = "C?p nh?t tiêu ?? thành công",
                     StatusCode = 200
                 };
@@ -419,7 +439,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 
                 return new ResponseSessionActionDto
                 {
-                    Success = false,
+                    success = false,
                     Message = "Có l?i x?y ra khi c?p nh?t tiêu ??",
                     StatusCode = 500
                 };

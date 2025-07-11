@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250711144431_Init")]
+    [Migration("20250711145403_Init")]
     partial class Init
     {
         /// <inheritdoc />

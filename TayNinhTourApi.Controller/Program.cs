@@ -125,8 +125,11 @@ if (builder.Environment.IsDevelopment())
 // Configure Gemini AI settings
 builder.Services.Configure<GeminiSettings>(builder.Configuration.GetSection("GeminiSettings"));
 
-// Register HttpClient for Gemini API
-builder.Services.AddHttpClient<IGeminiAIService, GeminiAIService>();
+// Register HttpClient for Gemini API với timeout
+builder.Services.AddHttpClient<IGeminiAIService, GeminiAIService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15); // Timeout 15s để tránh chờ quá lâu
+});
 
 // Register services layer
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();

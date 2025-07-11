@@ -45,7 +45,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
     /// </summary>
     public class ResponseCreateChatSessionDto
     {
-        public bool Success { get; set; }
+        public bool success { get; set; }
         public string Message { get; set; } = null!;
         public int StatusCode { get; set; }
         public AIChatSessionDto? ChatSession { get; set; }
@@ -56,7 +56,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
     /// </summary>
     public class ResponseSendMessageDto
     {
-        public bool Success { get; set; }
+        public bool success { get; set; }
         public string Message { get; set; } = null!;
         public int StatusCode { get; set; }
         public AIChatMessageDto? UserMessage { get; set; }
@@ -71,7 +71,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
     /// </summary>
     public class ResponseGetChatSessionsDto
     {
-        public bool Success { get; set; }
+        public bool success { get; set; }
         public string Message { get; set; } = null!;
         public int StatusCode { get; set; }
         public List<AIChatSessionDto> Sessions { get; set; } = new List<AIChatSessionDto>();
@@ -86,7 +86,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
     /// </summary>
     public class ResponseGetMessagesDto
     {
-        public bool Success { get; set; }
+        public bool success { get; set; }
         public string Message { get; set; } = null!;
         public int StatusCode { get; set; }
         public AIChatSessionWithMessagesDto? ChatSession { get; set; }
@@ -97,7 +97,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
     /// </summary>
     public class ResponseSessionActionDto
     {
-        public bool Success { get; set; }
+        public bool success { get; set; }
         public string Message { get; set; } = null!;
         public int StatusCode { get; set; }
     }
