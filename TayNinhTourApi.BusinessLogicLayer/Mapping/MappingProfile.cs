@@ -144,7 +144,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
             CreateMap<TourGuideApplication, TourGuideApplicationSummaryDto>()
                 .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
-                .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email));
+                .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email))
+                .ForMember(dest => dest.CurriculumVitae, opt => opt.MapFrom(src => src.CurriculumVitae))
+                .ForMember(dest => dest.CvFilePath, opt => opt.MapFrom(src => src.CvFilePath));
             #endregion
 
             #region TourOperation Mapping

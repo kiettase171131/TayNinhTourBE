@@ -46,5 +46,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         /// Email user đăng ký
         /// </summary>
         public string UserEmail { get; set; } = null!;
+        public string? CurriculumVitae { get; set; }
+        public string? CvFilePath { get; set; }
     }
 }
