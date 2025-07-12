@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TayNinhTourApi.BusinessLogicLayer.Common;
@@ -10,7 +11,7 @@ using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service ?? tích h?p v?i Gemini AI API
+    /// Service ?? tích h?p v?i Gemini AI API v?i rate limiting và caching
     /// </summary>
     public class GeminiAIService : IGeminiAIService
     {
@@ -18,34 +19,82 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly GeminiSettings _geminiSettings;
         private readonly ILogger<GeminiAIService> _logger;
         private readonly IAITourDataService _tourDataService;
+        private readonly IMemoryCache _cache;
 
         public GeminiAIService(
             HttpClient httpClient,
             IOptions<GeminiSettings> geminiSettings,
             ILogger<GeminiAIService> logger,
-            IAITourDataService tourDataService)
+            IAITourDataService tourDataService,
+            IMemoryCache cache)
         {
             _httpClient = httpClient;
             _geminiSettings = geminiSettings.Value;
             _logger = logger;
             _tourDataService = tourDataService;
+            _cache = cache;
         }
 
         public async Task<GeminiResponse> GenerateContentAsync(string prompt, List<GeminiMessage>? conversationHistory = null)
         {
             var stopwatch = Stopwatch.StartNew();
 
+            // T?o cache key t? prompt và conversation history
+            var cacheKey = GenerateCacheKey(prompt, conversationHistory);
+            
+            // Ki?m tra cache tr??c
+            if (_geminiSettings.UseCache && _cache.TryGetValue(cacheKey, out GeminiResponse? cachedResponse))
+            {
+                stopwatch.Stop();
+                _logger.LogInformation("Using cached response for prompt: {Prompt}", 
+                    prompt.Substring(0, Math.Min(50, prompt.Length)));
+                
+                cachedResponse!.ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds;
+                return cachedResponse;
+            }
+
+            // Log quota status tr??c khi g?i API
+            if (_geminiSettings.EnableQuotaTracking)
+            {
+                var quotaToday = QuotaTracker.GetRequestCountToday(_geminiSettings.ApiKey);
+                _logger.LogInformation("Current quota today: {QuotaToday}", quotaToday);
+
+                if (!QuotaTracker.CanMakeRequest(_geminiSettings.ApiKey, 
+                    _geminiSettings.RateLimitPerMinute, 
+                    _geminiSettings.RateLimitPerDay,
+                    _geminiSettings.RequestDelayMs))
+                {
+                    _logger.LogWarning("Rate limit exceeded.");
+                    
+                    var waitTime = QuotaTracker.GetTimeUntilNextRequest(_geminiSettings.ApiKey, _geminiSettings.RequestDelayMs);
+                    if (waitTime > TimeSpan.Zero && waitTime < TimeSpan.FromMinutes(2))
+                    {
+                        _logger.LogInformation("Waiting {Seconds}s before next request", waitTime.TotalSeconds);
+                        await Task.Delay(waitTime);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Wait time too long ({Seconds}s), using fallback immediately", waitTime.TotalSeconds);
+                        return await CreateFallbackResponseAsync(prompt, stopwatch, "Rate limit exceeded - using fallback");
+                    }
+                }
+            }
+
             // Enrich prompt v?i thông tin tour n?u có t? khóa liên quan
             var enrichedPrompt = await EnrichPromptWithTourDataAsync(prompt);
 
-            const int maxRetries = 3;
-            const int baseDelayMs = 1000;
-
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            // Ch? th? 1 l?n ?? ti?t ki?m quota
+            for (int attempt = 1; attempt <= _geminiSettings.MaxRetries; attempt++)
             {
                 try
                 {
-                    _logger.LogInformation("Gemini API attempt {Attempt}/{MaxRetries}", attempt, maxRetries);
+                    _logger.LogInformation("Gemini API attempt {Attempt}/{MaxRetries}", attempt, _geminiSettings.MaxRetries);
+
+                    // Ghi nh?n request ?? tracking quota
+                    if (_geminiSettings.EnableQuotaTracking)
+                    {
+                        QuotaTracker.RecordRequest(_geminiSettings.ApiKey);
+                    }
 
                     // T?o request payload v?i c?u hình t?i ?u
                     var requestPayload = CreateRequestPayload(enrichedPrompt, conversationHistory);
@@ -61,11 +110,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     if (attempt == 1)
                     {
-                        _logger.LogInformation("Sending request to Gemini API. Model: {Model}", _geminiSettings.Model);
+                        _logger.LogInformation("Sending request to Gemini API. Model: {Model}, Quota today: {QuotaToday}", 
+                            _geminiSettings.Model, 
+                            _geminiSettings.EnableQuotaTracking ? QuotaTracker.GetRequestCountToday(_geminiSettings.ApiKey) : 0);
                     }
 
-                    // Timeout ng?n ?? nhanh fail-over
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    // Timeout ?? nhanh fail-over
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_geminiSettings.FallbackTimeoutSeconds));
 
                     // G?i request
                     var response = await _httpClient.PostAsync(url, content, cts.Token);
@@ -78,69 +129,77 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         if (string.IsNullOrWhiteSpace(responseContent))
                         {
                             _logger.LogWarning("Attempt {Attempt}: Gemini API returned empty response body", attempt);
-                            if (attempt < maxRetries)
-                            {
-                                await Task.Delay(baseDelayMs * attempt);
-                                continue;
-                            }
-
-                            return await CreateFallbackResponseAsync(prompt, stopwatch);
+                            return await CreateFallbackResponseAsync(prompt, stopwatch, "Empty response from API");
                         }
 
                         try
                         {
-                            var geminiApiResponse = JsonSerializer.Deserialize<GeminiApiResponse>(responseContent, new JsonSerializerOptions
+                            using var jsonDoc = JsonDocument.Parse(responseContent);
+                            
+                            if (jsonDoc.RootElement.TryGetProperty("candidates", out var candidatesElement) &&
+                                candidatesElement.ValueKind == JsonValueKind.Array &&
+                                candidatesElement.GetArrayLength() > 0)
                             {
-                                PropertyNameCaseInsensitive = true
-                            });
-
-                            if (geminiApiResponse?.Candidates?.Any() == true)
-                            {
-                                var candidate = geminiApiResponse.Candidates[0];
-                                if (candidate.Content?.Parts?.Any() == true)
+                                var firstCandidate = candidatesElement[0];
+                                if (firstCandidate.TryGetProperty("content", out var contentElement) &&
+                                    contentElement.TryGetProperty("parts", out var partsElement) &&
+                                    partsElement.ValueKind == JsonValueKind.Array &&
+                                    partsElement.GetArrayLength() > 0)
                                 {
-                                    var part = candidate.Content.Parts[0];
-                                    if (!string.IsNullOrWhiteSpace(part.Text))
+                                    var firstPart = partsElement[0];
+                                    if (firstPart.TryGetProperty("text", out var textElement))
                                     {
-                                        var generatedText = part.Text;
-                                        var tokensUsed = EstimateTokens(prompt + generatedText);
-
-                                        stopwatch.Stop();
-                                        _logger.LogInformation("Attempt {Attempt}: Gemini API success. Text length: {Length}, Tokens: {Tokens}, Time: {Time}ms",
-                                            attempt, generatedText.Length, tokensUsed, stopwatch.ElapsedMilliseconds);
-
-                                        return new GeminiResponse
+                                        var generatedText = textElement.GetString();
+                                        if (!string.IsNullOrWhiteSpace(generatedText))
                                         {
-                                            Success = true,
-                                            Content = generatedText,
-                                            TokensUsed = tokensUsed,
-                                            ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds
-                                        };
+                                            var tokensUsed = EstimateTokens(prompt + generatedText);
+
+                                            stopwatch.Stop();
+                                            _logger.LogInformation("? Gemini API SUCCESS! Text length: {Length}, Tokens: {Tokens}, Time: {Time}ms",
+                                                generatedText.Length, tokensUsed, stopwatch.ElapsedMilliseconds);
+
+                                            var successResponse = new GeminiResponse
+                                            {
+                                                Success = true,
+                                                Content = generatedText,
+                                                TokensUsed = tokensUsed,
+                                                ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds
+                                            };
+
+                                            // Cache response
+                                            if (_geminiSettings.UseCache)
+                                            {
+                                                var cacheExpiry = TimeSpan.FromMinutes(_geminiSettings.CacheExpirationMinutes);
+                                                _cache.Set(cacheKey, successResponse, cacheExpiry);
+                                                _logger.LogInformation("Response cached for {Minutes} minutes", _geminiSettings.CacheExpirationMinutes);
+                                            }
+
+                                            return successResponse;
+                                        }
                                     }
                                 }
                             }
 
                             _logger.LogWarning("Attempt {Attempt}: Gemini API returned response but no valid content found", attempt);
-                            if (attempt < maxRetries)
-                            {
-                                await Task.Delay(baseDelayMs * attempt);
-                                continue;
-                            }
+                            return await CreateFallbackResponseAsync(prompt, stopwatch, "No valid content in API response");
                         }
                         catch (JsonException jsonEx)
                         {
                             _logger.LogError(jsonEx, "Attempt {Attempt}: JSON deserialization error", attempt);
-                            if (attempt < maxRetries)
-                            {
-                                await Task.Delay(baseDelayMs * attempt);
-                                continue;
-                            }
+                            return await CreateFallbackResponseAsync(prompt, stopwatch, "JSON parsing error");
                         }
                     }
                     else
                     {
-                        _logger.LogWarning("Attempt {Attempt}: Gemini API failed. Status: {Status}, Response: {Response}",
-                            attempt, response.StatusCode, responseContent);
+                        _logger.LogWarning("? Attempt {Attempt}: Gemini API failed. Status: {Status}, Response: {Response}",
+                            attempt, response.StatusCode, responseContent.Substring(0, Math.Min(500, responseContent.Length)));
+
+                        // N?u là 429 (rate limit), không retry - dùng fallback ngay
+                        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                        {
+                            _logger.LogError("?? QUOTA EXCEEDED! Using fallback response.");
+                            return await CreateFallbackResponseAsync(prompt, stopwatch, "Quota exceeded - API returned 429");
+                        }
 
                         // N?u là 503 (overload), fail nhanh và dùng fallback
                         if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
@@ -149,19 +208,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             return await CreateFallbackResponseAsync(prompt, stopwatch, "Gemini API is overloaded");
                         }
 
-                        // Retry on other server errors (5xx) or rate limiting (429)
-                        if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                        {
-                            if (attempt < maxRetries)
-                            {
-                                var delay = baseDelayMs * (int)Math.Pow(2, attempt - 1); // Exponential backoff
-                                _logger.LogInformation("Retrying in {Delay}ms...", delay);
-                                await Task.Delay(delay);
-                                continue;
-                            }
-                        }
-
-                        // Don't retry on client errors (4xx except 429)
+                        // Không retry cho các l?i khác ?? ti?t ki?m quota
                         return await CreateFallbackResponseAsync(prompt, stopwatch, $"API request failed: {response.StatusCode}");
                     }
                 }
@@ -170,21 +217,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     _logger.LogWarning("Attempt {Attempt}: Request timeout, using fallback", attempt);
                     return await CreateFallbackResponseAsync(prompt, stopwatch, "Request timeout");
                 }
-                catch (Exception ex) when (attempt < maxRetries)
-                {
-                    _logger.LogWarning(ex, "Attempt {Attempt}: Exception calling Gemini API, retrying...", attempt);
-                    await Task.Delay(baseDelayMs * attempt);
-                    continue;
-                }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Final attempt failed: Error calling Gemini API");
+                    _logger.LogError(ex, "Attempt {Attempt}: Exception calling Gemini API", attempt);
                     return await CreateFallbackResponseAsync(prompt, stopwatch, ex.Message);
                 }
             }
 
-            // N?u h?t retry attempts, tr? v? fallback response
-            return await CreateFallbackResponseAsync(prompt, stopwatch, $"Gemini API failed after {maxRetries} attempts");
+            // Fallback cu?i cùng
+            return await CreateFallbackResponseAsync(prompt, stopwatch, $"Gemini API failed after {_geminiSettings.MaxRetries} attempts");
         }
 
         public async Task<string> GenerateTitleAsync(string firstMessage)
@@ -223,6 +264,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        private string GenerateCacheKey(string prompt, List<GeminiMessage>? conversationHistory)
+        {
+            var keyBuilder = new StringBuilder();
+            keyBuilder.Append($"gemini:{prompt.GetHashCode()}");
+            
+            if (conversationHistory?.Any() == true)
+            {
+                var historyHash = string.Join(",", conversationHistory.Select(m => $"{m.Role}:{m.Content.GetHashCode()}"));
+                keyBuilder.Append($":history:{historyHash.GetHashCode()}");
+            }
+            
+            return keyBuilder.ToString();
+        }
+
         private async Task<string> EnrichPromptWithTourDataAsync(string prompt)
         {
             try
@@ -249,12 +304,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         foreach (var tour in availableTours)
                         {
                             tourData.AppendLine($"• {tour.Title}");
-                            tourData.AppendLine($"  - T?: {tour.StartLocation} ? {tour.EndLocation}");
+                            tourData.AppendLine($"  - T?: {tour.StartLocation} ??n {tour.EndLocation}");
                             tourData.AppendLine($"  - Phí d?ch v?: {tour.Price:N0} VN?");
                             tourData.AppendLine($"  - Ch? tr?ng: {tour.AvailableSlots}/{tour.MaxGuests}");
                             tourData.AppendLine($"  - Lo?i: {tour.TourType}");
 
-                            // Thêm thông tin v? c?u trúc phí
                             if (tour.TourType == "FreeScenic")
                             {
                                 tourData.AppendLine($"  - Ghi chú: Ch? phí d?ch v?, không t?n vé vào c?a");
@@ -337,6 +391,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var lowerPrompt = prompt.ToLower();
 
+            // Fallback cho bánh tráng Tây Ninh
+            if (lowerPrompt.Contains("bánh tráng") || lowerPrompt.Contains("banh trang"))
+            {
+                if (lowerPrompt.Contains("giá") || lowerPrompt.Contains("bao nhiêu"))
+                {
+                    return "Bánh tráng Tr?ng Bàng Tây Ninh có giá kho?ng 15.000-25.000 VN?/kg tùy lo?i. " +
+                           "Bánh tráng n??ng mu?i tôm kho?ng 5.000-10.000 VN?/cái. " +
+                           "Các tour c?a chúng tôi th??ng ghé mua bánh tráng làm quà!";
+                }
+                return "Bánh tráng Tr?ng Bàng là ??c s?n n?i ti?ng Tây Ninh, làm t? g?o ST25. " +
+                       "Có bánh tráng n??ng mu?i tôm, bánh tráng cu?n th?t n??ng r?t ngon!";
+            }
+
             // Fallback v?i thông tin tour th?c t?
             if (lowerPrompt.Contains("tour") || lowerPrompt.Contains("du l?ch"))
             {
@@ -354,46 +421,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     _logger.LogError(ex, "Error in fallback tour data");
                 }
 
-                return "Tây Ninh có nhi?u tour h?p d?n nh? th?m Núi Bà ?en, di tích l?ch s?. T?t c? tours ??u có phí d?ch v? h?p lý. B?n mu?n bi?t v? tour nào?";
+                return "Chúng tôi có tour danh lam th?ng c?nh (không t?n vé vào c?a) và tour khu vui ch?i " +
+                       "(có vé vào c?a) v?i nhi?u m?c giá khác nhau. Liên h? ?? bi?t thêm chi ti?t!";
             }
 
             if (lowerPrompt.Contains("núi bà ?en") || lowerPrompt.Contains("núi bà"))
             {
-                return "Núi Bà ?en cao nh?t Nam B?, có cáp treo và chùa linh thiêng. Chúng tôi có tour ?i Núi Bà ?en v?i d?ch v? chuyên nghi?p!";
+                return "Núi Bà ?en cao nh?t Nam B? (986m), có cáp treo và chùa linh thiêng. " +
+                       "Chúng tôi có tour ?i Núi Bà ?en v?i d?ch v? t?t nh?t!";
             }
 
-            if (lowerPrompt.Contains("chào") || lowerPrompt.Contains("xin chào") || lowerPrompt.Contains("hello"))
-            {
-                return "Xin chào! Tôi là tr? lý AI du l?ch Tây Ninh. B?n mu?n tìm hi?u v? tour nào? Chúng tôi có tour Núi Bà ?en, di tích l?ch s? v?i phí d?ch v? h?p lý!";
-            }
-
-            if (lowerPrompt.Contains("giá") || lowerPrompt.Contains("chi phí"))
-            {
-                try
-                {
-                    var cheapTours = await _tourDataService.GetToursByPriceRangeAsync(0, 500000, 2);
-                    if (cheapTours.Any())
-                    {
-                        var tourInfo = string.Join(", ", cheapTours.Select(t => $"{t.Title} ({t.Price:N0} VN?)"));
-                        return $"Chúng tôi có các tour v?i giá h?p lý: {tourInfo}. B?n mu?n bi?t thêm chi ti?t?";
-                    }
-                }
-                catch { }
-
-                return "Giá tour tùy theo lo?i hình. Chúng tôi có tour danh lam th?ng c?nh (không t?n vé vào c?a) và tour khu vui ch?i (có vé vào c?a) v?i nhi?u m?c giá khác nhau.";
-            }
-
-            if (lowerPrompt.Contains("?n") || lowerPrompt.Contains("món"))
-            {
-                return "Tây Ninh có bánh tráng n??ng, bánh canh cua ??ng, cà ri dê Ninh S?n. Các tour c?a chúng tôi th??ng k?t h?p th??ng th?c ?m th?c ??a ph??ng!";
-            }
-
-            if (lowerPrompt.Contains("r?") || lowerPrompt.Contains("ti?t ki?m"))
-            {
-                return "Chúng tôi có tour danh lam th?ng c?nh v?i giá h?p lý (ch? phí d?ch v?, không t?n vé vào c?a). ?ây là l?a ch?n ti?t ki?m ?? khám phá Tây Ninh!";
-            }
-
-            return "Tôi là tr? lý du l?ch Tây Ninh! Chúng tôi có nhi?u tour h?p d?n: Núi Bà ?en, di tích l?ch s?, ?m th?c ??a ph??ng v?i phí d?ch v? h?p lý. B?n quan tâm tour nào?";
+            return "Xin l?i, tôi không hi?u yêu c?u c?a b?n. Vui lòng cung c?p thêm thông tin chi ti?t.";
         }
 
         private object CreateRequestPayload(string prompt, List<GeminiMessage>? conversationHistory)
@@ -430,12 +468,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 contents = contents,
                 generationConfig = new
                 {
-                    temperature = Math.Min(_geminiSettings.Temperature, 0.3),
-                    maxOutputTokens = Math.Min(_geminiSettings.MaxTokens, 300),
-                    topP = 0.7,
-                    topK = 10,
+                    temperature = Math.Min(_geminiSettings.Temperature, 0.8),
+                    maxOutputTokens = Math.Min(_geminiSettings.MaxTokens, 2048),
+                    topP = 0.8,
+                    topK = 40,
                     candidateCount = 1,
-                    stopSequences = new[] { "\n\n", "---" }
+                    stopSequences = new[] { "\n\n\n", "---" }
                 },
                 safetySettings = new[]
                 {
@@ -449,31 +487,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         private int EstimateTokens(string text)
         {
-            return (int)Math.Ceiling(text.Length / 4.0);
-        }
-
-        private class GeminiApiResponse
-        {
-            [JsonPropertyName("candidates")]
-            public List<Candidate>? Candidates { get; set; }
-        }
-
-        private class Candidate
-        {
-            [JsonPropertyName("content")]
-            public Content Content { get; set; } = null!;
-        }
-
-        private class Content
-        {
-            [JsonPropertyName("parts")]
-            public List<Part> Parts { get; set; } = null!;
-        }
-
-        private class Part
-        {
-            [JsonPropertyName("text")]
-            public string Text { get; set; } = null!;
+            return text.Length / 4; // ??c l??ng s? tokens t? ?? dài text
         }
     }
 }

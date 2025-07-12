@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.AIChat;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
@@ -18,15 +20,18 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IAIChatService _aiChatService;
         private readonly IGeminiAIService _geminiAIService;
         private readonly ILogger<AIChatController> _logger;
+        private readonly IConfiguration _configuration;
 
         public AIChatController(
             IAIChatService aiChatService,
             IGeminiAIService geminiAIService,
-            ILogger<AIChatController> logger)
+            ILogger<AIChatController> logger,
+            IConfiguration configuration)
         {
             _aiChatService = aiChatService;
             _geminiAIService = geminiAIService;
             _logger = logger;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -326,8 +331,8 @@ namespace TayNinhTourApi.Controller.Controllers
             try
             {
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var response = await _aiChatService.UpdateSessionTitleAsync(sessionId, request.Title, currentUser.UserId);
-                return StatusCode(response.StatusCode, response);
+                var result = await _aiChatService.UpdateSessionTitleAsync(sessionId, request.NewTitle, currentUser.UserId);
+                return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
             {
@@ -378,29 +383,91 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
-    }
 
-    /// <summary>
-    /// Request DTO ?? c?p nh?t tiêu ?? session
-    /// </summary>
-    public class UpdateSessionTitleRequest
-    {
-        public string Title { get; set; } = null!;
-    }
+        /// <summary>
+        /// Admin endpoint ?? reset quota Gemini API
+        /// </summary>
+        [HttpPost("admin/reset-quota")]
+        [Authorize(Roles = "Admin")]
+        public ActionResult ResetGeminiQuota()
+        {
+            try
+            {
+                var apiKey = _configuration["GeminiSettings:ApiKey"];
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    return BadRequest(new { success = false, message = "API key not found" });
+                }
 
-    /// <summary>
-    /// Request DTO ?? test Gemini API
-    /// </summary>
-    public class TestGeminiRequest
-    {
-        public string Message { get; set; } = null!;
-    }
+                QuotaTracker.ForceResetQuota(apiKey);
+                _logger.LogInformation("Admin reset Gemini quota for API key");
 
-    /// <summary>
-    /// Request DTO ?? test tour recommendations
-    /// </summary>
-    public class TestTourRecommendationRequest
-    {
-        public string Query { get; set; } = null!;
+                return Ok(new
+                {
+                    success = true,
+                    message = "Quota ?ã ???c reset thành công",
+                    timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting Gemini quota");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có l?i x?y ra khi reset quota",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Admin endpoint ?? xem quota status
+        /// </summary>
+        [HttpGet("admin/quota-status")]
+        [Authorize(Roles = "Admin")]
+        public ActionResult GetQuotaStatus()
+        {
+            try
+            {
+                var geminiSettings = _configuration.GetSection("GeminiSettings");
+                var apiKey = geminiSettings["ApiKey"];
+                var maxPerDay = int.Parse(geminiSettings["RateLimitPerDay"] ?? "30");
+                var maxPerMinute = int.Parse(geminiSettings["RateLimitPerMinute"] ?? "3");
+
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    return BadRequest(new { success = false, message = "API key not found" });
+                }
+
+                var status = QuotaTracker.GetQuotaStatus(apiKey, maxPerDay, maxPerMinute);
+                var todayCount = QuotaTracker.GetRequestCountToday(apiKey);
+                var hourCount = QuotaTracker.GetRequestCountLastHour(apiKey);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        apiKey = apiKey.Substring(0, 5) + "*****",
+                        maxPerDay,
+                        maxPerMinute,
+                        todayCount,
+                        hourCount,
+                        status
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting quota status");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có l?i x?y ra khi l?y quota status",
+                    error = ex.Message
+                });
+            }
+        }
     }
 }
