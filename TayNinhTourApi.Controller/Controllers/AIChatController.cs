@@ -380,7 +380,6 @@ namespace TayNinhTourApi.Controller.Controllers
         }
     }
 
-<<<<<<< Updated upstream
     /// <summary>
     /// Request DTO ?? c?p nh?t tiêu ?? session
     /// </summary>
@@ -405,10 +404,3 @@ namespace TayNinhTourApi.Controller.Controllers
         public string Query { get; set; } = null!;
     }
 }
-=======
-        /// <summary>
-        /// Admin endpoint ?? reset circuit breaker
-        /// </summary>
-        [HttpPost("admin/reset-circuit-breaker")]
-        [Authorize(R
->>>>>>> Stashed changes
