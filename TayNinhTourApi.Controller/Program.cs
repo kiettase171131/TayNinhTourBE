@@ -126,10 +126,10 @@ if (builder.Environment.IsDevelopment())
 builder.Services.Configure<GeminiSettings>(builder.Configuration.GetSection("GeminiSettings"));
 builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAISettings"));
 
-// Register HttpClient for Gemini API với timeout và retry policy
+// Register HttpClient for Gemini API với adaptive timeout
 builder.Services.AddHttpClient<IGeminiAIService, GeminiAIService>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(30); // Tăng timeout lên 30s cho Gemini API
+    client.Timeout = TimeSpan.FromSeconds(35); // Tăng lên 35s để đủ cho adaptive timeout + buffer
     client.DefaultRequestHeaders.Add("User-Agent", "TayNinhTourAPI/1.0");
 })
 .ConfigurePrimaryHttpMessageHandler(() =>
