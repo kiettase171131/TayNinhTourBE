@@ -23,6 +23,7 @@ namespace TayNinhTourApi.Controller.Helper
                 if (Guid.TryParse(accountIdClaim, out var userid))
                 {
                     currentUser.Id = userid;
+                    currentUser.UserId = userid; // Set cả UserId để tương thích
                 }
                 var roleClaim = httpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
                 if (Guid.TryParse(roleClaim, out var roldid))

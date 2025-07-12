@@ -161,6 +161,37 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "AIChatSessions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Title = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Active")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LastMessageAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AIChatSessions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AIChatSessions_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Blogs",
                 columns: table => new
                 {
@@ -531,6 +562,40 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "AIChatMessages",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    SessionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Content = table.Column<string>(type: "varchar(4000)", maxLength: 4000, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MessageType = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TokensUsed = table.Column<int>(type: "int", nullable: true),
+                    ResponseTimeMs = table.Column<int>(type: "int", nullable: true),
+                    Metadata = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AIChatMessages", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AIChatMessages_AIChatSessions_SessionId",
+                        column: x => x.SessionId,
+                        principalTable: "AIChatSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1346,6 +1411,41 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AIChatMessages_CreatedAt",
+                table: "AIChatMessages",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIChatMessages_MessageType",
+                table: "AIChatMessages",
+                column: "MessageType");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIChatMessages_SessionId",
+                table: "AIChatMessages",
+                column: "SessionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIChatSessions_CreatedAt",
+                table: "AIChatSessions",
+                column: "CreatedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIChatSessions_LastMessageAt",
+                table: "AIChatSessions",
+                column: "LastMessageAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIChatSessions_Status",
+                table: "AIChatSessions",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AIChatSessions_UserId",
+                table: "AIChatSessions",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_BlogComments_BlogId",
                 table: "BlogComments",
                 column: "BlogId");
@@ -1919,6 +2019,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "AIChatMessages");
+
+            migrationBuilder.DropTable(
                 name: "BlogComments");
 
             migrationBuilder.DropTable(
@@ -1974,6 +2077,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             migrationBuilder.DropTable(
                 name: "Vouchers");
+
+            migrationBuilder.DropTable(
+                name: "AIChatSessions");
 
             migrationBuilder.DropTable(
                 name: "Blogs");

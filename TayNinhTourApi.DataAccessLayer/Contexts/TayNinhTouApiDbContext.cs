@@ -27,7 +27,6 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<BlogReaction> BlogReactions { get; set; }
         public DbSet<BlogComment> BlogComments { get; set; }
 
-
         public DbSet<Product> Products { get; set; } = null!;
         public DbSet<ProductImage> ProductImages { get; set; } = null!;
         public DbSet<CartItem> CartItems { get; set; } = null!;
@@ -44,7 +43,9 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<ProductReview> ProductReviews { get; set; } = null!;
         public DbSet<Voucher> Vouchers { get; set; } = null!;
 
-
+        // AI Chat entities
+        public DbSet<AIChatSession> AIChatSessions { get; set; } = null!;
+        public DbSet<AIChatMessage> AIChatMessages { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

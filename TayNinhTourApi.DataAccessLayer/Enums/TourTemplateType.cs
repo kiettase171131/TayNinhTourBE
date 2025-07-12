@@ -2,19 +2,21 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
 {
     /// <summary>
     /// Định nghĩa các loại tour template có thể được tạo trong hệ thống
-    /// Hệ thống mới chỉ hỗ trợ 2 loại tour chính
+    /// Tất cả tours đều có phí dịch vụ, chỉ khác về vé vào cửa
     /// </summary>
     public enum TourTemplateType
     {
         /// <summary>
-        /// Tour danh lam thắng cảnh - Tour miễn phí tham quan các địa điểm tự nhiên, không có phí vào cửa
-        /// Ví dụ: Núi Bà Đen, Chùa Cao Đài, các khu vực tham quan miễn phí
+        /// Tour danh lam thắng cảnh - Không tốn vé vào cửa nhưng vẫn có phí dịch vụ tour
+        /// Ví dụ: Núi Bà Đen, Chùa Cao Đài, các khu vực tham quan không thu vé
+        /// Khách vẫn phải trả phí dịch vụ cho hướng dẫn viên, xe, coordination
         /// </summary>
         FreeScenic = 1,
 
         /// <summary>
-        /// Tour khu vui chơi - Tour có phí tham quan các khu vui chơi, công viên giải trí
+        /// Tour khu vui chơi - Có phí vào cửa PLUS phí dịch vụ tour
         /// Ví dụ: Khu du lịch sinh thái, công viên nước, khu vui chơi có phí vào cửa
+        /// Khách phải trả: phí dịch vụ tour + vé vào cửa địa điểm
         /// </summary>
         PaidAttraction = 2
     }
@@ -48,8 +50,8 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
         {
             return type switch
             {
-                TourTemplateType.FreeScenic => "Tour tham quan các danh lam thắng cảnh, di tích lịch sử không có phí vào cửa",
-                TourTemplateType.PaidAttraction => "Tour tham quan các khu vui chơi, công viên giải trí có phí vào cửa",
+                TourTemplateType.FreeScenic => "Tour tham quan các danh lam thắng cảnh không thu vé vào cửa, chỉ phí dịch vụ",
+                TourTemplateType.PaidAttraction => "Tour tham quan các khu vui chơi có phí vào cửa, cộng phí dịch vụ",
                 _ => "Không xác định"
             };
         }
@@ -58,7 +60,7 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
         /// Kiểm tra xem loại tour có phí vào cửa không
         /// </summary>
         /// <param name="type">Loại tour template</param>
-        /// <returns>True nếu có phí vào cửa</returns>
+        /// <returns>True nếu có phí vào cửa (ngoài phí dịch vụ)</returns>
         public static bool HasEntranceFee(this TourTemplateType type)
         {
             return type == TourTemplateType.PaidAttraction;
@@ -80,6 +82,21 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
         public static Dictionary<TourTemplateType, string> GetAllTypesWithNames()
         {
             return GetAllTypes().ToDictionary(type => type, type => type.GetVietnameseName());
+        }
+
+        /// <summary>
+        /// Lấy thông tin về cấu trúc phí
+        /// </summary>
+        /// <param name="type">Loại tour template</param>
+        /// <returns>Thông tin cấu trúc phí</returns>
+        public static string GetPriceStructure(this TourTemplateType type)
+        {
+            return type switch
+            {
+                TourTemplateType.FreeScenic => "Chỉ phí dịch vụ tour (guide, xe, coordination)",
+                TourTemplateType.PaidAttraction => "Phí dịch vụ tour + vé vào cửa địa điểm",
+                _ => "Không xác định"
+            };
         }
     }
 }

@@ -122,6 +122,24 @@ if (builder.Environment.IsDevelopment())
 }
 */
 
+// Configure AI settings
+builder.Services.Configure<GeminiSettings>(builder.Configuration.GetSection("GeminiSettings"));
+builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAISettings"));
+
+// Register HttpClient for Gemini API với timeout và retry policy
+builder.Services.AddHttpClient<IGeminiAIService, GeminiAIService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30); // Tăng timeout lên 30s cho Gemini API
+    client.DefaultRequestHeaders.Add("User-Agent", "TayNinhTourAPI/1.0");
+})
+.ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler();
+    // Tắt automatic decompression để tránh conflict
+    handler.AutomaticDecompression = System.Net.DecompressionMethods.None;
+    return handler;
+});
+
 // Register services layer
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
@@ -163,7 +181,10 @@ builder.Services.AddScoped<ISkillManagementService, SkillManagementService>();
 // Data Migration Services
 builder.Services.AddScoped<DataMigrationService>();
 
-
+// AI Chat Services
+builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
+builder.Services.AddScoped<IAIChatService, AIChatService>();
+builder.Services.AddScoped<IAITourDataService, AITourDataService>();
 
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -198,6 +219,9 @@ builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRe
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
 
+// AI Chat Repositories
+builder.Services.AddScoped<IAIChatSessionRepository, AIChatSessionRepository>();
+builder.Services.AddScoped<IAIChatMessageRepository, AIChatMessageRepository>();
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();
@@ -241,10 +265,6 @@ builder.Services.AddCors(options =>
               .AllowCredentials();
     });
 });
-
-
-
-
 
 var app = builder.Build();
 
