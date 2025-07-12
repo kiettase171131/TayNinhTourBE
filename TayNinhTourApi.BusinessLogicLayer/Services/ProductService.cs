@@ -421,7 +421,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 var existingCart = await _cartRepository.GetFirstOrDefaultAsync(x =>
                     x.UserId == currentUser.Id && x.ProductId == item.ProductId);
-
+                if (existingCart != null && existingCart.Quantity >= product.QuantityInStock)
+                {
+                    response.ValidationErrors.Add(
+                        $"Sản phẩm {product.Name}: đã thêm đủ số lượng tối đa trong kho ({product.QuantityInStock}), không thể thêm nữa.");
+                    response.success = false;
+                    continue;
+                }
                 var totalQuantityRequested = item.Quantity;
                 if (existingCart != null)
                     totalQuantityRequested += existingCart.Quantity;
@@ -432,6 +438,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         $"Sản phẩm {product.Name}: chỉ còn {product.QuantityInStock} sản phẩm trong kho.");
                     response.success = false;
                     continue;
+                }
+                var quantityInCart = existingCart?.Quantity ?? 0;
+                var remainingStock = product.QuantityInStock - quantityInCart;
+
+                if (remainingStock <= 0)
+                {
+                    response.ValidationErrors.Add(
+                        $"Sản phẩm {product.Name}: đã thêm đủ số lượng tối đa trong kho ({product.QuantityInStock}), không thể thêm nữa.");
+                    response.success = false;
+                    continue;
+                }
+
+                int quantityToAdd = item.Quantity;
+                if (item.Quantity > remainingStock)
+                {
+                    quantityToAdd = remainingStock;
+                    response.ValidationErrors.Add(
+                        $"Sản phẩm {product.Name}: chỉ còn lại {remainingStock} sản phẩm, đã thêm {remainingStock} vào giỏ hàng.");
+                    response.success = false;
                 }
 
                 if (existingCart != null)
