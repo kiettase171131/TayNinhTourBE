@@ -29,8 +29,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IBlogRepository _blogRepository;
         private readonly IBlogCommentRepository _blogCommentRepository;
         private readonly IBlogReactionRepository _blogReactionRepository;
+        private readonly ISpecialtyShopRepository _shopRepository;
 
-        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility)
+        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository  )
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
@@ -40,6 +41,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _blogReactionRepository = blogReactionRepository;
             _roleRepository = roleRepository;
             _bcryptUtility = bcryptUtility;
+            _shopRepository = shopRepository;
         }
 
         public async Task<BaseResposeDto> DeleteUserAsync(Guid id)
@@ -438,6 +440,48 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 StatusCode = 200,
                 Message = "User updated successfully",
                 success = true
+            };
+        }
+
+        public async Task<ResponseGetSpecialtyShopsDto> GetSpecialtyShopsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? isActive)
+        {
+            var include = new string[] { nameof(SpecialtyShop.User) };
+
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+            var predicate = PredicateBuilder.New<SpecialtyShop>(x => !x.IsDeleted);
+
+            if (!string.IsNullOrEmpty(textSearch))
+            {
+                predicate = predicate.And(x =>
+                    x.ShopName.Contains(textSearch, StringComparison.OrdinalIgnoreCase) ||
+                    x.RepresentativeName.Contains(textSearch, StringComparison.OrdinalIgnoreCase) ||
+                    x.Email.Contains(textSearch, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (isActive.HasValue)
+            {
+                predicate = predicate.And(x => x.IsShopActive == isActive.Value);
+            }
+
+            // Lấy danh sách SpecialtyShop với phân trang
+            var shops = await _shopRepository.GenericGetPaginationAsync(
+                pageIndexValue,
+                pageSizeValue,
+                predicate,
+                include
+            );
+
+            var totalShops = shops.Count();
+            var totalPages = (int)Math.Ceiling((double)totalShops / pageSizeValue);
+
+            return new ResponseGetSpecialtyShopsDto
+            {
+                StatusCode = 200,
+                Data = _mapper.Map<List<SpecialtyShopCmsDto>>(shops),
+                TotalRecord = totalShops,
+                TotalPages = totalPages
             };
         }
     }

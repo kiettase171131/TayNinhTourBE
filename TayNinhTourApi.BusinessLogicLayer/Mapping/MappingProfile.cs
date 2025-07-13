@@ -95,6 +95,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email))
                 .ForMember(dest => dest.UserAvatar, opt => opt.MapFrom(src => src.User.Avatar))
                 .ForMember(dest => dest.UserRole, opt => opt.MapFrom(src => src.User.Role.Name));
+            CreateMap<SpecialtyShop, SpecialtyShopCmsDto>()
+           .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
+           .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email));
 
 
             // All Shop mappings removed - using SpecialtyShop only

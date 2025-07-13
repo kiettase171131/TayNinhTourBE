@@ -286,6 +286,13 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new { Error = "An error occurred while processing tour detail approval", Details = ex.Message });
             }
         }
+        [HttpGet("SpecialtyShop")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetSpecialtyShopsCms(int? pageIndex, int? pageSize,string? textSearch,bool? isActive)
+        {
+            var result = await _cmsService.GetSpecialtyShopsAsync(pageIndex,pageSize,textSearch,isActive);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
 
