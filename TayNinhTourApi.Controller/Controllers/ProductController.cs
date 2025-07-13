@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Asn1.Ocsp;
+using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
@@ -108,21 +109,21 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _productService.RemoveFromCartAsync(currentUser);
             return StatusCode(result.StatusCode, result);
         }
-        [HttpPost("rate")]
+        [HttpPost("reviews-ratings")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> RateProduct([FromBody] CreateProductRatingDto dto)
+        public async Task<IActionResult> FeedbackProduct([FromBody] CreateProductFeedbackDto dto)
         {
-            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _productService.RateProductAsync(dto, currentUser.Id);
-            return StatusCode(result.StatusCode, result);
-        }
+            // Lấy userId từ claims
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                return Unauthorized(new { message = "Unauthorized" });
+            }
 
-        [HttpPost("review")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> ReviewProduct([FromBody] CreateProductReviewDto dto)
-        {
-            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _productService.ReviewProductAsync(dto, currentUser.Id);
+            Guid userId = Guid.Parse(userIdClaim.Value);
+
+            var result = await _productService.FeedbackProductAsync(dto, userId);
+
             return StatusCode(result.StatusCode, result);
         }
 

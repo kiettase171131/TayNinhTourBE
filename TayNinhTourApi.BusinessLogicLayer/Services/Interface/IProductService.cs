@@ -28,8 +28,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task ClearCartAndUpdateInventoryAsync(Guid orderId);
         Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, string? voucherCode = null);
         Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId);
-        Task<BaseResposeDto> RateProductAsync(CreateProductRatingDto dto, Guid userId);
-        Task<BaseResposeDto> ReviewProductAsync(CreateProductReviewDto dto, Guid userId);
+        Task<BaseResposeDto> FeedbackProductAsync(CreateProductFeedbackDto dto, Guid userId);
         Task<ProductReviewSummaryDto> GetProductReviewSummaryAsync(Guid productId);
         Task<ApplyVoucherResult> ApplyVoucherForCartAsync(string voucherCode, List<CartItemDto> cartItems);
         Task<ResponseCreateVoucher> CreateAsync(CreateVoucherDto dto, Guid userId);

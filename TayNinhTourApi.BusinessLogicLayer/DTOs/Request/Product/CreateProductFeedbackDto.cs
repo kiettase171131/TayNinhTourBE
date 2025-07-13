@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
 {
-    public class CreateProductRatingDto
+    public class CreateProductFeedbackDto
     {
         public Guid ProductId { get; set; }
-        public int Rating { get; set; }  // 1 đến 5
+        public int Rating { get; set; }  // 1–5
+        public string Review { get; set; } = null!;
     }
 
 }

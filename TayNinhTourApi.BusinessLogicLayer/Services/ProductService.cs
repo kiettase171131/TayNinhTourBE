@@ -760,49 +760,48 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return status;
         }
 
-        public async Task<BaseResposeDto> RateProductAsync(CreateProductRatingDto dto, Guid userId)
+        public async Task<BaseResposeDto> FeedbackProductAsync(CreateProductFeedbackDto dto, Guid userId)
         {
-            var existing = await _ratingRepo.GetFirstOrDefaultAsync(r => r.ProductId == dto.ProductId && r.UserId == userId);
-            if (existing != null)
+            // Update or insert rating
+            var existingRating = await _ratingRepo.GetFirstOrDefaultAsync(
+                r => r.ProductId == dto.ProductId && r.UserId == userId);
+
+            if (existingRating != null)
             {
-                existing.Rating = dto.Rating;
-                await _ratingRepo.UpdateAsync(existing);
-                await _ratingRepo.SaveChangesAsync();
+                existingRating.Rating = dto.Rating;
+                await _ratingRepo.UpdateAsync(existingRating);
             }
             else
             {
-                var rating = new ProductRating
+                var newRating = new ProductRating
                 {
                     ProductId = dto.ProductId,
                     UserId = userId,
                     Rating = dto.Rating
                 };
-                await _ratingRepo.AddAsync(rating);
-                await _ratingRepo.SaveChangesAsync();
+                await _ratingRepo.AddAsync(newRating);
             }
-            return new BaseResposeDto
-            {
-                StatusCode = 200,
-                Message = "Product rating updated successfully"
-            };
-        }
 
-        public async Task<BaseResposeDto> ReviewProductAsync(CreateProductReviewDto dto, Guid userId)
-        {
+            // Always add new review
             var review = new ProductReview
             {
                 ProductId = dto.ProductId,
                 UserId = userId,
-                Content = dto.Content
+                Content = dto.Review
             };
             await _reviewRepo.AddAsync(review);
+
+            // Save all changes
+            await _ratingRepo.SaveChangesAsync();
             await _reviewRepo.SaveChangesAsync();
+
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Product review added successfully"
+                Message = "Product feedback submitted successfully"
             };
         }
+
 
         public async Task<ProductReviewSummaryDto> GetProductReviewSummaryAsync(Guid productId)
         {
