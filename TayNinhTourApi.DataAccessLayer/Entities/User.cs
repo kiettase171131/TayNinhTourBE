@@ -44,6 +44,11 @@
         public virtual TourGuide? TourGuide { get; set; }
 
         /// <summary>
+        /// TourCompany information if user has "Tour Company" role (1:1 relationship)
+        /// </summary>
+        public virtual TourCompany? TourCompany { get; set; }
+
+        /// <summary>
         /// Tour guides approved by this admin user
         /// </summary>
         public virtual ICollection<TourGuide> ApprovedTourGuides { get; set; } = new List<TourGuide>();

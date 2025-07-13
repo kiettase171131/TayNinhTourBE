@@ -20,6 +20,12 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
 
         void DeleteRange(IEnumerable<T> entities);
 
+        /// <summary>
+        /// Get IQueryable for complex queries
+        /// </summary>
+        /// <returns>IQueryable of T</returns>
+        IQueryable<T> GetQueryable();
+
 
     }
 }

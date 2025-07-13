@@ -38,6 +38,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<SpecialtyShop> SpecialtyShops { get; set; } = null!;
 
         public DbSet<TourBooking> TourBookings { get; set; } = null!;
+        public DbSet<TourCompany> TourCompanies { get; set; } = null!;
 
         public DbSet<ProductRating> ProductRatings { get; set; } = null!;
         public DbSet<ProductReview> ProductReviews { get; set; } = null!;

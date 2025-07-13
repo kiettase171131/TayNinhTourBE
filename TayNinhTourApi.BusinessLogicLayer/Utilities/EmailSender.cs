@@ -59,6 +59,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             }
         }
 
+        /// <summary>
+        /// Public method to send email with string parameters
+        /// </summary>
+        public async Task SendEmailAsync(string toEmail, string toName, string subject, string htmlBody)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(toName, toEmail));
+            message.Subject = subject;
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = htmlBody
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            await SendEmailAsync(message);
+        }
+
         public async Task SendOtpRegisterAsync(string toEmail, string otp)
         {
             var message = new MimeMessage();

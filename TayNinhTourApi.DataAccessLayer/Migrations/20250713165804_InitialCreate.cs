@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -425,6 +425,46 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "TourCompanies",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của User có role Tour Company", collation: "ascii_general_ci"),
+                    CompanyName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false, comment: "Tên công ty tour")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Wallet = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m, comment: "Số tiền có thể rút"),
+                    RevenueHold = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m, comment: "Số tiền đang hold chờ chuyển"),
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true, comment: "Mô tả về công ty")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Address = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Địa chỉ công ty")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Website = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true, comment: "Website công ty")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    BusinessLicense = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true, comment: "Số giấy phép kinh doanh")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true, comment: "Trạng thái hoạt động của công ty"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TourCompanies", x => x.Id);
+                    table.CheckConstraint("CK_TourCompanies_RevenueHold_NonNegative", "`RevenueHold` >= 0");
+                    table.CheckConstraint("CK_TourCompanies_Wallet_NonNegative", "`Wallet` >= 0");
+                    table.ForeignKey(
+                        name: "FK_TourCompanies_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "TourGuideApplications",
                 columns: table => new
                 {
@@ -521,47 +561,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         column: x => x.UpdatedById,
                         principalTable: "Users",
                         principalColumn: "Id");
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "TourTemplates",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Title = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    TemplateType = table.Column<int>(type: "int", nullable: false),
-                    ScheduleDays = table.Column<int>(type: "int", nullable: false),
-                    StartLocation = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    EndLocation = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Month = table.Column<int>(type: "int", nullable: false),
-                    Year = table.Column<int>(type: "int", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TourTemplates", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_TourTemplates_Users_CreatedById",
-                        column: x => x.CreatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_TourTemplates_Users_UpdatedById",
-                        column: x => x.UpdatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -931,6 +930,53 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "TourTemplates",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Title = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TemplateType = table.Column<int>(type: "int", nullable: false),
+                    ScheduleDays = table.Column<int>(type: "int", nullable: false),
+                    StartLocation = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    EndLocation = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Month = table.Column<int>(type: "int", nullable: false),
+                    Year = table.Column<int>(type: "int", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TourTemplates", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TourTemplates_TourCompanies_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "TourCompanies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TourTemplates_Users_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TourTemplates_Users_UpdatedById",
+                        column: x => x.UpdatedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "TourGuides",
                 columns: table => new
                 {
@@ -1053,6 +1099,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     SkillsRequired = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)")
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    ImageUrl = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "URL hình ảnh đại diện cho tour details này")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
@@ -1064,6 +1112,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_TourDetails", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TourDetails_TourCompanies_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "TourCompanies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_TourDetails_TourTemplates_TourTemplateId",
                         column: x => x.TourTemplateId,
@@ -1273,6 +1327,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     table.CheckConstraint("CK_TourOperations_MaxGuests_Positive", "MaxGuests > 0");
                     table.CheckConstraint("CK_TourOperations_Price_Positive", "Price >= 0");
                     table.ForeignKey(
+                        name: "FK_TourOperations_TourCompanies_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "TourCompanies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
                         name: "FK_TourOperations_TourDetails_TourDetailsId",
                         column: x => x.TourDetailsId,
                         principalTable: "TourDetails",
@@ -1362,7 +1422,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     NumberOfGuests = table.Column<int>(type: "int", nullable: false, comment: "Tổng số lượng khách trong booking"),
                     AdultCount = table.Column<int>(type: "int", nullable: false, comment: "Số lượng khách người lớn"),
                     ChildCount = table.Column<int>(type: "int", nullable: false, defaultValue: 0, comment: "Số lượng trẻ em"),
-                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Tổng giá tiền của booking"),
+                    OriginalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Giá gốc trước khi áp dụng discount"),
+                    DiscountPercent = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m, comment: "Phần trăm giảm giá được áp dụng"),
+                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Tổng giá tiền của booking sau discount"),
                     Status = table.Column<int>(type: "int", nullable: false, defaultValue: 0, comment: "Trạng thái của booking"),
                     BookingDate = table.Column<DateTime>(type: "datetime(6)", nullable: false, comment: "Ngày tạo booking"),
                     ConfirmedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true, comment: "Ngày xác nhận booking"),
@@ -1379,6 +1441,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     BookingCode = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, comment: "Mã booking duy nhất")
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    PayOsOrderCode = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true, comment: "PayOS order code cho thanh toán")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    QRCodeData = table.Column<string>(type: "longtext", nullable: true, comment: "QR code data cho khách hàng")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RowVersion = table.Column<DateTime>(type: "timestamp(6)", rowVersion: true, nullable: false, comment: "Row version cho optimistic concurrency control"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
@@ -1674,6 +1741,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 column: "BookingDate");
 
             migrationBuilder.CreateIndex(
+                name: "IX_TourBookings_PayOsOrderCode_Unique",
+                table: "TourBookings",
+                column: "PayOsOrderCode",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TourBookings_Status",
                 table: "TourBookings",
                 column: "Status");
@@ -1692,6 +1765,22 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "IX_TourBookings_UserId",
                 table: "TourBookings",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourCompanies_CompanyName",
+                table: "TourCompanies",
+                column: "CompanyName");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourCompanies_IsActive",
+                table: "TourCompanies",
+                column: "IsActive");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourCompanies_UserId",
+                table: "TourCompanies",
+                column: "UserId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_TourDetails_CreatedById",
@@ -2116,6 +2205,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             migrationBuilder.DropTable(
                 name: "TourGuideApplications");
+
+            migrationBuilder.DropTable(
+                name: "TourCompanies");
 
             migrationBuilder.DropTable(
                 name: "Users");

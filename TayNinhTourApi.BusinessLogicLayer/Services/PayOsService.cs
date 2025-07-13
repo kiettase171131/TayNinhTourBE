@@ -26,7 +26,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var clientId = _config["PayOS:ClientId"];
             var apiKey = _config["PayOS:ApiKey"];
-            var checksumKey = _config["PayOS:CheckSum"];
+            var checksumKey = _config["PayOS:ChecksumKey"];
             List<ItemData> items = new List<ItemData>();
 
             PayOS payOS = new PayOS(clientId, apiKey, checksumKey);

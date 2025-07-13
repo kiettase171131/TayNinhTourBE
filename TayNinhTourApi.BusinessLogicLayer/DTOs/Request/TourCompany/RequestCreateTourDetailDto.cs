@@ -36,6 +36,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         public string? SkillsRequired { get; set; }
 
         /// <summary>
+        /// URL hình ảnh đại diện cho tour details này
+        /// </summary>
+        [StringLength(500, ErrorMessage = "ImageUrl không được vượt quá 500 ký tự")]
+        public string? ImageUrl { get; set; }
+
+        /// <summary>
         /// Danh sách ID của các SpecialtyShop được mời tham gia tour
         /// Các shop này sẽ nhận email mời sau khi admin duyệt TourDetails
         /// </summary>

@@ -271,7 +271,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="includeInactive">Bao gồm inactive records (default: false)</param>
         /// <returns>Danh sách TourDetails có phân trang</returns>
         [HttpGet("paginated")]
-
+        [AllowAnonymous]
         public async Task<IActionResult> GetTourDetailsPaginated(
             [FromQuery] int pageIndex = 0,
             [FromQuery] int pageSize = 10,

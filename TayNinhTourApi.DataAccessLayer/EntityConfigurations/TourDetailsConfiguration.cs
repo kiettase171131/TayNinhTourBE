@@ -48,6 +48,11 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false)
                 .HasComment("Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)");
 
+            builder.Property(td => td.ImageUrl)
+                .HasMaxLength(500)
+                .IsRequired(false)
+                .HasComment("URL hình ảnh đại diện cho tour details này");
+
             // Foreign Key Relationships
 
             // TourTemplate relationship (Required)

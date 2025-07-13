@@ -21,5 +21,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         /// </summary>
         [StringLength(1000, ErrorMessage = "Description không được vượt quá 1000 ký tự")]
         public string? Description { get; set; }
+
+        /// <summary>
+        /// URL hình ảnh đại diện cho tour details này
+        /// </summary>
+        [StringLength(500, ErrorMessage = "ImageUrl không được vượt quá 500 ký tự")]
+        public string? ImageUrl { get; set; }
     }
 }

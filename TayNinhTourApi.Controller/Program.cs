@@ -161,6 +161,11 @@ builder.Services.AddScoped<ITourOperationService, TourOperationService>();
 builder.Services.AddScoped<ITourBookingService, TourBookingService>();
 builder.Services.AddScoped<IBlogCommentService, BlogCommentService>();
 
+// Tour Booking System Services
+builder.Services.AddScoped<IUserTourBookingService, UserTourBookingService>();
+builder.Services.AddScoped<ITourPricingService, TourPricingService>();
+builder.Services.AddScoped<ITourRevenueService, TourRevenueService>();
+builder.Services.AddScoped<ITourCompanyNotificationService, TourCompanyNotificationService>();
 
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IPayOsService, PayOsService>();
@@ -196,6 +201,7 @@ builder.Services.AddScoped<ITourDetailsRepository, TourDetailsRepository>();
 builder.Services.AddScoped<ITourDetailsSpecialtyShopRepository, TourDetailsSpecialtyShopRepository>();
 builder.Services.AddScoped<ITourOperationRepository, TourOperationRepository>();
 builder.Services.AddScoped<ITourBookingRepository, TourBookingRepository>();
+builder.Services.AddScoped<ITourCompanyRepository, TourCompanyRepository>();
 builder.Services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 builder.Services.AddScoped<ISupportTicketCommentRepository, SupportTicketCommentRepository>();
 builder.Services.AddScoped<ITourGuideApplicationRepository, TourGuideApplicationRepository>();
@@ -233,6 +239,7 @@ builder.Services.AddScoped<EmailSender>();
 
 // Register Background Job Service as Hosted Service
 builder.Services.AddHostedService<BackgroundJobService>();
+builder.Services.AddHostedService<TourAutoCancelService>();
 
 // Register UnitOfWork
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

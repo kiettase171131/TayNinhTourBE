@@ -6,6 +6,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
+using TayNinhTourApi.BusinessLogicLayer.Common;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
@@ -70,7 +71,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="pageIndex">Trang hiện tại (bắt đầu từ 1)</param>
         /// <param name="pageSize">Số lượng items per page</param>
         /// <returns>Danh sách SpecialtyShops với thông tin phân trang</returns>
-        Task<ApiResponse<PagedResult<SpecialtyShopResponseDto>>> GetPagedShopsAsync(int pageIndex, int pageSize);
+        Task<ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>> GetPagedShopsAsync(int pageIndex, int pageSize);
 
         /// <summary>
         /// Lấy danh sách shops theo rating tối thiểu
@@ -92,7 +93,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="shopType">Filter theo shop type (optional)</param>
         /// <param name="status">Filter theo status (true: active, false: inactive, null: all)</param>
         /// <returns>Danh sách SpecialtyShops với pagination info</returns>
-        Task<ApiResponse<PagedResult<SpecialtyShopResponseDto>>> GetShopsForTimelineAsync(
+        Task<ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>> GetShopsForTimelineAsync(
             int? pageIndex,
             int? pageSize,
             string? textSearch = null,
@@ -109,18 +110,5 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         
     }
 
-    /// <summary>
-    /// Helper class cho phân trang
-    /// </summary>
-    /// <typeparam name="T">Type của data items</typeparam>
-    public class PagedResult<T>
-    {
-        public List<T> Items { get; set; } = new List<T>();
-        public int TotalCount { get; set; }
-        public int PageIndex { get; set; }
-        public int PageSize { get; set; }
-        public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
-        public bool HasPreviousPage => PageIndex > 1;
-        public bool HasNextPage => PageIndex < TotalPages;
-    }
+
 }

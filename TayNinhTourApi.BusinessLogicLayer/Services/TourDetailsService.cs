@@ -122,6 +122,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Title = request.Title,
                     Description = request.Description,
                     SkillsRequired = request.SkillsRequired,
+                    ImageUrl = request.ImageUrl,
                     CreatedById = createdById,
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
@@ -305,6 +306,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (request.Description != null)
                     existingDetail.Description = request.Description;
+
+                if (request.ImageUrl != null)
+                    existingDetail.ImageUrl = request.ImageUrl;
 
                 existingDetail.UpdatedById = updatedById;
                 existingDetail.UpdatedAt = DateTime.UtcNow;

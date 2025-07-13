@@ -48,6 +48,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [StringLength(500)]
         public string? SkillsRequired { get; set; }
 
+        /// <summary>
+        /// URL hình ảnh đại diện cho tour details này
+        /// </summary>
+        [StringLength(500)]
+        public string? ImageUrl { get; set; }
+
         // Navigation Properties
 
         /// <summary>
