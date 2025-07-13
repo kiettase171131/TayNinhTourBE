@@ -435,7 +435,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (totalQuantityRequested > product.QuantityInStock)
                 {
                     response.ValidationErrors.Add(
-                        $"Sản phẩm {product.Name}: chỉ còn {product.QuantityInStock} sản phẩm trong kho.");
+                        $"Sản phẩm {product.Name}: Số lượng bạn chọn đã đạt mức tối đa của sản phẩm này");
                     response.success = false;
                     continue;
                 }
