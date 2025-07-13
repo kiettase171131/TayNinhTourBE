@@ -30,8 +30,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId);
         Task<BaseResposeDto> RateProductAsync(CreateProductRatingDto dto, Guid userId);
         Task<BaseResposeDto> ReviewProductAsync(CreateProductReviewDto dto, Guid userId);
-        Task<double> GetAverageRatingAsync(Guid productId);
-        Task<IEnumerable<ProductReviewDto>> GetProductReviewsAsync(Guid productId);
+        Task<ProductReviewSummaryDto> GetProductReviewSummaryAsync(Guid productId);
         Task<ApplyVoucherResult> ApplyVoucherForCartAsync(string voucherCode, List<CartItemDto> cartItems);
         Task<ResponseCreateVoucher> CreateAsync(CreateVoucherDto dto, Guid userId);
         Task<ResponseGetVouchersDto> GetAllVouchersAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status);

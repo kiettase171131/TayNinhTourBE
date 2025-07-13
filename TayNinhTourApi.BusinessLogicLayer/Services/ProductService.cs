@@ -804,25 +804,38 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
         }
 
-        public async Task<double> GetAverageRatingAsync(Guid productId)
+        public async Task<ProductReviewSummaryDto> GetProductReviewSummaryAsync(Guid productId)
         {
-            var ratings = await _ratingRepo.ListAsync(r => r.ProductId == productId);
-            if (!ratings.Any()) return 0;
-            return ratings.Average(r => r.Rating);
-        }
+            var includes = new[] { "User" };
 
-        public async Task<IEnumerable<ProductReviewDto>> GetProductReviewsAsync(Guid productId)
-        {
-                var includes = new[] { "User" };
-            var reviews = await _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
+            // Lấy tất cả ratings
+            var ratingsTask = _ratingRepo.ListAsync(r => r.ProductId == productId);
+            // Lấy tất cả reviews kèm user
+            var reviewsTask = _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
 
-            return reviews.Select(r => new ProductReviewDto
+            await Task.WhenAll(ratingsTask, reviewsTask).ConfigureAwait(false);
+
+            var ratings = ratingsTask.Result;
+            var reviews = reviewsTask.Result;
+
+            var averageRating = ratings.Any() ? Math.Round(ratings.Average(r => r.Rating), 1) : 0;
+
+            var reviewDtos = reviews.Select(r => new ProductReviewDto
             {
                 UserName = r.User.Name,
                 Content = r.Content,
                 CreatedAt = r.CreatedAt
-            });
+            }).ToList();
+
+            return new ProductReviewSummaryDto
+            {
+                StatusCode = 200,
+                Message = "Lấy thông tin đánh giá sản phẩm thành công",
+                AverageRating = averageRating,
+                Reviews = reviewDtos
+            };
         }
+
 
         public async Task<ApplyVoucherResult> ApplyVoucherForCartAsync(string voucherCode, List<CartItemDto> cartItems)
         {
@@ -856,7 +869,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 var product = await _productRepository.GetByIdAsync(item.ProductId);
                 if (product == null) continue;
-
+                // Nếu sản phẩm đang giảm giá thì không áp dụng voucher
+                if (product.IsSale)
+                {
+                    return new ApplyVoucherResult
+                    {
+                        StatusCode = 400,
+                        Message = $"Sản phẩm \"{product.Name}\" đang được giảm giá, không thể áp dụng voucher.",
+                        success = false
+                    };
+                }
                 totalOriginal += product.Price * item.Quantity;
             }
 

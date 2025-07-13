@@ -126,18 +126,11 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpGet("{productId}/average-rating")]
-        public async Task<IActionResult> GetAverageRating(Guid productId)
+        [HttpGet("{productId}/reviews-ratings")]
+        public async Task<IActionResult> GetProductReviewSummary(Guid productId)
         {
-            var result = await _productService.GetAverageRatingAsync(productId);
-            return Ok(new { averageRating = result });
-        }
-
-        [HttpGet("{productId}/reviews")]
-        public async Task<IActionResult> GetReviews(Guid productId)
-        {
-            var result = await _productService.GetProductReviewsAsync(productId);
-            return Ok(result);
+            var result = await _productService.GetProductReviewSummaryAsync(productId);
+            return StatusCode(result.StatusCode, result);
         }
         [HttpGet("orders/{orderId}/payment-status")]
         public async Task<IActionResult> GetPaymentStatus(Guid orderId)
