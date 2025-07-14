@@ -168,7 +168,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                 guide.Email,
                                 guide.FullName,
                                 tourDetails.Title,
-                                tourDetails.CreatedBy.User.Name,
+                                tourDetails.CreatedBy.Name,
                                 expiresAt,
                                 latestInvitation.Id.ToString()
                             );
@@ -212,7 +212,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                 guide.Email,
                                 guide.FullName,
                                 tourDetails.Title,
-                                tourDetails.CreatedBy.User.Name,
+                                tourDetails.CreatedBy.Name,
                                 expiresAt,
                                 invitation.Id.ToString()
                             );
@@ -339,7 +339,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         guide.Email,
                         guide.FullName,
                         tourDetails.Title,
-                        tourDetails.CreatedBy.User.Name,
+                        tourDetails.CreatedBy.Name,
                         invitation.ExpiresAt,
                         invitation.Id.ToString()
                     );
@@ -830,8 +830,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     try
                     {
                         await _emailSender.SendTourDetailsCancellationAsync(
-                            tourDetails.CreatedBy.User.Email,
-                            tourDetails.CreatedBy.User.Name,
+                            tourDetails.CreatedBy.Email,
+                            tourDetails.CreatedBy.Name,
                             tourDetails.Title,
                             "Không tìm được hướng dẫn viên trong thời gian quy định (5 ngày)"
                         );

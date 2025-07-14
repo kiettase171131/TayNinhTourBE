@@ -72,34 +72,9 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         public virtual User User { get; set; } = null!;
 
-        /// <summary>
-        /// Các tour templates được tạo bởi công ty này
-        /// </summary>
-        public virtual ICollection<TourTemplate> TourTemplates { get; set; } = new List<TourTemplate>();
+        // Note: TourTemplate, TourDetails, and TourOperation relationships
+        // are now handled through User entity instead of TourCompany
 
-        /// <summary>
-        /// Các tour templates được cập nhật bởi công ty này
-        /// </summary>
-        public virtual ICollection<TourTemplate> TourTemplatesUpdated { get; set; } = new List<TourTemplate>();
 
-        /// <summary>
-        /// Các tour details được tạo bởi công ty này
-        /// </summary>
-        public virtual ICollection<TourDetails> TourDetailsCreated { get; set; } = new List<TourDetails>();
-
-        /// <summary>
-        /// Các tour details được cập nhật bởi công ty này
-        /// </summary>
-        public virtual ICollection<TourDetails> TourDetailsUpdated { get; set; } = new List<TourDetails>();
-
-        /// <summary>
-        /// Các tour operations được tạo bởi công ty này
-        /// </summary>
-        public virtual ICollection<TourOperation> TourOperationsCreated { get; set; } = new List<TourOperation>();
-
-        /// <summary>
-        /// Các tour operations được cập nhật bởi công ty này
-        /// </summary>
-        public virtual ICollection<TourOperation> TourOperationsUpdated { get; set; } = new List<TourOperation>();
     }
 }

@@ -82,13 +82,13 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public virtual ICollection<TourDetailsSpecialtyShop> InvitedSpecialtyShops { get; set; } = new List<TourDetailsSpecialtyShop>();
 
         /// <summary>
-        /// Tour company đã tạo tour detail này
+        /// User đã tạo tour detail này
         /// </summary>
-        public virtual TourCompany CreatedBy { get; set; } = null!;
+        public virtual User CreatedBy { get; set; } = null!;
 
         /// <summary>
-        /// Tour company đã cập nhật tour detail này lần cuối
+        /// User đã cập nhật tour detail này lần cuối
         /// </summary>
-        public virtual TourCompany? UpdatedBy { get; set; }
+        public virtual User? UpdatedBy { get; set; }
     }
 }

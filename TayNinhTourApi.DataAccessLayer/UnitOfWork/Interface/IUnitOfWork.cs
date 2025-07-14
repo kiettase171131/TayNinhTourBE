@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore.Storage;
+using MySqlConnector;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
@@ -32,6 +33,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         IAIChatMessageRepository AIChatMessageRepository { get; }
 
         Task<int> SaveChangesAsync();
+        Task<int> ExecuteSqlRawAsync(string sql, params MySqlParameter[] parameters);
         IDbContextTransaction BeginTransaction();
         Task<IDbContextTransaction> BeginTransactionAsync();
     }

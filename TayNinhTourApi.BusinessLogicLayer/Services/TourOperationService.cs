@@ -105,26 +105,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 6. Lookup TourCompany ID from User ID
+                // 6. Get current User ID directly
                 var currentUserId = _currentUserService.GetCurrentUserId();
-                _logger.LogInformation("Looking up TourCompany for User ID: {UserId}", currentUserId);
+                _logger.LogInformation("Creating TourOperation for User ID: {UserId}", currentUserId);
 
-                var tourCompany = await _unitOfWork.TourCompanyRepository
-                    .GetFirstOrDefaultAsync(tc => tc.UserId == currentUserId && !tc.IsDeleted);
-
-                if (tourCompany == null)
-                {
-                    _logger.LogWarning("No TourCompany found for User ID: {UserId}", currentUserId);
-                    return new ResponseCreateOperationDto
-                    {
-                        success = false,
-                        Message = "User chưa có thông tin công ty tour. Vui lòng liên hệ admin để tạo thông tin công ty."
-                    };
-                }
-
-                _logger.LogInformation("Found TourCompany ID: {TourCompanyId} for User ID: {UserId}", tourCompany.Id, currentUserId);
-
-                // 7. Create operation
+                // 7. Create operation using User.Id directly
                 var operation = new TourOperation
                 {
                     Id = Guid.NewGuid(),
@@ -136,7 +121,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Notes = request.Notes,
                     IsActive = request.IsActive,
                     CreatedAt = DateTime.UtcNow,
-                    CreatedById = tourCompany.Id // Use TourCompany.Id instead of User.Id
+                    CreatedById = currentUserId // Use User.Id directly
                 };
 
                 await _unitOfWork.TourOperationRepository.AddAsync(operation);

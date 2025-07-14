@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using MySqlConnector;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
@@ -228,6 +230,11 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
+        }
+
+        public async Task<int> ExecuteSqlRawAsync(string sql, params MySqlParameter[] parameters)
+        {
+            return await _context.Database.ExecuteSqlRawAsync(sql, parameters);
         }
 
         public void Dispose()

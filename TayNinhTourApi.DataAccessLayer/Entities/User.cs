@@ -45,5 +45,35 @@
         /// Tour guides approved by this admin user
         /// </summary>
         public virtual ICollection<TourGuide> ApprovedTourGuides { get; set; } = new List<TourGuide>();
+
+        /// <summary>
+        /// Tour templates created by this user
+        /// </summary>
+        public virtual ICollection<TourTemplate> TourTemplatesCreated { get; set; } = new List<TourTemplate>();
+
+        /// <summary>
+        /// Tour templates updated by this user
+        /// </summary>
+        public virtual ICollection<TourTemplate> TourTemplatesUpdated { get; set; } = new List<TourTemplate>();
+
+        /// <summary>
+        /// Tour details created by this user
+        /// </summary>
+        public virtual ICollection<TourDetails> TourDetailsCreated { get; set; } = new List<TourDetails>();
+
+        /// <summary>
+        /// Tour details updated by this user
+        /// </summary>
+        public virtual ICollection<TourDetails> TourDetailsUpdated { get; set; } = new List<TourDetails>();
+
+        /// <summary>
+        /// Tour operations created by this user
+        /// </summary>
+        public virtual ICollection<TourOperation> TourOperationsCreated { get; set; } = new List<TourOperation>();
+
+        /// <summary>
+        /// Tour operations updated by this user
+        /// </summary>
+        public virtual ICollection<TourOperation> TourOperationsUpdated { get; set; } = new List<TourOperation>();
     }
 }

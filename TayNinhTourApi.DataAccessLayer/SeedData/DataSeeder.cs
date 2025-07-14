@@ -469,10 +469,11 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
 
             // Seed TourCompanies first (required for TourTemplates)
             var tourCompanyId = Guid.NewGuid(); // This will be the TourCompany.Id
+            var tourCompanyUserId = Guid.Parse("7a5cbc0b-6082-4215-a90a-9c8cb1b7cc5c"); // Tour company user ID
+
             if (!await _context.TourCompanies.AnyAsync())
             {
                 var now = DateTime.UtcNow;
-                var tourCompanyUserId = Guid.Parse("7a5cbc0b-6082-4215-a90a-9c8cb1b7cc5c");
 
                 var tourCompany = new TourCompany
                 {
@@ -504,7 +505,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
             {
                 var now = DateTime.UtcNow;
                 var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
-                // Use TourCompany.Id for CreatedById (as configured in TourCompanyConfiguration)
+                // Use User.Id for CreatedById (now references Users table instead of TourCompanies)
 
                 var tourTemplates = new List<TourTemplate>
                 {
@@ -522,9 +523,9 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         IsActive = true,
                         IsDeleted = false,
                         CreatedAt = now.AddDays(-10),
-                        CreatedById = tourCompanyId,
+                        CreatedById = tourCompanyUserId,
                         UpdatedAt = now.AddDays(-5),
-                        UpdatedById = tourCompanyId
+                        UpdatedById = tourCompanyUserId
                     },
 
                     // Template 2 - Free Scenic Tour (Tòa Thánh Cao Đài) - Sunday
@@ -541,9 +542,9 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         IsActive = true,
                         IsDeleted = false,
                         CreatedAt = now.AddDays(-8),
-                        CreatedById = tourCompanyId,
+                        CreatedById = tourCompanyUserId,
                         UpdatedAt = now.AddDays(-3),
-                        UpdatedById = tourCompanyId
+                        UpdatedById = tourCompanyUserId
                     },
 
                     // Template 3 - Paid Attraction Tour - Saturday
@@ -560,9 +561,9 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         IsActive = true,
                         IsDeleted = false,
                         CreatedAt = now.AddDays(-6),
-                        CreatedById = tourCompanyId,
+                        CreatedById = tourCompanyUserId,
                         UpdatedAt = now.AddDays(-1),
-                        UpdatedById = tourCompanyId
+                        UpdatedById = tourCompanyUserId
                     },
 
                     // Template 4 - Next month template - Sunday
@@ -579,9 +580,9 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         IsActive = true,
                         IsDeleted = false,
                         CreatedAt = now.AddDays(-4),
-                        CreatedById = tourCompanyId,
+                        CreatedById = tourCompanyUserId,
                         UpdatedAt = now.AddDays(-2),
-                        UpdatedById = tourCompanyId
+                        UpdatedById = tourCompanyUserId
                     }
                 };
 

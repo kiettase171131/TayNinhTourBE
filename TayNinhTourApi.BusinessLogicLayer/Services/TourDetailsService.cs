@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MySqlConnector;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
@@ -114,25 +115,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // Lookup TourCompany ID from User ID
-                _logger.LogInformation("Looking up TourCompany for User ID: {UserId}", createdById);
-                var tourCompany = await _unitOfWork.TourCompanyRepository
-                    .GetFirstOrDefaultAsync(tc => tc.UserId == createdById && !tc.IsDeleted);
+                // Create new tour detail using User.Id directly
+                _logger.LogInformation("Creating TourDetails for User ID: {UserId}", createdById);
 
-                if (tourCompany == null)
-                {
-                    _logger.LogWarning("No TourCompany found for User ID: {UserId}", createdById);
-                    return new ResponseCreateTourDetailDto
-                    {
-                        StatusCode = 400,
-                        Message = "User chưa có thông tin công ty tour. Vui lòng liên hệ admin để tạo thông tin công ty.",
-                        success = false
-                    };
-                }
-
-                _logger.LogInformation("Found TourCompany ID: {TourCompanyId} for User ID: {UserId}", tourCompany.Id, createdById);
-
-                // Create new tour detail
                 var tourDetail = new TourDetails
                 {
                     Id = Guid.NewGuid(),
@@ -141,7 +126,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Description = request.Description,
                     SkillsRequired = request.SkillsRequired,
                     ImageUrl = request.ImageUrl,
-                    CreatedById = tourCompany.Id, // Use TourCompany.Id instead of User.Id
+                    CreatedById = createdById, // Use User.Id directly
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
                     IsDeleted = false
@@ -390,24 +375,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // Lookup TourCompany ID from User ID for UpdatedById
-                var tourCompany = await _unitOfWork.TourCompanyRepository
-                    .GetFirstOrDefaultAsync(tc => tc.UserId == deletedById && !tc.IsDeleted);
-
-                if (tourCompany == null)
-                {
-                    _logger.LogWarning("No TourCompany found for User ID: {UserId} during delete", deletedById);
-                    return new ResponseDeleteTourDetailDto
-                    {
-                        StatusCode = 400,
-                        Message = "User chưa có thông tin công ty tour. Vui lòng liên hệ admin để xóa."
-                    };
-                }
-
-                // Soft delete
+                // Soft delete using User.Id directly
                 existingDetail.IsDeleted = true;
                 existingDetail.DeletedAt = DateTime.UtcNow;
-                existingDetail.UpdatedById = tourCompany.Id; // Use TourCompany.Id instead of User.Id
+                existingDetail.UpdatedById = deletedById; // Use User.Id directly
                 existingDetail.UpdatedAt = DateTime.UtcNow;
 
                 await _unitOfWork.TourDetailsRepository.UpdateAsync(existingDetail);
@@ -818,13 +789,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // Update status and comment
-                tourDetail.Status = request.IsApproved ? TourDetailsStatus.Approved : TourDetailsStatus.Rejected;
-                tourDetail.CommentApproved = request.Comment;
-                tourDetail.UpdatedById = adminId;
-                tourDetail.UpdatedAt = DateTime.UtcNow;
+                // Update only specific fields to avoid foreign key constraint issues
+                // Use direct SQL update to avoid Entity Framework tracking issues with UpdatedById
+                var sql = @"UPDATE TourDetails
+                           SET Status = @status,
+                               CommentApproved = @comment,
+                               UpdatedAt = @updatedAt
+                           WHERE Id = @id";
 
-                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetail);
+                var parameters = new[]
+                {
+                    new MySqlParameter("@status", (int)(request.IsApproved ? TourDetailsStatus.Approved : TourDetailsStatus.Rejected)),
+                    new MySqlParameter("@comment", request.Comment ?? (object)DBNull.Value),
+                    new MySqlParameter("@updatedAt", DateTime.UtcNow),
+                    new MySqlParameter("@id", tourDetailId)
+                };
+
+                await _unitOfWork.ExecuteSqlRawAsync(sql, parameters);
 
                 // Nếu reject, hủy tất cả invitation pending để có thể tạo mới khi approve lại
                 if (!request.IsApproved)
@@ -1206,14 +1187,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid companyId)
+        public async Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid userId)
         {
             try
             {
-                _logger.LogInformation("TourCompany {CompanyId} manually inviting Guide {GuideId} for TourDetails {TourDetailsId}",
-                    companyId, guideId, tourDetailsId);
+                _logger.LogInformation("User {UserId} manually inviting Guide {GuideId} for TourDetails {TourDetailsId}",
+                    userId, guideId, tourDetailsId);
 
-                // Validate TourDetails exists and belongs to company
+                // Validate TourDetails exists and belongs to user
                 var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailsId);
                 if (tourDetails == null)
                 {
@@ -1225,7 +1206,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                if (tourDetails.CreatedById != companyId)
+                if (tourDetails.CreatedById != userId)
                 {
                     return new BaseResposeDto
                     {
@@ -1249,7 +1230,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Use invitation service to create manual invitation
                 using var scope = _serviceProvider.CreateScope();
                 var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
-                var result = await invitationService.CreateManualInvitationAsync(tourDetailsId, guideId, companyId);
+                var result = await invitationService.CreateManualInvitationAsync(tourDetailsId, guideId, userId);
 
                 _logger.LogInformation("Manual invitation result for TourDetails {TourDetailsId}: {success}",
                     tourDetailsId, result.success);

@@ -45,14 +45,19 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired();
 
             // Foreign Key Relationships
-            // Note: CreatedBy relationship is configured in TourCompanyConfiguration
-            // to reference TourCompanies table instead of Users table
 
-            // UpdatedBy relationship
+            // CreatedBy relationship (Required)
+            builder.HasOne(t => t.CreatedBy)
+                .WithMany(u => u.TourTemplatesCreated)
+                .HasForeignKey(t => t.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            // UpdatedBy relationship (Optional)
             builder.HasOne(t => t.UpdatedBy)
                 .WithMany(u => u.TourTemplatesUpdated)
                 .HasForeignKey(t => t.UpdatedById)
-                .OnDelete(DeleteBehavior.Restrict)
+                .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 
             // Many-to-Many relationship với Images
