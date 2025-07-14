@@ -16,18 +16,21 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IOrderRepository _orderRepository;
         private readonly IProductService _productService;
         private readonly IProductRepository _productRepository;
-        public PaymentController(IOrderRepository orderRepository, IProductService productService, IProductRepository productRepository)
+        private readonly ISpecialtyShopRepository _specialtyShopRepository;
+
+        public PaymentController(IOrderRepository orderRepository, IProductService productService, IProductRepository productRepository, ISpecialtyShopRepository specialtyShopRepository)
         {
             _orderRepository = orderRepository;
             _productService = productService;
             _productRepository = productRepository;
+            _specialtyShopRepository = specialtyShopRepository;
         }
 
         /// <summary>
         /// PayOS callback khi thanh toán thành công
         /// URL: /api/payment-callback/paid/{orderCode}
         /// Supports both string PayOsOrderCode (TNDT format) and GUID Order.Id
-        /// Status = 1 (Paid) + Trừ stock + Xóa cart
+        /// Status = 1 (Paid) + Trừ stock + Xóa cart + Cộng tiền vào ví shop
         /// </summary>
         [HttpPost("paid/{orderCode}")]
         public async Task<IActionResult> PaymentPaidCallback(string orderCode)
@@ -77,17 +80,39 @@ namespace TayNinhTourApi.Controller.Controllers
                     Console.WriteLine("Calling ClearCartAndUpdateInventoryAsync...");
                     await _productService.ClearCartAndUpdateInventoryAsync(order.Id);
                     Console.WriteLine("Stock updated and cart cleared");
+                    
                     var orderDetails = order.OrderDetails.ToList();
+                    decimal totalWalletAdded = 0;
+                    
                     foreach (var item in orderDetails)
                     {
                         var product = await _productRepository.GetByIdAsync(item.ProductId);
                         if (product != null)
                         {
+                            // Update sold count
                             product.SoldCount += item.Quantity;
                             await _productRepository.UpdateAsync(product);
+
+                            // Add money to specialty shop wallet
+                            // Use TotalAmount (original price) instead of discounted price
+                            // System bears the discount loss, shop gets full amount
+                            var shopWalletAmount = item.UnitPrice * item.Quantity;
+                            
+                            var specialtyShop = await _specialtyShopRepository.GetByUserIdAsync(product.ShopId);
+                            if (specialtyShop != null)
+                            {
+                                specialtyShop.Wallet += shopWalletAmount;
+                                await _specialtyShopRepository.UpdateAsync(specialtyShop);
+                                totalWalletAdded += shopWalletAmount;
+                                Console.WriteLine($"Added {shopWalletAmount:N0} VNĐ to shop {specialtyShop.ShopName} wallet");
+                            }
                         }
                     }
+                    
                     await _productRepository.SaveChangesAsync();
+                    await _specialtyShopRepository.SaveChangesAsync();
+                    
+                    Console.WriteLine($"Total wallet amount added to shops: {totalWalletAdded:N0} VNĐ");
                 }
                 else
                 {
@@ -96,12 +121,13 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new
                 {
-                    message = "Thanh toán thành công - Đã cập nhật trạng thái và trừ stock",
+                    message = "Thanh toán thành công - Đã cập nhật trạng thái, trừ stock và cộng tiền vào ví shop",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status, // = 1
                     stockUpdated = true,
-                    cartCleared = true
+                    cartCleared = true,
+                    walletUpdated = true
                 });
             }
             catch (Exception ex)

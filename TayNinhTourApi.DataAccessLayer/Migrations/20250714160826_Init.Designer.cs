@@ -12,8 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250713165804_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250714160826_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -901,6 +901,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
+
+                    b.Property<decimal>("Wallet")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Website")
                         .HasMaxLength(200)
@@ -2876,13 +2879,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourDetails", b =>
                 {
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", null)
-                        .WithMany("TourDetails")
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", "CreatedBy")
                         .WithMany("TourDetailsCreated")
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -2894,10 +2891,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", "UpdatedBy")
                         .WithMany("TourDetailsUpdated")
-                        .HasForeignKey("UpdatedById")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("UpdatedById");
 
                     b.Navigation("CreatedBy");
 
@@ -3021,13 +3017,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", b =>
                 {
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", null)
-                        .WithMany("TourOperations")
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", "CreatedBy")
                         .WithMany("TourOperationsCreated")
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -3044,10 +3034,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasForeignKey("TourGuideId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", "UpdatedBy")
                         .WithMany("TourOperationsUpdated")
-                        .HasForeignKey("UpdatedById")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("UpdatedById");
 
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", null)
                         .WithMany("TourOperationsAsGuide")
@@ -3097,19 +3086,13 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", b =>
                 {
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", null)
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", "CreatedBy")
                         .WithMany("TourTemplates")
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
-                        .WithMany("TourTemplatesCreated")
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", "UpdatedBy")
                         .WithMany("TourTemplatesUpdated")
                         .HasForeignKey("UpdatedById")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -3180,11 +3163,17 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", b =>
                 {
-                    b.Navigation("TourDetails");
+                    b.Navigation("TourDetailsCreated");
 
-                    b.Navigation("TourOperations");
+                    b.Navigation("TourDetailsUpdated");
+
+                    b.Navigation("TourOperationsCreated");
+
+                    b.Navigation("TourOperationsUpdated");
 
                     b.Navigation("TourTemplates");
+
+                    b.Navigation("TourTemplatesUpdated");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourDetails", b =>
@@ -3242,25 +3231,13 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Navigation("TourCompany");
 
-                    b.Navigation("TourDetailsCreated");
-
-                    b.Navigation("TourDetailsUpdated");
-
                     b.Navigation("TourGuide");
 
                     b.Navigation("TourOperationsAsGuide");
 
-                    b.Navigation("TourOperationsCreated");
-
-                    b.Navigation("TourOperationsUpdated");
-
                     b.Navigation("TourSlotsCreated");
 
                     b.Navigation("TourSlotsUpdated");
-
-                    b.Navigation("TourTemplatesCreated");
-
-                    b.Navigation("TourTemplatesUpdated");
 
                     b.Navigation("ToursCreated");
 
