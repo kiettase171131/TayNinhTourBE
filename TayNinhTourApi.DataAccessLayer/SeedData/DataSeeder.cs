@@ -467,12 +467,44 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 await _context.SaveChangesAsync();
             }
 
+            // Seed TourCompanies first (required for TourTemplates)
+            var tourCompanyId = Guid.NewGuid(); // This will be the TourCompany.Id
+            if (!await _context.TourCompanies.AnyAsync())
+            {
+                var now = DateTime.UtcNow;
+                var tourCompanyUserId = Guid.Parse("7a5cbc0b-6082-4215-a90a-9c8cb1b7cc5c");
+
+                var tourCompany = new TourCompany
+                {
+                    Id = tourCompanyId, // Use predefined ID
+                    UserId = tourCompanyUserId,
+                    CompanyName = "Tây Ninh Travel Company",
+                    Wallet = 0,
+                    RevenueHold = 0,
+                    IsActive = true,
+                    IsDeleted = false,
+                    CreatedAt = now,
+                    CreatedById = tourCompanyUserId,
+                    UpdatedAt = now,
+                    UpdatedById = tourCompanyUserId
+                };
+
+                _context.TourCompanies.Add(tourCompany);
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                // Get existing TourCompany ID
+                var existingTourCompany = await _context.TourCompanies.FirstAsync();
+                tourCompanyId = existingTourCompany.Id;
+            }
+
             // Seed TourTemplates for testing
             if (!await _context.TourTemplates.AnyAsync())
             {
                 var now = DateTime.UtcNow;
                 var adminId = Guid.Parse("496eaa57-88aa-41bd-8abf-2aefa6cc47de");
-                var tourCompanyId = Guid.Parse("7a5cbc0b-6082-4215-a90a-9c8cb1b7cc5c"); // Tour Company user ID
+                // Use TourCompany.Id for CreatedById (as configured in TourCompanyConfiguration)
 
                 var tourTemplates = new List<TourTemplate>
                 {

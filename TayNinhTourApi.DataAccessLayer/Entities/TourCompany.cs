@@ -78,13 +78,28 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public virtual ICollection<TourTemplate> TourTemplates { get; set; } = new List<TourTemplate>();
 
         /// <summary>
+        /// Các tour templates được cập nhật bởi công ty này
+        /// </summary>
+        public virtual ICollection<TourTemplate> TourTemplatesUpdated { get; set; } = new List<TourTemplate>();
+
+        /// <summary>
         /// Các tour details được tạo bởi công ty này
         /// </summary>
-        public virtual ICollection<TourDetails> TourDetails { get; set; } = new List<TourDetails>();
+        public virtual ICollection<TourDetails> TourDetailsCreated { get; set; } = new List<TourDetails>();
+
+        /// <summary>
+        /// Các tour details được cập nhật bởi công ty này
+        /// </summary>
+        public virtual ICollection<TourDetails> TourDetailsUpdated { get; set; } = new List<TourDetails>();
 
         /// <summary>
         /// Các tour operations được tạo bởi công ty này
         /// </summary>
-        public virtual ICollection<TourOperation> TourOperations { get; set; } = new List<TourOperation>();
+        public virtual ICollection<TourOperation> TourOperationsCreated { get; set; } = new List<TourOperation>();
+
+        /// <summary>
+        /// Các tour operations được cập nhật bởi công ty này
+        /// </summary>
+        public virtual ICollection<TourOperation> TourOperationsUpdated { get; set; } = new List<TourOperation>();
     }
 }

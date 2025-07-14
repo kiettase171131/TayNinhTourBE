@@ -92,14 +92,14 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public virtual TourGuide? TourGuide { get; set; }
 
         /// <summary>
-        /// User đã tạo tour operation này
+        /// Tour company đã tạo tour operation này
         /// </summary>
-        public virtual User CreatedBy { get; set; } = null!;
+        public virtual TourCompany CreatedBy { get; set; } = null!;
 
         /// <summary>
-        /// User đã cập nhật tour operation này lần cuối
+        /// Tour company đã cập nhật tour operation này lần cuối
         /// </summary>
-        public virtual User? UpdatedBy { get; set; }
+        public virtual TourCompany? UpdatedBy { get; set; }
 
         /// <summary>
         /// Danh sách các booking cho tour operation này

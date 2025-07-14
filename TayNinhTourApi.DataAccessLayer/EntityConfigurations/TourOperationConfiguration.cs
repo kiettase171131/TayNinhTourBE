@@ -82,19 +82,8 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 
-            // CreatedBy relationship
-            builder.HasOne(to => to.CreatedBy)
-                .WithMany(u => u.TourOperationsCreated)
-                .HasForeignKey(to => to.CreatedById)
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired();
-
-            // UpdatedBy relationship
-            builder.HasOne(to => to.UpdatedBy)
-                .WithMany(u => u.TourOperationsUpdated)
-                .HasForeignKey(to => to.UpdatedById)
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired(false);
+            // CreatedBy and UpdatedBy relationships are configured in TourCompanyConfiguration
+            // since TourOperation.CreatedBy and UpdatedBy now reference TourCompany instead of User
 
             // TourBookings relationship (One-to-Many)
             builder.HasMany(to => to.TourBookings)

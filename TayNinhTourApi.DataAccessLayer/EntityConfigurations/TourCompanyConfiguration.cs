@@ -75,19 +75,19 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 
             // TourTemplate relationship (One-to-Many)
             builder.HasMany(tc => tc.TourTemplates)
-                .WithOne() // TourTemplate không có navigation property ngược lại
+                .WithOne(tt => tt.CreatedBy) // TourTemplate có navigation property CreatedBy
                 .HasForeignKey(tt => tt.CreatedById)
                 .OnDelete(DeleteBehavior.Restrict); // Không xóa company nếu còn templates
 
             // TourDetails relationship (One-to-Many)
-            builder.HasMany(tc => tc.TourDetails)
-                .WithOne() // TourDetails không có navigation property ngược lại
+            builder.HasMany(tc => tc.TourDetailsCreated)
+                .WithOne(td => td.CreatedBy) // TourDetails có navigation property CreatedBy
                 .HasForeignKey(td => td.CreatedById)
                 .OnDelete(DeleteBehavior.Restrict); // Không xóa company nếu còn details
 
             // TourOperation relationship (One-to-Many)
-            builder.HasMany(tc => tc.TourOperations)
-                .WithOne() // TourOperation không có navigation property ngược lại
+            builder.HasMany(tc => tc.TourOperationsCreated)
+                .WithOne(to => to.CreatedBy) // TourOperation có navigation property CreatedBy
                 .HasForeignKey(to => to.CreatedById)
                 .OnDelete(DeleteBehavior.Restrict); // Không xóa company nếu còn operations
 
