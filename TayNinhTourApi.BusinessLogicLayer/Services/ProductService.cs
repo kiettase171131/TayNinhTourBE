@@ -188,15 +188,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
         public async Task<ResponseCreateProductDto> CreateProductAsync(RequestCreateProductDto request, CurrentUserObject currentUserObject)
         {
+            var isSale = request.SalePercent.HasValue && request.SalePercent.Value > 0;
+            var finalPrice = request.IsSale == true && request.SalePercent > 0
+            ? request.Price * (1 - (request.SalePercent.Value / 100m))
+            : request.Price;
             var product = new Product
             {
                 Id = Guid.NewGuid(),
                 Name = request.Name,
                 Description = request.Description,
-                Price = request.Price,
+                Price = finalPrice,
                 QuantityInStock = request.QuantityInStock,
                 Category = request.Category,
-                IsSale = request.IsSale ?? false,
+                IsSale = isSale,
                 SalePercent = request.SalePercent ?? 0,
                 ShopId = currentUserObject.Id,
                 CreatedById = currentUserObject.Id,
@@ -288,11 +292,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Cập nhật thông tin sản phẩm
             product.Name = request.Name ?? product.Name;
             product.Description = request.Description ?? product.Description;
-            product.Price = request.Price ?? product.Price;
+            
             product.QuantityInStock = request.QuantityInStock ?? product.QuantityInStock;
 
-            product.IsSale = request.IsSale ?? product.IsSale;
-            product.SalePercent = request.SalePercent ?? product.SalePercent;
+            // ✅ Logic tự động tính giá & giảm giá
+            if (request.SalePercent.HasValue && request.SalePercent.Value > 0)
+            {
+                product.IsSale = true;
+                product.SalePercent = request.SalePercent.Value;
+                product.Price = (request.Price ?? product.Price) * (1 - request.SalePercent.Value / 100m);
+            }
+            else
+            {
+                // Nếu không giảm giá -> set về giá gốc (nếu có truyền giá mới)
+                product.IsSale = false;
+                product.SalePercent = 0;
+                if (request.Price.HasValue)
+                    product.Price = request.Price.Value;
+            }
 
             if (request.Category.HasValue)
             {
@@ -807,15 +824,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var includes = new[] { "User" };
 
-            // Lấy tất cả ratings
-            var ratingsTask = _ratingRepo.ListAsync(r => r.ProductId == productId);
-            // Lấy tất cả reviews kèm user
-            var reviewsTask = _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
+            // Lấy ratings (chạy tuần tự)
+            var ratings = await _ratingRepo.ListAsync(r => r.ProductId == productId);
 
-            await Task.WhenAll(ratingsTask, reviewsTask).ConfigureAwait(false);
-
-            var ratings = ratingsTask.Result;
-            var reviews = reviewsTask.Result;
+            // Lấy reviews kèm user
+            var reviews = await _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
 
             var averageRating = ratings.Any() ? Math.Round(ratings.Average(r => r.Rating), 1) : 0;
 
