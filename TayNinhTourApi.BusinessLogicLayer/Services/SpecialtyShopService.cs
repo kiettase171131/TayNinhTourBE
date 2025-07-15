@@ -207,7 +207,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy danh sách shops với phân trang
         /// </summary>
-        public async Task<ApiResponse<PagedResult<SpecialtyShopResponseDto>>> GetPagedShopsAsync(int pageIndex, int pageSize)
+        public async Task<ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>> GetPagedShopsAsync(int pageIndex, int pageSize)
         {
             try
             {
@@ -217,7 +217,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var (shops, totalCount) = await _unitOfWork.SpecialtyShopRepository.GetPagedAsync(pageIndex, pageSize, true);
                 var responseDtos = _mapper.Map<List<SpecialtyShopResponseDto>>(shops);
 
-                var pagedResult = new PagedResult<SpecialtyShopResponseDto>
+                var pagedResult = new Common.PagedResult<SpecialtyShopResponseDto>
                 {
                     Items = responseDtos,
                     TotalCount = totalCount,
@@ -225,11 +225,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PageSize = pageSize
                 };
 
-                return ApiResponse<PagedResult<SpecialtyShopResponseDto>>.Success(pagedResult, $"Retrieved page {pageIndex} of shops successfully");
+                return ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>.Success(pagedResult, $"Retrieved page {pageIndex} of shops successfully");
             }
             catch (Exception ex)
             {
-                return ApiResponse<PagedResult<SpecialtyShopResponseDto>>.Error(500, $"An error occurred while retrieving paged shops: {ex.Message}");
+                return ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>.Error(500, $"An error occurred while retrieving paged shops: {ex.Message}");
             }
         }
 
@@ -261,7 +261,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy danh sách SpecialtyShops với pagination và filters cho timeline integration
         /// </summary>
-        public async Task<ApiResponse<PagedResult<SpecialtyShopResponseDto>>> GetShopsForTimelineAsync(
+        public async Task<ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>> GetShopsForTimelineAsync(
             int? pageIndex,
             int? pageSize,
             string? textSearch = null,
@@ -344,7 +344,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Map to SpecialtyShopResponseDto
                 var shopDtos = _mapper.Map<List<SpecialtyShopResponseDto>>(finalShops);
 
-                var pagedResult = new PagedResult<SpecialtyShopResponseDto>
+                var pagedResult = new Common.PagedResult<SpecialtyShopResponseDto>
                 {
                     Items = shopDtos,
                     TotalCount = finalTotalCount,
@@ -352,11 +352,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PageSize = currentPageSize
                 };
 
-                return ApiResponse<PagedResult<SpecialtyShopResponseDto>>.Success(pagedResult, "Lấy danh sách shops thành công");
+                return ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>.Success(pagedResult, "Lấy danh sách shops thành công");
             }
             catch (Exception ex)
             {
-                return ApiResponse<PagedResult<SpecialtyShopResponseDto>>.Error(500, $"Lỗi khi lấy danh sách shops: {ex.Message}");
+                return ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>.Error(500, $"Lỗi khi lấy danh sách shops: {ex.Message}");
             }
         }
 

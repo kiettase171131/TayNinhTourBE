@@ -51,6 +51,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string? SkillsRequired { get; set; }
 
         /// <summary>
+        /// URL hình ảnh đại diện cho tour details này
+        /// </summary>
+        public string? ImageUrl { get; set; }
+
+        /// <summary>
         /// Danh sách timeline items thuộc về lịch trình này
         /// </summary>
         public List<TimelineItemDto> Timeline { get; set; } = new List<TimelineItemDto>();

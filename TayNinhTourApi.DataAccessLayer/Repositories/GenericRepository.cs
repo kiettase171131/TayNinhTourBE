@@ -150,5 +150,13 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             _context.Set<T>().RemoveRange(entities);
         }
 
+        /// <summary>
+        /// Get IQueryable for complex queries
+        /// </summary>
+        public IQueryable<T> GetQueryable()
+        {
+            return _context.Set<T>().AsQueryable();
+        }
+
     }
 }

@@ -29,6 +29,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private ITourDetailsSpecialtyShopRepository _tourDetailsSpecialtyShopRepository = null!;
         private ITourOperationRepository _tourOperationRepository = null!;
         private ITourBookingRepository _tourBookingRepository = null!;
+        private ITourCompanyRepository _tourCompanyRepository = null!;
         private ITourGuideInvitationRepository _tourGuideInvitationRepository = null!;
         private ITimelineItemRepository _timelineItemRepository = null!;
         private IBlogRepository _blogRepository = null!;
@@ -165,6 +166,14 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
+        public ITourCompanyRepository TourCompanyRepository
+        {
+            get
+            {
+                return _tourCompanyRepository ??= new TourCompanyRepository(_context);
+            }
+        }
+
         public ITourGuideInvitationRepository TourGuideInvitationRepository
         {
             get
@@ -209,6 +218,11 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         public IDbContextTransaction BeginTransaction()
         {
             return _context.Database.BeginTransaction();
+        }
+
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            return await _context.Database.BeginTransactionAsync();
         }
 
         public async Task<int> SaveChangesAsync()

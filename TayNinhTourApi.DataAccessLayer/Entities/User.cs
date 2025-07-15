@@ -15,15 +15,8 @@
         public DateTime? RefreshTokenExpiryTime { get; set; }
         public virtual ICollection<Tour> ToursCreated { get; set; } = new List<Tour>();
         public virtual ICollection<Tour> ToursUpdated { get; set; } = new List<Tour>();
-        public virtual ICollection<TourTemplate> TourTemplatesCreated { get; set; } = new List<TourTemplate>();
-        public virtual ICollection<TourTemplate> TourTemplatesUpdated { get; set; } = new List<TourTemplate>();
-
         public virtual ICollection<TourSlot> TourSlotsCreated { get; set; } = new List<TourSlot>();
         public virtual ICollection<TourSlot> TourSlotsUpdated { get; set; } = new List<TourSlot>();
-        public virtual ICollection<TourDetails> TourDetailsCreated { get; set; } = new List<TourDetails>();
-        public virtual ICollection<TourDetails> TourDetailsUpdated { get; set; } = new List<TourDetails>();
-        public virtual ICollection<TourOperation> TourOperationsCreated { get; set; } = new List<TourOperation>();
-        public virtual ICollection<TourOperation> TourOperationsUpdated { get; set; } = new List<TourOperation>();
         public virtual ICollection<Blog> Blogs { get; set; } = new List<Blog>();
         public virtual ICollection<BlogReaction> BlogReactions { get; set; } = new List<BlogReaction>();
         public virtual ICollection<BlogComment> BlogComments { get; set; } = new List<BlogComment>();
@@ -42,6 +35,11 @@
         /// TourGuide information if user has "Tour Guide" role (1:1 relationship)
         /// </summary>
         public virtual TourGuide? TourGuide { get; set; }
+
+        /// <summary>
+        /// TourCompany information if user has "Tour Company" role (1:1 relationship)
+        /// </summary>
+        public virtual TourCompany? TourCompany { get; set; }
 
         /// <summary>
         /// Tour guides approved by this admin user

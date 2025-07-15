@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -20,6 +21,13 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [Required]
         [StringLength(200)]
         public string ShopName { get; set; } = null!;
+
+        /// <summary>
+        /// Số tiền trong ví của shop từ việc bán sản phẩm
+        /// Được cộng vào khi có đơn hàng thanh toán thành công
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Wallet { get; set; } = 0;
 
         /// <summary>
         /// Mô tả chi tiết về shop

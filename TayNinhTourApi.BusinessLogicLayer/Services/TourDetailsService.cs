@@ -114,6 +114,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
+                // Lookup TourCompany ID from User ID
+                _logger.LogInformation("Looking up TourCompany for User ID: {UserId}", createdById);
+                var tourCompany = await _unitOfWork.TourCompanyRepository
+                    .GetFirstOrDefaultAsync(tc => tc.UserId == createdById && !tc.IsDeleted);
+
+                if (tourCompany == null)
+                {
+                    _logger.LogWarning("No TourCompany found for User ID: {UserId}", createdById);
+                    return new ResponseCreateTourDetailDto
+                    {
+                        StatusCode = 400,
+                        Message = "User chưa có thông tin công ty tour. Vui lòng liên hệ admin để tạo thông tin công ty.",
+                        success = false
+                    };
+                }
+
+                _logger.LogInformation("Found TourCompany ID: {TourCompanyId} for User ID: {UserId}", tourCompany.Id, createdById);
+
                 // Create new tour detail
                 var tourDetail = new TourDetails
                 {
@@ -122,7 +140,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Title = request.Title,
                     Description = request.Description,
                     SkillsRequired = request.SkillsRequired,
-                    CreatedById = createdById,
+                    ImageUrl = request.ImageUrl,
+                    CreatedById = tourCompany.Id, // Use TourCompany.Id instead of User.Id
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
                     IsDeleted = false
@@ -306,6 +325,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (request.Description != null)
                     existingDetail.Description = request.Description;
 
+                if (request.ImageUrl != null)
+                    existingDetail.ImageUrl = request.ImageUrl;
+
                 existingDetail.UpdatedById = updatedById;
                 existingDetail.UpdatedAt = DateTime.UtcNow;
 
@@ -368,10 +390,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
+                // Lookup TourCompany ID from User ID for UpdatedById
+                var tourCompany = await _unitOfWork.TourCompanyRepository
+                    .GetFirstOrDefaultAsync(tc => tc.UserId == deletedById && !tc.IsDeleted);
+
+                if (tourCompany == null)
+                {
+                    _logger.LogWarning("No TourCompany found for User ID: {UserId} during delete", deletedById);
+                    return new ResponseDeleteTourDetailDto
+                    {
+                        StatusCode = 400,
+                        Message = "User chưa có thông tin công ty tour. Vui lòng liên hệ admin để xóa."
+                    };
+                }
+
                 // Soft delete
                 existingDetail.IsDeleted = true;
                 existingDetail.DeletedAt = DateTime.UtcNow;
-                existingDetail.UpdatedById = deletedById;
+                existingDetail.UpdatedById = tourCompany.Id; // Use TourCompany.Id instead of User.Id
                 existingDetail.UpdatedAt = DateTime.UtcNow;
 
                 await _unitOfWork.TourDetailsRepository.UpdateAsync(existingDetail);

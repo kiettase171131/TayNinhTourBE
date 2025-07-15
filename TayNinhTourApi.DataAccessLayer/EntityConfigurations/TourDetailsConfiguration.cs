@@ -48,6 +48,11 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false)
                 .HasComment("Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)");
 
+            builder.Property(td => td.ImageUrl)
+                .HasMaxLength(500)
+                .IsRequired(false)
+                .HasComment("URL hình ảnh đại diện cho tour details này");
+
             // Foreign Key Relationships
 
             // TourTemplate relationship (Required)
@@ -76,19 +81,8 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasForeignKey(ts => ts.TourDetailsId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // CreatedBy relationship
-            builder.HasOne(td => td.CreatedBy)
-                .WithMany(u => u.TourDetailsCreated)
-                .HasForeignKey(td => td.CreatedById)
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired();
-
-            // UpdatedBy relationship
-            builder.HasOne(td => td.UpdatedBy)
-                .WithMany(u => u.TourDetailsUpdated)
-                .HasForeignKey(td => td.UpdatedById)
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired(false);
+            // CreatedBy and UpdatedBy relationships are configured in TourCompanyConfiguration
+            // since TourDetails.CreatedBy and UpdatedBy now reference TourCompany instead of User
 
             // Indexes for Performance
 

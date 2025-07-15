@@ -41,7 +41,19 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public int ChildCount { get; set; } = 0;
 
         /// <summary>
-        /// Tổng giá tiền của booking
+        /// Giá gốc của tour (trước khi áp dụng discount)
+        /// </summary>
+        [Required]
+        public decimal OriginalPrice { get; set; }
+
+        /// <summary>
+        /// Phần trăm giảm giá được áp dụng (0-100)
+        /// </summary>
+        [Range(0, 100)]
+        public decimal DiscountPercent { get; set; } = 0;
+
+        /// <summary>
+        /// Tổng giá tiền của booking (sau khi áp dụng discount)
         /// </summary>
         [Required]
         [Range(0, double.MaxValue, ErrorMessage = "Tổng giá phải >= 0")]
@@ -101,10 +113,29 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         /// <summary>
         /// Mã booking duy nhất cho khách hàng
+        /// Format: TB + YYYYMMDD + 6 số random
         /// </summary>
         [Required]
         [StringLength(20, ErrorMessage = "Mã booking không quá 20 ký tự")]
         public string BookingCode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// PayOS order code cho thanh toán
+        /// Format: TNDT + 10 digits
+        /// </summary>
+        [StringLength(20)]
+        public string? PayOsOrderCode { get; set; }
+
+        /// <summary>
+        /// QR code data cho khách hàng (để HDV quét ngày tour)
+        /// </summary>
+        public string? QRCodeData { get; set; }
+
+        /// <summary>
+        /// Row version cho optimistic concurrency control
+        /// </summary>
+        [Timestamp]
+        public byte[] RowVersion { get; set; } = null!;
 
         // Navigation Properties
 

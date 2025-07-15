@@ -64,14 +64,14 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         // Navigation Properties
 
         /// <summary>
-        /// User đã tạo tour template này
+        /// Tour company đã tạo tour template này
         /// </summary>
-        public virtual User CreatedBy { get; set; } = null!;
+        public virtual TourCompany CreatedBy { get; set; } = null!;
 
         /// <summary>
-        /// User đã cập nhật tour template lần cuối (nullable)
+        /// Tour company đã cập nhật tour template lần cuối (nullable)
         /// </summary>
-        public virtual User? UpdatedBy { get; set; }
+        public virtual TourCompany? UpdatedBy { get; set; }
 
         // Collection Navigation Properties
 

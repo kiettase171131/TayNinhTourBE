@@ -47,10 +47,21 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasDefaultValue(0)
                 .HasComment("Số lượng trẻ em");
 
+            builder.Property(tb => tb.OriginalPrice)
+                .IsRequired()
+                .HasPrecision(18, 2)
+                .HasComment("Giá gốc trước khi áp dụng discount");
+
+            builder.Property(tb => tb.DiscountPercent)
+                .IsRequired()
+                .HasPrecision(5, 2)
+                .HasDefaultValue(0)
+                .HasComment("Phần trăm giảm giá được áp dụng");
+
             builder.Property(tb => tb.TotalPrice)
                 .IsRequired()
                 .HasPrecision(18, 2)
-                .HasComment("Tổng giá tiền của booking");
+                .HasComment("Tổng giá tiền của booking sau discount");
 
             builder.Property(tb => tb.Status)
                 .IsRequired()
@@ -99,6 +110,20 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasMaxLength(20)
                 .HasComment("Mã booking duy nhất");
 
+            builder.Property(tb => tb.PayOsOrderCode)
+                .HasMaxLength(20)
+                .IsRequired(false)
+                .HasComment("PayOS order code cho thanh toán");
+
+            builder.Property(tb => tb.QRCodeData)
+                .IsRequired(false)
+                .HasComment("QR code data cho khách hàng");
+
+            builder.Property(tb => tb.RowVersion)
+                .IsRequired()
+                .IsRowVersion()
+                .HasComment("Row version cho optimistic concurrency control");
+
             // Foreign Key Relationships
             builder.HasOne(tb => tb.TourOperation)
                 .WithMany() // TourOperation có nhiều bookings
@@ -122,6 +147,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.HasIndex(tb => tb.BookingCode)
                 .IsUnique()
                 .HasDatabaseName("IX_TourBookings_BookingCode_Unique");
+
+            builder.HasIndex(tb => tb.PayOsOrderCode)
+                .IsUnique()
+                .HasDatabaseName("IX_TourBookings_PayOsOrderCode_Unique");
 
             builder.HasIndex(tb => tb.Status)
                 .HasDatabaseName("IX_TourBookings_Status");

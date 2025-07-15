@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories
@@ -143,14 +144,18 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         public async Task<bool> CanDeleteDetailAsync(Guid id)
         {
-            // Check if detail has assigned slots or operations
-            var hasAssignedSlots = await _context.TourSlots
-                .AnyAsync(ts => ts.TourDetailsId == id);
+            // Check if detail has slots with bookings
+            var hasBookedSlots = await _context.TourSlots
+                .AnyAsync(ts => ts.TourDetailsId == id && ts.Status != TourSlotStatus.Available);
 
-            var hasOperation = await _context.TourOperations
-                .AnyAsync(to => to.TourDetailsId == id);
+            // Check if detail has operations with bookings or assigned guides
+            var hasActiveOperations = await _context.TourOperations
+                .AnyAsync(to => to.TourDetailsId == id &&
+                              !to.IsDeleted &&
+                              (to.CurrentBookings > 0 || to.TourGuideId != null));
 
-            return !hasAssignedSlots && !hasOperation;
+            // Can delete if no booked slots and no active operations with bookings/guides
+            return !hasBookedSlots && !hasActiveOperations;
         }
 
         public async Task<IEnumerable<TourDetails>> SearchAsync(string keyword, Guid? tourTemplateId = null, bool includeInactive = false)

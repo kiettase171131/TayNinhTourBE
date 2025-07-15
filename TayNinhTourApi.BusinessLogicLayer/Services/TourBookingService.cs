@@ -55,8 +55,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // 2. Get TourOperation with lock để tránh race condition
-                var tourOperation = await _unitOfWork.TourOperationRepository.GetByIdAsync(request.TourOperationId, 
-                    new[] { "TourDetails", "TourDetails.TourTemplate", "Guide" });
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetByIdAsync(request.TourOperationId,
+                    new[] { "TourDetails", "TourDetails.TourTemplate", "TourGuide" });
 
                 if (tourOperation == null)
                 {

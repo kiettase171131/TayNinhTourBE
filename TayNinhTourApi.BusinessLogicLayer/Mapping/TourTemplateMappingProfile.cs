@@ -44,8 +44,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
             // Mapping từ TourTemplate sang TourTemplateDto (response)
             CreateMap<TourTemplate, TourTemplateDto>()
-                .ForMember(dest => dest.CreatedBy, opt => opt.MapFrom(src => src.CreatedBy != null ? src.CreatedBy.Name : null))
-                .ForMember(dest => dest.UpdatedBy, opt => opt.MapFrom(src => src.UpdatedBy != null ? src.UpdatedBy.Name : null))
+                .ForMember(dest => dest.CreatedBy, opt => opt.MapFrom(src => src.CreatedBy != null ? src.CreatedBy.User.Name : null))
+                .ForMember(dest => dest.UpdatedBy, opt => opt.MapFrom(src => src.UpdatedBy != null ? src.UpdatedBy.User.Name : null))
                 .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.Images != null ? src.Images.Select(i => i.Url).ToList() : new List<string>()))
                 .ForMember(dest => dest.TemplateType, opt => opt.MapFrom(src => src.TemplateType.ToString()))
                 .ForMember(dest => dest.ScheduleDays, opt => opt.MapFrom(src => src.ScheduleDays.ToString()));
