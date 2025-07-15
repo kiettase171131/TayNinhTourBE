@@ -824,15 +824,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var includes = new[] { "User" };
 
-            // Lấy tất cả ratings
-            var ratingsTask = _ratingRepo.ListAsync(r => r.ProductId == productId);
-            // Lấy tất cả reviews kèm user
-            var reviewsTask = _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
+            // Lấy ratings (chạy tuần tự)
+            var ratings = await _ratingRepo.ListAsync(r => r.ProductId == productId);
 
-            await Task.WhenAll(ratingsTask, reviewsTask).ConfigureAwait(false);
-
-            var ratings = ratingsTask.Result;
-            var reviews = reviewsTask.Result;
+            // Lấy reviews kèm user
+            var reviews = await _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
 
             var averageRating = ratings.Any() ? Math.Round(ratings.Average(r => r.Rating), 1) : 0;
 
