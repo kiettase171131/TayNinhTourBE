@@ -34,7 +34,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("TourId");
 
-                    b.ToTable("ImageTour");
+                    b.ToTable("ImageTour", (string)null);
                 });
 
             modelBuilder.Entity("ImageTourTemplate", b =>
@@ -223,7 +223,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Blogs");
+                    b.ToTable("Blogs", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogComment", b =>
@@ -274,7 +274,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("BlogComments");
+                    b.ToTable("BlogComments", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogImage", b =>
@@ -315,7 +315,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("BlogId");
 
-                    b.ToTable("BlogImages");
+                    b.ToTable("BlogImages", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.BlogReaction", b =>
@@ -361,7 +361,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.HasIndex("BlogId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("BlogReactions");
+                    b.ToTable("BlogReactions", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.CartItem", b =>
@@ -406,7 +406,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("CartItems");
+                    b.ToTable("CartItems", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Image", b =>
@@ -442,7 +442,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Images");
+                    b.ToTable("Images", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Order", b =>
@@ -510,7 +510,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.OrderDetail", b =>
@@ -558,7 +558,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("OrderDetails");
+                    b.ToTable("OrderDetails", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Product", b =>
@@ -626,7 +626,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("ShopId");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.ProductImage", b =>
@@ -667,7 +667,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("ProductImages");
+                    b.ToTable("ProductImages", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.ProductRating", b =>
@@ -712,7 +712,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ProductRatings");
+                    b.ToTable("ProductRatings", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.ProductReview", b =>
@@ -759,7 +759,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ProductReviews");
+                    b.ToTable("ProductReviews", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Role", b =>
@@ -798,7 +798,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.SpecialtyShop", b =>
@@ -1111,7 +1111,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("SupportTickets");
+                    b.ToTable("SupportTickets", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.SupportTicketComment", b =>
@@ -1154,7 +1154,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("SupportTicketId");
 
-                    b.ToTable("SupportTicketComments");
+                    b.ToTable("SupportTicketComments", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.SupportTicketImage", b =>
@@ -1195,7 +1195,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("SupportTicketId");
 
-                    b.ToTable("SupportTicketImages");
+                    b.ToTable("SupportTicketImages", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TimelineItem", b =>
@@ -1321,7 +1321,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("UpdatedById");
 
-                    b.ToTable("Tours");
+                    b.ToTable("Tours", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourBooking", b =>
@@ -2445,7 +2445,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Voucher", b =>
@@ -2494,7 +2494,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Vouchers");
+                    b.ToTable("Vouchers", (string)null);
                 });
 
             modelBuilder.Entity("ImageTour", b =>

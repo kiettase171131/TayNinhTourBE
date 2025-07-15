@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -336,6 +336,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     ShopName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    Wallet = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Location = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
@@ -962,15 +963,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_TourTemplates_Users_CreatedById",
-                        column: x => x.CreatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_TourTemplates_Users_UpdatedById",
+                        name: "FK_TourTemplates_TourCompanies_UpdatedById",
                         column: x => x.UpdatedById,
-                        principalTable: "Users",
+                        principalTable: "TourCompanies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 })
@@ -1119,23 +1114,16 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
+                        name: "FK_TourDetails_TourCompanies_UpdatedById",
+                        column: x => x.UpdatedById,
+                        principalTable: "TourCompanies",
+                        principalColumn: "Id");
+                    table.ForeignKey(
                         name: "FK_TourDetails_TourTemplates_TourTemplateId",
                         column: x => x.TourTemplateId,
                         principalTable: "TourTemplates",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_TourDetails_Users_CreatedById",
-                        column: x => x.CreatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_TourDetails_Users_UpdatedById",
-                        column: x => x.UpdatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -1333,6 +1321,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
+                        name: "FK_TourOperations_TourCompanies_UpdatedById",
+                        column: x => x.UpdatedById,
+                        principalTable: "TourCompanies",
+                        principalColumn: "Id");
+                    table.ForeignKey(
                         name: "FK_TourOperations_TourDetails_TourDetailsId",
                         column: x => x.TourDetailsId,
                         principalTable: "TourDetails",
@@ -1344,18 +1337,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalTable: "TourGuides",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_TourOperations_Users_CreatedById",
-                        column: x => x.CreatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_TourOperations_Users_UpdatedById",
-                        column: x => x.UpdatedById,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_TourOperations_Users_UserId",
                         column: x => x.UserId,
