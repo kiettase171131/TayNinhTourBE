@@ -185,6 +185,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Email = newUser.Email,
                 Name = newUser.Name,
                 PhoneNumber = newUser.PhoneNumber,
+                Role = newUser.Role.Name, // Add role to response
                 StatusCode = 200,
                 success = true
             };

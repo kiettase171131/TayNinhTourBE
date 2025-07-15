@@ -132,6 +132,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string? QRCodeData { get; set; }
 
         /// <summary>
+        /// Thời gian hết hạn reservation (để tự động release slot nếu không thanh toán)
+        /// Null nếu booking đã được confirm hoặc cancel
+        /// </summary>
+        public DateTime? ReservedUntil { get; set; }
+
+        /// <summary>
         /// Row version cho optimistic concurrency control
         /// </summary>
         [Timestamp]

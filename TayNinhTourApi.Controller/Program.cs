@@ -240,6 +240,7 @@ builder.Services.AddScoped<EmailSender>();
 // Register Background Job Service as Hosted Service
 builder.Services.AddHostedService<BackgroundJobService>();
 builder.Services.AddHostedService<TourAutoCancelService>();
+builder.Services.AddHostedService<TourBookingCleanupService>();
 
 // Register UnitOfWork
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

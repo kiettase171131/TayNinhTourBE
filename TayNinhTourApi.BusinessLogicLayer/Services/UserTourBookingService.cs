@@ -344,7 +344,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ContactEmail = request.ContactEmail,
                     CustomerNotes = request.SpecialRequests,
                     CreatedAt = bookingDate,
-                    CreatedById = userId
+                    CreatedById = userId,
+                    ReservedUntil = DateTime.UtcNow.AddMinutes(30) // Reserve slot for 30 minutes
                 };
 
                 await _unitOfWork.TourBookingRepository.AddAsync(booking);
@@ -684,6 +685,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 booking.Status = BookingStatus.Confirmed;
                 booking.ConfirmedDate = DateTime.UtcNow;
                 booking.UpdatedAt = DateTime.UtcNow;
+                booking.ReservedUntil = null; // Clear reservation timeout since payment is confirmed
 
                 // Generate QR code for customer
                 booking.QRCodeData = GenerateQRCodeData(booking);
@@ -754,6 +756,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 booking.CancelledDate = DateTime.UtcNow;
                 booking.CancellationReason = "Hủy thanh toán";
                 booking.UpdatedAt = DateTime.UtcNow;
+                booking.ReservedUntil = null; // Clear reservation timeout since booking is cancelled
 
                 await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
 

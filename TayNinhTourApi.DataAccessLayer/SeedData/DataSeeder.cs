@@ -181,21 +181,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
                         IsActive = true,
                     },
-                     new User
-                     {
-                        Id = Guid.Parse("c3d4e5f6-a7b8-9012-cdef-345678901234"),
-                        PasswordHash = "$2a$12$4UzizvZsV3N560sv3.VX9Otmjqx9VYCn7LzCxeZZm0s4N01/y92Ni", // 12345678h@
-                        Email = "tourguide1@example.com",
-                        PhoneNumber = "0987654323",
-                        CreatedAt= DateTime.UtcNow,
-                        UpdatedAt= DateTime.UtcNow,
-                        IsDeleted = false,
-                        IsVerified = true,
-                        RoleId = Guid.Parse("e2f4a6b8-c1d3-4e5f-a7b9-c2d4e6f8a0b2"), // Tour Guide role
-                        Name = "Tour Guide 1",
-                        Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png",
-                        IsActive = true,
-                    },
+
                      // Additional 10 test users for easy testing
                      new User
                      {

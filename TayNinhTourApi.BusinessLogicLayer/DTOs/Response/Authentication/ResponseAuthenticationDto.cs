@@ -10,5 +10,6 @@
         public string Name { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public string Avatar { get; set; } = null!;
+        public string Role { get; set; } = string.Empty;
     }
 }
