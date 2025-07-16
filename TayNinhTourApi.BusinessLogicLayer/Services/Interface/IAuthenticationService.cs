@@ -17,6 +17,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
 
         Task<ResponseAuthenticationDto> RefreshTokenAsync(RequestRefreshTokenDto request);
+        Task<ResponseAuthenticationDto> LoginWithGoogleAsync(GoogleLoginRequestDto request);    
 
     }
 }
