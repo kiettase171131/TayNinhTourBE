@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -440,6 +441,65 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             }
         }
+        public async Task<ResponseAuthenticationDto> LoginWithGoogleAsync(GoogleLoginRequestDto request)
+        {
+            GoogleJsonWebSignature.Payload payload;
+
+            try
+            {
+                payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken);
+            }
+            catch
+            {
+                return new ResponseAuthenticationDto
+                {
+                    StatusCode = 400,
+                    Message = "Invalid Google token."
+                };
+            }
+
+            var user = await _userRepository.GetUserByEmailAsync(payload.Email);
+
+            if (user == null)
+            {
+                var role = await _roleRepository.GetRoleByNameAsync(Constants.RoleUserName);
+                if (role == null)
+                {
+                    return new ResponseAuthenticationDto
+                    {
+                        StatusCode = 500,
+                        Message = "Role not found"
+                    };
+                }
+
+                user = new User
+                {
+                    Name = payload.Name,
+                    Email = payload.Email,
+                    Avatar = payload.Picture,
+                    IsVerified = true,
+                    IsActive = true,
+                    RoleId = role.Id,
+                    Role = role,
+                    PasswordHash = ""
+                };
+
+                await _userRepository.AddAsync(user);
+                await _userRepository.SaveChangesAsync();
+            }
+
+            if (!user.IsActive)
+            {
+                return new ResponseAuthenticationDto
+                {
+                    StatusCode = 400,
+                    Message = "This account is not available at this time!"
+                };
+            }
+
+            return await GenerateTokenAsync(user);
+        }
+
     }
 
 
