@@ -119,6 +119,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false)
                 .HasComment("QR code data cho khách hàng");
 
+            builder.Property(tb => tb.ReservedUntil)
+                .IsRequired(false)
+                .HasComment("Thời gian hết hạn reservation để tự động release slot nếu không thanh toán");
+
             builder.Property(tb => tb.RowVersion)
                 .IsRequired()
                 .IsRowVersion()

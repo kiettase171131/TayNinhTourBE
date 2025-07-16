@@ -648,7 +648,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogInformation("Getting timeline for TourDetails: {TourDetailsId}", request.TourDetailsId);
 
-                var tourDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(request.TourDetailsId);
+                // Use GetWithDetailsAsync to load navigation properties
+                var tourDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(request.TourDetailsId);
 
                 if (tourDetail == null || tourDetail.IsDeleted)
                 {
@@ -656,6 +657,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy lịch trình"
+                    };
+                }
+
+                // Ensure TourTemplate is loaded
+                if (tourDetail.TourTemplate == null)
+                {
+                    _logger.LogError("TourTemplate not loaded for TourDetails {TourDetailsId}", request.TourDetailsId);
+                    return new ResponseGetTimelineDto
+                    {
+                        StatusCode = 500,
+                        Message = "Lỗi tải thông tin tour template"
                     };
                 }
 
