@@ -48,10 +48,13 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false)
                 .HasComment("Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)");
 
-            builder.Property(td => td.ImageUrl)
-                .HasMaxLength(500)
+            builder.Property(td => td.ImageUrls)
+                .HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                    v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>())
+                .HasColumnType("JSON")
                 .IsRequired(false)
-                .HasComment("URL hình ảnh đại diện cho tour details này");
+                .HasComment("Danh sách URL hình ảnh cho tour details này (JSON array)");
 
             // Foreign Key Relationships
 

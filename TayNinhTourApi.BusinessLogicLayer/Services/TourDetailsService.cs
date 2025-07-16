@@ -125,7 +125,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Title = request.Title,
                     Description = request.Description,
                     SkillsRequired = request.SkillsRequired,
-                    ImageUrl = request.ImageUrl,
+                    ImageUrls = GetImageUrlsFromRequest(request.ImageUrls, request.ImageUrl),
                     CreatedById = createdById, // Use User.Id directly
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
@@ -310,8 +310,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (request.Description != null)
                     existingDetail.Description = request.Description;
 
-                if (request.ImageUrl != null)
-                    existingDetail.ImageUrl = request.ImageUrl;
+                if (request.ImageUrls != null || request.ImageUrl != null)
+                    existingDetail.ImageUrls = GetImageUrlsFromRequest(request.ImageUrls, request.ImageUrl);
 
                 existingDetail.UpdatedById = updatedById;
                 existingDetail.UpdatedAt = DateTime.UtcNow;
@@ -1434,6 +1434,27 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error cancelling pending invitations for TourDetails {TourDetailsId}", tourDetailsId);
                 // Không throw exception để không ảnh hưởng đến flow chính
             }
+        }
+
+        /// <summary>
+        /// Helper method để xử lý backward compatibility giữa ImageUrls và ImageUrl
+        /// </summary>
+        private List<string> GetImageUrlsFromRequest(List<string>? imageUrls, string? imageUrl)
+        {
+            // Ưu tiên ImageUrls nếu có
+            if (imageUrls != null && imageUrls.Any())
+            {
+                return imageUrls;
+            }
+
+            // Fallback sang ImageUrl nếu có
+            if (!string.IsNullOrEmpty(imageUrl))
+            {
+                return new List<string> { imageUrl };
+            }
+
+            // Trả về empty list nếu không có gì
+            return new List<string>();
         }
     }
 }

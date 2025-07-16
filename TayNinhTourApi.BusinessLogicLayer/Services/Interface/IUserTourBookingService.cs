@@ -99,7 +99,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public Guid TourOperationId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
-        public string? ImageUrl { get; set; }
+        public List<string> ImageUrls { get; set; } = new List<string>();
+        public string? ImageUrl => ImageUrls.FirstOrDefault();
         public decimal Price { get; set; }
         public int MaxGuests { get; set; }
         public int CurrentBookings { get; set; }
@@ -122,7 +123,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
-        public string? ImageUrl { get; set; }
+        public List<string> ImageUrls { get; set; } = new List<string>();
+        public string? ImageUrl => ImageUrls.FirstOrDefault();
         public string? SkillsRequired { get; set; }
         public DateTime CreatedAt { get; set; }
 

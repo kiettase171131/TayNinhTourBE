@@ -49,10 +49,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string? SkillsRequired { get; set; }
 
         /// <summary>
-        /// URL hình ảnh đại diện cho tour details này
+        /// Danh sách URL hình ảnh cho tour details này
+        /// Lưu dưới dạng JSON array trong database
         /// </summary>
-        [StringLength(500)]
-        public string? ImageUrl { get; set; }
+        public List<string> ImageUrls { get; set; } = new List<string>();
 
         // Navigation Properties
 

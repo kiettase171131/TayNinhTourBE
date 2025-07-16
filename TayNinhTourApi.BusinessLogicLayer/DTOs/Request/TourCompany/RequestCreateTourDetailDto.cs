@@ -36,7 +36,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         public string? SkillsRequired { get; set; }
 
         /// <summary>
-        /// URL hình ảnh đại diện cho tour details này
+        /// Danh sách URL hình ảnh cho tour details này
+        /// </summary>
+        public List<string> ImageUrls { get; set; } = new List<string>();
+
+        /// <summary>
+        /// URL hình ảnh đại diện cho tour details này (backward compatibility)
+        /// Sẽ được chuyển đổi thành ImageUrls[0] nếu có
         /// </summary>
         [StringLength(500, ErrorMessage = "ImageUrl không được vượt quá 500 ký tự")]
         public string? ImageUrl { get; set; }

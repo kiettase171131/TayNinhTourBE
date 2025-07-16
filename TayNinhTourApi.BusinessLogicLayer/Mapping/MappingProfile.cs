@@ -41,8 +41,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
             #region TourDetails Mapping
             // Request to Entity mappings
-            CreateMap<RequestCreateTourDetailDto, TourDetails>();
+            CreateMap<RequestCreateTourDetailDto, TourDetails>()
+                .AfterMap((src, dest) => {
+                    // Handle backward compatibility: if ImageUrl is provided but ImageUrls is empty, use ImageUrl
+                    if (!string.IsNullOrEmpty(src.ImageUrl) && !src.ImageUrls.Any())
+                    {
+                        dest.ImageUrls = new List<string> { src.ImageUrl };
+                    }
+                    else if (src.ImageUrls.Any())
+                    {
+                        dest.ImageUrls = src.ImageUrls;
+                    }
+                });
+
             CreateMap<RequestUpdateTourDetailDto, TourDetails>()
+                .AfterMap((src, dest) => {
+                    // Handle backward compatibility for updates
+                    if (!string.IsNullOrEmpty(src.ImageUrl) && (src.ImageUrls == null || !src.ImageUrls.Any()))
+                    {
+                        dest.ImageUrls = new List<string> { src.ImageUrl };
+                    }
+                    else if (src.ImageUrls != null && src.ImageUrls.Any())
+                    {
+                        dest.ImageUrls = src.ImageUrls;
+                    }
+                })
                 .ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
 
             // Entity to DTO mappings
