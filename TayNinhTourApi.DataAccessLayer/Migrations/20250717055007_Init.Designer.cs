@@ -12,8 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250714185713_FixTourTemplateFK")]
-    partial class FixTourTemplateFK
+    [Migration("20250717055007_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -454,6 +454,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<DateTime?>("CheckedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("CheckedByShopId")
+                        .HasColumnType("char(36)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -469,26 +475,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsDeleted")
+                    b.Property<bool>("IsChecked")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsQRCodeUsed")
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("PayOsOrderCode")
                         .HasColumnType("longtext");
-
-                    b.Property<string>("QRCodeData")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("QRCodeImageUrl")
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("QRCodeUsedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid?>("QRCodeUsedByShopId")
-                        .HasColumnType("char(36)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -901,6 +895,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
+
+                    b.Property<decimal>("Wallet")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Website")
                         .HasMaxLength(200)
@@ -1426,6 +1423,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("longtext")
                         .HasComment("QR code data cho khách hàng");
 
+                    b.Property<DateTime?>("ReservedUntil")
+                        .HasColumnType("datetime(6)")
+                        .HasComment("Thời gian hết hạn reservation để tự động release slot nếu không thanh toán");
+
                     b.Property<DateTime>("RowVersion")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -1615,10 +1616,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("varchar(1000)")
                         .HasComment("Mô tả về lịch trình này");
 
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasComment("URL hình ảnh đại diện cho tour details này");
+                    b.Property<string>("ImageUrls")
+                        .HasColumnType("JSON")
+                        .HasComment("Danh sách URL hình ảnh cho tour details này (JSON array)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");

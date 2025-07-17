@@ -451,6 +451,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<DateTime?>("CheckedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("CheckedByShopId")
+                        .HasColumnType("char(36)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -466,26 +472,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsDeleted")
+                    b.Property<bool>("IsChecked")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsQRCodeUsed")
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("PayOsOrderCode")
                         .HasColumnType("longtext");
-
-                    b.Property<string>("QRCodeData")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("QRCodeImageUrl")
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("QRCodeUsedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid?>("QRCodeUsedByShopId")
-                        .HasColumnType("char(36)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

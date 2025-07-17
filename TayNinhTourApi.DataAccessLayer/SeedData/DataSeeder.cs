@@ -899,6 +899,118 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 _context.SpecialtyShops.AddRange(specialtyShops);
                 await _context.SaveChangesAsync();
             }
+
+            // Seed test products for the first specialty shop user
+            if (!await _context.Products.AnyAsync())
+            {
+                var now = DateTime.UtcNow;
+                var firstSpecialtyShopUserId = specialtyShopUserIds[0]; // Shop 1 (Handicrafts)
+
+                var testProducts = new List<Product>
+                {
+                    // Product 1 - Traditional Bamboo Basket
+                    new Product
+                    {
+                        Id = Guid.Parse("aa111111-1111-1111-1111-111111111111"),
+                        Name = "Giỏ tre truyền thống Tây Ninh",
+                        Description = "Giỏ tre thủ công được làm từ tre già, đan theo kỹ thuật truyền thống của người dân Tây Ninh. Sản phẩm thân thiện với môi trường, bền đẹp, phù hợp để đựng đồ gia dụng hoặc làm quà tặng.",
+                        Price = 150000m, // 150,000 VNĐ
+                        QuantityInStock = 50,
+                        Category = ProductCategory.Souvenir,
+                        IsSale = false,
+                        SalePercent = null,
+                        SoldCount = 5,
+                        ShopId = firstSpecialtyShopUserId,
+                        CreatedAt = now.AddDays(-10),
+                        CreatedById = firstSpecialtyShopUserId,
+                        UpdatedAt = now.AddDays(-10),
+                        UpdatedById = firstSpecialtyShopUserId,
+                        IsActive = true,
+                        IsDeleted = false
+                    },
+                    // Product 2 - Tay Ninh Pottery
+                    new Product
+                    {
+                        Id = Guid.Parse("bb222222-2222-2222-2222-222222222222"),
+                        Name = "Gốm sứ thủ công Tây Ninh",
+                        Description = "Bộ ấm chén gốm sứ được làm thủ công bởi nghệ nhân địa phương. Thiết kế tinh xảo với họa tiết truyền thống, phù hợp để thưởng trà hoặc trang trí.",
+                        Price = 280000m, // 280,000 VNĐ
+                        QuantityInStock = 25,
+                        Category = ProductCategory.Souvenir,
+                        IsSale = true,
+                        SalePercent = 10, // Giảm 10%
+                        SoldCount = 8,
+                        ShopId = firstSpecialtyShopUserId,
+                        CreatedAt = now.AddDays(-8),
+                        CreatedById = firstSpecialtyShopUserId,
+                        UpdatedAt = now.AddDays(-3),
+                        UpdatedById = firstSpecialtyShopUserId,
+                        IsActive = true,
+                        IsDeleted = false
+                    },
+                    // Product 3 - Traditional Textile
+                    new Product
+                    {
+                        Id = Guid.Parse("cc333333-3333-3333-3333-333333333333"),
+                        Name = "Thổ cẩm Tây Ninh",
+                        Description = "Vải thổ cẩm dệt thủ công với họa tiết đặc trưng của đồng bào dân tộc Tây Ninh. Chất liệu bền, màu sắc tự nhiên từ thực vật. Có thể làm túi xách, trang trí nội thất.",
+                        Price = 320000m, // 320,000 VNĐ
+                        QuantityInStock = 15,
+                        Category = ProductCategory.Clothing,
+                        IsSale = false,
+                        SalePercent = null,
+                        SoldCount = 3,
+                        ShopId = firstSpecialtyShopUserId,
+                        CreatedAt = now.AddDays(-5),
+                        CreatedById = firstSpecialtyShopUserId,
+                        UpdatedAt = now.AddDays(-5),
+                        UpdatedById = firstSpecialtyShopUserId,
+                        IsActive = true,
+                        IsDeleted = false
+                    }
+                };
+
+                _context.Products.AddRange(testProducts);
+                await _context.SaveChangesAsync();
+
+                // Add product images for better testing
+                var productImages = new List<ProductImage>
+                {
+                    // Images for Bamboo Basket
+                    new ProductImage
+                    {
+                        Id = Guid.Parse("img11111-1111-1111-1111-111111111111"),
+                        ProductId = Guid.Parse("aa111111-1111-1111-1111-111111111111"),
+                        Url = "https://example.com/images/bamboo-basket-1.jpg",
+                        CreatedAt = now.AddDays(-10),
+                        CreatedById = firstSpecialtyShopUserId,
+                        IsActive = true
+                    },
+                    // Images for Pottery
+                    new ProductImage
+                    {
+                        Id = Guid.Parse("img22222-2222-2222-2222-222222222222"),
+                        ProductId = Guid.Parse("bb222222-2222-2222-2222-222222222222"),
+                        Url = "https://example.com/images/pottery-set-1.jpg",
+                        CreatedAt = now.AddDays(-8),
+                        CreatedById = firstSpecialtyShopUserId,
+                        IsActive = true
+                    },
+                    // Images for Traditional Textile
+                    new ProductImage
+                    {
+                        Id = Guid.Parse("img33333-3333-3333-3333-333333333333"),
+                        ProductId = Guid.Parse("cc333333-3333-3333-3333-333333333333"),
+                        Url = "https://example.com/images/traditional-textile-1.jpg",
+                        CreatedAt = now.AddDays(-5),
+                        CreatedById = firstSpecialtyShopUserId,
+                        IsActive = true
+                    }
+                };
+
+                _context.ProductImages.AddRange(productImages);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

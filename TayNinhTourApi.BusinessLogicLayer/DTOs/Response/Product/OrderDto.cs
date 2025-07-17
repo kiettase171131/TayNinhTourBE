@@ -16,27 +16,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
         public decimal TotalAfterDiscount { get; set; }
         public OrderStatus Status { get; set; }
         public string? VoucherCode { get; set; }
-        public string? PayOsOrderCode { get; set; } // Thay đổi từ long? thành string? để phù hợp với Order entity
+        public string? PayOsOrderCode { get; set; }
 
         /// <summary>
-        /// QR code data for customer pickup verification
+        /// Indicates if the order has been checked and delivered by the shop
         /// </summary>
-        public string? QRCodeData { get; set; }
+        public bool IsChecked { get; set; }
 
         /// <summary>
-        /// URL to the QR code image
+        /// Timestamp when the order was checked/delivered by shop
         /// </summary>
-        public string? QRCodeImageUrl { get; set; }
+        public DateTime? CheckedAt { get; set; }
 
         /// <summary>
-        /// Whether the QR code has been used for pickup
+        /// ID of the specialty shop that checked/delivered the order
         /// </summary>
-        public bool IsQRCodeUsed { get; set; }
-
-        /// <summary>
-        /// When the QR code was used
-        /// </summary>
-        public DateTime? QRCodeUsedAt { get; set; }
+        public Guid? CheckedByShopId { get; set; }
 
         public DateTime CreatedAt { get; set; }
 

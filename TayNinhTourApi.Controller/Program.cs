@@ -169,7 +169,7 @@ builder.Services.AddScoped<ITourCompanyNotificationService, TourCompanyNotificat
 
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IPayOsService, PayOsService>();
-builder.Services.AddScoped<IQRCodeService, QRCodeService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();

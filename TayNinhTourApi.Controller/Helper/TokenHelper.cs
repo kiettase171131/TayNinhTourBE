@@ -25,15 +25,18 @@ namespace TayNinhTourApi.Controller.Helper
                     currentUser.Id = userid;
                     currentUser.UserId = userid; // Set cả UserId để tương thích
                 }
-                var roleClaim = httpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-                if (Guid.TryParse(roleClaim, out var roldid))
+
+                // ✅ FIX: Get RoleId from the correct claim instead of trying to parse role name
+                var roleIdClaim = httpContext.User.Claims.FirstOrDefault(c => c.Type == "RoleId")?.Value;
+                if (Guid.TryParse(roleIdClaim, out var roleId))
                 {
-                    currentUser.RoleId = roldid;
+                    currentUser.RoleId = roleId;
                 }
                 else
                 {
                     currentUser.RoleId = Guid.Empty;
                 }
+
                 currentUser.Email = httpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value ?? string.Empty;
                 currentUser.Name = httpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value ?? string.Empty;
                 currentUser.PhoneNumber = httpContext.User.Claims.FirstOrDefault(c => c.Type == "Phone")?.Value ?? string.Empty;
