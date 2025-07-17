@@ -174,6 +174,9 @@ builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
 
+// Wallet Service - for managing Tour Company and Specialty Shop wallets
+builder.Services.AddScoped<IWalletService, WalletService>();
+
 // File Storage Services
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
