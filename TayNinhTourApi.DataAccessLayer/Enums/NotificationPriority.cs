@@ -23,6 +23,16 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
         /// <summary>
         /// ?? ?u tiên kh?n c?p
         /// </summary>
-        Urgent = 3
+        Urgent = 3,
+
+        /// <summary>
+        /// ?? ?u tiên c?c k? quan tr?ng/nguy hi?m
+        /// </summary>
+        Critical = 4,
+
+        /// <summary>
+        /// ?? ?u tiên trung bình
+        /// </summary>
+        Medium = 5
     }
 }

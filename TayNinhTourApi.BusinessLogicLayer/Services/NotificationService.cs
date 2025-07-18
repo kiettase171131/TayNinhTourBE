@@ -353,67 +353,63 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// T?o thông báo TourGuide t? ch?i
         /// </summary>
-        public async Task<BaseResposeDto> CreateGuideRejectionNotificationAsync(Guid userId, string tourTitle, string guideName, string? rejectionReason)
+        public async Task<BaseResposeDto> CreateGuideRejectionNotificationAsync(
+            Guid userId, 
+            string tourTitle, 
+            string guideName, 
+            string? rejectionReason)
         {
-            var message = $"H??ng d?n viên {guideName} ?ã t? ch?i tour '{tourTitle}'";
-            if (!string.IsNullOrEmpty(rejectionReason))
-            {
-                message += $". Lý do: {rejectionReason}";
-            }
-
-            var createDto = new CreateNotificationDto
+            return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
                 Title = "H??ng d?n viên t? ch?i",
-                Message = message,
-                Type = NotificationType.TourGuide,
+                Message = $"{guideName} ?ã t? ch?i tour '{tourTitle}'. {(rejectionReason != null ? $"Lý do: {rejectionReason}" : "")}",
+                Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "?",
-                ActionUrl = $"/tours/{tourTitle}"
-            };
-
-            return await CreateNotificationAsync(createDto);
+                ActionUrl = "/tours/pending-guide"
+            });
         }
 
         /// <summary>
         /// T?o thông báo c?n tìm guide th? công
         /// </summary>
-        public async Task<BaseResposeDto> CreateManualGuideSelectionNotificationAsync(Guid userId, string tourTitle, int expiredCount)
+        public async Task<BaseResposeDto> CreateManualGuideSelectionNotificationAsync(
+            Guid userId, 
+            string tourTitle, 
+            int expiredCount)
         {
-            var createDto = new CreateNotificationDto
+            return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "C?n tìm h??ng d?n viên",
-                Message = $"Tour '{tourTitle}' c?n tìm h??ng d?n viên th? công. {expiredCount} l?i m?i ?ã h?t h?n.",
-                Type = NotificationType.TourGuide,
+                Title = "C?n tìm h??ng d?n viên th? công",
+                Message = $"Tour '{tourTitle}' có {expiredCount} l?i m?i ?ã h?t h?n. C?n tìm h??ng d?n viên th? công.",
+                Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
-                Icon = "??",
-                ActionUrl = $"/tours/manual-guide-selection"
-            };
-
-            return await CreateNotificationAsync(createDto);
+                Icon = "?",
+                ActionUrl = "/tours/manual-guide-selection"
+            });
         }
 
         /// <summary>
         /// T?o thông báo c?nh báo tour s?p b? h?y
         /// </summary>
-        public async Task<BaseResposeDto> CreateTourRiskCancellationNotificationAsync(Guid userId, string tourTitle, int daysUntilCancellation)
+        public async Task<BaseResposeDto> CreateTourRiskCancellationNotificationAsync(
+            Guid userId, 
+            string tourTitle, 
+            int daysUntilCancellation)
         {
-            var createDto = new CreateNotificationDto
+            return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "?? KH?N C?P: Tour s?p b? h?y",
+                Title = "?? Tour s?p b? h?y!",
                 Message = $"Tour '{tourTitle}' s? b? h?y trong {daysUntilCancellation} ngày n?u không tìm ???c h??ng d?n viên!",
-                Type = NotificationType.Warning,
-                Priority = NotificationPriority.Urgent,
+                Type = NotificationType.Critical,
+                Priority = NotificationPriority.Critical,
                 Icon = "??",
-                ActionUrl = $"/tours/emergency"
-            };
-
-            return await CreateNotificationAsync(createDto);
+                ActionUrl = "/tours/urgent-guide-needed"
+            });
         }
-
-        // NEW: TourGuide notification methods
 
         /// <summary>
         /// T?o thông báo khi TourGuide ???c m?i tham gia tour
@@ -598,6 +594,115 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 NotificationType.Error => "type-error",
                 _ => "type-general"
             };
+        }
+
+        // Additional helper methods for booking notifications
+
+        /// <summary>
+        /// T?o thông báo booking m?i (generic method)
+        /// </summary>
+        /// <param name="userId">ID c?a user</param>
+        /// <param name="booking">Thông tin booking</param>
+        /// <returns>K?t qu? t?o thông báo</returns>
+        public async Task<BaseResposeDto> CreateNewBookingNotificationAsync(Guid userId, object booking)
+        {
+            // Implementation depends on booking object structure
+            // For now, create a generic notification
+            return await CreateNotificationAsync(new CreateNotificationDto
+            {
+                UserId = userId,
+                Title = "Booking m?i",
+                Message = "B?n có m?t booking tour m?i",
+                Type = NotificationType.Booking,
+                Priority = NotificationPriority.High,
+                Icon = "??"
+            });
+        }
+
+        /// <summary>
+        /// T?o thông báo h?y tour v?i danh sách bookings
+        /// </summary>
+        /// <param name="userId">ID c?a user</param>
+        /// <param name="affectedBookings">Danh sách bookings b? ?nh h??ng</param>
+        /// <param name="tourTitle">Tên tour</param>
+        /// <param name="tourStartDate">Ngày kh?i hành</param>
+        /// <param name="reason">Lý do h?y</param>
+        /// <returns>K?t qu? t?o thông báo</returns>
+        public async Task<BaseResposeDto> CreateTourCancellationNotificationAsync(
+            Guid userId, 
+            object affectedBookings, 
+            string tourTitle, 
+            DateTime tourStartDate, 
+            string reason)
+        {
+            return await CreateNotificationAsync(new CreateNotificationDto
+            {
+                UserId = userId,
+                Title = "Tour b? h?y",
+                Message = $"Tour '{tourTitle}' ?ã b? h?y: {reason}",
+                Type = NotificationType.Warning,
+                Priority = NotificationPriority.High,
+                Icon = "??"
+            });
+        }
+
+        /// <summary>
+        /// T?o thông báo h?y booking c?a khách hàng
+        /// </summary>
+        /// <param name="userId">ID c?a user</param>
+        /// <param name="booking">Thông tin booking</param>
+        /// <param name="reason">Lý do h?y</param>
+        /// <returns>K?t qu? t?o thông báo</returns>
+        public async Task<BaseResposeDto> CreateBookingCancellationNotificationAsync(Guid userId, object booking, string? reason)
+        {
+            return await CreateNotificationAsync(new CreateNotificationDto
+            {
+                UserId = userId,
+                Title = "Booking b? h?y",
+                Message = $"Khách hàng ?ã h?y booking. Lý do: {reason ?? "Không có lý do"}",
+                Type = NotificationType.Warning,
+                Priority = NotificationPriority.Medium,
+                Icon = "??"
+            });
+        }
+
+        /// <summary>
+        /// L?y notifications m?i nh?t (?? polling/real-time updates)
+        /// </summary>
+        /// <param name="userId">ID c?a user</param>
+        /// <param name="lastCheckTime">Th?i gian check cu?i cùng</param>
+        /// <returns>Notifications m?i t? lastCheckTime</returns>
+        public async Task<NotificationsResponseDto> GetLatestNotificationsAsync(Guid userId, DateTime lastCheckTime)
+        {
+            try
+            {
+                var (notifications, totalCount) = await _unitOfWork.NotificationRepository
+                    .GetLatestNotificationsAsync(userId, lastCheckTime);
+
+                var notificationDtos = notifications.Select(n => MapToNotificationDto(n)).ToList();
+
+                return new NotificationsResponseDto
+                {
+                    StatusCode = 200,
+                    Message = "L?y thông báo m?i thành công",
+                    success = true,
+                    Notifications = notificationDtos,
+                    TotalCount = totalCount,
+                    PageIndex = 0,
+                    PageSize = totalCount,
+                    TotalPages = 1
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting latest notifications for user {UserId}", userId);
+                return new NotificationsResponseDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có l?i x?y ra: {ex.Message}",
+                    success = false
+                };
+            }
         }
     }
 }

@@ -53,6 +53,11 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
         /// <summary>
         /// Thông báo l?i/v?n ??
         /// </summary>
-        Error = 9
+        Error = 9,
+
+        /// <summary>
+        /// Thông báo kh?n c?p/quan tr?ng
+        /// </summary>
+        Critical = 10
     }
 }

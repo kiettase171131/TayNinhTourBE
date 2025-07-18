@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
@@ -184,6 +185,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             _logger.LogWarning("Failed to send invitation email to {GuideEmail}: {Error}",
                                 guide.Email, emailEx.Message);
+                        }
+
+                        // 🔔 Send in-app notification to TourGuide (for reused invitation)
+                        try
+                        {
+                            using var scope = _serviceProvider.CreateScope();
+                            var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+
+                            await notificationService.CreateTourGuideInvitationNotificationAsync(
+                                guide.UserId, // Use User ID for notification
+                                tourDetails.Title,
+                                tourDetails.CreatedBy.Name,
+                                tourDetails.SkillsRequired,
+                                InvitationType.Automatic.ToString(),
+                                expiresAt,
+                                latestInvitation.Id);
+
+                            _logger.LogInformation("Successfully sent in-app notification to TourGuide {GuideId} for reused invitation", guide.Id);
+                        }
+                        catch (Exception notificationEx)
+                        {
+                            _logger.LogWarning("Failed to send in-app notification to TourGuide {GuideId}: {Error}",
+                                guide.Id, notificationEx.Message);
                         }
                     }
                     else

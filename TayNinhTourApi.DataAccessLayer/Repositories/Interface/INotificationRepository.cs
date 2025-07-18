@@ -60,5 +60,13 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="userId">ID c?a user</param>
         /// <returns>Thông báo n?u tìm th?y và thu?c v? user</returns>
         Task<Notification?> GetByIdAndUserAsync(Guid notificationId, Guid userId);
+
+        /// <summary>
+        /// L?y notifications m?i nh?t t? th?i ?i?m lastCheckTime
+        /// </summary>
+        /// <param name="userId">ID c?a user</param>
+        /// <param name="lastCheckTime">Th?i gian check cu?i cùng</param>
+        /// <returns>Tuple c?a notifications và total count</returns>
+        Task<(IEnumerable<Notification> notifications, int totalCount)> GetLatestNotificationsAsync(Guid userId, DateTime lastCheckTime);
     }
 }

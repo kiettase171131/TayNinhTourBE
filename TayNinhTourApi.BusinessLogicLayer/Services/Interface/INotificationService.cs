@@ -26,10 +26,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<NotificationsResponseDto> GetUserNotificationsAsync(Guid userId, GetNotificationsRequestDto request);
 
         /// <summary>
-        /// L?y s? l??ng thông báo ch?a ??c
+        /// L?y s? l??ng notifications ch?a ??c c?a user
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <returns>S? l??ng thông báo ch?a ??c</returns>
+        /// <returns>S? l??ng notifications ch?a ??c</returns>
         Task<UnreadCountResponseDto> GetUnreadCountAsync(Guid userId);
 
         /// <summary>

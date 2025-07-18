@@ -51,6 +51,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Notification
         /// Th?i gian h?t h?n (null = không h?t h?n)
         /// </summary>
         public DateTime? ExpiresAt { get; set; }
+
+        /// <summary>
+        /// D? li?u b? sung d?ng dictionary cho các notification ph?c t?p
+        /// </summary>
+        public Dictionary<string, object>? Data { get; set; }
     }
 
     /// <summary>

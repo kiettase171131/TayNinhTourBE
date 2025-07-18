@@ -63,13 +63,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         /// </summary>
         public async Task<int> GetUnreadCountAsync(Guid userId)
         {
-            var now = DateTime.UtcNow;
             return await _context.Notifications
-                .Where(n => n.UserId == userId && 
-                           !n.IsRead && 
-                           n.IsActive &&
-                           (n.ExpiresAt == null || n.ExpiresAt > now))
-                .CountAsync();
+                .CountAsync(n => n.UserId == userId && !n.IsRead && n.IsActive && !n.IsDeleted);
         }
 
         /// <summary>
@@ -143,6 +138,27 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.Notifications
                 .Include(n => n.User)
                 .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId && n.IsActive);
+        }
+
+        /// <summary>
+        /// L?y notifications m?i nh?t t? th?i ?i?m lastCheckTime
+        /// </summary>
+        public async Task<(IEnumerable<Notification> notifications, int totalCount)> GetLatestNotificationsAsync(Guid userId, DateTime lastCheckTime)
+        {
+            var query = _context.Notifications
+                .Where(n => n.UserId == userId && 
+                           n.IsActive && 
+                           !n.IsDeleted && 
+                           n.CreatedAt > lastCheckTime);
+
+            var totalCount = await query.CountAsync();
+            
+            var notifications = await query
+                .OrderByDescending(n => n.CreatedAt)
+                .Take(50) // Limit to 50 latest notifications
+                .ToListAsync();
+
+            return (notifications, totalCount);
         }
     }
 }
