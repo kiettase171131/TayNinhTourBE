@@ -101,7 +101,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             int pageSize,
             Guid? tourTemplateId = null,
             string? titleFilter = null,
-            bool includeInactive = false)
+            bool includeInactive = false,
+            TourDetailsStatus? statusFilter = null)
         {
             var query = _context.TourDetails
                 .Include(td => td.TourTemplate)
@@ -126,6 +127,12 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             if (!string.IsNullOrEmpty(titleFilter))
             {
                 query = query.Where(td => td.Title.Contains(titleFilter));
+            }
+
+            // Apply status filter
+            if (statusFilter.HasValue)
+            {
+                query = query.Where(td => td.Status == statusFilter.Value);
             }
 
             // Get total count

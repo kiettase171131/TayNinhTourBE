@@ -126,6 +126,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Description = request.Description,
                     SkillsRequired = request.SkillsRequired,
                     ImageUrls = GetImageUrlsFromRequest(request.ImageUrls, request.ImageUrl),
+                    // Status sẽ sử dụng default value = Pending (0) - chờ admin duyệt
                     CreatedById = createdById, // Use User.Id directly
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true,
@@ -504,21 +505,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Lấy lịch trình với pagination
+        /// Lấy lịch trình với pagination và status filter
         /// </summary>
         public async Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
             int pageIndex,
             int pageSize,
             Guid? tourTemplateId = null,
             string? titleFilter = null,
-            bool includeInactive = false)
+            bool includeInactive = false,
+            TourDetailsStatus? statusFilter = null)
         {
             try
             {
-                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}", pageIndex, pageSize);
+                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}, status: {StatusFilter}", 
+                    pageIndex, pageSize, statusFilter);
 
                 var (tourDetails, totalCount) = await _unitOfWork.TourDetailsRepository
-                    .GetPaginatedAsync(pageIndex, pageSize, tourTemplateId, titleFilter, includeInactive);
+                    .GetPaginatedAsync(pageIndex, pageSize, tourTemplateId, titleFilter, includeInactive, statusFilter);
 
                 var tourDetailDtos = _mapper.Map<List<TourDetailDto>>(tourDetails);
 
