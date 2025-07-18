@@ -47,28 +47,54 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogInformation("Admin getting TourDetails pending approval - Page: {PageIndex}, Size: {PageSize}",
                     pageIndex, pageSize);
 
-                // Get TourDetails with AwaitingAdminApproval status
+                // Get ALL TourDetails to filter properly
                 var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
                     pageIndex,
-                    pageSize,
+                    pageSize * 10, // Get more data to ensure we can filter properly
                     includeInactive: false);
 
                 if (response.success && response.Data != null)
                 {
-                    // Filter only AwaitingAdminApproval status
+                    // Filter TourDetails that need admin approval
+                    // Include both Pending (0) and AwaitingAdminApproval (6) statuses
                     var pendingApprovalDetails = response.Data
-                        .Where(td => td.Status.ToString() == TourDetailsStatus.AwaitingAdminApproval.ToString())
+                        .Where(td => 
+                            td.Status.ToString() == TourDetailsStatus.Pending.ToString() ||
+                            td.Status.ToString() == TourDetailsStatus.AwaitingAdminApproval.ToString())
+                        .ToList();
+
+                    _logger.LogInformation("Found {Count} TourDetails pending approval out of {Total} total", 
+                        pendingApprovalDetails.Count, response.Data.Count);
+
+                    // Log the statuses for debugging
+                    foreach (var td in response.Data.Take(5)) // Log first 5 for debugging
+                    {
+                        _logger.LogInformation("TourDetails {Id}: Status = {Status}", td.Id, td.Status);
+                    }
+
+                    // Apply pagination to filtered results
+                    var paginatedResults = pendingApprovalDetails
+                        .Skip(pageIndex * pageSize)
+                        .Take(pageSize)
                         .ToList();
 
                     var filteredResponse = new
                     {
                         StatusCode = 200,
                         Message = "Lấy danh sách TourDetails chờ duyệt thành công",
-                        Data = pendingApprovalDetails,
+                        Data = paginatedResults,
                         TotalCount = pendingApprovalDetails.Count,
                         PageIndex = pageIndex,
                         PageSize = pageSize,
-                        TotalPages = (int)Math.Ceiling((double)pendingApprovalDetails.Count / pageSize)
+                        TotalPages = (int)Math.Ceiling((double)pendingApprovalDetails.Count / pageSize),
+                        FilteredFrom = response.Data.Count,
+                        Debug = new
+                        {
+                            AllStatuses = response.Data.GroupBy(td => td.Status.ToString())
+                                .ToDictionary(g => g.Key, g => g.Count()),
+                            PendingCount = response.Data.Count(td => td.Status.ToString() == TourDetailsStatus.Pending.ToString()),
+                            AwaitingAdminApprovalCount = response.Data.Count(td => td.Status.ToString() == TourDetailsStatus.AwaitingAdminApproval.ToString())
+                        }
                     };
 
                     return Ok(filteredResponse);
@@ -363,6 +389,137 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi fix TourDetails status"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Lấy tất cả TourDetails cho admin (không phân trang)
+        /// </summary>
+        /// <param name="includeInactive">Có bao gồm TourDetails không active không (default: false)</param>
+        /// <param name="status">Lọc theo status cụ thể (optional)</param>
+        /// <param name="keyword">Tìm kiếm theo title hoặc description (optional)</param>
+        /// <returns>Danh sách tất cả TourDetails</returns>
+        [HttpGet("tourdetails/all")]
+        public async Task<IActionResult> GetAllTourDetails(
+            [FromQuery] bool includeInactive = false,
+            [FromQuery] string? status = null,
+            [FromQuery] string? keyword = null)
+        {
+            try
+            {
+                _logger.LogInformation("Admin getting all TourDetails - IncludeInactive: {IncludeInactive}, Status: {Status}, Keyword: {Keyword}",
+                    includeInactive, status, keyword);
+
+                // Get ALL TourDetails without pagination
+                var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
+                    0, // pageIndex
+                    10000, // Large pageSize to get all
+                    includeInactive: includeInactive);
+
+                if (response.success && response.Data != null)
+                {
+                    var allTourDetails = response.Data;
+
+                    // Apply status filter if provided
+                    if (!string.IsNullOrEmpty(status))
+                    {
+                        if (Enum.TryParse<TourDetailsStatus>(status, true, out var statusEnum))
+                        {
+                            allTourDetails = allTourDetails
+                                .Where(td => td.Status.ToString().Equals(status, StringComparison.OrdinalIgnoreCase))
+                                .ToList();
+
+                            _logger.LogInformation("Applied status filter '{Status}': {Count} TourDetails found", 
+                                status, allTourDetails.Count);
+                        }
+                        else
+                        {
+                            return BadRequest(new
+                            {
+                                StatusCode = 400,
+                                Message = $"Status '{status}' không hợp lệ. Các giá trị hợp lệ: {string.Join(", ", Enum.GetNames<TourDetailsStatus>())}"
+                            });
+                        }
+                    }
+
+                    // Apply keyword search if provided
+                    if (!string.IsNullOrEmpty(keyword))
+                    {
+                        var searchKeyword = keyword.ToLower();
+                        allTourDetails = allTourDetails
+                            .Where(td => 
+                                td.Title.ToLower().Contains(searchKeyword) ||
+                                (!string.IsNullOrEmpty(td.Description) && td.Description.ToLower().Contains(searchKeyword)) ||
+                                (!string.IsNullOrEmpty(td.SkillsRequired) && td.SkillsRequired.ToLower().Contains(searchKeyword)))
+                            .ToList();
+
+                        _logger.LogInformation("Applied keyword search '{Keyword}': {Count} TourDetails found", 
+                            keyword, allTourDetails.Count);
+                    }
+
+                    // Group by status for statistics
+                    var statusStatistics = allTourDetails
+                        .GroupBy(td => td.Status.ToString())
+                        .ToDictionary(g => g.Key, g => g.Count());
+
+                    // Group by created date for recent activity
+                    var today = DateTime.UtcNow.Date;
+                    var thisWeek = DateTime.UtcNow.AddDays(-7);
+                    var thisMonth = DateTime.UtcNow.AddDays(-30);
+
+                    var recentActivity = new
+                    {
+                        TodayCreated = allTourDetails.Count(td => td.CreatedAt.Date == today),
+                        ThisWeekCreated = allTourDetails.Count(td => td.CreatedAt >= thisWeek),
+                        ThisMonthCreated = allTourDetails.Count(td => td.CreatedAt >= thisMonth)
+                    };
+
+                    var adminResponse = new
+                    {
+                        StatusCode = 200,
+                        Message = "Lấy tất cả TourDetails thành công",
+                        Data = allTourDetails,
+                        TotalCount = allTourDetails.Count,
+                        Statistics = new
+                        {
+                            StatusBreakdown = statusStatistics,
+                            RecentActivity = recentActivity,
+                            FilterApplied = new
+                            {
+                                IncludeInactive = includeInactive,
+                                Status = status,
+                                Keyword = keyword
+                            }
+                        },
+                        AvailableStatuses = Enum.GetNames<TourDetailsStatus>(),
+                        QueryInfo = new
+                        {
+                            ExecutedAt = DateTime.UtcNow,
+                            TotalRecordsBeforeFilter = response.Data.Count,
+                            TotalRecordsAfterFilter = allTourDetails.Count,
+                            FiltersApplied = new List<string>
+                            {
+                                includeInactive ? "Include Inactive" : "Active Only",
+                                !string.IsNullOrEmpty(status) ? $"Status: {status}" : null,
+                                !string.IsNullOrEmpty(keyword) ? $"Keyword: {keyword}" : null
+                            }.Where(f => f != null).ToList()
+                        }
+                    };
+
+                    return Ok(adminResponse);
+                }
+
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all TourDetails for admin");
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách TourDetails",
+                    Error = ex.Message
                 });
             }
         }

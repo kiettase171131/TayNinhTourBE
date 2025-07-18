@@ -19,15 +19,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     {
         private readonly ILogger<TourGuideInvitationService> _logger;
         private readonly EmailSender _emailSender;
+        private readonly ITourCompanyNotificationService _notificationService;
+        private readonly IServiceProvider _serviceProvider;
 
         public TourGuideInvitationService(
             IMapper mapper,
             IUnitOfWork unitOfWork,
             ILogger<TourGuideInvitationService> logger,
-            EmailSender emailSender) : base(mapper, unitOfWork)
+            EmailSender emailSender,
+            ITourCompanyNotificationService notificationService,
+            IServiceProvider serviceProvider) : base(mapper, unitOfWork)
         {
             _logger = logger;
             _emailSender = emailSender;
+            _notificationService = notificationService;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<BaseResposeDto> CreateAutomaticInvitationsAsync(Guid tourDetailsId, Guid createdById)
@@ -223,6 +229,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             _logger.LogWarning("Failed to send invitation email to {GuideEmail}: {Error}",
                                 guide.Email, emailEx.Message);
                         }
+
+                        // 🔔 Send in-app notification to TourGuide
+                        try
+                        {
+                            using var scope = _serviceProvider.CreateScope();
+                            var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+
+                            await notificationService.CreateTourGuideInvitationNotificationAsync(
+                                guide.UserId, // Use User ID for notification
+                                tourDetails.Title,
+                                tourDetails.CreatedBy.Name,
+                                tourDetails.SkillsRequired,
+                                InvitationType.Automatic.ToString(),
+                                expiresAt,
+                                invitation.Id);
+
+                            _logger.LogInformation("Successfully sent in-app notification to TourGuide {GuideId}", guide.Id);
+                        }
+                        catch (Exception notificationEx)
+                        {
+                            _logger.LogWarning("Failed to send in-app notification to TourGuide {GuideId}: {Error}",
+                                guide.Id, notificationEx.Message);
+                        }
                     }
                 }
 
@@ -348,6 +377,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     _logger.LogWarning("Failed to send manual invitation email to {GuideEmail}: {Error}",
                         guide.Email, emailEx.Message);
+                }
+
+                // 🔔 Send in-app notification to TourGuide
+                try
+                {
+                    using var scope = _serviceProvider.CreateScope();
+                    var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+
+                    await notificationService.CreateTourGuideInvitationNotificationAsync(
+                        guide.UserId, // Use User ID for notification
+                        tourDetails.Title,
+                        tourDetails.CreatedBy.Name,
+                        tourDetails.SkillsRequired,
+                        InvitationType.Manual.ToString(),
+                        invitation.ExpiresAt,
+                        invitation.Id);
+
+                    _logger.LogInformation("Successfully sent in-app notification to TourGuide {GuideId} for manual invitation", guide.Id);
+                }
+                catch (Exception notificationEx)
+                {
+                    _logger.LogWarning("Failed to send in-app notification to TourGuide {GuideId}: {Error}",
+                        guide.Id, notificationEx.Message);
                 }
 
                 _logger.LogInformation("Created manual invitation {InvitationId} for TourDetails {TourDetailsId}",
@@ -481,6 +533,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     // 5. UPDATE TOURDETAILS STATUS: Khi guide accept invitation, cập nhật TourDetails status
                     await UpdateTourDetailsStatusAfterGuideAcceptanceAsync(invitation.TourDetailsId, invitationId);
+
+                    // 🔔 SEND NOTIFICATION TO TOUR COMPANY: Gửi thông báo khi guide chấp nhận lời mời
+                    await NotifyTourCompanyAboutGuideAcceptanceAsync(invitation, guideId);
                 }
                 catch (Exception saveEx)
                 {
@@ -559,15 +614,38 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 4. Update invitation status
+                // 4. Get TourGuide to get User ID for UpdatedById
+                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(guideId);
+                if (tourGuide == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin TourGuide",
+                        success = false
+                    };
+                }
+
+                // 5. Update invitation status
                 invitation.Status = InvitationStatus.Rejected;
                 invitation.RespondedAt = DateTime.UtcNow;
                 invitation.RejectionReason = rejectionReason;
                 invitation.UpdatedAt = DateTime.UtcNow;
-                invitation.UpdatedById = guideId;
+                invitation.UpdatedById = tourGuide.UserId; // ✅ Use User ID instead of TourGuide ID
 
                 await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(invitation);
                 await _unitOfWork.SaveChangesAsync();
+
+                // 6. 🔔 Send notification to TourCompany about rejection
+                try
+                {
+                    await NotifyTourCompanyAboutRejectionAsync(invitation.TourDetails, tourGuide, rejectionReason);
+                }
+                catch (Exception notifyEx)
+                {
+                    _logger.LogWarning("Failed to send rejection notification: {Error}", notifyEx.Message);
+                    // Don't fail the main operation if notification fails
+                }
 
                 _logger.LogInformation("Guide {GuideId} successfully rejected invitation {InvitationId}",
                     guideId, invitationId);
@@ -783,15 +861,35 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 foreach (var tourDetails in tourDetailsToTransition)
                 {
                     // Check if any invitation was accepted
-                    var hasAcceptedInvitation = await _unitOfWork.TourGuideInvitationRepository
+                    var allInvitations = await _unitOfWork.TourGuideInvitationRepository
                         .GetByTourDetailsAsync(tourDetails.Id);
 
-                    if (!hasAcceptedInvitation.Any(inv => inv.Status == InvitationStatus.Accepted))
+                    var hasAcceptedInvitation = allInvitations.Any(inv => inv.Status == InvitationStatus.Accepted);
+
+                    if (!hasAcceptedInvitation)
                     {
+                        // Count expired invitations for notification
+                        var expiredInvitationsCount = allInvitations.Count(inv => 
+                            inv.Status == InvitationStatus.Expired || 
+                            inv.Status == InvitationStatus.Rejected ||
+                            (inv.Status == InvitationStatus.Pending && inv.ExpiresAt <= DateTime.UtcNow));
+
+                        // Update status to AwaitingGuideAssignment
                         tourDetails.Status = TourDetailsStatus.AwaitingGuideAssignment;
                         tourDetails.UpdatedAt = DateTime.UtcNow;
                         await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
                         count++;
+
+                        // 🔔 Send notification to TourCompany about need for manual selection
+                        try
+                        {
+                            await NotifyTourCompanyAboutManualSelectionAsync(tourDetails, expiredInvitationsCount);
+                        }
+                        catch (Exception notifyEx)
+                        {
+                            _logger.LogWarning("Failed to send manual selection notification for TourDetails {TourDetailsId}: {Error}", 
+                                tourDetails.Id, notifyEx.Message);
+                        }
                     }
                 }
 
@@ -814,6 +912,30 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
+                // First, send warning notifications for tours that will be cancelled soon (3 days before)
+                var warningCutoffTime = DateTime.UtcNow.AddDays(-2); // Tours that are 2 days away from cancellation
+                var toursNearCancellation = await _unitOfWork.TourDetailsRepository
+                    .GetAllAsync(td => td.Status == TourDetailsStatus.AwaitingGuideAssignment && 
+                                      td.CreatedAt <= warningCutoffTime && 
+                                      td.CreatedAt > DateTime.UtcNow.AddDays(-5));
+
+                foreach (var tourDetails in toursNearCancellation)
+                {
+                    var daysUntilCancellation = 5 - (int)(DateTime.UtcNow - tourDetails.CreatedAt).TotalDays;
+                    if (daysUntilCancellation > 0 && daysUntilCancellation <= 3)
+                    {
+                        try
+                        {
+                            await NotifyTourCompanyAboutRiskCancellationAsync(tourDetails, daysUntilCancellation);
+                        }
+                        catch (Exception notifyEx)
+                        {
+                            _logger.LogWarning("Failed to send risk cancellation notification for TourDetails {TourDetailsId}: {Error}", 
+                                tourDetails.Id, notifyEx.Message);
+                        }
+                    }
+                }
+
                 // Find TourDetails that are AwaitingGuideAssignment for more than 5 days
                 var cutoffTime = DateTime.UtcNow.AddDays(-5);
                 var tourDetailsToCancel = await _unitOfWork.TourDetailsRepository
@@ -1328,6 +1450,111 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError(ex, "Error updating TourOperation with guide info for TourDetails {TourDetailsId}: {Message}. StackTrace: {StackTrace}",
                     tourDetailsId, ex.Message, ex.StackTrace);
                 // Don't throw - this is a side effect, shouldn't break the main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi TourGuide từ chối lời mời
+        /// </summary>
+        private async Task NotifyTourCompanyAboutRejectionAsync(TourDetails tourDetails, TourGuide tourGuide, string? rejectionReason)
+        {
+            try
+            {
+                _logger.LogInformation("Sending rejection notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                await _notificationService.NotifyGuideRejectionAsync(
+                    tourDetails.CreatedById,
+                    tourDetails.Title,
+                    tourGuide.FullName,
+                    rejectionReason);
+
+                _logger.LogInformation("Successfully sent rejection notification for TourDetails {TourDetailsId}", tourDetails.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending rejection notification for TourDetails {TourDetailsId}", tourDetails.Id);
+                // Don't throw - notification failure shouldn't break main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi cần tìm guide thủ công (sau 24h)
+        /// </summary>
+        private async Task NotifyTourCompanyAboutManualSelectionAsync(TourDetails tourDetails, int expiredInvitationsCount)
+        {
+            try
+            {
+                _logger.LogInformation("Sending manual selection notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                await _notificationService.NotifyManualGuideSelectionNeededAsync(
+                    tourDetails.CreatedById,
+                    tourDetails.Title,
+                    expiredInvitationsCount);
+
+                _logger.LogInformation("Successfully sent manual selection notification for TourDetails {TourDetailsId}", tourDetails.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending manual selection notification for TourDetails {TourDetailsId}", tourDetails.Id);
+                // Don't throw - notification failure shouldn't break main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi tour sắp bị hủy
+        /// </summary>
+        private async Task NotifyTourCompanyAboutRiskCancellationAsync(TourDetails tourDetails, int daysUntilCancellation)
+        {
+            try
+            {
+                _logger.LogInformation("Sending risk cancellation notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                await _notificationService.NotifyTourRiskCancellationAsync(
+                    tourDetails.CreatedById,
+                    tourDetails.Title,
+                    daysUntilCancellation);
+
+                _logger.LogInformation("Successfully sent risk cancellation notification for TourDetails {TourDetailsId}", tourDetails.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending risk cancellation notification for TourDetails {TourDetailsId}", tourDetails.Id);
+                // Don't throw - notification failure shouldn't break main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi TourGuide chấp nhận lời mời
+        /// </summary>
+        private async Task NotifyTourCompanyAboutGuideAcceptanceAsync(TourGuideInvitation invitation, Guid guideId)
+        {
+            try
+            {
+                _logger.LogInformation("Sending guide acceptance notification to TourCompany for TourDetails {TourDetailsId}", invitation.TourDetailsId);
+
+                // Get TourDetails and TourGuide info
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(invitation.TourDetailsId);
+                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(guideId);
+
+                if (tourDetails == null || tourGuide == null)
+                {
+                    _logger.LogWarning("Cannot send guide acceptance notification - TourDetails or TourGuide not found");
+                    return;
+                }
+
+                await _notificationService.NotifyGuideAcceptanceAsync(
+                    tourDetails.CreatedById,
+                    tourDetails.Title,
+                    tourGuide.FullName,
+                    tourGuide.Email,
+                    invitation.RespondedAt ?? DateTime.UtcNow);
+
+                _logger.LogInformation("Successfully sent guide acceptance notification for TourDetails {TourDetailsId}", invitation.TourDetailsId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending guide acceptance notification for TourDetails {TourDetailsId}", invitation.TourDetailsId);
+                // Don't throw - notification failure shouldn't break main flow
             }
         }
     }

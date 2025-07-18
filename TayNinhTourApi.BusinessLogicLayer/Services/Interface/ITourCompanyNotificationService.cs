@@ -62,5 +62,83 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="htmlBody">Nội dung email HTML</param>
         /// <returns>Kết quả gửi email</returns>
         Task<bool> SendEmailNotificationAsync(Guid tourCompanyUserId, string subject, string htmlBody);
+
+        /// <summary>
+        /// Gửi thông báo khi TourGuide từ chối lời mời
+        /// </summary>
+        /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
+        /// <param name="tourDetailsTitle">Tên tour</param>
+        /// <param name="guideFullName">Tên hướng dẫn viên</param>
+        /// <param name="rejectionReason">Lý do từ chối</param>
+        /// <returns>Kết quả gửi thông báo</returns>
+        Task<bool> NotifyGuideRejectionAsync(
+            Guid tourCompanyUserId,
+            string tourDetailsTitle,
+            string guideFullName,
+            string? rejectionReason);
+
+        /// <summary>
+        /// Gửi thông báo khi lời mời hết hạn sau 24h và cần tìm guide thủ công
+        /// </summary>
+        /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
+        /// <param name="tourDetailsTitle">Tên tour</param>
+        /// <param name="expiredInvitationsCount">Số lượng lời mời đã hết hạn</param>
+        /// <returns>Kết quả gửi thông báo</returns>
+        Task<bool> NotifyManualGuideSelectionNeededAsync(
+            Guid tourCompanyUserId,
+            string tourDetailsTitle,
+            int expiredInvitationsCount);
+
+        /// <summary>
+        /// Gửi thông báo khi tất cả guides không phản hồi và tour sắp bị hủy
+        /// </summary>
+        /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
+        /// <param name="tourDetailsTitle">Tên tour</param>
+        /// <param name="daysUntilCancellation">Số ngày còn lại trước khi hủy</param>
+        /// <returns>Kết quả gửi thông báo</returns>
+        Task<bool> NotifyTourRiskCancellationAsync(
+            Guid tourCompanyUserId,
+            string tourDetailsTitle,
+            int daysUntilCancellation);
+
+        /// <summary>
+        /// Gửi thông báo khi admin duyệt tour details
+        /// </summary>
+        /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
+        /// <param name="tourDetailsTitle">Tên tour</param>
+        /// <param name="adminComment">Bình luận của admin (nếu có)</param>
+        /// <returns>Kết quả gửi thông báo</returns>
+        Task<bool> NotifyTourApprovalAsync(
+            Guid tourCompanyUserId,
+            string tourDetailsTitle,
+            string? adminComment = null);
+
+        /// <summary>
+        /// Gửi thông báo khi admin từ chối tour details
+        /// </summary>
+        /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
+        /// <param name="tourDetailsTitle">Tên tour</param>
+        /// <param name="rejectionReason">Lý do từ chối</param>
+        /// <returns>Kết quả gửi thông báo</returns>
+        Task<bool> NotifyTourRejectionAsync(
+            Guid tourCompanyUserId,
+            string tourDetailsTitle,
+            string rejectionReason);
+
+        /// <summary>
+        /// Gửi thông báo khi TourGuide chấp nhận lời mời tour
+        /// </summary>
+        /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
+        /// <param name="tourDetailsTitle">Tên tour</param>
+        /// <param name="guideFullName">Tên hướng dẫn viên</param>
+        /// <param name="guideEmail">Email hướng dẫn viên</param>
+        /// <param name="acceptedAt">Thời gian chấp nhận</param>
+        /// <returns>Kết quả gửi thông báo</returns>
+        Task<bool> NotifyGuideAcceptanceAsync(
+            Guid tourCompanyUserId,
+            string tourDetailsTitle,
+            string guideFullName,
+            string guideEmail,
+            DateTime acceptedAt);
     }
 }

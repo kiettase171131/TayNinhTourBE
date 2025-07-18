@@ -194,6 +194,9 @@ builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
 builder.Services.AddScoped<IAIChatService, AIChatService>();
 builder.Services.AddScoped<IAITourDataService, AITourDataService>();
 
+// Notification Services
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
@@ -227,6 +230,9 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
+
+// Notification Repository
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
 // AI Chat Repositories
 builder.Services.AddScoped<IAIChatSessionRepository, AIChatSessionRepository>();

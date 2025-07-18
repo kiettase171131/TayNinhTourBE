@@ -36,6 +36,9 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private ITimelineItemRepository _timelineItemRepository = null!;
         private IBlogRepository _blogRepository = null!;
 
+        // Notification repository
+        private INotificationRepository _notificationRepository = null!;
+
         // AI Chat repositories
         private IAIChatSessionRepository _aiChatSessionRepository = null!;
         private IAIChatMessageRepository _aiChatMessageRepository = null!;
@@ -197,6 +200,15 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             get
             {
                 return _blogRepository ??= new BlogRepository(_context);
+            }
+        }
+
+        // Notification repository implementation
+        public INotificationRepository NotificationRepository
+        {
+            get
+            {
+                return _notificationRepository ??= new NotificationRepository(_context);
             }
         }
 

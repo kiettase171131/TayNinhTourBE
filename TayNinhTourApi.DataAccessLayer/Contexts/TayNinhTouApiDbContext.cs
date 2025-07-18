@@ -48,6 +48,9 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<AIChatSession> AIChatSessions { get; set; } = null!;
         public DbSet<AIChatMessage> AIChatMessages { get; set; } = null!;
 
+        // Notification entities
+        public DbSet<Notification> Notifications { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // modelBuilder.ApplyConfiguration(new UserConfiguration());
