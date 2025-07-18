@@ -47,26 +47,28 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogInformation("Admin getting TourDetails pending approval - Page: {PageIndex}, Size: {PageSize}",
                     pageIndex, pageSize);
 
-                // Get TourDetails with Pending status (chờ admin duyệt)
+                // Get TourDetails with AwaitingAdminApproval status
                 var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
                     pageIndex,
                     pageSize,
-                    tourTemplateId: null,
-                    titleFilter: null,
-                    includeInactive: false,
-                    statusFilter: TourDetailsStatus.Pending);
+                    includeInactive: false);
 
                 if (response.success && response.Data != null)
                 {
+                    // Filter only AwaitingAdminApproval status
+                    var pendingApprovalDetails = response.Data
+                        .Where(td => td.Status.ToString() == TourDetailsStatus.AwaitingAdminApproval.ToString())
+                        .ToList();
+
                     var filteredResponse = new
                     {
                         StatusCode = 200,
                         Message = "Lấy danh sách TourDetails chờ duyệt thành công",
-                        Data = response.Data,
-                        TotalCount = response.TotalCount,
+                        Data = pendingApprovalDetails,
+                        TotalCount = pendingApprovalDetails.Count,
                         PageIndex = pageIndex,
                         PageSize = pageSize,
-                        TotalPages = response.TotalPages
+                        TotalPages = (int)Math.Ceiling((double)pendingApprovalDetails.Count / pageSize)
                     };
 
                     return Ok(filteredResponse);
@@ -81,72 +83,6 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi lấy danh sách TourDetails chờ duyệt"
-                });
-            }
-        }
-
-        /// <summary>
-        /// Lấy tất cả danh sách TourDetails với mọi status (cho admin quản lý)
-        /// </summary>
-        /// <param name="pageIndex">Trang hiện tại (0-based, default: 0)</param>
-        /// <param name="pageSize">Kích thước trang (default: 10)</param>
-        /// <param name="statusFilter">Lọc theo status cụ thể (optional)</param>
-        /// <param name="titleFilter">Lọc theo title (optional)</param>
-        /// <param name="includeInactive">Bao gồm các records không active (default: false)</param>
-        /// <returns>Danh sách tất cả TourDetails</returns>
-        [HttpGet("tourdetails/all")]
-        public async Task<IActionResult> GetAllTourDetails(
-            [FromQuery] int pageIndex = 0,
-            [FromQuery] int pageSize = 20,
-            [FromQuery] TourDetailsStatus? statusFilter = null,
-            [FromQuery] string? titleFilter = null,
-            [FromQuery] bool includeInactive = false)
-        {
-            try
-            {
-                _logger.LogInformation("Admin getting all TourDetails - Page: {PageIndex}, Size: {PageSize}, StatusFilter: {StatusFilter}",
-                    pageIndex, pageSize, statusFilter);
-
-                // Get all TourDetails với filter tùy chọn
-                var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
-                    pageIndex,
-                    pageSize,
-                    tourTemplateId: null,
-                    titleFilter: titleFilter,
-                    includeInactive: includeInactive,
-                    statusFilter: statusFilter);
-
-                if (response.success && response.Data != null)
-                {
-                    var filteredResponse = new
-                    {
-                        StatusCode = 200,
-                        Message = "Lấy danh sách tất cả TourDetails thành công",
-                        Data = response.Data,
-                        TotalCount = response.TotalCount,
-                        PageIndex = pageIndex,
-                        PageSize = pageSize,
-                        TotalPages = response.TotalPages,
-                        Filters = new
-                        {
-                            StatusFilter = statusFilter?.ToString(),
-                            TitleFilter = titleFilter,
-                            IncludeInactive = includeInactive
-                        }
-                    };
-
-                    return Ok(filteredResponse);
-                }
-
-                return StatusCode(response.StatusCode, response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting all TourDetails");
-                return StatusCode(500, new
-                {
-                    StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy danh sách TourDetails"
                 });
             }
         }
@@ -299,7 +235,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     },
                     PendingActions = new
                     {
-                        RequireAdminApproval = tourDetails.Count(td => td.Status.ToString() == TourDetailsStatus.Pending.ToString()),
+                        RequireAdminApproval = tourDetails.Count(td => td.Status.ToString() == TourDetailsStatus.AwaitingAdminApproval.ToString()),
                         AwaitingGuideAssignment = tourDetails.Count(td => td.Status.ToString() == TourDetailsStatus.AwaitingGuideAssignment.ToString())
                     }
                 };
@@ -427,113 +363,6 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi fix TourDetails status"
-                });
-            }
-        }
-
-        /// <summary>
-        /// Lấy thống kê chi tiết theo từng status của TourDetails
-        /// </summary>
-        /// <returns>Thống kê chi tiết và danh sách samples theo status</returns>
-        [HttpGet("tourdetails/status-breakdown")]
-        public async Task<IActionResult> GetTourDetailsStatusBreakdown()
-        {
-            try
-            {
-                _logger.LogInformation("Admin getting TourDetails status breakdown");
-
-                // Get all TourDetails without pagination for complete statistics
-                var allResponse = await _tourDetailsService.GetTourDetailsPaginatedAsync(
-                    0, 10000, // Large page size to get all
-                    includeInactive: true);
-
-                if (!allResponse.success || allResponse.Data == null)
-                {
-                    return StatusCode(500, new
-                    {
-                        StatusCode = 500,
-                        Message = "Không thể lấy dữ liệu TourDetails"
-                    });
-                }
-
-                var allTourDetails = allResponse.Data;
-
-                // Group by status and create breakdown
-                var statusBreakdown = new
-                {
-                    Total = allTourDetails.Count,
-                    StatusCounts = new
-                    {
-                        Pending = allTourDetails.Count(td => td.Status == TourDetailsStatus.Pending),
-                        Approved = allTourDetails.Count(td => td.Status == TourDetailsStatus.Approved),
-                        Rejected = allTourDetails.Count(td => td.Status == TourDetailsStatus.Rejected),
-                        AwaitingGuideAssignment = allTourDetails.Count(td => td.Status == TourDetailsStatus.AwaitingGuideAssignment),
-                        WaitToPublic = allTourDetails.Count(td => td.Status == TourDetailsStatus.WaitToPublic),
-                        Public = allTourDetails.Count(td => td.Status == TourDetailsStatus.Public),
-                        Cancelled = allTourDetails.Count(td => td.Status == TourDetailsStatus.Cancelled),
-                        Suspended = allTourDetails.Count(td => td.Status == TourDetailsStatus.Suspended)
-                    },
-                    StatusSamples = new
-                    {
-                        Pending = allTourDetails
-                            .Where(td => td.Status == TourDetailsStatus.Pending)
-                            .Take(5)
-                            .Select(td => new { td.Id, td.Title, td.CreatedAt, td.Status }),
-                        Approved = allTourDetails
-                            .Where(td => td.Status == TourDetailsStatus.Approved)
-                            .Take(5)
-                            .Select(td => new { td.Id, td.Title, td.CreatedAt, td.Status }),
-                        Rejected = allTourDetails
-                            .Where(td => td.Status == TourDetailsStatus.Rejected)
-                            .Take(5)
-                            .Select(td => new { td.Id, td.Title, td.CreatedAt, td.Status, td.CommentApproved }),
-                        AwaitingGuideAssignment = allTourDetails
-                            .Where(td => td.Status == TourDetailsStatus.AwaitingGuideAssignment)
-                            .Take(5)
-                            .Select(td => new { td.Id, td.Title, td.CreatedAt, td.Status }),
-                        WaitToPublic = allTourDetails
-                            .Where(td => td.Status == TourDetailsStatus.WaitToPublic)
-                            .Take(5)
-                            .Select(td => new { td.Id, td.Title, td.CreatedAt, td.Status }),
-                        Public = allTourDetails
-                            .Where(td => td.Status == TourDetailsStatus.Public)
-                            .Take(5)
-                            .Select(td => new { td.Id, td.Title, td.CreatedAt, td.Status })
-                    },
-                    RecentActivity = new
-                    {
-                        RecentlyCreated = allTourDetails
-                            .OrderByDescending(td => td.CreatedAt)
-                            .Take(10)
-                            .Select(td => new { td.Id, td.Title, td.CreatedAt, td.Status }),
-                        RecentlyApproved = allTourDetails
-                            .Where(td => td.Status == TourDetailsStatus.Approved)
-                            .OrderByDescending(td => td.UpdatedAt ?? td.CreatedAt)
-                            .Take(5)
-                            .Select(td => new { td.Id, td.Title, td.UpdatedAt, td.Status }),
-                        RecentlyRejected = allTourDetails
-                            .Where(td => td.Status == TourDetailsStatus.Rejected)
-                            .OrderByDescending(td => td.UpdatedAt ?? td.CreatedAt)
-                            .Take(5)
-                            .Select(td => new { td.Id, td.Title, td.UpdatedAt, td.Status, td.CommentApproved })
-                    }
-                };
-
-                return Ok(new
-                {
-                    StatusCode = 200,
-                    Message = "Lấy thống kê chi tiết TourDetails thành công",
-                    Data = statusBreakdown,
-                    GeneratedAt = DateTime.UtcNow
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting TourDetails status breakdown");
-                return StatusCode(500, new
-                {
-                    StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy thống kê TourDetails"
                 });
             }
         }

@@ -1,7 +1,6 @@
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
-using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
@@ -63,22 +62,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<ResponseSearchTourDetailsDto> SearchTourDetailsAsync(string keyword, Guid? tourTemplateId = null, bool includeInactive = false);
 
         /// <summary>
-        /// Lấy TourDetails với phân trang và status filter
+        /// Lấy TourDetails với phân trang
         /// </summary>
         /// <param name="pageIndex">Chỉ số trang (0-based)</param>
         /// <param name="pageSize">Kích thước trang</param>
         /// <param name="tourTemplateId">Filter theo template (optional)</param>
         /// <param name="titleFilter">Filter theo title (optional)</param>
         /// <param name="includeInactive">Bao gồm inactive records</param>
-        /// <param name="statusFilter">Filter theo status (optional)</param>
         /// <returns>Danh sách TourDetails có phân trang</returns>
         Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
             int pageIndex,
             int pageSize,
             Guid? tourTemplateId = null,
             string? titleFilter = null,
-            bool includeInactive = false,
-            TourDetailsStatus? statusFilter = null);
+            bool includeInactive = false);
 
         // ===== TIMELINE OPERATIONS (EXISTING & NEW) =====
 

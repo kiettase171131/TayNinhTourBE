@@ -1,5 +1,4 @@
 using TayNinhTourApi.DataAccessLayer.Entities;
-using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
 {
@@ -58,22 +57,20 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<int> CountByTourTemplateAsync(Guid tourTemplateId, bool includeInactive = false);
 
         /// <summary>
-        /// Lấy danh sách tour details với pagination và status filter
+        /// Lấy danh sách tour details với pagination
         /// </summary>
         /// <param name="pageIndex">Trang hiện tại</param>
         /// <param name="pageSize">Số items per page</param>
         /// <param name="tourTemplateId">Filter theo tour template (optional)</param>
         /// <param name="titleFilter">Filter theo title (optional)</param>
         /// <param name="includeInactive">Có bao gồm details không active không</param>
-        /// <param name="statusFilter">Filter theo status (optional)</param>
         /// <returns>Tuple chứa danh sách tour details và tổng số records</returns>
         Task<(IEnumerable<TourDetails> Details, int TotalCount)> GetPaginatedAsync(
             int pageIndex,
             int pageSize,
             Guid? tourTemplateId = null,
             string? titleFilter = null,
-            bool includeInactive = false,
-            TourDetailsStatus? statusFilter = null);
+            bool includeInactive = false);
 
         /// <summary>
         /// Tìm kiếm tour details theo title hoặc description
