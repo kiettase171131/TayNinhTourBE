@@ -328,6 +328,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     Id = Guid.NewGuid(),
                     TourOperationId = request.TourOperationId,
+                    TourSlotId = request.TourSlotId, // Include selected slot
                     UserId = userId,
                     NumberOfGuests = request.NumberOfGuests,
                     AdultCount = request.AdultCount,

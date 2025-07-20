@@ -156,6 +156,7 @@ builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
 // Shop service removed - merged into SpecialtyShopService
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+builder.Services.AddScoped<ITourSlotService, TourSlotService>();
 builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
 builder.Services.AddScoped<ITourBookingService, TourBookingService>();
