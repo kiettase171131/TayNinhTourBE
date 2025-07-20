@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿        using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.ForgotPasswordDTO;
@@ -79,6 +79,12 @@ namespace TayNinhTourApi.Controller.Controllers
             var response = await _authenticationService.RefreshTokenAsync(request);
 
             return StatusCode(response.StatusCode, response);
+        }
+        [HttpPost("login-google")]
+        public async Task<IActionResult> LoginWithGoogle([FromBody] GoogleLoginRequestDto request)
+        {
+            var result = await _authenticationService.LoginWithGoogleAsync(request);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

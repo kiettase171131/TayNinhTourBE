@@ -24,32 +24,20 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string? PayOsOrderCode { get; set; }
 
         /// <summary>
-        /// QR code data string containing order information for specialty shop verification
-        /// Contains: OrderId, PayOsOrderCode, UserId, TotalAmount, CreatedAt
+        /// Indicates if the order has been checked and delivered by the shop
+        /// Only the shop that owns products in this order can mark it as checked
         /// </summary>
-        public string? QRCodeData { get; set; }
+        public bool IsChecked { get; set; } = false;
 
         /// <summary>
-        /// URL to the generated QR code image stored on server
-        /// Specialty shops will scan this QR code to verify customer purchases
+        /// Timestamp when the order was checked/delivered by shop
         /// </summary>
-        public string? QRCodeImageUrl { get; set; }
+        public DateTime? CheckedAt { get; set; }
 
         /// <summary>
-        /// Indicates if the QR code has been scanned/used by specialty shop
-        /// False = Not scanned, True = Already scanned/redeemed
+        /// ID of the specialty shop that checked/delivered the order
         /// </summary>
-        public bool IsQRCodeUsed { get; set; } = false;
-
-        /// <summary>
-        /// Timestamp when the QR code was scanned/used by specialty shop
-        /// </summary>
-        public DateTime? QRCodeUsedAt { get; set; }
-
-        /// <summary>
-        /// ID of the specialty shop that scanned/redeemed the QR code
-        /// </summary>
-        public Guid? QRCodeUsedByShopId { get; set; }
+        public Guid? CheckedByShopId { get; set; }
        
         public virtual ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
     }
