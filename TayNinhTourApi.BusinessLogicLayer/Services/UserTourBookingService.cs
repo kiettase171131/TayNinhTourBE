@@ -6,9 +6,11 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using Microsoft.Extensions.Logging;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -21,17 +23,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly ITourPricingService _pricingService;
         private readonly ITourRevenueService _revenueService;
         private readonly IPayOsService _payOsService;
+        private readonly IQRCodeService _qrCodeService;
+        private readonly EmailSender _emailSender;
+        private readonly ILogger<UserTourBookingService> _logger;
 
         public UserTourBookingService(
             IUnitOfWork unitOfWork,
             ITourPricingService pricingService,
             ITourRevenueService revenueService,
-            IPayOsService payOsService)
+            IPayOsService payOsService,
+            IQRCodeService qrCodeService,
+            EmailSender emailSender,
+            ILogger<UserTourBookingService> logger)
         {
             _unitOfWork = unitOfWork;
             _pricingService = pricingService;
             _revenueService = revenueService;
             _payOsService = payOsService;
+            _qrCodeService = qrCodeService;
+            _emailSender = emailSender;
+            _logger = logger;
         }
 
         /// <summary>
@@ -703,6 +714,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                // Send confirmation email with QR code (async, don't wait for completion)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await SendBookingConfirmationEmailAsync(booking);
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError(emailEx, "Failed to send booking confirmation email for booking {BookingId}", booking.Id);
+                    }
+                });
+
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
@@ -786,6 +810,49 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     StatusCode = 500,
                     Message = $"Lỗi khi xử lý hủy thanh toán: {ex.Message}"
                 };
+            }
+        }
+
+        /// <summary>
+        /// Send booking confirmation email with QR code
+        /// </summary>
+        private async Task SendBookingConfirmationEmailAsync(TourBooking booking)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(booking.ContactEmail))
+                {
+                    _logger.LogWarning("No email address provided for booking {BookingId}", booking.Id);
+                    return;
+                }
+
+                // Generate QR code image
+                var qrCodeImage = await _qrCodeService.GenerateQRCodeImageAsync(booking, 300);
+
+                // Prepare email data
+                var customerName = booking.ContactName ?? "Valued Customer";
+                var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience";
+                var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.Now;
+
+                // Send email
+                await _emailSender.SendTourBookingConfirmationAsync(
+                    toEmail: booking.ContactEmail,
+                    customerName: customerName,
+                    bookingCode: booking.BookingCode,
+                    tourTitle: tourTitle,
+                    tourDate: tourDate,
+                    numberOfGuests: booking.NumberOfGuests,
+                    totalPrice: booking.TotalPrice,
+                    contactPhone: booking.ContactPhone ?? "N/A",
+                    qrCodeImage: qrCodeImage
+                );
+
+                _logger.LogInformation("Booking confirmation email sent successfully for booking {BookingId}", booking.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send booking confirmation email for booking {BookingId}", booking.Id);
+                throw;
             }
         }
 

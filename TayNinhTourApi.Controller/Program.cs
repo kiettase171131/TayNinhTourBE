@@ -198,6 +198,9 @@ builder.Services.AddScoped<IAITourDataService, AITourDataService>();
 // Notification Services
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
+// QR Code Services
+builder.Services.AddScoped<IQRCodeService, QRCodeService>();
+
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
