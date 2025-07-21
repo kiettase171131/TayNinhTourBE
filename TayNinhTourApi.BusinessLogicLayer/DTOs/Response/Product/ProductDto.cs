@@ -18,7 +18,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
         public string? Category { get; set; }
         public bool IsSale { get; set; }
         public int? SalePercent { get; set; }
-        public int SoldCount { get; set; } 
+        public int SoldCount { get; set; }
+        public double? AverageRating { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 

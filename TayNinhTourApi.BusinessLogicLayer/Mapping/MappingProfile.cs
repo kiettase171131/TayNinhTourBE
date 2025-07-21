@@ -110,7 +110,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #endregion
             #region Product Mapping
             CreateMap<Product, ProductDto>()
-    .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.ProductImages.Select(i => i.Url).ToList()));
+    .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.ProductImages.Select(i => i.Url).ToList()))
+    .ForMember(
+                dest => dest.AverageRating,
+                opt => opt.MapFrom(src =>
+                    src.ProductRatings.Any()
+                        ? Math.Round(src.ProductRatings.Average(r => (double)r.Rating), 1)
+                        : (double?)null
+                ));
 
 
             #endregion
