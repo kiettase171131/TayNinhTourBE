@@ -478,7 +478,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (existingCart != null)
                 {
-                    existingCart.Quantity += item.Quantity;
+                    existingCart.Quantity = item.Quantity;
                     existingCart.UpdatedAt = DateTime.UtcNow;
                     existingCart.UpdatedById = currentUser.Id;
                     await _cartRepository.UpdateAsync(existingCart);
@@ -488,7 +488,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var newCart = new CartItem
                     {
                         Id = Guid.NewGuid(),
-                        UserId = currentUser.Id,
+                        UserId = currentUser.Id,    
                         ProductId = item.ProductId,
                         Quantity = item.Quantity,
                         CreatedAt = DateTime.UtcNow,
