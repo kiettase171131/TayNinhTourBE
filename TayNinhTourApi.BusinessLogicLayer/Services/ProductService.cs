@@ -55,7 +55,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
-            var include = new string[] { nameof(Product.ProductImages) };
+            var include = new string[] { nameof(Product.ProductImages), nameof(Product.ProductRatings) };
 
             // Default values for pagination
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
