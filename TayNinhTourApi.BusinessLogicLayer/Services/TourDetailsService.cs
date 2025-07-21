@@ -830,16 +830,34 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var statusText = request.IsApproved ? "duyệt" : "từ chối";
                 _logger.LogInformation("Successfully {Action} TourDetail {TourDetailId} by Admin {AdminId}", statusText, tourDetailId, adminId);
 
-                // TRIGGER EMAIL INVITATIONS: Gửi email mời khi admin approve TourDetails
+                // 🔔 GỬI THÔNG BÁO ĐẾN TOUR COMPANY
+                using var scope = _serviceProvider.CreateScope();
+                var notificationService = scope.ServiceProvider.GetRequiredService<ITourCompanyNotificationService>();
+
                 if (request.IsApproved)
                 {
+                    // Gửi thông báo duyệt
+                    await notificationService.NotifyTourApprovalAsync(
+                        tourDetail.CreatedById,
+                        tourDetail.Title,
+                        request.Comment);
+
+                    // TRIGGER EMAIL INVITATIONS: Gửi email mời khi admin approve TourDetails
                     await TriggerApprovalEmailsAsync(tourDetail, adminId);
+                }
+                else
+                {
+                    // Gửi thông báo từ chối
+                    await notificationService.NotifyTourRejectionAsync(
+                        tourDetail.CreatedById,
+                        tourDetail.Title,
+                        request.Comment!);
                 }
 
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = $"Đã {statusText} tour detail thành công",
+                    Message = $"Đã {statusText} tour detail thành công. Thông báo đã được gửi đến Tour Company.",
                     success = true
                 };
             }

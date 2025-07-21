@@ -74,6 +74,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="includeInactive">Có bao gồm TourDetails không active không (default: false)</param>
         /// <returns>Danh sách TourDetails của template</returns>
         [HttpGet("template/{templateId:guid}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetTourDetailsByTemplate(
             [FromRoute] Guid templateId,
             [FromQuery] bool includeInactive = false)
@@ -102,6 +103,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="id">ID của TourDetails</param>
         /// <returns>Thông tin chi tiết TourDetails</returns>
         [HttpGet("{id:guid}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetTourDetailById([FromRoute] Guid id)
         {
             try

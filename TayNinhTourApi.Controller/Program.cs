@@ -156,6 +156,7 @@ builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<IBlogReactionService, BlogReactionService>();
 // Shop service removed - merged into SpecialtyShopService
 builder.Services.AddScoped<ISchedulingService, SchedulingService>();
+builder.Services.AddScoped<ITourSlotService, TourSlotService>();
 builder.Services.AddScoped<ITourMigrationService, TourMigrationService>();
 builder.Services.AddScoped<ITourOperationService, TourOperationService>();
 builder.Services.AddScoped<ITourBookingService, TourBookingService>();
@@ -169,10 +170,13 @@ builder.Services.AddScoped<ITourCompanyNotificationService, TourCompanyNotificat
 
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IPayOsService, PayOsService>();
-builder.Services.AddScoped<IQRCodeService, QRCodeService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 builder.Services.AddScoped<ISpecialtyShopApplicationService, SpecialtyShopApplicationService>();
 builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
+
+// Wallet Service - for managing Tour Company and Specialty Shop wallets
+builder.Services.AddScoped<IWalletService, WalletService>();
 
 // File Storage Services
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
@@ -190,6 +194,12 @@ builder.Services.AddScoped<DataMigrationService>();
 builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
 builder.Services.AddScoped<IAIChatService, AIChatService>();
 builder.Services.AddScoped<IAITourDataService, AITourDataService>();
+
+// Notification Services
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+// QR Code Services
+builder.Services.AddScoped<IQRCodeService, QRCodeService>();
 
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -224,6 +234,9 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
+
+// Notification Repository
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
 // AI Chat Repositories
 builder.Services.AddScoped<IAIChatSessionRepository, AIChatSessionRepository>();

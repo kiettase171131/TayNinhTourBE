@@ -30,6 +30,10 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired()
                 .HasComment("ID của TourOperation được booking");
 
+            builder.Property(tb => tb.TourSlotId)
+                .IsRequired(false)
+                .HasComment("ID của TourSlot cụ thể được booking (optional)");
+
             builder.Property(tb => tb.UserId)
                 .IsRequired()
                 .HasComment("ID của User thực hiện booking");
@@ -141,12 +145,21 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .OnDelete(DeleteBehavior.Restrict) // Không cho phép xóa User nếu có bookings
                 .IsRequired();
 
+            builder.HasOne(tb => tb.TourSlot)
+                .WithMany() // TourSlot có nhiều bookings
+                .HasForeignKey(tb => tb.TourSlotId)
+                .OnDelete(DeleteBehavior.Restrict) // Không cho phép xóa TourSlot nếu có bookings
+                .IsRequired(false);
+
             // Indexes for Performance
             builder.HasIndex(tb => tb.TourOperationId)
                 .HasDatabaseName("IX_TourBookings_TourOperationId");
 
             builder.HasIndex(tb => tb.UserId)
                 .HasDatabaseName("IX_TourBookings_UserId");
+
+            builder.HasIndex(tb => tb.TourSlotId)
+                .HasDatabaseName("IX_TourBookings_TourSlotId");
 
             builder.HasIndex(tb => tb.BookingCode)
                 .IsUnique()

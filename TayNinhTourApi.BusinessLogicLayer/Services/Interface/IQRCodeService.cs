@@ -1,40 +1,40 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TayNinhTourApi.BusinessLogicLayer.DTOs;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.QRCode;
+using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     /// <summary>
-    /// Service interface for QR code generation and verification
-    /// Used for customer pickup verification at specialty shops
+    /// Service interface for QR code generation and management
     /// </summary>
     public interface IQRCodeService
     {
         /// <summary>
-        /// Generate QR code for a paid order
+        /// Generate QR code image as byte array from tour booking data
         /// </summary>
-        /// <param name="orderId">Order ID to generate QR code for</param>
-        /// <returns>Response containing QR code data and image URL</returns>
-        Task<GenerateQRCodeResponseDto> GenerateQRCodeAsync(Guid orderId);
+        /// <param name="booking">Tour booking entity</param>
+        /// <param name="size">QR code size in pixels (default: 300)</param>
+        /// <returns>QR code image as PNG byte array</returns>
+        Task<byte[]> GenerateQRCodeImageAsync(TourBooking booking, int size = 300);
 
         /// <summary>
-        /// Scan and process QR code by specialty shop
-        /// This method combines verification and marking as used in one action
+        /// Generate QR code image as byte array from JSON data string
         /// </summary>
-        /// <param name="qrCodeData">QR code data string</param>
-        /// <param name="shopId">ID of the specialty shop scanning the code</param>
-        /// <returns>Response containing order details and processing result</returns>
-        Task<ScanQRCodeResponseDto> ScanAndProcessQRCodeAsync(string qrCodeData, Guid shopId);
+        /// <param name="qrData">JSON data string</param>
+        /// <param name="size">QR code size in pixels (default: 300)</param>
+        /// <returns>QR code image as PNG byte array</returns>
+        Task<byte[]> GenerateQRCodeImageFromDataAsync(string qrData, int size = 300);
 
         /// <summary>
-        /// Get QR code details for an order
+        /// Generate QR code data JSON string from tour booking
         /// </summary>
-        /// <param name="orderId">Order ID</param>
-        /// <returns>QR code details</returns>
-        Task<QRCodeDetailsResponseDto> GetQRCodeDetailsAsync(Guid orderId);
+        /// <param name="booking">Tour booking entity</param>
+        /// <returns>JSON string containing booking information</returns>
+        string GenerateQRCodeData(TourBooking booking);
+
+        /// <summary>
+        /// Validate QR code data format
+        /// </summary>
+        /// <param name="qrData">QR code data to validate</param>
+        /// <returns>True if valid, false otherwise</returns>
+        bool ValidateQRCodeData(string qrData);
     }
 }

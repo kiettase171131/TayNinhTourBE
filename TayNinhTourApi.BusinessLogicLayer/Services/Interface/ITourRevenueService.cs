@@ -55,20 +55,4 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <returns>True nếu là Tour Company</returns>
         Task<bool> IsTourCompanyAsync(Guid userId);
     }
-
-    /// <summary>
-    /// Thông tin tài chính của TourCompany
-    /// </summary>
-    public class TourCompanyFinancialInfo
-    {
-        public Guid Id { get; set; }
-        public Guid UserId { get; set; }
-        public string CompanyName { get; set; } = string.Empty;
-        public decimal Wallet { get; set; }
-        public decimal RevenueHold { get; set; }
-        public decimal TotalRevenue => Wallet + RevenueHold;
-        public bool IsActive { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-    }
 }

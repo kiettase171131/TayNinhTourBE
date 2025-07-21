@@ -12,8 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250714185713_FixTourTemplateFK")]
-    partial class FixTourTemplateFK
+    [Migration("20250720131705_AddTourSlotIdToTourBooking")]
+    partial class AddTourSlotIdToTourBooking
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -902,6 +902,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<decimal>("Wallet")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Website")
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
@@ -1426,6 +1429,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("longtext")
                         .HasComment("QR code data cho khách hàng");
 
+                    b.Property<DateTime?>("ReservedUntil")
+                        .HasColumnType("datetime(6)")
+                        .HasComment("Thời gian hết hạn reservation để tự động release slot nếu không thanh toán");
+
                     b.Property<DateTime>("RowVersion")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -1446,6 +1453,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("TourOperationId")
                         .HasColumnType("char(36)")
                         .HasComment("ID của TourOperation được booking");
+
+                    b.Property<Guid?>("TourSlotId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của TourSlot cụ thể được booking (optional)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -1475,6 +1486,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.HasIndex("TourOperationId")
                         .HasDatabaseName("IX_TourBookings_TourOperationId");
+
+                    b.HasIndex("TourSlotId")
+                        .HasDatabaseName("IX_TourBookings_TourSlotId");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_TourBookings_UserId");
@@ -1615,10 +1629,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("varchar(1000)")
                         .HasComment("Mô tả về lịch trình này");
 
-                    b.Property<string>("ImageUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasComment("URL hình ảnh đại diện cho tour details này");
+                    b.Property<string>("ImageUrls")
+                        .HasColumnType("JSON")
+                        .HasComment("Danh sách URL hình ảnh cho tour details này (JSON array)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
@@ -2852,6 +2865,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", "TourSlot")
+                        .WithMany()
+                        .HasForeignKey("TourSlotId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -2859,6 +2877,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .IsRequired();
 
                     b.Navigation("TourOperation");
+
+                    b.Navigation("TourSlot");
 
                     b.Navigation("User");
                 });

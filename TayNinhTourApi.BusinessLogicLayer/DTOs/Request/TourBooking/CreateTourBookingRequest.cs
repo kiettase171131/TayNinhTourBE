@@ -57,5 +57,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking
         /// </summary>
         [StringLength(500, ErrorMessage = "Ghi chú không quá 500 ký tự")]
         public string? SpecialRequests { get; set; }
+
+        /// <summary>
+        /// ID của TourSlot cụ thể mà khách hàng muốn booking (optional)
+        /// Nếu có, booking sẽ được gắn với ngày cụ thể của slot này
+        /// </summary>
+        public Guid? TourSlotId { get; set; }
     }
 }

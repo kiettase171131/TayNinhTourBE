@@ -23,6 +23,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string TourTemplateName { get; set; } = string.Empty;
 
         /// <summary>
+        /// Điểm khởi hành từ TourTemplate
+        /// </summary>
+        public string? StartLocation { get; set; }
+
+        /// <summary>
+        /// Điểm kết thúc từ TourTemplate
+        /// </summary>
+        public string? EndLocation { get; set; }
+
+        /// <summary>
+        /// Ngày trong tuần từ TourTemplate
+        /// </summary>
+        public string? ScheduleDays { get; set; }
+
+        /// <summary>
         /// Tiêu đề của lịch trình
         /// Ví dụ: "Lịch trình VIP", "Lịch trình thường", "Lịch trình tiết kiệm"
         /// </summary>

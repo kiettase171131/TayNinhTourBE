@@ -219,7 +219,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 RevenueHold = tourCompany.RevenueHold,
                 IsActive = tourCompany.IsActive,
                 CreatedAt = tourCompany.CreatedAt,
-                UpdatedAt = tourCompany.UpdatedAt
+                UpdatedAt = tourCompany.UpdatedAt ?? tourCompany.CreatedAt
             };
         }
 

@@ -649,5 +649,109 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             await SendEmailAsync(message);
         }
 
+        /// <summary>
+        /// Send tour booking confirmation email with QR code
+        /// </summary>
+        public async Task SendTourBookingConfirmationAsync(
+            string toEmail,
+            string customerName,
+            string bookingCode,
+            string tourTitle,
+            DateTime tourDate,
+            int numberOfGuests,
+            decimal totalPrice,
+            string contactPhone,
+            byte[] qrCodeImage)
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(customerName, toEmail));
+            message.Subject = "Tour Booking Confirmed - Your QR Code Ticket";
+
+            var bodyBuilder = new BodyBuilder();
+
+            // Add QR code as embedded image
+            var qrCodeAttachment = bodyBuilder.Attachments.Add("qr-code.png", qrCodeImage, new ContentType("image", "png"));
+            qrCodeAttachment.ContentDisposition = new ContentDisposition(ContentDisposition.Inline);
+            qrCodeAttachment.ContentId = "qr-code";
+
+            bodyBuilder.HtmlBody = $@"
+            <div style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"">
+                <div style=""text-align: center; margin-bottom: 30px;"">
+                    <h1 style=""color: #2c3e50; margin-bottom: 10px;"">🎉 Booking Confirmed!</h1>
+                    <p style=""color: #7f8c8d; font-size: 16px;"">Thank you for choosing Tay Ninh Tour</p>
+                </div>
+
+                <div style=""background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;"">
+                    <h2 style=""color: #155724; margin-top: 0; text-align: center;"">Your Tour Booking Details</h2>
+
+                    <table style=""width: 100%; border-collapse: collapse; margin-top: 15px;"">
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Booking Code:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{bookingCode}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Tour:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{tourTitle}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Date:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{tourDate:dd/MM/yyyy}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Number of Guests:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{numberOfGuests}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Total Price:</td>
+                            <td style=""padding: 8px 0; color: #155724; font-weight: bold;"">{totalPrice:N0} VND</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Contact Phone:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{contactPhone}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style=""text-align: center; margin: 30px 0;"">
+                    <h3 style=""color: #2c3e50; margin-bottom: 15px;"">📱 Your QR Code Ticket</h3>
+                    <div style=""background-color: #f8f9fa; padding: 20px; border-radius: 8px; display: inline-block;"">
+                        <img src=""cid:qr-code"" alt=""QR Code Ticket"" style=""width: 200px; height: 200px; border: 2px solid #dee2e6; border-radius: 8px;"" />
+                    </div>
+                    <p style=""color: #6c757d; font-size: 14px; margin-top: 10px;"">
+                        Present this QR code to your tour guide on the day of your tour
+                    </p>
+                </div>
+
+                <div style=""background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;"">
+                    <h4 style=""color: #856404; margin-top: 0;"">📋 Important Information:</h4>
+                    <ul style=""color: #856404; margin: 10px 0; padding-left: 20px;"">
+                        <li>Please arrive 15 minutes before the tour start time</li>
+                        <li>Bring a valid ID for verification</li>
+                        <li>Keep this QR code accessible on your phone or print it out</li>
+                        <li>Contact us if you need to make any changes to your booking</li>
+                    </ul>
+                </div>
+
+                <div style=""text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;"">
+                    <h4 style=""color: #2c3e50; margin-bottom: 15px;"">Need Help?</h4>
+                    <p style=""color: #6c757d; margin: 5px 0;"">📞 Phone: +84 123 456 789</p>
+                    <p style=""color: #6c757d; margin: 5px 0;"">📧 Email: support@tayninhtravel.com</p>
+                    <p style=""color: #6c757d; margin: 5px 0;"">🌐 Website: www.tayninhtravel.com</p>
+                </div>
+
+                <div style=""text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;"">
+                    <p style=""color: #6c757d; font-size: 14px;"">We look forward to providing you with an amazing tour experience!</p>
+                    <br/>
+                    <p style=""color: #2c3e50; font-weight: bold;"">Best regards,</p>
+                    <p style=""color: #2c3e50; font-weight: bold;"">The Tay Ninh Tour Team</p>
+                </div>
+            </div>";
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            await SendEmailAsync(message);
+        }
+
     }
 }

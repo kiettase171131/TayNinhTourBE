@@ -15,6 +15,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public Guid TourOperationId { get; set; }
 
         /// <summary>
+        /// ID của TourSlot cụ thể được booking (optional)
+        /// Nếu có, booking sẽ được gắn với ngày cụ thể của slot này
+        /// </summary>
+        public Guid? TourSlotId { get; set; }
+
+        /// <summary>
         /// ID của User thực hiện booking
         /// </summary>
         [Required]
@@ -149,6 +155,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// TourOperation được booking
         /// </summary>
         public virtual TourOperation TourOperation { get; set; } = null!;
+
+        /// <summary>
+        /// TourSlot cụ thể được booking (optional)
+        /// </summary>
+        public virtual TourSlot? TourSlot { get; set; }
 
         /// <summary>
         /// User thực hiện booking
