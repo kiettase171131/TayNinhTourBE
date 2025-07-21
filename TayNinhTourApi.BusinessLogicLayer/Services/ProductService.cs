@@ -38,8 +38,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IProductRatingRepository _ratingRepo;
         private readonly IProductReviewRepository _reviewRepo;
         private readonly IVoucherRepository _voucherRepository;
+        private readonly IOrderDetailRepository _orderDetailRepository;
 
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository)
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IOrderDetailRepository orderDetailRepository)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -52,6 +53,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _ratingRepo = productRating;
             _reviewRepo = productReview;
             _voucherRepository = voucherRepository;
+            _orderDetailRepository = orderDetailRepository;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
@@ -759,6 +761,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<BaseResposeDto> FeedbackProductAsync(CreateProductFeedbackDto dto, Guid userId)
         {
+            // Kiểm tra đơn hàng đã nhận thành công hay chưa (IsChecked = true)
+            var hasCheckedOrder = await _orderDetailRepository.AnyAsync(od =>
+                od.ProductId == dto.ProductId &&
+                od.Order.UserId == userId &&
+                od.Order.IsChecked == true);
+
+            if (!hasCheckedOrder)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Bạn chỉ được đánh giá khi đã nhận hàng thành công."
+                };
+            }
             // Update or insert rating
             var existingRating = await _ratingRepo.GetFirstOrDefaultAsync(
                 r => r.ProductId == dto.ProductId && r.UserId == userId);
