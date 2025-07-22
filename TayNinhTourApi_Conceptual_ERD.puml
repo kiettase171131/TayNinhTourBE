@@ -1,0 +1,244 @@
+@startuml TayNinhTourApi_Conceptual_ERD
+
+skinparam backgroundColor white
+skinparam class {
+    BackgroundColor #F8F9FA
+    BorderColor #6C757D
+    ArrowColor #007BFF
+    FontSize 11
+}
+
+skinparam package {
+    BackgroundColor #E3F2FD
+    BorderColor #1976D2
+    FontSize 12
+    FontStyle bold
+}
+
+title Tay Ninh Tour API - Conceptual ERD
+
+package "User Management" {
+    class User {
+        + Email : string
+        + Name : string
+        + Role : string
+        + Phone : string
+        + Avatar : string
+    }
+    
+    class TourCompany {
+        + Company Name : string
+        + Wallet : decimal
+        + Revenue Hold : decimal
+        + Description : string
+        + Address : string
+    }
+    
+    class TourGuide {
+        + Full Name : string
+        + Rating : decimal
+        + Total Tours : int
+        + Experience : string
+        + Is Available : bool
+    }
+    
+    class SpecialtyShop {
+        + Shop Name : string
+        + Location : string
+        + Rating : decimal
+        + Shop Type : string
+        + Opening Hours : string
+    }
+}
+
+package "Tour System" {
+    class TourTemplate {
+        + Title : string
+        + Template Type : enum
+        + Schedule Days : enum
+        + Start Location : string
+        + End Location : string
+        + Month : int
+        + Year : int
+    }
+    
+    class TourSlot {
+        + Tour Date : DateOnly
+        + Schedule Day : enum
+        + Status : TourSlotStatus
+        + Is Active : bool
+    }
+    
+    class TourDetails {
+        + Title : string
+        + Description : string
+        + Start Date : DateTime
+        + End Date : DateTime
+        + Max Guests : int
+        + Status : enum
+    }
+    
+    class TourOperation {
+        + Price : decimal
+        + Max Guests : int
+        + Current Bookings : int
+        + Status : enum
+        + Is Active : bool
+    }
+    
+    class TourBooking {
+        + Number of Guests : int
+        + Total Price : decimal
+        + Booking Status : enum
+        + Booking Code : string
+        + Contact Info : string
+    }
+    
+    class TimelineItem {
+        + Title : string
+        + Type : enum
+        + Start Time : TimeSpan
+        + End Time : TimeSpan
+        + Location : string
+        + Day : int
+    }
+}
+
+package "E-commerce" {
+    class Product {
+        + Name : string
+        + Price : decimal
+        + Category : enum
+        + Stock Quantity : int
+        + Is Sale : bool
+    }
+    
+    class Order {
+        + Total Amount : decimal
+        + Status : enum
+        + Payment Code : string
+        + Is Checked : bool
+    }
+    
+    class Cart {
+        + Quantity : int
+        + Added At : DateTime
+    }
+}
+
+package "Content & Support" {
+    class Blog {
+        + Title : string
+        + Content : string
+        + View Count : int
+        + Like Count : int
+        + Published At : DateTime
+    }
+    
+    class SupportTicket {
+        + Title : string
+        + Description : string
+        + Status : enum
+        + Priority : enum
+        + Category : string
+    }
+    
+    class Notification {
+        + Title : string
+        + Message : string
+        + Type : enum
+        + Is Read : bool
+        + Action URL : string
+    }
+}
+
+package "AI & Communication" {
+    class AIChatSession {
+        + Title : string
+        + Status : enum
+        + Message Count : int
+        + Last Message At : DateTime
+    }
+    
+    class Invitation {
+        + Type : enum
+        + Status : enum
+        + Invited At : DateTime
+        + Response : string
+        + Expires At : DateTime
+    }
+}
+
+' User Relationships
+User ||--|| TourCompany
+User ||--|| TourGuide  
+User ||--|| SpecialtyShop
+
+' Tour System Relationships - Updated with TourSlot
+TourCompany ||--o{ TourTemplate
+TourTemplate ||--o{ TourSlot
+TourTemplate ||--o{ TourDetails
+TourSlot ||--o{ TourDetails
+TourDetails ||--|| TourOperation
+TourGuide ||--o{ TourOperation
+TourOperation ||--o{ TourBooking
+TourSlot ||--o{ TourBooking
+User ||--o{ TourBooking
+TourDetails ||--o{ TimelineItem
+SpecialtyShop ||--o{ TimelineItem
+
+' E-commerce Relationships
+SpecialtyShop ||--o{ Product
+User ||--o{ Order
+User ||--o{ Cart
+Order ||--o{ Product
+Cart ||--o{ Product
+
+' Content System
+User ||--o{ Blog
+User ||--o{ SupportTicket
+
+' Communication System
+User ||--o{ Notification
+User ||--o{ AIChatSession
+TourOperation ||--o{ Invitation
+TourDetails ||--o{ Invitation
+
+' Cross-system Triggers
+TourBooking ..> Notification
+Order ..> Notification  
+Invitation ..> Notification
+
+note right of TourSlot
+Template Creation ? Slot Auto-Generation:
+- Template ch? ch?n ScheduleDay (Saturday OR Sunday)
+- Auto-generate slots NGAY AFTER create template success
+- L?y T?T C? weekend dates trong Month/Year
+- EnhancedTourTemplateService: Max 4 slots (.Take(4))
+- SchedulingService: Flexible 4-5 slots
+- Status: Available/FullyBooked/Cancelled/Completed
+end note
+
+note right of TourBooking
+Booking Options:
+1. Book specific TourSlot (date-specific)
+2. Book TourOperation (flexible date)
+
+Payment Workflow:
+1. Create booking (Pending)
+2. Process payment via PayOS
+3. Confirm booking
+4. Generate QR code
+5. Guide scans on tour day
+end note
+
+note right of TourTemplate
+Template Creation Flow:
+1. TourCompany ch?n ScheduleDay (Saturday OR Sunday)
+2. Ch?n Month/Year
+3. Create Template
+4. AUTO-GENERATE slots for chosen month
+5. Slots = all weekend dates in month (max 4)
+end note
+
+@enduml

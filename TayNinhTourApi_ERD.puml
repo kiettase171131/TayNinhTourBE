@@ -1,0 +1,572 @@
+@startuml TayNinhTourApi_ERD
+
+!define ENTITY_COLOR #E1F5FE
+!define KEY_COLOR #FFD54F
+!define FOREIGN_KEY_COLOR #FFAB91
+
+skinparam backgroundColor white
+skinparam class {
+    BackgroundColor ENTITY_COLOR
+    BorderColor #0277BD
+    ArrowColor #0277BD
+}
+
+' Base Entity (Abstract)
+abstract class BaseEntity {
+    + Id : Guid <<PK>>
+    + IsDeleted : bool
+    + IsActive : bool
+    + CreatedById : Guid
+    + UpdatedById : Guid?
+    + CreatedAt : DateTime
+    + UpdatedAt : DateTime?
+    + DeletedAt : DateTime?
+}
+
+' Core User Management
+class User {
+    + Id : Guid <<PK>>
+    + Email : string
+    + Name : string
+    + PasswordHash : string
+    + PhoneNumber : string
+    + Avatar : string
+    + TOtpSecret : string?
+    + IsVerified : bool
+    + RoleId : Guid <<FK>>
+    + RefreshToken : string?
+    + RefreshTokenExpiryTime : DateTime?
+}
+
+class Role {
+    + Id : Guid <<PK>>
+    + Name : string
+    + Description : string?
+}
+
+' Extended User Profiles
+class TourCompany {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + CompanyName : string
+    + Wallet : decimal
+    + RevenueHold : decimal
+    + Description : string?
+    + Address : string?
+    + Website : string?
+    + BusinessLicense : string?
+    + IsActive : bool
+}
+
+class TourGuide {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + ApplicationId : Guid <<FK>>
+    + FullName : string
+    + PhoneNumber : string
+    + Email : string
+    + Experience : string
+    + Skills : string?
+    + Rating : decimal
+    + TotalToursGuided : int
+    + IsAvailable : bool
+    + Notes : string?
+    + ProfileImageUrl : string?
+    + ApprovedAt : DateTime
+    + ApprovedById : Guid <<FK>>
+}
+
+class SpecialtyShop {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + ShopName : string
+    + Wallet : decimal
+    + Description : string?
+    + Location : string
+    + RepresentativeName : string
+    + Email : string
+    + PhoneNumber : string?
+    + Address : string?
+    + Website : string?
+    + BusinessLicense : string?
+    + BusinessLicenseUrl : string?
+    + LogoUrl : string?
+    + ShopType : string?
+    + OpeningHours : string?
+    + ClosingHours : string?
+    + Rating : decimal?
+    + IsShopActive : bool
+    + Notes : string?
+}
+
+' Applications
+class TourGuideApplication {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + FullName : string
+    + PhoneNumber : string
+    + Email : string
+    + Experience : string
+    + Skills : string?
+    + Status : TourGuideApplicationStatus
+    + SubmittedAt : DateTime
+    + ProcessedAt : DateTime?
+    + ProcessedById : Guid?
+    + RejectionReason : string?
+    + Notes : string?
+}
+
+class SpecialtyShopApplication {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + ShopName : string
+    + Description : string?
+    + Location : string
+    + RepresentativeName : string
+    + Email : string
+    + PhoneNumber : string?
+    + Address : string?
+    + Website : string?
+    + BusinessLicense : string?
+    + BusinessLicenseUrl : string?
+    + Status : SpecialtyShopApplicationStatus
+    + SubmittedAt : DateTime
+    + ProcessedAt : DateTime?
+    + ProcessedById : Guid?
+    + RejectionReason : string?
+    + Notes : string?
+}
+
+' Tour Management
+class TourTemplate {
+    + Id : Guid <<PK>>
+    + Title : string
+    + TemplateType : TourTemplateType
+    + ScheduleDays : ScheduleDay
+    + StartLocation : string
+    + EndLocation : string
+    + Month : int
+    + Year : int
+    + IsActive : bool
+}
+
+class TourDetails {
+    + Id : Guid <<PK>>
+    + TemplateId : Guid <<FK>>
+    + Title : string
+    + Description : string?
+    + StartDate : DateTime
+    + EndDate : DateTime
+    + MaxGuests : int
+    + Status : TourDetailsStatus
+    + Notes : string?
+}
+
+class TourOperation {
+    + Id : Guid <<PK>>
+    + TourDetailsId : Guid <<FK>>
+    + TourGuideId : Guid? <<FK>>
+    + Price : decimal
+    + MaxGuests : int
+    + Description : string?
+    + Notes : string?
+    + Status : TourOperationStatus
+    + IsActive : bool
+    + CurrentBookings : int
+    + RowVersion : byte[]
+}
+
+class TourSlot {
+    + Id : Guid <<PK>>
+    + TourOperationId : Guid <<FK>>
+    + SlotDate : DateTime
+    + StartTime : TimeSpan
+    + EndTime : TimeSpan
+    + MaxCapacity : int
+    + CurrentBookings : int
+    + IsAvailable : bool
+    + Notes : string?
+}
+
+class TourBooking {
+    + Id : Guid <<PK>>
+    + TourOperationId : Guid <<FK>>
+    + TourSlotId : Guid? <<FK>>
+    + UserId : Guid <<FK>>
+    + NumberOfGuests : int
+    + AdultCount : int
+    + ChildCount : int
+    + OriginalPrice : decimal
+    + DiscountPercent : decimal
+    + TotalPrice : decimal
+    + Status : BookingStatus
+    + BookingDate : DateTime
+    + ConfirmedDate : DateTime?
+    + CancelledDate : DateTime?
+    + CancellationReason : string?
+    + CustomerNotes : string?
+    + ContactName : string?
+    + ContactPhone : string?
+    + ContactEmail : string?
+    + BookingCode : string
+    + PayOsOrderCode : string?
+    + QRCodeData : string?
+    + ReservedUntil : DateTime?
+    + RowVersion : byte[]
+}
+
+' Tour Additional Entities
+class Tour {
+    + Id : Guid <<PK>>
+    + Name : string
+    + Description : string?
+    + Duration : int
+    + Capacity : int
+    + Status : string
+}
+
+class TimelineItem {
+    + Id : Guid <<PK>>
+    + TourDetailsId : Guid <<FK>>
+    + Type : TimelineType
+    + Title : string
+    + Description : string?
+    + StartTime : TimeSpan
+    + EndTime : TimeSpan?
+    + Location : string?
+    + Day : int
+    + Notes : string?
+    + EstimatedCost : decimal?
+    + SpecialtyShopId : Guid? <<FK>>
+}
+
+class TourDetailsSpecialtyShop {
+    + Id : Guid <<PK>>
+    + TourDetailsId : Guid <<FK>>
+    + SpecialtyShopId : Guid <<FK>>
+    + Status : ShopInvitationStatus
+    + InvitedAt : DateTime
+    + RespondedAt : DateTime?
+    + Notes : string?
+}
+
+class TourGuideInvitation {
+    + Id : Guid <<PK>>
+    + TourOperationId : Guid <<FK>>
+    + TourGuideId : Guid <<FK>>
+    + Status : InvitationStatus
+    + InvitedAt : DateTime
+    + RespondedAt : DateTime?
+    + RejectionReason : string?
+    + Message : string?
+    + Notes : string?
+}
+
+' E-commerce
+class Product {
+    + Id : Guid <<PK>>
+    + ShopId : Guid <<FK>>
+    + Name : string
+    + Description : string?
+    + Price : decimal
+    + QuantityInStock : int
+    + ImageUrl : string?
+    + IsSale : bool
+    + SalePercent : int?
+    + Category : ProductCategory
+    + SoldCount : int
+}
+
+class Order {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + TotalAmount : decimal
+    + TotalAfterDiscount : decimal
+    + DiscountAmount : decimal
+    + Status : OrderStatus
+    + VoucherCode : string?
+    + PayOsOrderCode : string?
+    + IsChecked : bool
+    + CheckedAt : DateTime?
+    + CheckedByShopId : Guid?
+}
+
+class OrderDetail {
+    + Id : Guid <<PK>>
+    + OrderId : Guid <<FK>>
+    + ProductId : Guid <<FK>>
+    + Quantity : int
+    + UnitPrice : decimal
+    + TotalPrice : decimal
+}
+
+class CartItem {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + ProductId : Guid <<FK>>
+    + Quantity : int
+}
+
+class Voucher {
+    + Id : Guid <<PK>>
+    + Code : string
+    + Description : string?
+    + DiscountPercent : decimal
+    + MaxDiscountAmount : decimal?
+    + MinOrderAmount : decimal?
+    + StartDate : DateTime
+    + EndDate : DateTime
+    + UsageLimit : int?
+    + UsedCount : int
+    + IsActive : bool
+}
+
+' Rating and Reviews
+class ProductRating {
+    + Id : Guid <<PK>>
+    + ProductId : Guid <<FK>>
+    + UserId : Guid <<FK>>
+    + Rating : int
+    + Comment : string?
+}
+
+class ProductReview {
+    + Id : Guid <<PK>>
+    + ProductId : Guid <<FK>>
+    + UserId : Guid <<FK>>
+    + ReviewText : string
+    + Rating : int
+    + IsVerifiedPurchase : bool
+}
+
+' Media
+class Image {
+    + Id : Guid <<PK>>
+    + FileName : string
+    + FileUrl : string
+    + FileSize : long
+    + ContentType : string
+    + AltText : string?
+}
+
+class ProductImage {
+    + Id : Guid <<PK>>
+    + ProductId : Guid <<FK>>
+    + ImageUrl : string
+    + IsMain : bool
+    + DisplayOrder : int
+    + AltText : string?
+}
+
+' Blog System
+class Blog {
+    + Id : Guid <<PK>>
+    + Title : string
+    + Content : string
+    + Summary : string?
+    + AuthorId : Guid <<FK>>
+    + Status : string
+    + ViewCount : int
+    + LikeCount : int
+    + CommentCount : int
+    + FeaturedImageUrl : string?
+    + Tags : string?
+    + Slug : string
+    + MetaDescription : string?
+    + PublishedAt : DateTime?
+}
+
+class BlogComment {
+    + Id : Guid <<PK>>
+    + BlogId : Guid <<FK>>
+    + UserId : Guid <<FK>>
+    + Content : string
+    + ParentCommentId : Guid?
+    + IsApproved : bool
+}
+
+class BlogReaction {
+    + Id : Guid <<PK>>
+    + BlogId : Guid <<FK>>
+    + UserId : Guid <<FK>>
+    + ReactionType : string
+}
+
+class BlogImage {
+    + Id : Guid <<PK>>
+    + BlogId : Guid <<FK>>
+    + ImageUrl : string
+    + Caption : string?
+    + DisplayOrder : int
+}
+
+' Support System
+class SupportTicket {
+    + Id : Guid <<PK>>
+    + Title : string
+    + Description : string
+    + Status : string
+    + Priority : string
+    + Category : string
+    + CreatedById : Guid <<FK>>
+    + AssignedToId : Guid? <<FK>>
+    + ResolvedAt : DateTime?
+    + ResolutionNotes : string?
+}
+
+class SupportTicketComment {
+    + Id : Guid <<PK>>
+    + SupportTicketId : Guid <<FK>>
+    + CreatedById : Guid <<FK>>
+    + Content : string
+}
+
+class SupportTicketImage {
+    + Id : Guid <<PK>>
+    + SupportTicketId : Guid <<FK>>
+    + ImageUrl : string
+    + Caption : string?
+}
+
+' AI Chat System
+class AIChatSession {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + Title : string
+    + Status : string
+    + LastMessageAt : DateTime
+    + MessageCount : int
+}
+
+class AIChatMessage {
+    + Id : Guid <<PK>>
+    + SessionId : Guid <<FK>>
+    + Content : string
+    + MessageType : string
+    + TokensUsed : int?
+    + ResponseTimeMs : int?
+    + IsFallback : bool
+    + IsError : bool
+}
+
+' Notification System
+class Notification {
+    + Id : Guid <<PK>>
+    + UserId : Guid <<FK>>
+    + Title : string
+    + Message : string
+    + Type : NotificationType
+    + Priority : NotificationPriority
+    + IsRead : bool
+    + ReadAt : DateTime?
+    + AdditionalData : string?
+    + ActionUrl : string?
+    + Icon : string?
+    + ExpiresAt : DateTime?
+}
+
+' Relationships
+BaseEntity ||--o{ User : extends
+BaseEntity ||--o{ Role : extends
+BaseEntity ||--o{ TourCompany : extends
+BaseEntity ||--o{ TourGuide : extends
+BaseEntity ||--o{ SpecialtyShop : extends
+BaseEntity ||--o{ TourGuideApplication : extends
+BaseEntity ||--o{ SpecialtyShopApplication : extends
+BaseEntity ||--o{ TourTemplate : extends
+BaseEntity ||--o{ TourDetails : extends
+BaseEntity ||--o{ TourOperation : extends
+BaseEntity ||--o{ TourSlot : extends
+BaseEntity ||--o{ TourBooking : extends
+BaseEntity ||--o{ Tour : extends
+BaseEntity ||--o{ TimelineItem : extends
+BaseEntity ||--o{ TourDetailsSpecialtyShop : extends
+BaseEntity ||--o{ TourGuideInvitation : extends
+BaseEntity ||--o{ Product : extends
+BaseEntity ||--o{ Order : extends
+BaseEntity ||--o{ OrderDetail : extends
+BaseEntity ||--o{ CartItem : extends
+BaseEntity ||--o{ Voucher : extends
+BaseEntity ||--o{ ProductRating : extends
+BaseEntity ||--o{ ProductReview : extends
+BaseEntity ||--o{ Image : extends
+BaseEntity ||--o{ ProductImage : extends
+BaseEntity ||--o{ Blog : extends
+BaseEntity ||--o{ BlogComment : extends
+BaseEntity ||--o{ BlogReaction : extends
+BaseEntity ||--o{ BlogImage : extends
+BaseEntity ||--o{ SupportTicket : extends
+BaseEntity ||--o{ SupportTicketComment : extends
+BaseEntity ||--o{ SupportTicketImage : extends
+BaseEntity ||--o{ AIChatSession : extends
+BaseEntity ||--o{ AIChatMessage : extends
+BaseEntity ||--o{ Notification : extends
+
+' User relationships
+Role ||--o{ User : has
+User ||--o| TourCompany : has
+User ||--o| TourGuide : has
+User ||--o| SpecialtyShop : has
+User ||--o{ TourGuideApplication : creates
+User ||--o{ SpecialtyShopApplication : creates
+User ||--o{ TourTemplate : creates
+User ||--o{ TourDetails : creates
+User ||--o{ TourOperation : creates
+User ||--o{ TourBooking : creates
+User ||--o{ Blog : authors
+User ||--o{ BlogComment : writes
+User ||--o{ BlogReaction : makes
+User ||--o{ SupportTicket : creates
+User ||--o{ SupportTicketComment : writes
+User ||--o{ AIChatSession : has
+User ||--o{ Notification : receives
+User ||--o{ Product : sells
+User ||--o{ Order : places
+User ||--o{ CartItem : has
+User ||--o{ ProductRating : gives
+User ||--o{ ProductReview : writes
+
+' Tour Guide relationships
+TourGuideApplication ||--o| TourGuide : approved_to
+User ||--o{ TourGuide : approves
+TourGuide ||--o{ TourOperation : guides
+TourGuide ||--o{ TourGuideInvitation : receives
+
+' Tour relationships
+TourTemplate ||--o{ TourDetails : creates
+TourDetails ||--o| TourOperation : has
+TourOperation ||--o{ TourSlot : has
+TourOperation ||--o{ TourBooking : receives
+TourOperation ||--o{ TourGuideInvitation : sends
+TourSlot ||--o{ TourBooking : books
+TourDetails ||--o{ TimelineItem : has
+TourDetails ||--o{ TourDetailsSpecialtyShop : invites
+
+' Shop relationships
+SpecialtyShop ||--o{ Product : sells
+SpecialtyShop ||--o{ TimelineItem : visits
+SpecialtyShop ||--o{ TourDetailsSpecialtyShop : invited_to
+
+' E-commerce relationships
+Product ||--o{ OrderDetail : ordered
+Product ||--o{ CartItem : added_to
+Product ||--o{ ProductImage : has
+Product ||--o{ ProductRating : rated
+Product ||--o{ ProductReview : reviewed
+Order ||--o{ OrderDetail : contains
+
+' Blog relationships
+Blog ||--o{ BlogComment : has
+Blog ||--o{ BlogReaction : receives
+Blog ||--o{ BlogImage : contains
+
+' Support relationships
+SupportTicket ||--o{ SupportTicketComment : has
+SupportTicket ||--o{ SupportTicketImage : has
+
+' AI Chat relationships
+AIChatSession ||--o{ AIChatMessage : contains
+
+note top of BaseEntity : All entities inherit from BaseEntity\nwhich provides common audit fields
+
+@enduml

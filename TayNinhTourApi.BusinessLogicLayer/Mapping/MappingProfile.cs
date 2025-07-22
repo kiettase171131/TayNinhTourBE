@@ -71,6 +71,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             // Entity to DTO mappings
             CreateMap<TourDetails, TourDetailDto>()
                 .ForMember(dest => dest.TourTemplateName, opt => opt.MapFrom(src => src.TourTemplate.Title))
+                .ForMember(dest => dest.TourCompanyName, opt => opt.MapFrom(src => 
+                    src.CreatedBy.TourCompany != null && !string.IsNullOrEmpty(src.CreatedBy.TourCompany.CompanyName)
+                        ? src.CreatedBy.TourCompany.CompanyName
+                        : src.CreatedBy.Name))
                 .ForMember(dest => dest.StartLocation, opt => opt.MapFrom(src => src.TourTemplate.StartLocation))
                 .ForMember(dest => dest.EndLocation, opt => opt.MapFrom(src => src.TourTemplate.EndLocation))
                 .ForMember(dest => dest.ScheduleDays, opt => opt.MapFrom(src => src.TourTemplate.ScheduleDays.ToString()))

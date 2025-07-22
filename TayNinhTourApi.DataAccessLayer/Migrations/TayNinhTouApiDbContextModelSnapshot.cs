@@ -2770,7 +2770,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.ProductRating", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Product", "Product")
-                        .WithMany()
+                        .WithMany("ProductRatings")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -3235,6 +3235,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Product", b =>
                 {
                     b.Navigation("ProductImages");
+
+                    b.Navigation("ProductRatings");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Role", b =>

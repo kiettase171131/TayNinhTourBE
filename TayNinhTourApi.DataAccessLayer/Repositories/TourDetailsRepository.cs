@@ -24,6 +24,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(td => td.Timeline)
                 .Include(td => td.AssignedSlots)
                 .Include(td => td.CreatedBy)
+                    .ThenInclude(u => u.TourCompany)
                 .Include(td => td.UpdatedBy)
                 .Where(td => td.TourTemplateId == tourTemplateId);
 
@@ -46,6 +47,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     .ThenInclude(ti => ti.SpecialtyShop)
                 .Include(td => td.AssignedSlots)
                 .Include(td => td.CreatedBy)
+                    .ThenInclude(u => u.TourCompany)
                 .Include(td => td.UpdatedBy)
                 .FirstOrDefaultAsync(td => td.Id == id && !td.IsDeleted);
         }
@@ -57,6 +59,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(td => td.TourOperation)
                 .Include(td => td.Timeline)
                 .Include(td => td.AssignedSlots)
+                .Include(td => td.CreatedBy)
+                    .ThenInclude(u => u.TourCompany)
+                .Include(td => td.UpdatedBy)
                 .Where(td => td.Title.Contains(title));
 
             if (!includeInactive)
@@ -91,6 +96,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(td => td.TourOperation)
                 .Include(td => td.Timeline)
                 .Include(td => td.AssignedSlots)
+                .Include(td => td.CreatedBy)
+                    .ThenInclude(u => u.TourCompany)
+                .Include(td => td.UpdatedBy)
                 .FirstOrDefaultAsync(td => td.TourTemplateId == tourTemplateId &&
                                           td.Title == title &&
                                           !td.IsDeleted);
@@ -109,6 +117,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(td => td.Timeline)
                 .Include(td => td.AssignedSlots)
                 .Include(td => td.CreatedBy)
+                    .ThenInclude(u => u.TourCompany)
                 .Include(td => td.UpdatedBy)
                 .AsQueryable();
 
@@ -165,6 +174,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(td => td.TourOperation)
                 .Include(td => td.Timeline)
                 .Include(td => td.AssignedSlots)
+                .Include(td => td.CreatedBy)
+                    .ThenInclude(u => u.TourCompany)
+                .Include(td => td.UpdatedBy)
                 .Where(td => td.Title.Contains(keyword) ||
                            (td.Description != null && td.Description.Contains(keyword)));
 

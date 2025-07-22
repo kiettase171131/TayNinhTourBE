@@ -1438,6 +1438,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     TourOperationId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của TourOperation được booking", collation: "ascii_general_ci"),
+                    TourSlotId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của TourSlot cụ thể được booking (optional)", collation: "ascii_general_ci"),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của User thực hiện booking", collation: "ascii_general_ci"),
                     NumberOfGuests = table.Column<int>(type: "int", nullable: false, comment: "Tổng số lượng khách trong booking"),
                     AdultCount = table.Column<int>(type: "int", nullable: false, comment: "Số lượng khách người lớn"),
@@ -1487,6 +1488,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         name: "FK_TourBookings_TourOperations_TourOperationId",
                         column: x => x.TourOperationId,
                         principalTable: "TourOperations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TourBookings_TourSlots_TourSlotId",
+                        column: x => x.TourSlotId,
+                        principalTable: "TourSlots",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
@@ -1786,6 +1793,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "IX_TourBookings_TourOperationId_Status",
                 table: "TourBookings",
                 columns: new[] { "TourOperationId", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookings_TourSlotId",
+                table: "TourBookings",
+                column: "TourSlotId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TourBookings_UserId",
@@ -2194,9 +2206,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "TourGuideInvitations");
 
             migrationBuilder.DropTable(
-                name: "TourSlots");
-
-            migrationBuilder.DropTable(
                 name: "Vouchers");
 
             migrationBuilder.DropTable(
@@ -2224,19 +2233,22 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "TourOperations");
 
             migrationBuilder.DropTable(
-                name: "SpecialtyShops");
+                name: "TourSlots");
 
             migrationBuilder.DropTable(
-                name: "TourDetails");
+                name: "SpecialtyShops");
 
             migrationBuilder.DropTable(
                 name: "TourGuides");
 
             migrationBuilder.DropTable(
-                name: "TourTemplates");
+                name: "TourDetails");
 
             migrationBuilder.DropTable(
                 name: "TourGuideApplications");
+
+            migrationBuilder.DropTable(
+                name: "TourTemplates");
 
             migrationBuilder.DropTable(
                 name: "Users");

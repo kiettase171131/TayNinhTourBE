@@ -796,8 +796,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             }
 
-            // Return maximum 4 dates (as per business requirement)
-            return dates.Take(4).ToList();
+            // Return all weekend dates - no artificial limit
+            // Let the business logic determine how many slots they need
+            return dates.OrderBy(d => d).ToList();
         }
 
         private ScheduleDay GetScheduleDay(DateTime date)

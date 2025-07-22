@@ -23,6 +23,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         public string TourTemplateName { get; set; } = string.Empty;
 
         /// <summary>
+        /// Tên của công ty tour đã tạo tour này (từ TourCompany.CompanyName hoặc User.Name)
+        /// </summary>
+        public string TourCompanyName { get; set; } = string.Empty;
+
+        /// <summary>
         /// Điểm khởi hành từ TourTemplate
         /// </summary>
         public string? StartLocation { get; set; }

@@ -12,8 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250720131705_AddTourSlotIdToTourBooking")]
-    partial class AddTourSlotIdToTourBooking
+    [Migration("20250722024442_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -448,10 +448,90 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.ToTable("Images");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("ActionUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("AdditionalData")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Order", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("CheckedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("CheckedByShopId")
                         .HasColumnType("char(36)");
 
                     b.Property<DateTime>("CreatedAt")
@@ -469,26 +549,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsDeleted")
+                    b.Property<bool>("IsChecked")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsQRCodeUsed")
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("PayOsOrderCode")
                         .HasColumnType("longtext");
-
-                    b.Property<string>("QRCodeData")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("QRCodeImageUrl")
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("QRCodeUsedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid?>("QRCodeUsedByShopId")
-                        .HasColumnType("char(36)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -2650,6 +2718,17 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Notification", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.OrderDetail", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Order", "Order")
@@ -2694,7 +2773,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.ProductRating", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Product", "Product")
-                        .WithMany()
+                        .WithMany("ProductRatings")
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -3159,6 +3238,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Product", b =>
                 {
                     b.Navigation("ProductImages");
+
+                    b.Navigation("ProductRatings");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Role", b =>
