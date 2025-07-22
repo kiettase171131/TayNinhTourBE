@@ -11,7 +11,7 @@ using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service implementation cho qu?n l˝ in-app notifications
+    /// Service implementation cho qu?n lÔøΩ in-app notifications
     /// </summary>
     public class NotificationService : BaseService, INotificationService
     {
@@ -26,7 +26,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// T?o thÙng b·o m?i
+        /// T?o thÔøΩng bÔøΩo m?i
         /// </summary>
         public async Task<BaseResposeDto> CreateNotificationAsync(CreateNotificationDto createDto)
         {
@@ -58,7 +58,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 201,
-                    Message = "T?o thÙng b·o th‡nh cÙng",
+                    Message = "T?o thÔøΩng bÔøΩo thÔøΩnh cÔøΩng",
                     success = true
                 };
             }
@@ -68,14 +68,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra khi t?o thÙng b·o: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra khi t?o thÔøΩng bÔøΩo: {ex.Message}",
                     success = false
                 };
             }
         }
 
         /// <summary>
-        /// L?y danh s·ch thÙng b·o c?a user
+        /// L?y danh sÔøΩch thÔøΩng bÔøΩo c?a user
         /// </summary>
         public async Task<NotificationsResponseDto> GetUserNotificationsAsync(Guid userId, GetNotificationsRequestDto request)
         {
@@ -97,7 +97,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new NotificationsResponseDto
                 {
                     StatusCode = 200,
-                    Message = "L?y danh s·ch thÙng b·o th‡nh cÙng",
+                    Message = "L?y danh sÔøΩch thÔøΩng bÔøΩo thÔøΩnh cÔøΩng",
                     success = true,
                     Notifications = notificationDtos,
                     TotalCount = totalCount,
@@ -115,14 +115,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new NotificationsResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra khi l?y thÙng b·o: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra khi l?y thÔøΩng bÔøΩo: {ex.Message}",
                     success = false
                 };
             }
         }
 
         /// <summary>
-        /// L?y s? l??ng thÙng b·o ch?a ??c
+        /// L?y s? l??ng thÔøΩng bÔøΩo ch?a ??c
         /// </summary>
         public async Task<UnreadCountResponseDto> GetUnreadCountAsync(Guid userId)
         {
@@ -133,7 +133,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new UnreadCountResponseDto
                 {
                     StatusCode = 200,
-                    Message = "L?y s? thÙng b·o ch?a ??c th‡nh cÙng",
+                    Message = "L?y s? thÔøΩng bÔøΩo ch?a ??c thÔøΩnh cÔøΩng",
                     success = true,
                     UnreadCount = unreadCount
                 };
@@ -144,14 +144,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new UnreadCountResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra: {ex.Message}",
                     success = false
                 };
             }
         }
 
         /// <summary>
-        /// ?·nh d?u thÙng b·o ?„ ??c
+        /// ?ÔøΩnh d?u thÔøΩng bÔøΩo ?ÔøΩ ??c
         /// </summary>
         public async Task<BaseResposeDto> MarkAsReadAsync(Guid notificationId, Guid userId)
         {
@@ -164,7 +164,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "KhÙng tÏm th?y thÙng b·o ho?c thÙng b·o ?„ ???c ??c",
+                        Message = "KhÔøΩng tÔøΩm th?y thÔøΩng bÔøΩo ho?c thÔøΩng bÔøΩo ?ÔøΩ ???c ??c",
                         success = false
                     };
                 }
@@ -172,7 +172,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "?„ ?·nh d?u thÙng b·o ?„ ??c",
+                    Message = "?ÔøΩ ?ÔøΩnh d?u thÔøΩng bÔøΩo ?ÔøΩ ??c",
                     success = true
                 };
             }
@@ -183,14 +183,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra: {ex.Message}",
                     success = false
                 };
             }
         }
 
         /// <summary>
-        /// ?·nh d?u t?t c? thÙng b·o ?„ ??c
+        /// ?ÔøΩnh d?u t?t c? thÔøΩng bÔøΩo ?ÔøΩ ??c
         /// </summary>
         public async Task<BaseResposeDto> MarkAllAsReadAsync(Guid userId)
         {
@@ -201,7 +201,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = $"?„ ?·nh d?u {updatedCount} thÙng b·o ?„ ??c",
+                    Message = $"?ÔøΩ ?ÔøΩnh d?u {updatedCount} thÔøΩng bÔøΩo ?ÔøΩ ??c",
                     success = true
                 };
             }
@@ -211,14 +211,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra: {ex.Message}",
                     success = false
                 };
             }
         }
 
         /// <summary>
-        /// XÛa thÙng b·o
+        /// XÔøΩa thÔøΩng bÔøΩo
         /// </summary>
         public async Task<BaseResposeDto> DeleteNotificationAsync(Guid notificationId, Guid userId)
         {
@@ -231,7 +231,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "KhÙng tÏm th?y thÙng b·o",
+                        Message = "KhÔøΩng tÔøΩm th?y thÔøΩng bÔøΩo",
                         success = false
                     };
                 }
@@ -246,7 +246,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "?„ xÛa thÙng b·o",
+                    Message = "?ÔøΩ xÔøΩa thÔøΩng bÔøΩo",
                     success = true
                 };
             }
@@ -257,14 +257,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra: {ex.Message}",
                     success = false
                 };
             }
         }
 
         /// <summary>
-        /// L?y th?ng kÍ thÙng b·o c?a user
+        /// L?y th?ng kÔøΩ thÔøΩng bÔøΩo c?a user
         /// </summary>
         public async Task<NotificationStatsDto> GetNotificationStatsAsync(Guid userId)
         {
@@ -295,7 +295,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Cleanup thÙng b·o c? (background job)
+        /// Cleanup thÔøΩng bÔøΩo c? (background job)
         /// </summary>
         public async Task<int> CleanupOldNotificationsAsync(int olderThanDays = 30)
         {
@@ -332,7 +332,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         // Helper methods for creating specific notification types
 
         /// <summary>
-        /// T?o thÙng b·o booking m?i
+        /// T?o thÔøΩng bÔøΩo booking m?i
         /// </summary>
         public async Task<BaseResposeDto> CreateBookingNotificationAsync(Guid userId, string bookingCode, string tourTitle)
         {
@@ -340,7 +340,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 UserId = userId,
                 Title = "Booking m?i",
-                Message = $"B?n cÛ booking m?i #{bookingCode} cho tour '{tourTitle}'",
+                Message = $"B?n cÔøΩ booking m?i #{bookingCode} cho tour '{tourTitle}'",
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.Normal,
                 Icon = "??",
@@ -351,7 +351,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// T?o thÙng b·o TourGuide t? ch?i
+        /// T?o thÔøΩng bÔøΩo TourGuide t? ch?i
         /// </summary>
         public async Task<BaseResposeDto> CreateGuideRejectionNotificationAsync(
             Guid userId, 
@@ -362,8 +362,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "H??ng d?n viÍn t? ch?i",
-                Message = $"{guideName} ?„ t? ch?i tour '{tourTitle}'. {(rejectionReason != null ? $"L˝ do: {rejectionReason}" : "")}",
+                Title = "H??ng d?n viÔøΩn t? ch?i",
+                Message = $"{guideName} ?ÔøΩ t? ch?i tour '{tourTitle}'. {(rejectionReason != null ? $"LÔøΩ do: {rejectionReason}" : "")}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "?",
@@ -372,7 +372,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// T?o thÙng b·o c?n tÏm guide th? cÙng
+        /// T?o thÔøΩng bÔøΩo c?n tÔøΩm guide th? cÔøΩng
         /// </summary>
         public async Task<BaseResposeDto> CreateManualGuideSelectionNotificationAsync(
             Guid userId, 
@@ -382,8 +382,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "C?n tÏm h??ng d?n viÍn th? cÙng",
-                Message = $"Tour '{tourTitle}' cÛ {expiredCount} l?i m?i ?„ h?t h?n. C?n tÏm h??ng d?n viÍn th? cÙng.",
+                Title = "C?n tÔøΩm h??ng d?n viÔøΩn th? cÔøΩng",
+                Message = $"Tour '{tourTitle}' cÔøΩ {expiredCount} l?i m?i ?ÔøΩ h?t h?n. C?n tÔøΩm h??ng d?n viÔøΩn th? cÔøΩng.",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "?",
@@ -392,7 +392,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// T?o thÙng b·o c?nh b·o tour s?p b? h?y
+        /// T?o thÔøΩng bÔøΩo c?nh bÔøΩo tour s?p b? h?y
         /// </summary>
         public async Task<BaseResposeDto> CreateTourRiskCancellationNotificationAsync(
             Guid userId, 
@@ -403,7 +403,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 UserId = userId,
                 Title = "?? Tour s?p b? h?y!",
-                Message = $"Tour '{tourTitle}' s? b? h?y trong {daysUntilCancellation} ng‡y n?u khÙng tÏm ???c h??ng d?n viÍn!",
+                Message = $"Tour '{tourTitle}' s? b? h?y trong {daysUntilCancellation} ngÔøΩy n?u khÔøΩng tÔøΩm ???c h??ng d?n viÔøΩn!",
                 Type = NotificationType.Critical,
                 Priority = NotificationPriority.Critical,
                 Icon = "??",
@@ -412,7 +412,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// T?o thÙng b·o khi TourGuide ???c m?i tham gia tour
+        /// T?o thÔøΩng bÔøΩo khi TourGuide ???c m?i tham gia tour
         /// </summary>
         public async Task<BaseResposeDto> CreateTourGuideInvitationNotificationAsync(
             Guid guideUserId,
@@ -428,7 +428,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var message = $"B?n ???c m?i tham gia tour '{tourTitle}' b?i {tourCompanyName}.";
                 if (!string.IsNullOrEmpty(skillsRequired))
                 {
-                    message += $" K? n?ng yÍu c?u: {skillsRequired}.";
+                    message += $" K? n?ng yÔøΩu c?u: {skillsRequired}.";
                 }
 
                 var hoursUntilExpiry = (int)(expiresAt - DateTime.UtcNow).TotalHours;
@@ -462,14 +462,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra khi t?o thÙng b·o: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra khi t?o thÔøΩng bÔøΩo: {ex.Message}",
                     success = false
                 };
             }
         }
 
         /// <summary>
-        /// T?o thÙng b·o khi invitation s?p h?t h?n (reminder)
+        /// T?o thÔøΩng bÔøΩo khi invitation s?p h?t h?n (reminder)
         /// </summary>
         public async Task<BaseResposeDto> CreateInvitationExpiryReminderNotificationAsync(
             Guid guideUserId,
@@ -486,7 +486,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     UserId = guideUserId,
                     Title = $"{urgencyIcon} {urgencyText} - L?i m?i tour",
-                    Message = $"L?i m?i tour '{tourTitle}' s? h?t h?n trong {hoursUntilExpiry} gi?. Vui lÚng ph?n h?i s?m!",
+                    Message = $"L?i m?i tour '{tourTitle}' s? h?t h?n trong {hoursUntilExpiry} gi?. Vui lÔøΩng ph?n h?i s?m!",
                     Type = hoursUntilExpiry <= 2 ? NotificationType.Critical : NotificationType.Warning,
                     Priority = hoursUntilExpiry <= 2 ? NotificationPriority.Critical : NotificationPriority.High,
                     Icon = urgencyIcon,
@@ -506,7 +506,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra khi t?o thÙng b·o nh?c nh?: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra khi t?o thÔøΩng bÔøΩo nh?c nh?: {ex.Message}",
                     success = false
                 };
             }
@@ -542,7 +542,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Helper method ?? tÌnh th?i gian "ago"
+        /// Helper method ?? tÔøΩnh th?i gian "ago"
         /// </summary>
         private static string GetTimeAgo(DateTime createdAt)
         {
@@ -551,11 +551,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (timeSpan.TotalMinutes < 1)
                 return "V?a xong";
             if (timeSpan.TotalMinutes < 60)
-                return $"{(int)timeSpan.TotalMinutes} ph˙t tr??c";
+                return $"{(int)timeSpan.TotalMinutes} phÔøΩt tr??c";
             if (timeSpan.TotalHours < 24)
                 return $"{(int)timeSpan.TotalHours} gi? tr??c";
             if (timeSpan.TotalDays < 7)
-                return $"{(int)timeSpan.TotalDays} ng‡y tr??c";
+                return $"{(int)timeSpan.TotalDays} ngÔøΩy tr??c";
             if (timeSpan.TotalDays < 30)
                 return $"{(int)(timeSpan.TotalDays / 7)} tu?n tr??c";
 
@@ -599,11 +599,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         // Additional helper methods for booking notifications
 
         /// <summary>
-        /// T?o thÙng b·o booking m?i (generic method)
+        /// T?o thÔøΩng bÔøΩo booking m?i (generic method)
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="booking">ThÙng tin booking</param>
-        /// <returns>K?t qu? t?o thÙng b·o</returns>
+        /// <param name="booking">ThÔøΩng tin booking</param>
+        /// <returns>K?t qu? t?o thÔøΩng bÔøΩo</returns>
         public async Task<BaseResposeDto> CreateNewBookingNotificationAsync(Guid userId, object booking)
         {
             // Implementation depends on booking object structure
@@ -612,7 +612,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 UserId = userId,
                 Title = "Booking m?i",
-                Message = "B?n cÛ m?t booking tour m?i",
+                Message = "B?n cÔøΩ m?t booking tour m?i",
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.High,
                 Icon = "??"
@@ -620,14 +620,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// T?o thÙng b·o h?y tour v?i danh s·ch bookings
+        /// T?o thÔøΩng bÔøΩo h?y tour v?i danh sÔøΩch bookings
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="affectedBookings">Danh s·ch bookings b? ?nh h??ng</param>
-        /// <param name="tourTitle">TÍn tour</param>
-        /// <param name="tourStartDate">Ng‡y kh?i h‡nh</param>
-        /// <param name="reason">L˝ do h?y</param>
-        /// <returns>K?t qu? t?o thÙng b·o</returns>
+        /// <param name="affectedBookings">Danh sÔøΩch bookings b? ?nh h??ng</param>
+        /// <param name="tourTitle">TÔøΩn tour</param>
+        /// <param name="tourStartDate">NgÔøΩy kh?i hÔøΩnh</param>
+        /// <param name="reason">LÔøΩ do h?y</param>
+        /// <returns>K?t qu? t?o thÔøΩng bÔøΩo</returns>
         public async Task<BaseResposeDto> CreateTourCancellationNotificationAsync(
             Guid userId, 
             object affectedBookings, 
@@ -639,7 +639,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 UserId = userId,
                 Title = "Tour b? h?y",
-                Message = $"Tour '{tourTitle}' ?„ b? h?y: {reason}",
+                Message = $"Tour '{tourTitle}' ?ÔøΩ b? h?y: {reason}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "??"
@@ -647,19 +647,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// T?o thÙng b·o h?y booking c?a kh·ch h‡ng
+        /// T?o thÔøΩng bÔøΩo h?y booking c?a khÔøΩch hÔøΩng
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="booking">ThÙng tin booking</param>
-        /// <param name="reason">L˝ do h?y</param>
-        /// <returns>K?t qu? t?o thÙng b·o</returns>
+        /// <param name="booking">ThÔøΩng tin booking</param>
+        /// <param name="reason">LÔøΩ do h?y</param>
+        /// <returns>K?t qu? t?o thÔøΩng bÔøΩo</returns>
         public async Task<BaseResposeDto> CreateBookingCancellationNotificationAsync(Guid userId, object booking, string? reason)
         {
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
                 Title = "Booking b? h?y",
-                Message = $"Kh·ch h‡ng ?„ h?y booking. L˝ do: {reason ?? "KhÙng cÛ l˝ do"}",
+                Message = $"KhÔøΩch hÔøΩng ?ÔøΩ h?y booking. LÔøΩ do: {reason ?? "KhÔøΩng cÔøΩ lÔøΩ do"}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.Medium,
                 Icon = "??"
@@ -670,7 +670,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// L?y notifications m?i nh?t (?? polling/real-time updates)
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="lastCheckTime">Th?i gian check cu?i c˘ng</param>
+        /// <param name="lastCheckTime">Th?i gian check cu?i cÔøΩng</param>
         /// <returns>Notifications m?i t? lastCheckTime</returns>
         public async Task<NotificationsResponseDto> GetLatestNotificationsAsync(Guid userId, DateTime lastCheckTime)
         {
@@ -684,7 +684,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new NotificationsResponseDto
                 {
                     StatusCode = 200,
-                    Message = "L?y thÙng b·o m?i th‡nh cÙng",
+                    Message = "L?y thÔøΩng bÔøΩo m?i thÔøΩnh cÔøΩng",
                     success = true,
                     Notifications = notificationDtos,
                     TotalCount = totalCount,
@@ -699,10 +699,240 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new NotificationsResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"CÛ l?i x?y ra: {ex.Message}",
+                    Message = $"CÔøΩ l?i x?y ra: {ex.Message}",
                     success = false
                 };
             }
         }
+
+        #region Withdrawal System Notifications
+
+        /// <summary>
+        /// T·∫°o th√¥ng b√°o cho admin khi c√≥ y√™u c·∫ßu r√∫t ti·ªÅn m·ªõi
+        /// </summary>
+        public async Task<BaseResposeDto> CreateNewWithdrawalRequestNotificationAsync(
+            Guid withdrawalRequestId,
+            string shopName,
+            decimal amount)
+        {
+            try
+            {
+                // L·∫•y danh s√°ch admin users
+                var adminUsers = await _unitOfWork.UserRepository.GetUsersByRoleAsync("Admin");
+
+                foreach (var admin in adminUsers)
+                {
+                    var notification = new Notification
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = admin.Id,
+                        Title = "Y√™u c·∫ßu r√∫t ti·ªÅn m·ªõi",
+                        Message = $"Shop {shopName} ƒë√£ t·∫°o y√™u c·∫ßu r√∫t ti·ªÅn {amount:N0} VNƒê",
+                        Type = NotificationType.System,
+                        Priority = NotificationPriority.High,
+                        AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"shopName\":\"{shopName}\",\"amount\":{amount}}}",
+                        ActionUrl = $"/admin/withdrawals/{withdrawalRequestId}",
+                        Icon = "üí∞",
+                        ExpiresAt = DateTime.UtcNow.AddDays(7),
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow,
+                        IsActive = true
+                    };
+
+                    await _unitOfWork.NotificationRepository.AddAsync(notification);
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Created new withdrawal request notifications for {AdminCount} admins. Request: {WithdrawalRequestId}",
+                    adminUsers.Count(), withdrawalRequestId);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "ƒê√£ t·∫°o th√¥ng b√°o cho admin th√†nh c√¥ng",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating new withdrawal request notification for request {WithdrawalRequestId}", withdrawalRequestId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"C√≥ l·ªói x·∫£y ra: {ex.Message}",
+                    success = false
+                };
+            }
+        }
+
+        /// <summary>
+        /// T·∫°o th√¥ng b√°o cho user khi y√™u c·∫ßu r√∫t ti·ªÅn ƒë∆∞·ª£c duy·ªát
+        /// </summary>
+        public async Task<BaseResposeDto> CreateWithdrawalApprovedNotificationAsync(
+            Guid userId,
+            Guid withdrawalRequestId,
+            decimal amount,
+            string bankAccount,
+            string? transactionReference)
+        {
+            try
+            {
+                var notification = new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Title = "Y√™u c·∫ßu r√∫t ti·ªÅn ƒë√£ ƒë∆∞·ª£c duy·ªát",
+                    Message = $"Y√™u c·∫ßu r√∫t ti·ªÅn {amount:N0} VNƒê ƒë√£ ƒë∆∞·ª£c duy·ªát. Ti·ªÅn s·∫Ω ƒë∆∞·ª£c chuy·ªÉn v√†o t√†i kho·∫£n {bankAccount}",
+                    Type = NotificationType.System,
+                    Priority = NotificationPriority.High,
+                    AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"amount\":{amount},\"bankAccount\":\"{bankAccount}\",\"transactionReference\":\"{transactionReference}\"}}",
+                    ActionUrl = $"/shop/withdrawals/{withdrawalRequestId}",
+                    Icon = "‚úÖ",
+                    ExpiresAt = DateTime.UtcNow.AddDays(30),
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+
+                await _unitOfWork.NotificationRepository.AddAsync(notification);
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Created withdrawal approved notification for user {UserId}. Request: {WithdrawalRequestId}",
+                    userId, withdrawalRequestId);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "ƒê√£ t·∫°o th√¥ng b√°o duy·ªát r√∫t ti·ªÅn th√†nh c√¥ng",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating withdrawal approved notification for user {UserId}", userId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"C√≥ l·ªói x·∫£y ra: {ex.Message}",
+                    success = false
+                };
+            }
+        }
+
+        /// <summary>
+        /// T·∫°o th√¥ng b√°o cho user khi y√™u c·∫ßu r√∫t ti·ªÅn b·ªã t·ª´ ch·ªëi
+        /// </summary>
+        public async Task<BaseResposeDto> CreateWithdrawalRejectedNotificationAsync(
+            Guid userId,
+            Guid withdrawalRequestId,
+            decimal amount,
+            string reason)
+        {
+            try
+            {
+                var notification = new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    Title = "Y√™u c·∫ßu r√∫t ti·ªÅn b·ªã t·ª´ ch·ªëi",
+                    Message = $"Y√™u c·∫ßu r√∫t ti·ªÅn {amount:N0} VNƒê ƒë√£ b·ªã t·ª´ ch·ªëi. L√Ω do: {reason}",
+                    Type = NotificationType.Warning,
+                    Priority = NotificationPriority.High,
+                    AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"amount\":{amount},\"reason\":\"{reason}\"}}",
+                    ActionUrl = $"/shop/withdrawals/{withdrawalRequestId}",
+                    Icon = "‚ùå",
+                    ExpiresAt = DateTime.UtcNow.AddDays(30),
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+
+                await _unitOfWork.NotificationRepository.AddAsync(notification);
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Created withdrawal rejected notification for user {UserId}. Request: {WithdrawalRequestId}",
+                    userId, withdrawalRequestId);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "ƒê√£ t·∫°o th√¥ng b√°o t·ª´ ch·ªëi r√∫t ti·ªÅn th√†nh c√¥ng",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating withdrawal rejected notification for user {UserId}", userId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"C√≥ l·ªói x·∫£y ra: {ex.Message}",
+                    success = false
+                };
+            }
+        }
+
+        /// <summary>
+        /// T·∫°o th√¥ng b√°o nh·∫Øc nh·ªü admin v·ªÅ y√™u c·∫ßu r√∫t ti·ªÅn ƒë√£ ch·ªù l√¢u
+        /// </summary>
+        public async Task<BaseResposeDto> CreateWithdrawalReminderNotificationAsync(
+            Guid withdrawalRequestId,
+            string shopName,
+            decimal amount,
+            int daysPending)
+        {
+            try
+            {
+                // L·∫•y danh s√°ch admin users
+                var adminUsers = await _unitOfWork.UserRepository.GetUsersByRoleAsync("Admin");
+
+                foreach (var admin in adminUsers)
+                {
+                    var notification = new Notification
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = admin.Id,
+                        Title = "Y√™u c·∫ßu r√∫t ti·ªÅn c·∫ßn x·ª≠ l√Ω g·∫•p",
+                        Message = $"Y√™u c·∫ßu r√∫t ti·ªÅn {amount:N0} VNƒê c·ªßa shop {shopName} ƒë√£ ch·ªù {daysPending} ng√†y",
+                        Type = NotificationType.Warning,
+                        Priority = NotificationPriority.Urgent,
+                        AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"shopName\":\"{shopName}\",\"amount\":{amount},\"daysPending\":{daysPending}}}",
+                        ActionUrl = $"/admin/withdrawals/{withdrawalRequestId}",
+                        Icon = "‚è∞",
+                        ExpiresAt = DateTime.UtcNow.AddDays(3),
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow,
+                        IsActive = true
+                    };
+
+                    await _unitOfWork.NotificationRepository.AddAsync(notification);
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Created withdrawal reminder notifications for {AdminCount} admins. Request: {WithdrawalRequestId}, Days pending: {DaysPending}",
+                    adminUsers.Count(), withdrawalRequestId, daysPending);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "ƒê√£ t·∫°o th√¥ng b√°o nh·∫Øc nh·ªü admin th√†nh c√¥ng",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating withdrawal reminder notification for request {WithdrawalRequestId}", withdrawalRequestId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"C√≥ l·ªói x·∫£y ra: {ex.Message}",
+                    success = false
+                };
+            }
+        }
+
+        #endregion
     }
 }

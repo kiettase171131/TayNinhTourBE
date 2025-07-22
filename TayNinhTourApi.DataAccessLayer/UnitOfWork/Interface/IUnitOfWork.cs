@@ -35,6 +35,14 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         IAIChatSessionRepository AIChatSessionRepository { get; }
         IAIChatMessageRepository AIChatMessageRepository { get; }
 
+        // Withdrawal system repositories
+        IBankAccountRepository BankAccountRepository { get; }
+        IWithdrawalRequestRepository WithdrawalRequestRepository { get; }
+
+        // Tour booking refund system repositories
+        ITourBookingRefundRepository TourBookingRefundRepository { get; }
+        IRefundPolicyRepository RefundPolicyRepository { get; }
+
         Task<int> SaveChangesAsync();
         Task<int> ExecuteSqlRawAsync(string sql, params MySqlParameter[] parameters);
         IDbContextTransaction BeginTransaction();

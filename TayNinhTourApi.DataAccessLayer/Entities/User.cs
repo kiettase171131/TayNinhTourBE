@@ -75,5 +75,20 @@
         /// Tour operations updated by this user
         /// </summary>
         public virtual ICollection<TourOperation> TourOperationsUpdated { get; set; } = new List<TourOperation>();
+
+        /// <summary>
+        /// Bank accounts owned by this user
+        /// </summary>
+        public virtual ICollection<BankAccount> BankAccounts { get; set; } = new List<BankAccount>();
+
+        /// <summary>
+        /// Withdrawal requests created by this user
+        /// </summary>
+        public virtual ICollection<WithdrawalRequest> WithdrawalRequests { get; set; } = new List<WithdrawalRequest>();
+
+        /// <summary>
+        /// Tour booking refund requests created by this user
+        /// </summary>
+        public virtual ICollection<TourBookingRefund> TourBookingRefunds { get; set; } = new List<TourBookingRefund>();
     }
 }

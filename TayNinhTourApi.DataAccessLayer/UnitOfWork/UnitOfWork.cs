@@ -43,6 +43,14 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private IAIChatSessionRepository _aiChatSessionRepository = null!;
         private IAIChatMessageRepository _aiChatMessageRepository = null!;
 
+        // Withdrawal system repositories
+        private IBankAccountRepository _bankAccountRepository = null!;
+        private IWithdrawalRequestRepository _withdrawalRequestRepository = null!;
+
+        // Tour booking refund system repositories
+        private ITourBookingRefundRepository _tourBookingRefundRepository = null!;
+        private IRefundPolicyRepository _refundPolicyRepository = null!;
+
         public UnitOfWork(TayNinhTouApiDbContext context)
         {
             _context = context;
@@ -226,6 +234,23 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             get
             {
                 return _aiChatMessageRepository ??= new AIChatMessageRepository(_context);
+            }
+        }
+
+        // Withdrawal system repositories implementation
+        public IBankAccountRepository BankAccountRepository
+        {
+            get
+            {
+                return _bankAccountRepository ??= new BankAccountRepository(_context);
+            }
+        }
+
+        public IWithdrawalRequestRepository WithdrawalRequestRepository
+        {
+            get
+            {
+                return _withdrawalRequestRepository ??= new WithdrawalRequestRepository(_context);
             }
         }
 

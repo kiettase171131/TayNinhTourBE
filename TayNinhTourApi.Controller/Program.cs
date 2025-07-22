@@ -178,6 +178,10 @@ builder.Services.AddScoped<ISpecialtyShopService, SpecialtyShopService>();
 // Wallet Service - for managing Tour Company and Specialty Shop wallets
 builder.Services.AddScoped<IWalletService, WalletService>();
 
+// Withdrawal System Services - for managing bank accounts and withdrawal requests
+builder.Services.AddScoped<IBankAccountService, BankAccountService>();
+builder.Services.AddScoped<IWithdrawalRequestService, WithdrawalRequestService>();
+
 // File Storage Services
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 

@@ -51,6 +51,14 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         // Notification entities
         public DbSet<Notification> Notifications { get; set; } = null!;
 
+        // Withdrawal system entities
+        public DbSet<BankAccount> BankAccounts { get; set; } = null!;
+        public DbSet<WithdrawalRequest> WithdrawalRequests { get; set; } = null!;
+
+        // Tour booking refund system entities
+        public DbSet<TourBookingRefund> TourBookingRefunds { get; set; } = null!;
+        public DbSet<RefundPolicy> RefundPolicies { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // modelBuilder.ApplyConfiguration(new UserConfiguration());

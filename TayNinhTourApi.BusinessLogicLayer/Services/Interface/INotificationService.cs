@@ -6,23 +6,23 @@ using TayNinhTourApi.DataAccessLayer.Enums;
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     /// <summary>
-    /// Service interface cho qu?n lı in-app notifications
+    /// Service interface cho qu?n lï¿½ in-app notifications
     /// </summary>
     public interface INotificationService
     {
         /// <summary>
-        /// T?o thông báo m?i
+        /// T?o thï¿½ng bï¿½o m?i
         /// </summary>
-        /// <param name="createDto">Thông tin thông báo</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <param name="createDto">Thï¿½ng tin thï¿½ng bï¿½o</param>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateNotificationAsync(CreateNotificationDto createDto);
 
         /// <summary>
-        /// L?y danh sách thông báo c?a user
+        /// L?y danh sï¿½ch thï¿½ng bï¿½o c?a user
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="request">Tham s? phân trang và filter</param>
-        /// <returns>Danh sách thông báo</returns>
+        /// <param name="request">Tham s? phï¿½n trang vï¿½ filter</param>
+        /// <returns>Danh sï¿½ch thï¿½ng bï¿½o</returns>
         Task<NotificationsResponseDto> GetUserNotificationsAsync(Guid userId, GetNotificationsRequestDto request);
 
         /// <summary>
@@ -33,98 +33,98 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<UnreadCountResponseDto> GetUnreadCountAsync(Guid userId);
 
         /// <summary>
-        /// ?ánh d?u thông báo ?ã ??c
+        /// ?ï¿½nh d?u thï¿½ng bï¿½o ?ï¿½ ??c
         /// </summary>
-        /// <param name="notificationId">ID c?a thông báo</param>
+        /// <param name="notificationId">ID c?a thï¿½ng bï¿½o</param>
         /// <param name="userId">ID c?a user</param>
-        /// <returns>K?t qu? thao tác</returns>
+        /// <returns>K?t qu? thao tï¿½c</returns>
         Task<BaseResposeDto> MarkAsReadAsync(Guid notificationId, Guid userId);
 
         /// <summary>
-        /// ?ánh d?u t?t c? thông báo ?ã ??c
+        /// ?ï¿½nh d?u t?t c? thï¿½ng bï¿½o ?ï¿½ ??c
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <returns>K?t qu? thao tác</returns>
+        /// <returns>K?t qu? thao tï¿½c</returns>
         Task<BaseResposeDto> MarkAllAsReadAsync(Guid userId);
 
         /// <summary>
-        /// Xóa thông báo
+        /// Xï¿½a thï¿½ng bï¿½o
         /// </summary>
-        /// <param name="notificationId">ID c?a thông báo</param>
+        /// <param name="notificationId">ID c?a thï¿½ng bï¿½o</param>
         /// <param name="userId">ID c?a user</param>
-        /// <returns>K?t qu? thao tác</returns>
+        /// <returns>K?t qu? thao tï¿½c</returns>
         Task<BaseResposeDto> DeleteNotificationAsync(Guid notificationId, Guid userId);
 
         /// <summary>
-        /// L?y th?ng kê thông báo c?a user
+        /// L?y th?ng kï¿½ thï¿½ng bï¿½o c?a user
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <returns>Th?ng kê thông báo</returns>
+        /// <returns>Th?ng kï¿½ thï¿½ng bï¿½o</returns>
         Task<NotificationStatsDto> GetNotificationStatsAsync(Guid userId);
 
         /// <summary>
-        /// T?o thông báo booking m?i
+        /// T?o thï¿½ng bï¿½o booking m?i
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="bookingCode">Mã booking</param>
-        /// <param name="tourTitle">Tên tour</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <param name="bookingCode">Mï¿½ booking</param>
+        /// <param name="tourTitle">Tï¿½n tour</param>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateBookingNotificationAsync(Guid userId, string bookingCode, string tourTitle);
 
         /// <summary>
-        /// T?o thông báo TourGuide t? ch?i
+        /// T?o thï¿½ng bï¿½o TourGuide t? ch?i
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="tourTitle">Tên tour</param>
-        /// <param name="guideName">Tên h??ng d?n viên</param>
-        /// <param name="rejectionReason">Lı do t? ch?i</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <param name="tourTitle">Tï¿½n tour</param>
+        /// <param name="guideName">Tï¿½n h??ng d?n viï¿½n</param>
+        /// <param name="rejectionReason">Lï¿½ do t? ch?i</param>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateGuideRejectionNotificationAsync(Guid userId, string tourTitle, string guideName, string? rejectionReason);
 
         /// <summary>
-        /// T?o thông báo c?n tìm guide th? công
+        /// T?o thï¿½ng bï¿½o c?n tï¿½m guide th? cï¿½ng
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="tourTitle">Tên tour</param>
+        /// <param name="tourTitle">Tï¿½n tour</param>
         /// <param name="expiredCount">S? l??ng l?i m?i h?t h?n</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateManualGuideSelectionNotificationAsync(Guid userId, string tourTitle, int expiredCount);
 
         /// <summary>
-        /// T?o thông báo c?nh báo tour s?p b? h?y
+        /// T?o thï¿½ng bï¿½o c?nh bï¿½o tour s?p b? h?y
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="tourTitle">Tên tour</param>
-        /// <param name="daysUntilCancellation">S? ngày còn l?i</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <param name="tourTitle">Tï¿½n tour</param>
+        /// <param name="daysUntilCancellation">S? ngï¿½y cï¿½n l?i</param>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateTourRiskCancellationNotificationAsync(Guid userId, string tourTitle, int daysUntilCancellation);
 
         /// <summary>
-        /// Cleanup thông báo c? (background job)
+        /// Cleanup thï¿½ng bï¿½o c? (background job)
         /// </summary>
-        /// <param name="olderThanDays">Xóa thông báo c? h?n X ngày</param>
-        /// <returns>S? l??ng thông báo ?ã xóa</returns>
+        /// <param name="olderThanDays">Xï¿½a thï¿½ng bï¿½o c? h?n X ngï¿½y</param>
+        /// <returns>S? l??ng thï¿½ng bï¿½o ?ï¿½ xï¿½a</returns>
         Task<int> CleanupOldNotificationsAsync(int olderThanDays = 30);
 
         // Additional helper methods for booking notifications
 
         /// <summary>
-        /// T?o thông báo booking m?i (generic method)
+        /// T?o thï¿½ng bï¿½o booking m?i (generic method)
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="booking">Thông tin booking</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <param name="booking">Thï¿½ng tin booking</param>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateNewBookingNotificationAsync(Guid userId, object booking);
 
         /// <summary>
-        /// T?o thông báo h?y tour v?i danh sách bookings
+        /// T?o thï¿½ng bï¿½o h?y tour v?i danh sï¿½ch bookings
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="affectedBookings">Danh sách bookings b? ?nh h??ng</param>
-        /// <param name="tourTitle">Tên tour</param>
-        /// <param name="tourStartDate">Ngày kh?i hành</param>
-        /// <param name="reason">Lı do h?y</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <param name="affectedBookings">Danh sï¿½ch bookings b? ?nh h??ng</param>
+        /// <param name="tourTitle">Tï¿½n tour</param>
+        /// <param name="tourStartDate">Ngï¿½y kh?i hï¿½nh</param>
+        /// <param name="reason">Lï¿½ do h?y</param>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateTourCancellationNotificationAsync(
             Guid userId, 
             object affectedBookings, 
@@ -133,25 +133,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
             string reason);
 
         /// <summary>
-        /// T?o thông báo h?y booking c?a khách hàng
+        /// T?o thï¿½ng bï¿½o h?y booking c?a khï¿½ch hï¿½ng
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="booking">Thông tin booking</param>
-        /// <param name="reason">Lı do h?y</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <param name="booking">Thï¿½ng tin booking</param>
+        /// <param name="reason">Lï¿½ do h?y</param>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateBookingCancellationNotificationAsync(Guid userId, object booking, string? reason);
 
         /// <summary>
-        /// T?o thông báo khi TourGuide ???c m?i tham gia tour
+        /// T?o thï¿½ng bï¿½o khi TourGuide ???c m?i tham gia tour
         /// </summary>
-        /// <param name="guideUserId">ID c?a User có role TourGuide</param>
-        /// <param name="tourTitle">Tên tour</param>
-        /// <param name="tourCompanyName">Tên công ty tour</param>
-        /// <param name="skillsRequired">K? n?ng yêu c?u</param>
+        /// <param name="guideUserId">ID c?a User cï¿½ role TourGuide</param>
+        /// <param name="tourTitle">Tï¿½n tour</param>
+        /// <param name="tourCompanyName">Tï¿½n cï¿½ng ty tour</param>
+        /// <param name="skillsRequired">K? n?ng yï¿½u c?u</param>
         /// <param name="invitationType">Lo?i l?i m?i (Automatic/Manual)</param>
         /// <param name="expiresAt">Th?i gian h?t h?n</param>
         /// <param name="invitationId">ID c?a invitation ?? action</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateTourGuideInvitationNotificationAsync(
             Guid guideUserId,
             string tourTitle,
@@ -162,17 +162,75 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
             Guid invitationId);
 
         /// <summary>
-        /// T?o thông báo khi invitation s?p h?t h?n (reminder)
+        /// T?o thï¿½ng bï¿½o khi invitation s?p h?t h?n (reminder)
         /// </summary>
-        /// <param name="guideUserId">ID c?a User có role TourGuide</param>
-        /// <param name="tourTitle">Tên tour</param>
-        /// <param name="hoursUntilExpiry">S? gi? còn l?i tr??c khi h?t h?n</param>
+        /// <param name="guideUserId">ID c?a User cï¿½ role TourGuide</param>
+        /// <param name="tourTitle">Tï¿½n tour</param>
+        /// <param name="hoursUntilExpiry">S? gi? cï¿½n l?i tr??c khi h?t h?n</param>
         /// <param name="invitationId">ID c?a invitation ?? action</param>
-        /// <returns>K?t qu? t?o thông báo</returns>
+        /// <returns>K?t qu? t?o thï¿½ng bï¿½o</returns>
         Task<BaseResposeDto> CreateInvitationExpiryReminderNotificationAsync(
             Guid guideUserId,
             string tourTitle,
             int hoursUntilExpiry,
             Guid invitationId);
+
+        // Withdrawal System Notifications
+
+        /// <summary>
+        /// Táº¡o thÃ´ng bÃ¡o cho admin khi cÃ³ yÃªu cáº§u rÃºt tiá»n má»›i
+        /// </summary>
+        /// <param name="withdrawalRequestId">ID cá»§a yÃªu cáº§u rÃºt tiá»n</param>
+        /// <param name="shopName">TÃªn shop</param>
+        /// <param name="amount">Sá»‘ tiá»n yÃªu cáº§u rÃºt</param>
+        /// <returns>Káº¿t quáº£ táº¡o thÃ´ng bÃ¡o</returns>
+        Task<BaseResposeDto> CreateNewWithdrawalRequestNotificationAsync(
+            Guid withdrawalRequestId,
+            string shopName,
+            decimal amount);
+
+        /// <summary>
+        /// Táº¡o thÃ´ng bÃ¡o cho user khi yÃªu cáº§u rÃºt tiá»n Ä‘Æ°á»£c duyá»‡t
+        /// </summary>
+        /// <param name="userId">ID cá»§a user</param>
+        /// <param name="withdrawalRequestId">ID cá»§a yÃªu cáº§u rÃºt tiá»n</param>
+        /// <param name="amount">Sá»‘ tiá»n Ä‘Æ°á»£c duyá»‡t</param>
+        /// <param name="bankAccount">ThÃ´ng tin tÃ i khoáº£n ngÃ¢n hÃ ng</param>
+        /// <param name="transactionReference">MÃ£ tham chiáº¿u giao dá»‹ch</param>
+        /// <returns>Káº¿t quáº£ táº¡o thÃ´ng bÃ¡o</returns>
+        Task<BaseResposeDto> CreateWithdrawalApprovedNotificationAsync(
+            Guid userId,
+            Guid withdrawalRequestId,
+            decimal amount,
+            string bankAccount,
+            string? transactionReference);
+
+        /// <summary>
+        /// Táº¡o thÃ´ng bÃ¡o cho user khi yÃªu cáº§u rÃºt tiá»n bá»‹ tá»« chá»‘i
+        /// </summary>
+        /// <param name="userId">ID cá»§a user</param>
+        /// <param name="withdrawalRequestId">ID cá»§a yÃªu cáº§u rÃºt tiá»n</param>
+        /// <param name="amount">Sá»‘ tiá»n bá»‹ tá»« chá»‘i</param>
+        /// <param name="reason">LÃ½ do tá»« chá»‘i</param>
+        /// <returns>Káº¿t quáº£ táº¡o thÃ´ng bÃ¡o</returns>
+        Task<BaseResposeDto> CreateWithdrawalRejectedNotificationAsync(
+            Guid userId,
+            Guid withdrawalRequestId,
+            decimal amount,
+            string reason);
+
+        /// <summary>
+        /// Táº¡o thÃ´ng bÃ¡o nháº¯c nhá»Ÿ admin vá» yÃªu cáº§u rÃºt tiá»n Ä‘Ã£ chá» lÃ¢u
+        /// </summary>
+        /// <param name="withdrawalRequestId">ID cá»§a yÃªu cáº§u rÃºt tiá»n</param>
+        /// <param name="shopName">TÃªn shop</param>
+        /// <param name="amount">Sá»‘ tiá»n yÃªu cáº§u rÃºt</param>
+        /// <param name="daysPending">Sá»‘ ngÃ y Ä‘Ã£ chá»</param>
+        /// <returns>Káº¿t quáº£ táº¡o thÃ´ng bÃ¡o</returns>
+        Task<BaseResposeDto> CreateWithdrawalReminderNotificationAsync(
+            Guid withdrawalRequestId,
+            string shopName,
+            decimal amount,
+            int daysPending);
     }
 }

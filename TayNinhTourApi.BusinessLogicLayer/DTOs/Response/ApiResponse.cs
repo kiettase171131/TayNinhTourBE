@@ -71,6 +71,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         }
 
         /// <summary>
+        /// Tạo error response với message only (default 500 status)
+        /// </summary>
+        /// <param name="message">Error message</param>
+        /// <returns>ApiResponse với 500 status</returns>
+        public static ApiResponse<T> Error(string message)
+        {
+            return new ApiResponse<T>(500, message);
+        }
+
+        /// <summary>
         /// Tạo not found response
         /// </summary>
         /// <param name="message">Not found message</param>
@@ -110,5 +120,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         {
             return new ApiResponse<T>(403, message);
         }
+
+        /// <summary>
+        /// Kiểm tra response có thành công không
+        /// </summary>
+        public bool IsSuccess => success;
     }
 }

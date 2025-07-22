@@ -165,5 +165,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// User thực hiện booking
         /// </summary>
         public virtual User User { get; set; } = null!;
+
+        /// <summary>
+        /// Refund request for this booking (1:1 relationship, optional)
+        /// </summary>
+        public virtual TourBookingRefund? RefundRequest { get; set; }
     }
 }
