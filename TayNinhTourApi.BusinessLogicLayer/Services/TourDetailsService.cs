@@ -276,6 +276,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
+                // Check if tour has guide assigned - prevent editing if guide is already assigned
+                bool hasGuideAssigned = existingDetail.TourOperation?.TourGuideId != null;
+                if (hasGuideAssigned)
+                {
+                    return new ResponseUpdateTourDetailDto
+                    {
+                        StatusCode = 400,
+                        Message = "Đã có hướng dẫn viên tham gia tour, không thể edit nữa",
+                        success = false
+                    };
+                }
+
                 // Validate update request
                 var validationResult = await ValidateUpdateRequestAsync(request, existingDetail);
                 if (!validationResult.IsValid)
@@ -303,6 +315,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
+                // Store original status for logic check
+                var originalStatus = existingDetail.Status;
+
                 // Update fields
                 if (!string.IsNullOrEmpty(request.Title))
                     existingDetail.Title = request.Title;
@@ -313,22 +328,68 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (request.ImageUrls != null || request.ImageUrl != null)
                     existingDetail.ImageUrls = GetImageUrlsFromRequest(request.ImageUrls, request.ImageUrl);
 
+                // Check status change logic:
+                // If status is AwaitingGuideAssignment (waiting for guide approval) → send back to admin for approval
+                if (originalStatus == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    existingDetail.Status = TourDetailsStatus.AwaitingAdminApproval;
+                    existingDetail.CommentApproved = null; // Clear previous admin comment
+                    _logger.LogInformation("Tour detail {TourDetailId} status changed from AwaitingGuideAssignment to AwaitingAdminApproval due to edit", 
+                        tourDetailId);
+                }
+
                 existingDetail.UpdatedById = updatedById;
                 existingDetail.UpdatedAt = DateTime.UtcNow;
 
                 await _unitOfWork.TourDetailsRepository.UpdateAsync(existingDetail);
                 await _unitOfWork.SaveChangesAsync();
 
+                // Send notification if status changed back to admin approval
+                if (originalStatus == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    try
+                    {
+                        using var scope = _serviceProvider.CreateScope();
+                        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                        
+                        // Create in-app notification for tour company
+                        await notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
+                        {
+                            UserId = updatedById,
+                            Title = "📝 Tour đã gửi lại admin",
+                            Message = $"Tour '{existingDetail.Title}' đã được gửi lại cho admin duyệt do có chỉnh sửa trong lúc chờ hướng dẫn viên.",
+                            Type = DataAccessLayer.Enums.NotificationType.Tour,
+                            Priority = DataAccessLayer.Enums.NotificationPriority.Medium,
+                            Icon = "📝",
+                            ActionUrl = "/tours/awaiting-admin-approval"
+                        });
+
+                        _logger.LogInformation("Sent notification about status change back to admin approval for TourDetail {TourDetailId}", tourDetailId);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "Error sending notification for status change on TourDetail {TourDetailId}", tourDetailId);
+                        // Don't fail the update if notification fails
+                    }
+                }
+                
                 // Get updated item with relationships
                 var updatedDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailId);
                 var tourDetailDto = _mapper.Map<TourDetailDto>(updatedDetail);
+
+                // Prepare response message based on status change
+                string message = "Cập nhật lịch trình thành công";
+                if (originalStatus == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    message += ". Tour đã được gửi lại cho admin duyệt do có thay đổi trong lúc chờ hướng dẫn viên.";
+                }
 
                 _logger.LogInformation("Successfully updated tour detail {TourDetailId}", tourDetailId);
 
                 return new ResponseUpdateTourDetailDto
                 {
                     StatusCode = 200,
-                    Message = "Cập nhật lịch trình thành công",
+                    Message = message,
                     success = true,
                     Data = tourDetailDto
                 };
