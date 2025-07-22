@@ -13,6 +13,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     {
         private readonly IUnitOfWork _unitOfWork;
 
+        // Commission rate for tour companies (10%)
+        private const decimal TOUR_COMMISSION_RATE = 0.10m;
+
         public TourRevenueService(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
@@ -20,6 +23,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Thêm tiền vào revenue hold sau khi booking thành công
+        /// Áp dụng phí hoa hồng 10% cho tour company
         /// </summary>
         public async Task<BaseResposeDto> AddToRevenueHoldAsync(Guid tourCompanyUserId, decimal amount, Guid bookingId)
         {
@@ -48,7 +52,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                tourCompany.RevenueHold += amount;
+                // Calculate commission and final amount for tour company
+                decimal commissionAmount = amount * TOUR_COMMISSION_RATE;
+                decimal tourCompanyAmount = amount - commissionAmount;
+
+                // Add only 90% to tour company's revenue hold (after 10% commission deduction)
+                tourCompany.RevenueHold += tourCompanyAmount;
                 tourCompany.UpdatedAt = DateTime.UtcNow;
 
                 await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
@@ -58,7 +67,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "Đã thêm tiền vào revenue hold thành công",
+                    Message = $"Đã thêm {tourCompanyAmount:N0} VNĐ vào revenue hold (sau khi trừ phí hoa hồng {commissionAmount:N0} VNĐ)",
                     success = true
                 };
             }

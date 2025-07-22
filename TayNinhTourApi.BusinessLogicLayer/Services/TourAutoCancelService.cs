@@ -153,14 +153,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 tourOperation.UpdatedAt = DateTime.UtcNow;
                 await unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
 
-                // 4. Calculate total refund amount
-                var totalRefundAmount = bookings.Sum(b => b.TotalPrice);
+                // 4. Calculate amounts for refund
+                var totalBookingAmount = bookings.Sum(b => b.TotalPrice);
+                var commissionRate = 0.10m;
+                var amountInRevenueHold = totalBookingAmount * (1 - commissionRate); // 90% in revenue hold
 
-                // 5. Deduct from TourCompany revenue hold
+                // 5. Deduct from TourCompany revenue hold (only the 90% that's actually there)
                 await revenueService.RefundFromRevenueHoldAsync(
                     tourOperation.CreatedById, 
-                    totalRefundAmount, 
+                    amountInRevenueHold, 
                     tourOperation.Id);
+
+                // Note: The system will handle full customer refund (100%) from other sources
+                // while only deducting the 90% from tour company's revenue hold
 
                 // 6. Send notifications
                 var bookingDtos = bookings.Select(b => new TourBookingDto
@@ -196,8 +201,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                _logger.LogInformation("Successfully cancelled tour: {TourTitle} with {BookingCount} bookings, total refund: {RefundAmount}", 
-                    tourOperation.TourDetails?.Title, bookings.Count, totalRefundAmount);
+                _logger.LogInformation("Successfully cancelled tour: {TourTitle} with {BookingCount} bookings, deducted {DeductedAmount} from revenue hold (after 10% commission)", 
+                    tourOperation.TourDetails?.Title, bookings.Count, amountInRevenueHold);
             }
             catch (Exception ex)
             {
@@ -239,27 +244,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     if (!confirmedBookings.Any()) continue;
 
-                    var totalAmount = confirmedBookings.Sum(b => b.TotalPrice);
+                    var totalBookingAmount = confirmedBookings.Sum(b => b.TotalPrice);
                     var tourCompletedDate = tourOperation.TourDetails?.AssignedSlots.Any() == true ? 
                         tourOperation.TourDetails.AssignedSlots.Max(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : 
                         DateTime.UtcNow;
 
-                    // Transfer from revenue hold to wallet
+                    // Calculate the amount in revenue hold (90% of total booking amount due to 10% commission)
+                    var commissionRate = 0.10m;
+                    var availableAmountInHold = totalBookingAmount * (1 - commissionRate);
+
+                    // Transfer from revenue hold to wallet (only the 90% that's actually in the hold)
                     var transferResult = await revenueService.TransferFromHoldToWalletAsync(
                         tourOperation.CreatedById, 
-                        totalAmount);
+                        availableAmountInHold);
 
                     if (transferResult.success)
                     {
-                        // Send notification
+                        // Send notification with the amount actually transferred (90% of booking)
                         await notificationService.NotifyRevenueTransferAsync(
                             tourOperation.CreatedById,
-                            totalAmount,
+                            availableAmountInHold,
                             tourOperation.TourDetails?.Title ?? "Unknown Tour",
                             tourCompletedDate);
 
-                        _logger.LogInformation("Transferred revenue for tour: {TourTitle}, amount: {Amount}", 
-                            tourOperation.TourDetails?.Title, totalAmount);
+                        _logger.LogInformation("Transferred revenue for tour: {TourTitle}, amount: {Amount} (after 10% commission deduction)", 
+                            tourOperation.TourDetails?.Title, availableAmountInHold);
                     }
                     else
                     {

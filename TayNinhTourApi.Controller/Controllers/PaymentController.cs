@@ -18,6 +18,9 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IProductRepository _productRepository;
         private readonly ISpecialtyShopRepository _specialtyShopRepository;
 
+        // Commission rate for specialty shops (10%)
+        private const decimal SHOP_COMMISSION_RATE = 0.10m;
+
         public PaymentController(IOrderRepository orderRepository, IProductService productService, IProductRepository productRepository, ISpecialtyShopRepository specialtyShopRepository)
         {
             _orderRepository = orderRepository;
@@ -30,7 +33,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// PayOS callback khi thanh toán thành công
         /// URL: /api/payment-callback/paid/{orderCode}
         /// Supports both string PayOsOrderCode (TNDT format) and GUID Order.Id
-        /// Status = 1 (Paid) + Trừ stock + Xóa cart + Cộng tiền vào ví shop
+        /// Status = 1 (Paid) + Trừ stock + Xóa cart + Cộng tiền vào ví shop (sau khi trừ 10% commission)
         /// </summary>
         [HttpPost("paid/{orderCode}")]
         public async Task<IActionResult> PaymentPaidCallback(string orderCode)
@@ -83,6 +86,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     
                     var orderDetails = order.OrderDetails.ToList();
                     decimal totalWalletAdded = 0;
+                    decimal totalCommissionDeducted = 0;
                     
                     foreach (var item in orderDetails)
                     {
@@ -93,18 +97,22 @@ namespace TayNinhTourApi.Controller.Controllers
                             product.SoldCount += item.Quantity;
                             await _productRepository.UpdateAsync(product);
 
-                            // Add money to specialty shop wallet
-                            // Use TotalAmount (original price) instead of discounted price
-                            // System bears the discount loss, shop gets full amount
-                            var shopWalletAmount = item.UnitPrice * item.Quantity;
+                            // Calculate commission and shop amount
+                            var itemTotalAmount = item.UnitPrice * item.Quantity;
+                            var commissionAmount = itemTotalAmount * SHOP_COMMISSION_RATE;
+                            var shopWalletAmount = itemTotalAmount - commissionAmount; // Shop gets 90%
                             
                             var specialtyShop = await _specialtyShopRepository.GetByUserIdAsync(product.ShopId);
                             if (specialtyShop != null)
                             {
+                                // Add only 90% to shop wallet (after 10% commission deduction)
                                 specialtyShop.Wallet += shopWalletAmount;
                                 await _specialtyShopRepository.UpdateAsync(specialtyShop);
+                                
                                 totalWalletAdded += shopWalletAmount;
-                                Console.WriteLine($"Added {shopWalletAmount:N0} VNĐ to shop {specialtyShop.ShopName} wallet");
+                                totalCommissionDeducted += commissionAmount;
+                                
+                                Console.WriteLine($"Added {shopWalletAmount:N0} VNĐ to shop {specialtyShop.ShopName} wallet (after {commissionAmount:N0} VNĐ commission)");
                             }
                         }
                     }
@@ -113,6 +121,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     await _specialtyShopRepository.SaveChangesAsync();
                     
                     Console.WriteLine($"Total wallet amount added to shops: {totalWalletAdded:N0} VNĐ");
+                    Console.WriteLine($"Total commission deducted: {totalCommissionDeducted:N0} VNĐ");
                 }
                 else
                 {
@@ -121,13 +130,14 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new
                 {
-                    message = "Thanh toán thành công - Đã cập nhật trạng thái, trừ stock và cộng tiền vào ví shop",
+                    message = "Thanh toán thành công - Đã cập nhật trạng thái, trừ stock và cộng tiền vào ví shop (sau khi trừ 10% hoa hồng)",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status, // = 1
                     stockUpdated = true,
                     cartCleared = true,
-                    walletUpdated = true
+                    walletUpdated = true,
+                    commissionApplied = "10% commission deducted from shop revenue"
                 });
             }
             catch (Exception ex)
