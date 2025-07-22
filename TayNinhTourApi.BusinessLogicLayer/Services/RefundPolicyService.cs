@@ -154,8 +154,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<RefundEligibilityResponseDto>.Error("Booking này đã có yêu cầu hoàn tiền");
                 }
 
-                // Lấy thông tin tour operation
-                var tourOperation = await _unitOfWork.TourOperationRepository.GetByIdAsync(booking.TourOperationId);
+                // Lấy thông tin tour operation với details
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetWithDetailsAsync(booking.TourOperationId);
                 if (tourOperation == null)
                 {
                     return ApiResponse<RefundEligibilityResponseDto>.Error("Không tìm thấy thông tin tour");
@@ -163,7 +163,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Tính số ngày trước tour
                 var checkDate = cancellationDate ?? DateTime.UtcNow;
-                var daysBeforeTour = (int)(tourOperation.StartDate.Date - checkDate.Date).TotalDays;
+                var tourStartDate = tourOperation.TourDetails?.AssignedSlots?.Any() == true ?
+                    tourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) :
+                    DateTime.MaxValue;
+                var daysBeforeTour = (int)(tourStartDate.Date - checkDate.Date).TotalDays;
 
                 // Kiểm tra tour đã bắt đầu chưa
                 if (daysBeforeTour < 0)

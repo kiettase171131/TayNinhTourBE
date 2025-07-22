@@ -1,7 +1,7 @@
 # PowerShell script để test Tour Booking PayOS Webhook
 # Chạy script này để test webhook endpoints (đơn giản như product payment)
 
-$baseUrl = "https://localhost:7205"
+$baseUrl = "http://localhost:5267"
 $headers = @{
     "Content-Type" = "application/json"
     "Accept" = "application/json"

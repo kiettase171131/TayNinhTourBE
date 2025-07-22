@@ -98,8 +98,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.TourBookingRefundRepository.AddAsync(refundRequest);
                 await _unitOfWork.SaveChangesAsync();
 
-                // Cập nhật booking status
-                booking.Status = BookingStatus.CancellationRequested;
+                // Giữ booking status là Confirmed - refund status được track riêng
+                // booking.Status vẫn là Confirmed cho đến khi refund được approve
                 booking.UpdatedAt = DateTime.UtcNow;
                 await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
                 await _unitOfWork.SaveChangesAsync();
@@ -298,13 +298,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     Id = refundRequest.TourBooking.Id,
                     BookingCode = refundRequest.TourBooking.BookingCode,
-                    TourName = refundRequest.TourBooking.TourOperation?.Tour?.Name ?? "N/A",
-                    TourStartDate = refundRequest.TourBooking.TourOperation?.StartDate ?? DateTime.MinValue,
-                    TourEndDate = refundRequest.TourBooking.TourOperation?.EndDate ?? DateTime.MinValue,
+                    TourName = refundRequest.TourBooking.TourOperation?.TourDetails?.TourTemplate?.Title ?? "N/A",
+                    TourStartDate = refundRequest.TourBooking.TourOperation?.TourDetails?.AssignedSlots?.Any() == true ?
+                        refundRequest.TourBooking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) :
+                        DateTime.MinValue,
+                    TourEndDate = refundRequest.TourBooking.TourOperation?.TourDetails?.AssignedSlots?.Any() == true ?
+                        refundRequest.TourBooking.TourOperation.TourDetails.AssignedSlots.Max(s => s.TourDate).ToDateTime(TimeOnly.MinValue) :
+                        DateTime.MinValue,
                     NumberOfGuests = refundRequest.TourBooking.NumberOfGuests,
                     TotalPrice = refundRequest.TourBooking.TotalPrice,
                     BookingStatus = refundRequest.TourBooking.Status,
-                    TourCompanyName = refundRequest.TourBooking.TourOperation?.Tour?.TourCompany?.Name ?? "N/A"
+                    TourCompanyName = refundRequest.TourBooking.TourOperation?.TourDetails?.TourTemplate?.CreatedBy?.Name ?? "N/A"
                 };
             }
 
@@ -537,8 +541,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<RefundCalculationResult>.Error("Không tìm thấy booking");
                 }
 
-                // Lấy thông tin tour operation
-                var tourOperation = await _unitOfWork.TourOperationRepository.GetByIdAsync(booking.TourOperationId);
+                // Lấy thông tin tour operation với details
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetWithDetailsAsync(booking.TourOperationId);
                 if (tourOperation == null)
                 {
                     return ApiResponse<RefundCalculationResult>.Error("Không tìm thấy thông tin tour");
@@ -546,7 +550,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Tính số ngày trước tour
                 var checkDate = cancellationDate ?? DateTime.UtcNow;
-                var daysBeforeTour = Math.Max(0, (int)(tourOperation.StartDate.Date - checkDate.Date).TotalDays);
+                var tourStartDate = tourOperation.TourDetails?.AssignedSlots?.Any() == true ?
+                    tourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) :
+                    DateTime.MaxValue;
+                var daysBeforeTour = Math.Max(0, (int)(tourStartDate.Date - checkDate.Date).TotalDays);
 
                 // Sử dụng RefundPolicyService để tính toán
                 var calculation = await _refundPolicyService.CalculateRefundAmountAsync(

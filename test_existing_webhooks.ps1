@@ -1,7 +1,7 @@
 # PowerShell script để kiểm tra webhook endpoints hiện tại
 # Kiểm tra xem product payment và tour booking webhooks có hoạt động không
 
-$baseUrl = "https://localhost:7205"
+$baseUrl = "http://localhost:5267"
 $headers = @{
     "Content-Type" = "application/json"
     "Accept" = "application/json"

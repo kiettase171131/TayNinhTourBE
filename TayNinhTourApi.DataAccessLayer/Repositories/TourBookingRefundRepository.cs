@@ -29,7 +29,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var query = _context.TourBookingRefunds
                 .Include(r => r.TourBooking)
                     .ThenInclude(b => b.TourOperation)
-                        .ThenInclude(o => o.Tour)
+                        .ThenInclude(o => o.TourDetails)
+                            .ThenInclude(td => td.TourTemplate)
                 .Where(r => r.UserId == userId && r.IsActive && !r.IsDeleted);
 
             if (status.HasValue)
@@ -69,7 +70,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(r => r.User)
                 .Include(r => r.TourBooking)
                     .ThenInclude(b => b.TourOperation)
-                        .ThenInclude(o => o.Tour)
+                        .ThenInclude(o => o.TourDetails)
+                            .ThenInclude(td => td.TourTemplate)
                 .Include(r => r.ProcessedBy)
                 .Where(r => r.IsActive && !r.IsDeleted);
 
@@ -100,7 +102,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     r.User.Name.ToLower().Contains(lowerSearchTerm) ||
                     r.User.Email.ToLower().Contains(lowerSearchTerm) ||
                     r.TourBooking.BookingCode.ToLower().Contains(lowerSearchTerm) ||
-                    r.TourBooking.TourOperation.Tour.Name.ToLower().Contains(lowerSearchTerm) ||
+                    r.TourBooking.TourOperation.TourDetails.TourTemplate.Title.ToLower().Contains(lowerSearchTerm) ||
                     (r.CustomerBankName != null && r.CustomerBankName.ToLower().Contains(lowerSearchTerm)) ||
                     (r.CustomerAccountHolder != null && r.CustomerAccountHolder.ToLower().Contains(lowerSearchTerm)));
             }
@@ -125,8 +127,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(r => r.User)
                 .Include(r => r.TourBooking)
                     .ThenInclude(b => b.TourOperation)
-                        .ThenInclude(o => o.Tour)
-                            .ThenInclude(t => t.TourCompany)
+                        .ThenInclude(o => o.TourDetails)
+                            .ThenInclude(td => td.TourTemplate)
                 .Include(r => r.ProcessedBy)
                 .FirstOrDefaultAsync(r => r.Id == refundId && r.IsActive && !r.IsDeleted);
         }
@@ -139,7 +141,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourBookingRefunds
                 .Include(r => r.TourBooking)
                     .ThenInclude(b => b.TourOperation)
-                        .ThenInclude(o => o.Tour)
+                        .ThenInclude(o => o.TourDetails)
+                            .ThenInclude(td => td.TourTemplate)
                 .FirstOrDefaultAsync(r => r.Id == refundId && r.UserId == customerId && r.IsActive && !r.IsDeleted);
         }
 
@@ -234,7 +237,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourBookingRefunds
                 .Include(r => r.TourBooking)
                     .ThenInclude(b => b.TourOperation)
-                        .ThenInclude(o => o.Tour)
+                        .ThenInclude(o => o.TourDetails)
+                            .ThenInclude(td => td.TourTemplate)
                 .Where(r => r.UserId == customerId && r.IsActive && !r.IsDeleted)
                 .OrderByDescending(r => r.RequestedAt)
                 .FirstOrDefaultAsync();
@@ -253,8 +257,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(r => r.User)
                 .Include(r => r.TourBooking)
                     .ThenInclude(b => b.TourOperation)
-                        .ThenInclude(o => o.Tour)
-                .Where(r => r.TourBooking.TourOperation.Tour.TourCompanyId == tourCompanyId && 
+                        .ThenInclude(o => o.TourDetails)
+                            .ThenInclude(td => td.TourTemplate)
+                .Where(r => r.TourBooking.TourOperation.TourDetails.TourTemplate.CreatedById == tourCompanyId &&
                            r.IsActive && !r.IsDeleted);
 
             if (status.HasValue)
@@ -364,7 +369,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourBookings
                 .Include(b => b.User)
                 .Include(b => b.TourOperation)
-                    .ThenInclude(o => o.Tour)
+                    .ThenInclude(o => o.TourDetails)
+                        .ThenInclude(td => td.TourTemplate)
                 .Where(b => tourOperationIds.Contains(b.TourOperationId) &&
                            b.Status == BookingStatus.Confirmed &&
                            !_context.TourBookingRefunds.Any(r => r.TourBookingId == b.Id && r.IsActive && !r.IsDeleted))
@@ -396,7 +402,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var query = _context.TourBookingRefunds
                 .Include(r => r.TourBooking)
                     .ThenInclude(b => b.TourOperation)
-                        .ThenInclude(o => o.Tour)
+                        .ThenInclude(o => o.TourDetails)
+                            .ThenInclude(td => td.TourTemplate)
                 .Where(r => r.ProcessedById == adminId && r.IsActive && !r.IsDeleted);
 
             if (fromDate.HasValue)
@@ -421,6 +428,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             var booking = await _context.TourBookings
                 .Include(b => b.TourOperation)
+                    .ThenInclude(o => o.TourDetails)
+                        .ThenInclude(td => td.AssignedSlots)
                 .FirstOrDefaultAsync(b => b.Id == tourBookingId);
 
             if (booking == null) return false;
@@ -433,7 +442,11 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             if (hasRefundRequest) return false;
 
             // Kiểm tra tour chưa bắt đầu
-            if (booking.TourOperation.StartDate <= DateTime.UtcNow) return false;
+            var tourStartDate = booking.TourOperation.TourDetails.AssignedSlots.Any() ?
+                booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) :
+                DateTime.MaxValue;
+
+            if (tourStartDate <= DateTime.UtcNow) return false;
 
             return true;
         }

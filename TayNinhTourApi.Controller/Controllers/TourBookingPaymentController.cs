@@ -7,7 +7,7 @@ namespace TayNinhTourApi.Controller.Controllers
     /// Controller xử lý payment callbacks cho tour booking
     /// </summary>
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/tour-booking-payment")]
     public class TourBookingPaymentController : ControllerBase
     {
         private readonly IUserTourBookingService _userTourBookingService;
