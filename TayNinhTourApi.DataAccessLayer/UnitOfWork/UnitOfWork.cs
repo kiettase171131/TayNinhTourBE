@@ -254,6 +254,23 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
+        // Tour booking refund system repositories implementation
+        public ITourBookingRefundRepository TourBookingRefundRepository
+        {
+            get
+            {
+                return _tourBookingRefundRepository ??= new TourBookingRefundRepository(_context);
+            }
+        }
+
+        public IRefundPolicyRepository RefundPolicyRepository
+        {
+            get
+            {
+                return _refundPolicyRepository ??= new RefundPolicyRepository(_context);
+            }
+        }
+
         public IDbContextTransaction BeginTransaction()
         {
             return _context.Database.BeginTransaction();

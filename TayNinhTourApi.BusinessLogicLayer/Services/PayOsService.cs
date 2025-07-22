@@ -30,14 +30,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             List<ItemData> items = new List<ItemData>();
 
             PayOS payOS = new PayOS(clientId, apiKey, checksumKey);
-            
+
             // orderCode đã được truyền vào với format TNDT + 10 số
             var payOsOrderCodeString = orderCode; // Sử dụng orderCode đã truyền vào
-            
+
             // PayOS yêu cầu orderCode phải là số, nên chỉ lấy phần số từ orderCode (loại bỏ "TNDT")
             var numericPart = orderCode.StartsWith("TNDT") ? orderCode.Substring(4) : orderCode;
             var orderCode2 = long.Parse(numericPart);
-            
+
             var orderCodeDisplay = payOsOrderCodeString;
             PaymentData paymentData = new PaymentData(
              orderCode: orderCode2,
@@ -47,6 +47,38 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
              cancelUrl: $"https://tndt.netlify.app/payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
              returnUrl: $"https://tndt.netlify.app/payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
              buyerName: "kiet");
+            CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
+            return createPayment.checkoutUrl;
+        }
+
+        /// <summary>
+        /// Tạo PayOS payment URL cho tour booking với webhook URLs
+        /// </summary>
+        public async Task<string?> CreateTourBookingPaymentUrlAsync(decimal amount, string orderCode, string baseUrl)
+        {
+            var clientId = _config["PayOS:ClientId"];
+            var apiKey = _config["PayOS:ApiKey"];
+            var checksumKey = _config["PayOS:ChecksumKey"];
+            List<ItemData> items = new List<ItemData>();
+
+            PayOS payOS = new PayOS(clientId, apiKey, checksumKey);
+
+            // orderCode đã được truyền vào với format TNDT + 10 số
+            var payOsOrderCodeString = orderCode;
+
+            // PayOS yêu cầu orderCode phải là số, nên chỉ lấy phần số từ orderCode (loại bỏ "TNDT")
+            var numericPart = orderCode.StartsWith("TNDT") ? orderCode.Substring(4) : orderCode;
+            var orderCode2 = long.Parse(numericPart);
+
+            var orderCodeDisplay = payOsOrderCodeString;
+            PaymentData paymentData = new PaymentData(
+             orderCode: orderCode2,
+             amount: (int)amount,
+             description: $"Tour Booking - {orderCodeDisplay}",
+             items: items,
+             cancelUrl: $"{baseUrl}/payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+             returnUrl: $"{baseUrl}/payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+             buyerName: "Tour Customer");
             CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
             return createPayment.checkoutUrl;
         }

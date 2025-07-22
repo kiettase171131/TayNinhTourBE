@@ -366,8 +366,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 tourOperation.CurrentBookings += request.NumberOfGuests;
                 await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
 
-                // 7. Create PayOS payment URL
-                var paymentUrl = await _payOsService.CreatePaymentUrlAsync(
+                // 7. Create PayOS payment URL for tour booking
+                var paymentUrl = await _payOsService.CreateTourBookingPaymentUrlAsync(
                     totalPrice,
                     payOsOrderCode,
                     "https://tndt.netlify.app");

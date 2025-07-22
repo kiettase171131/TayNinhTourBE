@@ -247,6 +247,14 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IAIChatSessionRepository, AIChatSessionRepository>();
 builder.Services.AddScoped<IAIChatMessageRepository, AIChatMessageRepository>();
 
+// Tour Booking Refund Repositories
+builder.Services.AddScoped<ITourBookingRefundRepository, TourBookingRefundRepository>();
+builder.Services.AddScoped<IRefundPolicyRepository, RefundPolicyRepository>();
+
+// Tour Booking Refund Services
+builder.Services.AddScoped<IRefundPolicyService, RefundPolicyService>();
+builder.Services.AddScoped<ITourBookingRefundService, TourBookingRefundService>();
+
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();
 builder.Services.AddScoped<DataSeeder>();
