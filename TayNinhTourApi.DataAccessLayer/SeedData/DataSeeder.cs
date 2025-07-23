@@ -466,7 +466,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     Id = tourCompanyId, // Use predefined ID
                     UserId = tourCompanyUserId,
                     CompanyName = "Tây Ninh Travel Company",
-                    Wallet = 0,
+                    Wallet = 100000,
                     RevenueHold = 0,
                     IsActive = true,
                     IsDeleted = false,
@@ -843,6 +843,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         ClosingHours = "18:00",
                         IsShopActive = true,
                         Rating = 4.7m,
+                        Wallet = 2000000, // Thêm số dư ví mẫu
                         CreatedAt = now.AddDays(-25),
                         CreatedById = specialtyShopUserIds[0],
                         UpdatedAt = now.AddDays(-20),
@@ -866,6 +867,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         ClosingHours = "19:00",
                         IsShopActive = true,
                         Rating = 4.5m,
+                        Wallet = 3500000, // Thêm số dư ví mẫu
                         CreatedAt = now.AddDays(-18),
                         CreatedById = specialtyShopUserIds[1],
                         UpdatedAt = now.AddDays(-15),
@@ -889,6 +891,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         ClosingHours = "20:00",
                         IsShopActive = true,
                         Rating = 4.8m,
+                        Wallet = 500000, // Thêm số dư ví mẫu
                         CreatedAt = now.AddDays(-14),
                         CreatedById = specialtyShopUserIds[2],
                         UpdatedAt = now.AddDays(-12),
@@ -1011,6 +1014,46 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 _context.ProductImages.AddRange(productImages);
                 await _context.SaveChangesAsync();
             }
+
+            // Seed SupportedBanks (Vietnamese banks)
+            // ĐÃ CHUYỂN SANG ENUM, KHÔNG SEED BẢNG NÀY NỮA
+            // if (!await _context.SupportedBanks.AnyAsync())
+            // {
+            //     var banks = new List<SupportedBank>
+            //     {
+            //         new SupportedBank { Name = "Vietcombank", Code = "VCB" },
+            //         new SupportedBank { Name = "VietinBank", Code = "CTG" },
+            //         new SupportedBank { Name = "BIDV", Code = "BIDV" },
+            //         new SupportedBank { Name = "Techcombank", Code = "TCB" },
+            //         new SupportedBank { Name = "Sacombank", Code = "STB" },
+            //         new SupportedBank { Name = "ACB", Code = "ACB" },
+            //         new SupportedBank { Name = "MB Bank", Code = "MB" },
+            //         new SupportedBank { Name = "TPBank", Code = "TPB" },
+            //         new SupportedBank { Name = "VPBank", Code = "VPB" },
+            //         new SupportedBank { Name = "SHB", Code = "SHB" },
+            //         new SupportedBank { Name = "HDBank", Code = "HDB" },
+            //         new SupportedBank { Name = "VIB", Code = "VIB" },
+            //         new SupportedBank { Name = "Eximbank", Code = "EIB" },
+            //         new SupportedBank { Name = "SeABank", Code = "SEAB" },
+            //         new SupportedBank { Name = "OCB", Code = "OCB" },
+            //         new SupportedBank { Name = "MSB", Code = "MSB" },
+            //         new SupportedBank { Name = "SCB", Code = "SCB" },
+            //         new SupportedBank { Name = "DongA Bank", Code = "DAB" },
+            //         new SupportedBank { Name = "LienVietPostBank", Code = "LPB" },
+            //         new SupportedBank { Name = "ABBANK", Code = "ABB" },
+            //         new SupportedBank { Name = "PVcomBank", Code = "PVC" },
+            //         new SupportedBank { Name = "Nam A Bank", Code = "NAB" },
+            //         new SupportedBank { Name = "Bac A Bank", Code = "BAB" },
+            //         new SupportedBank { Name = "Saigonbank", Code = "SGB" },
+            //         new SupportedBank { Name = "VietBank", Code = "VBB" },
+            //         new SupportedBank { Name = "Kienlongbank", Code = "KLB" },
+            //         new SupportedBank { Name = "PG Bank", Code = "PGB" },
+            //         new SupportedBank { Name = "OceanBank", Code = "OJB" },
+            //         new SupportedBank { Name = "Co-opBank", Code = "COOP" },
+            //     };
+            //     _context.SupportedBanks.AddRange(banks);
+            //     await _context.SaveChangesAsync();
+            // }
         }
     }
 }
