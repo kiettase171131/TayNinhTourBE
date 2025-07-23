@@ -916,6 +916,134 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.ToTable("ProductReviews");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.RefundPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("InternalNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("MaxDaysBeforeEvent")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinDaysBeforeEvent")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Priority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<decimal>("ProcessingFee")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("ProcessingFeePercentage")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("RefundPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("RefundType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EffectiveFrom")
+                        .HasDatabaseName("IX_RefundPolicy_EffectiveFrom");
+
+                    b.HasIndex("EffectiveTo")
+                        .HasDatabaseName("IX_RefundPolicy_EffectiveTo");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_RefundPolicy_IsActive");
+
+                    b.HasIndex("Priority")
+                        .HasDatabaseName("IX_RefundPolicy_Priority");
+
+                    b.HasIndex("RefundType")
+                        .HasDatabaseName("IX_RefundPolicy_RefundType");
+
+                    b.HasIndex("RefundType", "IsActive")
+                        .HasDatabaseName("IX_RefundPolicy_RefundType_IsActive");
+
+                    b.HasIndex("IsActive", "EffectiveFrom", "EffectiveTo")
+                        .HasDatabaseName("IX_RefundPolicy_Active_Effective");
+
+                    b.HasIndex("RefundType", "IsActive", "Priority")
+                        .HasDatabaseName("IX_RefundPolicy_RefundType_IsActive_Priority");
+
+                    b.HasIndex("RefundType", "MinDaysBeforeEvent", "MaxDaysBeforeEvent")
+                        .HasDatabaseName("IX_RefundPolicy_RefundType_DaysRange");
+
+                    b.HasIndex("RefundType", "MinDaysBeforeEvent", "MaxDaysBeforeEvent", "IsActive")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RefundPolicy_Unique_Range")
+                        .HasFilter("IsActive = 1");
+
+                    b.ToTable("RefundPolicies", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RefundPolicy_EffectiveTo_Logic", "EffectiveTo IS NULL OR EffectiveTo > EffectiveFrom");
+
+                            t.HasCheckConstraint("CK_RefundPolicy_MaxDaysBeforeEvent_Valid", "MaxDaysBeforeEvent IS NULL OR MaxDaysBeforeEvent >= MinDaysBeforeEvent");
+
+                            t.HasCheckConstraint("CK_RefundPolicy_MinDaysBeforeEvent_NonNegative", "MinDaysBeforeEvent >= 0");
+
+                            t.HasCheckConstraint("CK_RefundPolicy_Priority_Valid", "Priority >= 1 AND Priority <= 100");
+
+                            t.HasCheckConstraint("CK_RefundPolicy_ProcessingFeePercentage_Valid", "ProcessingFeePercentage >= 0 AND ProcessingFeePercentage <= 100");
+
+                            t.HasCheckConstraint("CK_RefundPolicy_ProcessingFee_NonNegative", "ProcessingFee >= 0");
+
+                            t.HasCheckConstraint("CK_RefundPolicy_RefundPercentage_Valid", "RefundPercentage >= 0 AND RefundPercentage <= 100");
+                        });
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Role", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1658,6 +1786,171 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                             t.HasCheckConstraint("CK_TourBookings_NumberOfGuests_Positive", "NumberOfGuests > 0");
 
                             t.HasCheckConstraint("CK_TourBookings_TotalPrice_NonNegative", "TotalPrice >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourBookingRefund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AdminNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<decimal?>("ApprovedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("CustomerAccountHolder")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("CustomerAccountNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("CustomerBankName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("CustomerNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int?>("DaysBeforeTour")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("OriginalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("ProcessedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("ProcessingFee")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal?>("RefundPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("RefundReason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<int>("RefundType")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RequestedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid>("TourBookingId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("TransactionReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedAt")
+                        .HasDatabaseName("IX_TourBookingRefund_ProcessedAt");
+
+                    b.HasIndex("ProcessedById")
+                        .HasDatabaseName("IX_TourBookingRefund_ProcessedById");
+
+                    b.HasIndex("RefundType")
+                        .HasDatabaseName("IX_TourBookingRefund_RefundType");
+
+                    b.HasIndex("RequestedAt")
+                        .HasDatabaseName("IX_TourBookingRefund_RequestedAt");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_TourBookingRefund_Status");
+
+                    b.HasIndex("TourBookingId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TourBookingRefund_TourBookingId");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_TourBookingRefund_UserId");
+
+                    b.HasIndex("ProcessedById", "ProcessedAt")
+                        .HasDatabaseName("IX_TourBookingRefund_ProcessedById_ProcessedAt");
+
+                    b.HasIndex("RefundType", "Status")
+                        .HasDatabaseName("IX_TourBookingRefund_RefundType_Status");
+
+                    b.HasIndex("Status", "RequestedAt")
+                        .HasDatabaseName("IX_TourBookingRefund_Status_RequestedAt");
+
+                    b.HasIndex("UserId", "Status")
+                        .HasDatabaseName("IX_TourBookingRefund_UserId_Status");
+
+                    b.ToTable("TourBookingRefunds", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TourBookingRefund_ApprovedAmount_NonNegative", "ApprovedAmount IS NULL OR ApprovedAmount >= 0");
+
+                            t.HasCheckConstraint("CK_TourBookingRefund_CompletedAt_Logic", "(Status != 3 AND CompletedAt IS NULL) OR (Status = 3 AND CompletedAt IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_TourBookingRefund_DaysBeforeTour_NonNegative", "DaysBeforeTour IS NULL OR DaysBeforeTour >= 0");
+
+                            t.HasCheckConstraint("CK_TourBookingRefund_OriginalAmount_Positive", "OriginalAmount > 0");
+
+                            t.HasCheckConstraint("CK_TourBookingRefund_ProcessedAt_Logic", "(Status = 0 AND ProcessedAt IS NULL) OR (Status != 0 AND ProcessedAt IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_TourBookingRefund_ProcessingFee_NonNegative", "ProcessingFee >= 0");
+
+                            t.HasCheckConstraint("CK_TourBookingRefund_RefundPercentage_Valid", "RefundPercentage IS NULL OR (RefundPercentage >= 0 AND RefundPercentage <= 100)");
+
+                            t.HasCheckConstraint("CK_TourBookingRefund_RequestedAmount_NonNegative", "RequestedAmount >= 0");
                         });
                 });
 
@@ -2705,7 +2998,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<DateTime>("RequestedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("UTC_TIMESTAMP()");
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
@@ -3179,6 +3472,32 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourBookingRefund", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "ProcessedBy")
+                        .WithMany()
+                        .HasForeignKey("ProcessedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourBooking", "TourBooking")
+                        .WithOne("RefundRequest")
+                        .HasForeignKey("TayNinhTourApi.DataAccessLayer.Entities.TourBookingRefund", "TourBookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
+                        .WithMany("TourBookingRefunds")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ProcessedBy");
+
+                    b.Navigation("TourBooking");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourCompany", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
@@ -3509,6 +3828,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("Images");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourBooking", b =>
+                {
+                    b.Navigation("RefundRequest");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourDetails", b =>
                 {
                     b.Navigation("AssignedSlots");
@@ -3563,6 +3887,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("TicketsAssigned");
 
                     b.Navigation("TicketsCreated");
+
+                    b.Navigation("TourBookingRefunds");
 
                     b.Navigation("TourCompany");
 

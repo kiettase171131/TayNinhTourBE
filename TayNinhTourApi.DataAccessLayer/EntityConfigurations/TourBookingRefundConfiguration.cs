@@ -58,7 +58,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
 
             builder.Property(r => r.RequestedAt)
                 .IsRequired()
-                .HasDefaultValueSql("UTC_TIMESTAMP()");
+                .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
             // Optional Properties Configuration
             builder.Property(r => r.ProcessedAt)

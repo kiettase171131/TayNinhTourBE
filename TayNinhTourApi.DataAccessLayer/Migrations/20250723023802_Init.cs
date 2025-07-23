@@ -67,6 +67,45 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "RefundPolicies",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    RefundType = table.Column<int>(type: "int", nullable: false),
+                    MinDaysBeforeEvent = table.Column<int>(type: "int", nullable: false),
+                    MaxDaysBeforeEvent = table.Column<int>(type: "int", nullable: true),
+                    RefundPercentage = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false),
+                    ProcessingFee = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    ProcessingFeePercentage = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
+                    Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Priority = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    EffectiveFrom = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
+                    EffectiveTo = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    InternalNotes = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RefundPolicies", x => x.Id);
+                    table.CheckConstraint("CK_RefundPolicy_EffectiveTo_Logic", "EffectiveTo IS NULL OR EffectiveTo > EffectiveFrom");
+                    table.CheckConstraint("CK_RefundPolicy_MaxDaysBeforeEvent_Valid", "MaxDaysBeforeEvent IS NULL OR MaxDaysBeforeEvent >= MinDaysBeforeEvent");
+                    table.CheckConstraint("CK_RefundPolicy_MinDaysBeforeEvent_NonNegative", "MinDaysBeforeEvent >= 0");
+                    table.CheckConstraint("CK_RefundPolicy_Priority_Valid", "Priority >= 1 AND Priority <= 100");
+                    table.CheckConstraint("CK_RefundPolicy_ProcessingFee_NonNegative", "ProcessingFee >= 0");
+                    table.CheckConstraint("CK_RefundPolicy_ProcessingFeePercentage_Valid", "ProcessingFeePercentage >= 0 AND ProcessingFeePercentage <= 100");
+                    table.CheckConstraint("CK_RefundPolicy_RefundPercentage_Valid", "RefundPercentage >= 0 AND RefundPercentage <= 100");
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Roles",
                 columns: table => new
                 {
@@ -184,6 +223,50 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "BankAccounts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    BankName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    AccountNumber = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    AccountHolderName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsDefault = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
+                    Notes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    VerifiedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    VerifiedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BankAccounts", x => x.Id);
+                    table.CheckConstraint("CK_BankAccount_AccountNumber_Numeric", "AccountNumber REGEXP '^[0-9]+$'");
+                    table.ForeignKey(
+                        name: "FK_BankAccounts_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_BankAccounts_Users_VerifiedById",
+                        column: x => x.VerifiedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -672,6 +755,62 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         name: "FK_AIChatMessages_AIChatSessions_SessionId",
                         column: x => x.SessionId,
                         principalTable: "AIChatSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "WithdrawalRequests",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    BankAccountId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    RequestedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
+                    ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ProcessedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    AdminNotes = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    UserNotes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TransactionReference = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    WalletBalanceAtRequest = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    WithdrawalFee = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WithdrawalRequests", x => x.Id);
+                    table.CheckConstraint("CK_WithdrawalRequest_Amount_Positive", "Amount > 0");
+                    table.CheckConstraint("CK_WithdrawalRequest_ProcessedAt_Logic", "(Status = 0 AND ProcessedAt IS NULL) OR (Status != 0 AND ProcessedAt IS NOT NULL)");
+                    table.CheckConstraint("CK_WithdrawalRequest_WalletBalance_NonNegative", "WalletBalanceAtRequest >= 0");
+                    table.CheckConstraint("CK_WithdrawalRequest_WithdrawalFee_NonNegative", "WithdrawalFee >= 0");
+                    table.ForeignKey(
+                        name: "FK_WithdrawalRequests_BankAccounts_BankAccountId",
+                        column: x => x.BankAccountId,
+                        principalTable: "BankAccounts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_WithdrawalRequests_Users_ProcessedById",
+                        column: x => x.ProcessedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_WithdrawalRequests_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -1505,6 +1644,79 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
+            migrationBuilder.CreateTable(
+                name: "TourBookingRefunds",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    TourBookingId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    RefundType = table.Column<int>(type: "int", nullable: false),
+                    RefundReason = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OriginalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    RequestedAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    ApprovedAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    ProcessingFee = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    Status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
+                    RequestedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
+                    ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ProcessedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CompletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    AdminNotes = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CustomerNotes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TransactionReference = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CustomerBankName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CustomerAccountNumber = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CustomerAccountHolder = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DaysBeforeTour = table.Column<int>(type: "int", nullable: true),
+                    RefundPercentage = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: true),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TourBookingRefunds", x => x.Id);
+                    table.CheckConstraint("CK_TourBookingRefund_ApprovedAmount_NonNegative", "ApprovedAmount IS NULL OR ApprovedAmount >= 0");
+                    table.CheckConstraint("CK_TourBookingRefund_CompletedAt_Logic", "(Status != 3 AND CompletedAt IS NULL) OR (Status = 3 AND CompletedAt IS NOT NULL)");
+                    table.CheckConstraint("CK_TourBookingRefund_DaysBeforeTour_NonNegative", "DaysBeforeTour IS NULL OR DaysBeforeTour >= 0");
+                    table.CheckConstraint("CK_TourBookingRefund_OriginalAmount_Positive", "OriginalAmount > 0");
+                    table.CheckConstraint("CK_TourBookingRefund_ProcessedAt_Logic", "(Status = 0 AND ProcessedAt IS NULL) OR (Status != 0 AND ProcessedAt IS NOT NULL)");
+                    table.CheckConstraint("CK_TourBookingRefund_ProcessingFee_NonNegative", "ProcessingFee >= 0");
+                    table.CheckConstraint("CK_TourBookingRefund_RefundPercentage_Valid", "RefundPercentage IS NULL OR (RefundPercentage >= 0 AND RefundPercentage <= 100)");
+                    table.CheckConstraint("CK_TourBookingRefund_RequestedAmount_NonNegative", "RequestedAmount >= 0");
+                    table.ForeignKey(
+                        name: "FK_TourBookingRefunds_TourBookings_TourBookingId",
+                        column: x => x.TourBookingId,
+                        principalTable: "TourBookings",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TourBookingRefunds_Users_ProcessedById",
+                        column: x => x.ProcessedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_TourBookingRefunds_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
             migrationBuilder.CreateIndex(
                 name: "IX_AIChatMessages_CreatedAt",
                 table: "AIChatMessages",
@@ -1539,6 +1751,37 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "IX_AIChatSessions_UserId",
                 table: "AIChatSessions",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankAccount_BankName",
+                table: "BankAccounts",
+                column: "BankName");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankAccount_IsDefault",
+                table: "BankAccounts",
+                column: "IsDefault");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankAccount_UserId",
+                table: "BankAccounts",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankAccount_UserId_BankName_AccountNumber_Unique",
+                table: "BankAccounts",
+                columns: new[] { "UserId", "BankName", "AccountNumber" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankAccount_UserId_IsDefault",
+                table: "BankAccounts",
+                columns: new[] { "UserId", "IsDefault" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BankAccounts_VerifiedById",
+                table: "BankAccounts",
+                column: "VerifiedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_BlogComments_BlogId",
@@ -1640,6 +1883,58 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "IX_Products_ShopId",
                 table: "Products",
                 column: "ShopId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_Active_Effective",
+                table: "RefundPolicies",
+                columns: new[] { "IsActive", "EffectiveFrom", "EffectiveTo" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_EffectiveFrom",
+                table: "RefundPolicies",
+                column: "EffectiveFrom");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_EffectiveTo",
+                table: "RefundPolicies",
+                column: "EffectiveTo");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_IsActive",
+                table: "RefundPolicies",
+                column: "IsActive");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_Priority",
+                table: "RefundPolicies",
+                column: "Priority");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_RefundType",
+                table: "RefundPolicies",
+                column: "RefundType");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_RefundType_DaysRange",
+                table: "RefundPolicies",
+                columns: new[] { "RefundType", "MinDaysBeforeEvent", "MaxDaysBeforeEvent" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_RefundType_IsActive",
+                table: "RefundPolicies",
+                columns: new[] { "RefundType", "IsActive" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_RefundType_IsActive_Priority",
+                table: "RefundPolicies",
+                columns: new[] { "RefundType", "IsActive", "Priority" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefundPolicy_Unique_Range",
+                table: "RefundPolicies",
+                columns: new[] { "RefundType", "MinDaysBeforeEvent", "MaxDaysBeforeEvent", "IsActive" },
+                unique: true,
+                filter: "IsActive = 1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SpecialtyShopApplication_Email",
@@ -1761,6 +2056,62 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "IX_TimelineItem_UpdatedById",
                 table: "TimelineItem",
                 column: "UpdatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_ProcessedAt",
+                table: "TourBookingRefunds",
+                column: "ProcessedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_ProcessedById",
+                table: "TourBookingRefunds",
+                column: "ProcessedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_ProcessedById_ProcessedAt",
+                table: "TourBookingRefunds",
+                columns: new[] { "ProcessedById", "ProcessedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_RefundType",
+                table: "TourBookingRefunds",
+                column: "RefundType");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_RefundType_Status",
+                table: "TourBookingRefunds",
+                columns: new[] { "RefundType", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_RequestedAt",
+                table: "TourBookingRefunds",
+                column: "RequestedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_Status",
+                table: "TourBookingRefunds",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_Status_RequestedAt",
+                table: "TourBookingRefunds",
+                columns: new[] { "Status", "RequestedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_TourBookingId",
+                table: "TourBookingRefunds",
+                column: "TourBookingId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_UserId",
+                table: "TourBookingRefunds",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourBookingRefund_UserId_Status",
+                table: "TourBookingRefunds",
+                columns: new[] { "UserId", "Status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_TourBookings_BookingCode_Unique",
@@ -2140,6 +2491,51 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "IX_Users_RoleId",
                 table: "Users",
                 column: "RoleId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_BankAccountId",
+                table: "WithdrawalRequests",
+                column: "BankAccountId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_ProcessedAt",
+                table: "WithdrawalRequests",
+                column: "ProcessedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_ProcessedById",
+                table: "WithdrawalRequests",
+                column: "ProcessedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_ProcessedById_ProcessedAt",
+                table: "WithdrawalRequests",
+                columns: new[] { "ProcessedById", "ProcessedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_RequestedAt",
+                table: "WithdrawalRequests",
+                column: "RequestedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_Status",
+                table: "WithdrawalRequests",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_Status_RequestedAt",
+                table: "WithdrawalRequests",
+                columns: new[] { "Status", "RequestedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_UserId",
+                table: "WithdrawalRequests",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WithdrawalRequest_UserId_Status",
+                table: "WithdrawalRequests",
+                columns: new[] { "UserId", "Status" });
         }
 
         /// <inheritdoc />
@@ -2182,6 +2578,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "ProductReviews");
 
             migrationBuilder.DropTable(
+                name: "RefundPolicies");
+
+            migrationBuilder.DropTable(
                 name: "SpecialtyShopApplications");
 
             migrationBuilder.DropTable(
@@ -2194,7 +2593,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "TimelineItem");
 
             migrationBuilder.DropTable(
-                name: "TourBookings");
+                name: "TourBookingRefunds");
 
             migrationBuilder.DropTable(
                 name: "TourCompanies");
@@ -2207,6 +2606,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             migrationBuilder.DropTable(
                 name: "Vouchers");
+
+            migrationBuilder.DropTable(
+                name: "WithdrawalRequests");
 
             migrationBuilder.DropTable(
                 name: "AIChatSessions");
@@ -2230,13 +2632,19 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "SupportTickets");
 
             migrationBuilder.DropTable(
+                name: "TourBookings");
+
+            migrationBuilder.DropTable(
+                name: "SpecialtyShops");
+
+            migrationBuilder.DropTable(
+                name: "BankAccounts");
+
+            migrationBuilder.DropTable(
                 name: "TourOperations");
 
             migrationBuilder.DropTable(
                 name: "TourSlots");
-
-            migrationBuilder.DropTable(
-                name: "SpecialtyShops");
 
             migrationBuilder.DropTable(
                 name: "TourGuides");

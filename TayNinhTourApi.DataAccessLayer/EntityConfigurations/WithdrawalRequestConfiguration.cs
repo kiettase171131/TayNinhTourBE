@@ -34,8 +34,8 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasConversion<int>(); // Store enum as int
 
             builder.Property(w => w.RequestedAt)
-                .IsRequired()
-                .HasDefaultValueSql("UTC_TIMESTAMP()");
+    .IsRequired()
+    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
             builder.Property(w => w.WalletBalanceAtRequest)
                 .IsRequired()
