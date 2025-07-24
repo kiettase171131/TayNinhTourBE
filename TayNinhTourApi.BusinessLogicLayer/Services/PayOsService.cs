@@ -22,7 +22,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             _config = config;
         }
-        public async Task<string?> CreatePaymentUrlAsync(decimal amount, string orderCode, string returnUrl)
+        /// <summary>
+        /// Tạo PayOS payment URL cho product order với separate URLs
+        /// </summary>
+        public async Task<string?> CreatePaymentUrlAsync(decimal amount, string orderCode, string baseUrl)
         {
             var clientId = _config["PayOS:ClientId"];
             var apiKey = _config["PayOS:ApiKey"];
@@ -32,7 +35,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             PayOS payOS = new PayOS(clientId, apiKey, checksumKey);
 
             // orderCode đã được truyền vào với format TNDT + 10 số
-            var payOsOrderCodeString = orderCode; // Sử dụng orderCode đã truyền vào
+            var payOsOrderCodeString = orderCode;
 
             // PayOS yêu cầu orderCode phải là số, nên chỉ lấy phần số từ orderCode (loại bỏ "TNDT")
             var numericPart = orderCode.StartsWith("TNDT") ? orderCode.Substring(4) : orderCode;
@@ -42,11 +45,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             PaymentData paymentData = new PaymentData(
              orderCode: orderCode2,
              amount: (int)amount,
-             description: $"{orderCodeDisplay}",
+             description: $"Product Order - {orderCodeDisplay}",
              items: items,
-             cancelUrl: $"https://tndt.netlify.app/payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
-             returnUrl: $"https://tndt.netlify.app/payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
-             buyerName: "kiet");
+             cancelUrl: $"{baseUrl}/product-payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+             returnUrl: $"{baseUrl}/product-payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+             buyerName: "Product Customer");
             CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
             return createPayment.checkoutUrl;
         }
@@ -76,8 +79,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
              amount: (int)amount,
              description: $"Tour Booking - {orderCodeDisplay}",
              items: items,
-             cancelUrl: $"{baseUrl}/payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
-             returnUrl: $"{baseUrl}/payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+             cancelUrl: $"{baseUrl}/tour-payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+             returnUrl: $"{baseUrl}/tour-payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
              buyerName: "Tour Customer");
             CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
             return createPayment.checkoutUrl;

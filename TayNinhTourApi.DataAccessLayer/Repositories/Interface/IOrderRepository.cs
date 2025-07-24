@@ -7,7 +7,8 @@ using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
 {
-    public interface IOrderRepository : IGenericRepository<Order> 
+    public interface IOrderRepository : IGenericRepository<Order>
     {
+        Task<Order?> GetByPayOsOrderCodeAsync(string payOsOrderCode);
     }
 }
