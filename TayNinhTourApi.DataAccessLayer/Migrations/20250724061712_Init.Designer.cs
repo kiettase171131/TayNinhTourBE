@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250723035808_Init")]
+    [Migration("20250724061712_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -1618,10 +1618,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<int>("AdultCount")
-                        .HasColumnType("int")
-                        .HasComment("Số lượng khách người lớn");
-
                     b.Property<string>("BookingCode")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1640,12 +1636,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<DateTime?>("CancelledDate")
                         .HasColumnType("datetime(6)")
                         .HasComment("Ngày hủy booking");
-
-                    b.Property<int>("ChildCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0)
-                        .HasComment("Số lượng trẻ em");
 
                     b.Property<DateTime?>("ConfirmedDate")
                         .HasColumnType("datetime(6)")
@@ -1780,12 +1770,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.ToTable("TourBookings", null, t =>
                         {
-                            t.HasCheckConstraint("CK_TourBookings_AdultCount_NonNegative", "AdultCount >= 0");
-
-                            t.HasCheckConstraint("CK_TourBookings_ChildCount_NonNegative", "ChildCount >= 0");
-
-                            t.HasCheckConstraint("CK_TourBookings_GuestCount_Match", "NumberOfGuests = AdultCount + ChildCount");
-
                             t.HasCheckConstraint("CK_TourBookings_NumberOfGuests_Positive", "NumberOfGuests > 0");
 
                             t.HasCheckConstraint("CK_TourBookings_TotalPrice_NonNegative", "TotalPrice >= 0");
@@ -2684,6 +2668,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
+                    b.Property<int>("CurrentBookings")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
@@ -2695,6 +2682,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("MaxGuests")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)");
 
                     b.Property<int>("ScheduleDay")
                         .HasColumnType("int")
@@ -3458,7 +3453,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .IsRequired();
 
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", "TourSlot")
-                        .WithMany()
+                        .WithMany("Bookings")
                         .HasForeignKey("TourSlotId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -3862,6 +3857,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", b =>
                 {
                     b.Navigation("TourBookings");
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", b =>
+                {
+                    b.Navigation("Bookings");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", b =>

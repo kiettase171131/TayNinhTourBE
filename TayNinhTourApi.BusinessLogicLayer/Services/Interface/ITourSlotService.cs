@@ -58,5 +58,62 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
             Guid? tourTemplateId = null,
             DateOnly? fromDate = null,
             DateOnly? toDate = null);
+
+        /// <summary>
+        /// Kiểm tra xem có thể booking slot với số lượng khách yêu cầu không
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <param name="requestedGuests">Số lượng khách muốn booking</param>
+        /// <returns>True nếu có thể booking</returns>
+        Task<bool> CanBookSlotAsync(Guid slotId, int requestedGuests);
+
+        /// <summary>
+        /// Reserve capacity cho slot (CHỈ check, không cập nhật CurrentBookings)
+        /// Dùng khi tạo booking để kiểm tra capacity
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <param name="guestsToReserve">Số lượng khách cần reserve</param>
+        /// <returns>True nếu reserve thành công</returns>
+        Task<bool> ReserveSlotCapacityAsync(Guid slotId, int guestsToReserve);
+
+        /// <summary>
+        /// Confirm capacity cho slot (CẬP NHẬT CurrentBookings)
+        /// CHỈ dùng khi thanh toán thành công
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <param name="guestsToConfirm">Số lượng khách cần confirm</param>
+        /// <returns>True nếu confirm thành công</returns>
+        Task<bool> ConfirmSlotCapacityAsync(Guid slotId, int guestsToConfirm);
+
+        /// <summary>
+        /// Release capacity cho slot (khi hủy booking)
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <param name="guestsToRelease">Số lượng khách cần release</param>
+        /// <returns>True nếu release thành công</returns>
+        Task<bool> ReleaseSlotCapacityAsync(Guid slotId, int guestsToRelease);
+
+        /// <summary>
+        /// Cập nhật capacity cho slot từ TourOperation khi được assign
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <param name="maxGuests">Số lượng khách tối đa từ TourOperation</param>
+        /// <returns>True nếu cập nhật thành công</returns>
+        Task<bool> UpdateSlotCapacityAsync(Guid slotId, int maxGuests);
+
+        /// <summary>
+        /// Sync lại capacity của tất cả slots thuộc TourDetails từ TourOperation
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="maxGuests">Số lượng khách tối đa từ TourOperation</param>
+        /// <returns>True nếu sync thành công</returns>
+        Task<bool> SyncSlotsCapacityAsync(Guid tourDetailsId, int maxGuests);
+
+        /// <summary>
+        /// Get capacity summary for debugging purposes
+        /// </summary>
+        /// <param name="slotId">ID của slot</param>
+        /// <returns>Tuple với thông tin valid và debug info</returns>
+        Task<(bool IsValid, string DebugInfo)> GetSlotCapacityDebugInfoAsync(Guid slotId);
     }
 }

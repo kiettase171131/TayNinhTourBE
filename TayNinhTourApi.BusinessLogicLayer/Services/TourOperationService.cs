@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
@@ -18,15 +19,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     {
         private readonly ILogger<TourOperationService> _logger;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IServiceProvider _serviceProvider;
 
         public TourOperationService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ILogger<TourOperationService> logger,
-            ICurrentUserService currentUserService) : base(mapper, unitOfWork)
+            ICurrentUserService currentUserService,
+            IServiceProvider serviceProvider) : base(mapper, unitOfWork)
         {
             _logger = logger;
             _currentUserService = currentUserService;
+            _serviceProvider = serviceProvider;
         }
 
         /// <summary>
@@ -127,10 +131,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.TourOperationRepository.AddAsync(operation);
                 await _unitOfWork.SaveChangesAsync();
 
-                // 8. Return response
+                // 8. Sync slot capacity with the new TourOperation MaxGuests
+                var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                await tourSlotService.SyncSlotsCapacityAsync(request.TourDetailsId, operation.MaxGuests);
+
+                // 9. Return response
                 var operationDto = _mapper.Map<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>(operation);
 
-                _logger.LogInformation("Operation created successfully for TourDetails {TourDetailsId}", request.TourDetailsId);
+                _logger.LogInformation("Operation created successfully for TourDetails {TourDetailsId} with MaxGuests {MaxGuests}", 
+                    request.TourDetailsId, operation.MaxGuests);
 
                 return new ResponseCreateOperationDto
                 {
@@ -246,6 +255,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // 4. Update fields
+                var oldMaxGuests = operation.MaxGuests;
                 if (request.Price.HasValue) operation.Price = request.Price.Value;
                 if (request.MaxSeats.HasValue) operation.MaxGuests = request.MaxSeats.Value;
                 if (request.Description != null) operation.Description = request.Description;
@@ -257,6 +267,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.TourOperationRepository.UpdateAsync(operation);
                 await _unitOfWork.SaveChangesAsync();
+
+                // 5. Sync slot capacity if MaxGuests changed
+                if (request.MaxSeats.HasValue && oldMaxGuests != operation.MaxGuests)
+                {
+                    var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                    await tourSlotService.SyncSlotsCapacityAsync(operation.TourDetailsId, operation.MaxGuests);
+                    
+                    _logger.LogInformation("Synced slot capacity for TourDetails {TourDetailsId} from {OldCapacity} to {NewCapacity}", 
+                        operation.TourDetailsId, oldMaxGuests, operation.MaxGuests);
+                }
 
                 var operationDto = _mapper.Map<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>(operation);
 

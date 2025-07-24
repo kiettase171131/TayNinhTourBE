@@ -125,9 +125,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// Tính toán giá tiền cho booking
         /// </summary>
         /// <param name="tourOperationId">ID của TourOperation</param>
-        /// <param name="adultCount">Số người lớn</param>
-        /// <param name="childCount">Số trẻ em</param>
+        /// <param name="numberOfGuests">Số lượng khách</param>
         /// <returns>Tổng giá tiền</returns>
-        Task<decimal> CalculateBookingPriceAsync(Guid tourOperationId, int adultCount, int childCount);
+        Task<decimal> CalculateBookingPriceAsync(Guid tourOperationId, int numberOfGuests);
     }
 }

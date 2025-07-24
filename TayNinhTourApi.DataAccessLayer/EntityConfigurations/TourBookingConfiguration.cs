@@ -16,10 +16,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.ToTable("TourBookings", t =>
             {
                 t.HasCheckConstraint("CK_TourBookings_NumberOfGuests_Positive", "NumberOfGuests > 0");
-                t.HasCheckConstraint("CK_TourBookings_AdultCount_NonNegative", "AdultCount >= 0");
-                t.HasCheckConstraint("CK_TourBookings_ChildCount_NonNegative", "ChildCount >= 0");
                 t.HasCheckConstraint("CK_TourBookings_TotalPrice_NonNegative", "TotalPrice >= 0");
-                t.HasCheckConstraint("CK_TourBookings_GuestCount_Match", "NumberOfGuests = AdultCount + ChildCount");
             });
 
             // Primary Key
@@ -41,15 +38,6 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
             builder.Property(tb => tb.NumberOfGuests)
                 .IsRequired()
                 .HasComment("Tổng số lượng khách trong booking");
-
-            builder.Property(tb => tb.AdultCount)
-                .IsRequired()
-                .HasComment("Số lượng khách người lớn");
-
-            builder.Property(tb => tb.ChildCount)
-                .IsRequired()
-                .HasDefaultValue(0)
-                .HasComment("Số lượng trẻ em");
 
             builder.Property(tb => tb.OriginalPrice)
                 .IsRequired()
@@ -146,7 +134,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired();
 
             builder.HasOne(tb => tb.TourSlot)
-                .WithMany() // TourSlot có nhiều bookings
+                .WithMany(ts => ts.Bookings) // TourSlot có nhiều bookings
                 .HasForeignKey(tb => tb.TourSlotId)
                 .OnDelete(DeleteBehavior.Restrict) // Không cho phép xóa TourSlot nếu có bookings
                 .IsRequired(false);

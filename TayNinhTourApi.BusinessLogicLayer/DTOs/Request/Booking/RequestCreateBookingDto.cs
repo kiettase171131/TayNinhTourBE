@@ -14,17 +14,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Booking
         public Guid TourOperationId { get; set; }
 
         /// <summary>
-        /// Số lượng khách người lớn
+        /// Số lượng khách
         /// </summary>
-        [Required(ErrorMessage = "Số lượng người lớn là bắt buộc")]
-        [Range(1, 50, ErrorMessage = "Số lượng người lớn phải từ 1 đến 50")]
-        public int AdultCount { get; set; }
-
-        /// <summary>
-        /// Số lượng trẻ em (nếu có)
-        /// </summary>
-        [Range(0, 50, ErrorMessage = "Số lượng trẻ em phải từ 0 đến 50")]
-        public int ChildCount { get; set; } = 0;
+        [Required(ErrorMessage = "Số lượng khách là bắt buộc")]
+        [Range(1, 50, ErrorMessage = "Số lượng khách phải từ 1 đến 50")]
+        public int NumberOfGuests { get; set; }
 
         /// <summary>
         /// Ghi chú từ khách hàng
@@ -53,10 +47,5 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Booking
         [StringLength(100, ErrorMessage = "Email không quá 100 ký tự")]
         [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string? ContactEmail { get; set; }
-
-        /// <summary>
-        /// Tổng số khách (computed property)
-        /// </summary>
-        public int TotalGuests => AdultCount + ChildCount;
     }
 }

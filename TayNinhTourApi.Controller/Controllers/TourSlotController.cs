@@ -190,5 +190,91 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Debug endpoint - Lấy thông tin capacity chi tiết của một slot
+        /// </summary>
+        /// <param name="id">ID của TourSlot</param>
+        /// <returns>Thông tin debug capacity</returns>
+        [HttpGet("{id}/debug-capacity")]
+        public async Task<IActionResult> GetSlotCapacityDebugInfo(Guid id)
+        {
+            try
+            {
+                var (isValid, debugInfo) = await _tourSlotService.GetSlotCapacityDebugInfoAsync(id);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy thông tin debug capacity thành công",
+                    data = new
+                    {
+                        slotId = id,
+                        isValid,
+                        debugInfo,
+                        timestamp = DateTime.UtcNow
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting debug capacity info for slot: {SlotId}", id);
+                
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy thông tin debug",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Kiểm tra xem có thể booking một slot với số lượng khách yêu cầu không
+        /// </summary>
+        /// <param name="id">ID của TourSlot</param>
+        /// <param name="requestedGuests">Số lượng khách muốn booking</param>
+        /// <returns>Kết quả kiểm tra</returns>
+        [HttpGet("{id}/can-book")]
+        public async Task<IActionResult> CanBookSlot(Guid id, [FromQuery] int requestedGuests = 1)
+        {
+            try
+            {
+                if (requestedGuests <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Số lượng khách phải lớn hơn 0"
+                    });
+                }
+
+                var canBook = await _tourSlotService.CanBookSlotAsync(id, requestedGuests);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Kiểm tra khả năng booking thành công",
+                    data = new
+                    {
+                        slotId = id,
+                        requestedGuests,
+                        canBook,
+                        timestamp = DateTime.UtcNow
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if slot can be booked: {SlotId}, Guests: {Guests}", id, requestedGuests);
+                
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi kiểm tra khả năng booking",
+                    error = ex.Message
+                });
+            }
+        }
     }
 }

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.Common;
@@ -10,7 +12,6 @@ using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
-using Microsoft.Extensions.Logging;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -25,6 +26,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IPayOsService _payOsService;
         private readonly IQRCodeService _qrCodeService;
         private readonly EmailSender _emailSender;
+        private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<UserTourBookingService> _logger;
 
         public UserTourBookingService(
@@ -34,6 +36,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             IPayOsService payOsService,
             IQRCodeService qrCodeService,
             EmailSender emailSender,
+            IServiceProvider serviceProvider,
             ILogger<UserTourBookingService> logger)
         {
             _unitOfWork = unitOfWork;
@@ -42,6 +45,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _payOsService = payOsService;
             _qrCodeService = qrCodeService;
             _emailSender = emailSender;
+            _serviceProvider = serviceProvider;
             _logger = logger;
         }
 
@@ -142,6 +146,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (tourDetails?.TourOperation == null || !tourDetails.TourOperation.IsActive)
                 return null;
 
+            // Get slots with capacity information
+            var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+            var slotsData = await tourSlotService.GetSlotsByTourDetailsAsync(tourDetailsId);
+
             return new TourDetailsForBookingDto
             {
                 Id = tourDetails.Id,
@@ -160,8 +168,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Price = tourDetails.TourOperation.Price,
                     MaxGuests = tourDetails.TourOperation.MaxGuests,
                     CurrentBookings = tourDetails.TourOperation.CurrentBookings,
-                    TourStartDate = tourDetails.AssignedSlots.Any() ? 
-                        tourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null,
+                    TourStartDate = slotsData.Any() ? 
+                        slotsData.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null,
                     GuideId = tourDetails.TourOperation.TourGuide?.Id.ToString(),
                     GuideName = tourDetails.TourOperation.TourGuide?.FullName,
                     GuidePhone = tourDetails.TourOperation.TourGuide?.PhoneNumber
@@ -186,13 +194,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     CreatedAt = t.CreatedAt,
                     UpdatedAt = t.UpdatedAt
                 }).ToList(),
-                TourDates = tourDetails.AssignedSlots.Select(s => new TourDateDto
+                TourDates = slotsData.Select(slot => new TourDateDto
                 {
-                    TourSlotId = s.Id,
-                    TourDate = s.TourDate.ToDateTime(TimeOnly.MinValue),
-                    ScheduleDay = s.ScheduleDay.ToString(),
-                    IsAvailable = s.IsActive && s.Status == TourSlotStatus.Available
-                }).ToList()
+                    TourSlotId = slot.Id,
+                    TourDate = slot.TourDate.ToDateTime(TimeOnly.MinValue),
+                    ScheduleDay = slot.ScheduleDayName,
+                    MaxGuests = slot.MaxGuests,
+                    CurrentBookings = slot.CurrentBookings,
+                    AvailableSpots = slot.AvailableSpots,
+                    IsAvailable = slot.IsActive && slot.Status == TourSlotStatus.Available,
+                    IsBookable = slot.IsBookable,
+                    StatusName = slot.StatusName
+                }).OrderBy(d => d.TourDate).ToList()
             };
         }
 
@@ -217,7 +230,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 DateTime.MaxValue;
 
             var availableSpots = tourOperation.MaxGuests - tourOperation.CurrentBookings;
-            var isAvailable = availableSpots >= request.NumberOfGuests && tourStartDate > DateTime.UtcNow;
+            var isAvailable = availableSpots >= request.NumberOfGuests && tourStartDate > DateTime.Now;
 
             var pricingInfo = _pricingService.GetPricingInfo(
                 tourOperation.Price,
@@ -257,38 +270,50 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         public async Task<CreateBookingResultDto> CreateBookingAsync(CreateTourBookingRequest request, Guid userId)
         {
-            // Validation
-            if (request.NumberOfGuests != request.AdultCount + request.ChildCount)
-            {
-                return new CreateBookingResultDto
-                {
-                    Success = false,
-                    Message = "Tổng số khách không khớp với số người lớn + trẻ em"
-                };
-            }
-
             using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                // 1. Get and lock TourOperation with optimistic concurrency
-                var tourOperation = await _unitOfWork.TourOperationRepository.GetQueryable()
-                    .Where(to => to.Id == request.TourOperationId && to.IsActive && !to.IsDeleted)
-                    .Include(to => to.TourDetails)
-                        .ThenInclude(td => td.AssignedSlots)
-                    .Include(to => to.CreatedBy) // To get TourCompany info
+                _logger.LogInformation("Starting tour booking process. UserId: {UserId}, TourSlotId: {TourSlotId}, Guests: {Guests}", 
+                    userId, request.TourSlotId, request.NumberOfGuests);
+
+                // 1. Get and validate TourSlot first
+                var tourSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Where(ts => ts.Id == request.TourSlotId && ts.IsActive && !ts.IsDeleted)
+                    .Include(ts => ts.TourDetails)
+                        .ThenInclude(td => td.TourOperation)
+                            .ThenInclude(to => to.CreatedBy)
                     .FirstOrDefaultAsync();
 
-                if (tourOperation?.TourDetails == null)
+                if (tourSlot?.TourDetails?.TourOperation == null)
                 {
+                    _logger.LogWarning("Tour slot not found or invalid. TourSlotId: {TourSlotId}", request.TourSlotId);
                     return new CreateBookingResultDto
                     {
                         Success = false,
-                        Message = "Tour không tồn tại hoặc không khả dụng"
+                        Message = "Tour slot không tồn tại hoặc không khả dụng"
                     };
                 }
 
-                if (tourOperation.TourDetails.Status != TourDetailsStatus.Public)
+                var tourOperation = tourSlot.TourDetails.TourOperation;
+                _logger.LogDebug("Found tour operation. Id: {TourOperationId}, MaxGuests: {MaxGuests}, CurrentBookings: {CurrentBookings}", 
+                    tourOperation.Id, tourOperation.MaxGuests, tourOperation.CurrentBookings);
+
+                // 2. Validate TourOperation and TourDetails
+                if (!tourOperation.IsActive || tourOperation.IsDeleted)
                 {
+                    _logger.LogWarning("Tour operation not active. TourOperationId: {TourOperationId}, IsActive: {IsActive}, IsDeleted: {IsDeleted}", 
+                        tourOperation.Id, tourOperation.IsActive, tourOperation.IsDeleted);
+                    return new CreateBookingResultDto
+                    {
+                        Success = false,
+                        Message = "Tour operation không khả dụng"
+                    };
+                }
+
+                if (tourSlot.TourDetails.Status != TourDetailsStatus.Public)
+                {
+                    _logger.LogWarning("Tour not public. TourDetailsId: {TourDetailsId}, Status: {Status}", 
+                        tourSlot.TourDetails.Id, tourSlot.TourDetails.Status);
                     return new CreateBookingResultDto
                     {
                         Success = false,
@@ -296,23 +321,46 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 2. Check availability
-                var availableSpots = tourOperation.MaxGuests - tourOperation.CurrentBookings;
-                if (availableSpots < request.NumberOfGuests)
+                // 3. Check if the tour operation matches the request (if provided)
+                if (request.TourOperationId != tourOperation.Id)
                 {
+                    _logger.LogWarning("Tour operation mismatch. Expected: {Expected}, Provided: {Provided}", 
+                        tourOperation.Id, request.TourOperationId);
                     return new CreateBookingResultDto
                     {
                         Success = false,
-                        Message = $"Chỉ còn {availableSpots} chỗ trống, không đủ cho {request.NumberOfGuests} khách"
+                        Message = "Tour slot không thuộc về tour operation được chọn"
                     };
                 }
 
-                var tourStartDate = tourOperation.TourDetails.AssignedSlots.Any() ? 
-                    tourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : 
-                    DateTime.MaxValue;
-
-                if (tourStartDate <= DateTime.UtcNow)
+                // 4. Check slot-specific availability
+                if (tourSlot.Status != TourSlotStatus.Available)
                 {
+                    _logger.LogWarning("Tour slot not available. TourSlotId: {TourSlotId}, Status: {Status}", 
+                        request.TourSlotId, tourSlot.Status);
+                    return new CreateBookingResultDto
+                    {
+                        Success = false,
+                        Message = "Tour slot không khả dụng để booking"
+                    };
+                }
+
+                if (tourSlot.AvailableSpots < request.NumberOfGuests)
+                {
+                    _logger.LogWarning("Insufficient capacity in slot. TourSlotId: {TourSlotId}, Available: {Available}, Requested: {Requested}", 
+                        request.TourSlotId, tourSlot.AvailableSpots, request.NumberOfGuests);
+                    return new CreateBookingResultDto
+                    {
+                        Success = false,
+                        Message = $"Slot này chỉ còn {tourSlot.AvailableSpots} chỗ trống, không đủ cho {request.NumberOfGuests} khách"
+                    };
+                }
+
+                var tourStartDate = tourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+                if (tourStartDate <= DateTime.Now)
+                {
+                    _logger.LogWarning("Tour already started. TourSlotId: {TourSlotId}, TourDate: {TourDate}", 
+                        request.TourSlotId, tourStartDate);
                     return new CreateBookingResultDto
                     {
                         Success = false,
@@ -320,32 +368,82 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 3. Calculate pricing
+                // 5. Calculate pricing based on TourOperation (with null check for pricing service)
                 var bookingDate = DateTime.UtcNow;
-                var pricingInfo = _pricingService.GetPricingInfo(
-                    tourOperation.Price,
-                    tourStartDate,
-                    tourOperation.TourDetails.CreatedAt,
-                    bookingDate);
+                var baseUrl = "https://tndt.netlify.app"; // Base URL for payment callbacks
+                decimal totalPrice;
+                decimal discountPercent = 0;
+                string pricingType = "Standard";
 
-                var totalPrice = pricingInfo.FinalPrice * request.NumberOfGuests;
+                try
+                {
+                    if (_pricingService != null)
+                    {
+                        var pricingInfo = _pricingService.GetPricingInfo(
+                            tourOperation.Price,
+                            tourStartDate,
+                            tourSlot.TourDetails.CreatedAt,
+                            bookingDate);
 
-                // 4. Generate booking code and PayOS order code
+                        totalPrice = pricingInfo.FinalPrice * request.NumberOfGuests;
+                        discountPercent = pricingInfo.DiscountPercent;
+                        pricingType = pricingInfo.PricingType;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("PricingService is null, using standard pricing");
+                        totalPrice = tourOperation.Price * request.NumberOfGuests;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error calculating pricing, falling back to standard price");
+                    totalPrice = tourOperation.Price * request.NumberOfGuests;
+                }
+
+                // 5.5. Pre-check capacity before attempting to reserve
+                var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                var canBook = await tourSlotService.CanBookSlotAsync(request.TourSlotId, request.NumberOfGuests);
+                
+                if (!canBook)
+                {
+                    _logger.LogWarning("Pre-check failed for booking. TourSlotId: {TourSlotId}, Guests: {Guests}", 
+                        request.TourSlotId, request.NumberOfGuests);
+                    return new CreateBookingResultDto
+                    {
+                        Success = false,
+                        Message = "Slot này hiện không có đủ chỗ trống hoặc không khả dụng. Vui lòng chọn slot khác."
+                    };
+                }
+
+                // 6. Reserve slot capacity first (optimistic concurrency control)
+                var reserveSuccess = await tourSlotService.ReserveSlotCapacityAsync(request.TourSlotId, request.NumberOfGuests);
+                
+                if (!reserveSuccess)
+                {
+                    _logger.LogWarning("Failed to reserve slot capacity. TourSlotId: {TourSlotId}, Guests: {Guests}", 
+                        request.TourSlotId, request.NumberOfGuests);
+                    return new CreateBookingResultDto
+                    {
+                        Success = false,
+                        Message = "Không thể đặt chỗ cho slot này. Slot có thể đã được đặt bởi khách hàng khác hoặc không đủ chỗ trống."
+                    };
+                }
+
+                // 7. Generate booking code and PayOS order code
                 var bookingCode = GenerateBookingCode();
                 var payOsOrderCode = GeneratePayOsOrderCode();
 
-                // 5. Create booking
+                // 8. Create booking
                 var booking = new TourBooking
                 {
                     Id = Guid.NewGuid(),
-                    TourOperationId = request.TourOperationId,
-                    TourSlotId = request.TourSlotId, // Include selected slot
+                    TourOperationId = tourOperation.Id,
+                    TourSlotId = request.TourSlotId,
                     UserId = userId,
                     NumberOfGuests = request.NumberOfGuests,
-                    AdultCount = request.AdultCount,
-                    ChildCount = request.ChildCount,
                     OriginalPrice = tourOperation.Price * request.NumberOfGuests,
-                    DiscountPercent = pricingInfo.DiscountPercent,
+                    DiscountPercent = discountPercent,
                     TotalPrice = totalPrice,
                     Status = BookingStatus.Pending,
                     BookingCode = bookingCode,
@@ -362,18 +460,45 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.TourBookingRepository.AddAsync(booking);
 
-                // 6. Update current bookings (optimistic concurrency)
-                tourOperation.CurrentBookings += request.NumberOfGuests;
-                await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
+                // 9. KHÔNG cộng TourOperation.CurrentBookings ngay lập tức 
+                // Chỉ cộng khi thanh toán thành công trong HandlePaymentSuccessAsync
+                // tourOperation.CurrentBookings += request.NumberOfGuests; // ❌ Remove this line
+                // await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation); // ❌ Remove this line
 
-                // 7. Create PayOS payment URL for tour booking
-                var paymentUrl = await _payOsService.CreateTourBookingPaymentUrlAsync(
-                    totalPrice,
-                    payOsOrderCode,
-                    "https://tndt.netlify.app");
+                _logger.LogInformation("Tour booking created (PENDING payment). BookingCode: {BookingCode}, TourSlot reserved: {Guests} guests", 
+                    bookingCode, request.NumberOfGuests);
+
+                // 10. Create PayOS payment URL for tour booking (with proper error handling)
+                string paymentUrl = $"{baseUrl}/payment-cancel?orderId={booking.Id}&orderCode={payOsOrderCode}"; // Default fallback URL
+                try
+                {
+                    if (_payOsService != null)
+                    {
+                        // Sử dụng method CreatePaymentUrlAsync như trong ProductService
+                        paymentUrl = await _payOsService.CreatePaymentUrlAsync(
+                            totalPrice,
+                            payOsOrderCode,
+                            "https://tndt.netlify.app") ?? paymentUrl;
+                        
+                        _logger.LogInformation("PayOS payment URL created successfully for booking {BookingCode}: {PaymentUrl}", 
+                            bookingCode, paymentUrl);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("PayOsService is null, using fallback URL");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error creating PayOS URL for booking {BookingCode}, using fallback", bookingCode);
+                    // Keep the fallback URL
+                }
 
                 await _unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                _logger.LogInformation("Tour booking created successfully. BookingId: {BookingId}, BookingCode: {BookingCode}, UserId: {UserId}", 
+                    booking.Id, bookingCode, userId);
 
                 return new CreateBookingResultDto
                 {
@@ -382,26 +507,30 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     BookingId = booking.Id,
                     BookingCode = bookingCode,
                     PaymentUrl = paymentUrl,
-                    OriginalPrice = pricingInfo.OriginalPrice * request.NumberOfGuests,
-                    DiscountPercent = pricingInfo.DiscountPercent,
+                    OriginalPrice = tourOperation.Price * request.NumberOfGuests,
+                    DiscountPercent = discountPercent,
                     FinalPrice = totalPrice,
-                    PricingType = pricingInfo.PricingType,
+                    PricingType = pricingType,
                     BookingDate = bookingDate,
-                    TourStartDate = tourStartDate != DateTime.MaxValue ? tourStartDate : null
+                    TourStartDate = tourStartDate
                 };
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 await transaction.RollbackAsync();
+                _logger.LogWarning(ex, "Concurrency conflict during booking creation. UserId: {UserId}, TourSlotId: {TourSlotId}", 
+                    userId, request.TourSlotId);
                 return new CreateBookingResultDto
                 {
                     Success = false,
-                    Message = "Tour đã được booking bởi người khác, vui lòng thử lại"
+                    Message = "Tour slot đã được booking bởi người khác, vui lòng thử lại"
                 };
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error creating tour booking. UserId: {UserId}, TourSlotId: {TourSlotId}", 
+                    userId, request.TourSlotId);
                 return new CreateBookingResultDto
                 {
                     Success = false,
@@ -427,7 +556,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         private string GeneratePayOsOrderCode()
         {
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+            // Tạo timestamp với milliseconds để tăng tính unique
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
             var timestampLast7 = timestamp.Substring(Math.Max(0, timestamp.Length - 7));
             var random = new Random().Next(100, 999);
             return $"TNDT{timestampLast7}{random}";
@@ -459,8 +589,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TourOperationId = b.TourOperationId,
                     UserId = b.UserId,
                     NumberOfGuests = b.NumberOfGuests,
-                    AdultCount = b.AdultCount,
-                    ChildCount = b.ChildCount,
                     OriginalPrice = b.OriginalPrice,
                     DiscountPercent = b.DiscountPercent,
                     TotalPrice = b.TotalPrice,
@@ -525,6 +653,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     .Where(b => b.Id == bookingId && b.UserId == userId && !b.IsDeleted)
                     .Include(b => b.TourOperation)
                         .ThenInclude(to => to.TourDetails)
+                    .Include(b => b.TourSlot)
                     .FirstOrDefaultAsync();
 
                 if (booking == null)
@@ -555,6 +684,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
+                // ✅ Check if booking was confirmed (to know if we need to release TourOperation capacity)
+                var wasConfirmed = booking.Status == BookingStatus.Confirmed;
+
                 // Update booking status
                 booking.Status = BookingStatus.CancelledByCustomer;
                 booking.CancelledDate = DateTime.UtcNow;
@@ -563,11 +695,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
 
-                // Release capacity
-                if (booking.TourOperation != null)
+                // ✅ Chỉ trừ TourOperation.CurrentBookings nếu booking đã được CONFIRMED (đã thanh toán)
+                // Release capacity from TourOperation
+                if (booking.TourOperation != null && wasConfirmed)
                 {
                     booking.TourOperation.CurrentBookings -= booking.NumberOfGuests;
                     await _unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
+                    
+                    _logger.LogInformation("Released TourOperation capacity (-{Guests}) for confirmed booking {BookingCode}", 
+                        booking.NumberOfGuests, booking.BookingCode);
+                }
+
+                // ✅ Luôn release TourSlot capacity (đã được reserve từ khi tạo booking)
+                // Release capacity from TourSlot
+                if (booking.TourSlotId.HasValue)
+                {
+                    var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                    await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
+                    
+                    _logger.LogInformation("Released TourSlot capacity (-{Guests}) for cancelled booking {BookingCode}", 
+                        booking.NumberOfGuests, booking.BookingCode);
                 }
 
                 await _unitOfWork.SaveChangesAsync();
@@ -615,8 +762,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TourOperationId = booking.TourOperationId,
                 UserId = booking.UserId,
                 NumberOfGuests = booking.NumberOfGuests,
-                AdultCount = booking.AdultCount,
-                ChildCount = booking.ChildCount,
                 OriginalPrice = booking.OriginalPrice,
                 DiscountPercent = booking.DiscountPercent,
                 TotalPrice = booking.TotalPrice,
@@ -704,6 +849,34 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
 
+                // ✅ Cộng TourOperation.CurrentBookings KHI THANH TOÁN THÀNH CÔNG
+                if (booking.TourOperation != null)
+                {
+                    booking.TourOperation.CurrentBookings += booking.NumberOfGuests;
+                    await _unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
+                    
+                    _logger.LogInformation("Updated TourOperation.CurrentBookings (+{Guests}) for booking {BookingCode}", 
+                        booking.NumberOfGuests, booking.BookingCode);
+                }
+
+                // ✅ CẬP NHẬT TourSlot.CurrentBookings KHI THANH TOÁN THÀNH CÔNG
+                if (booking.TourSlotId.HasValue)
+                {
+                    var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                    var confirmSuccess = await tourSlotService.ConfirmSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
+                    
+                    if (confirmSuccess)
+                    {
+                        _logger.LogInformation("Updated TourSlot.CurrentBookings (+{Guests}) for booking {BookingCode}", 
+                            booking.NumberOfGuests, booking.BookingCode);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to update TourSlot.CurrentBookings for booking {BookingCode}. Slot may be unavailable.", 
+                            booking.BookingCode);
+                    }
+                }
+
                 // Add money to TourCompany revenue hold
                 if (booking.TourOperation?.TourDetails != null)
                 {
@@ -756,6 +929,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
                     .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
                     .Include(b => b.TourOperation)
+                    .Include(b => b.TourSlot)
                     .FirstOrDefaultAsync();
 
                 if (booking == null)
@@ -785,11 +959,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
 
-                // Release capacity
-                if (booking.TourOperation != null)
+                // Release capacity from TourOperation
+                // if (booking.TourOperation != null)
+                // {
+                //     booking.TourOperation.CurrentBookings -= booking.NumberOfGuests;
+                //     await _unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
+                // }
+
+                // Release capacity from TourSlot
+                if (booking.TourSlotId.HasValue)
                 {
-                    booking.TourOperation.CurrentBookings -= booking.NumberOfGuests;
-                    await _unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
+                    var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                    await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
                 }
 
                 await _unitOfWork.SaveChangesAsync();

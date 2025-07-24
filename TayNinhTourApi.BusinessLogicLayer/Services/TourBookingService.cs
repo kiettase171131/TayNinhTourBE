@@ -39,7 +39,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                _logger.LogInformation("Creating booking for TourOperation {TourOperationId} by User {UserId}", 
+                _logger.LogInformation("Creating booking for TourOperation {TourOperationId} by User {UserId}",
                     request.TourOperationId, currentUser.Id);
 
                 // 1. Validate business rules
@@ -74,7 +74,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     // Sử dụng optimistic concurrency control để reserve capacity
                     var reserveSuccess = await _unitOfWork.TourBookingRepository.TryReserveCapacityAsync(
-                        request.TourOperationId, request.TotalGuests);
+                        request.TourOperationId, request.NumberOfGuests);
 
                     if (!reserveSuccess)
                     {
@@ -88,7 +88,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     // 4. Calculate price
                     var totalPrice = await CalculateBookingPriceAsync(
-                        request.TourOperationId, request.AdultCount, request.ChildCount);
+                        request.TourOperationId, request.NumberOfGuests);
 
                     // 5. Generate unique booking code
                     var bookingCode = await GenerateBookingCodeAsync();
@@ -99,9 +99,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Id = Guid.NewGuid(),
                         TourOperationId = request.TourOperationId,
                         UserId = currentUser.Id,
-                        AdultCount = request.AdultCount,
-                        ChildCount = request.ChildCount,
-                        NumberOfGuests = request.TotalGuests,
+                        NumberOfGuests = request.NumberOfGuests,
                         TotalPrice = totalPrice,
                         Status = BookingStatus.Pending,
                         BookingDate = DateTime.UtcNow,
@@ -167,7 +165,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogInformation("Cancelling booking {BookingId} by User {UserId}", bookingId, currentUser.Id);
 
-                var booking = await _unitOfWork.TourBookingRepository.GetByIdAsync(bookingId, 
+                var booking = await _unitOfWork.TourBookingRepository.GetByIdAsync(bookingId,
                     new[] { "TourOperation", "User" });
 
                 if (booking == null)
@@ -670,15 +668,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return (false, "Tour operation không còn hoạt động");
 
                 // Check guest count is valid
-                if (request.TotalGuests <= 0)
+                if (request.NumberOfGuests <= 0)
                     return (false, "Số lượng khách phải lớn hơn 0");
-
-                if (request.AdultCount <= 0)
-                    return (false, "Phải có ít nhất 1 người lớn");
 
                 // Check capacity
                 var canBook = await _unitOfWork.TourBookingRepository.CanBookAsync(
-                    request.TourOperationId, request.TotalGuests, tourOperation.MaxGuests);
+                    request.TourOperationId, request.NumberOfGuests, tourOperation.MaxGuests);
 
                 if (!canBook)
                     return (false, "Tour đã hết chỗ hoặc không đủ chỗ cho số lượng khách yêu cầu");
@@ -728,7 +723,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Tính toán giá tiền cho booking
         /// </summary>
-        public async Task<decimal> CalculateBookingPriceAsync(Guid tourOperationId, int adultCount, int childCount)
+        public async Task<decimal> CalculateBookingPriceAsync(Guid tourOperationId, int numberOfGuests)
         {
             try
             {
@@ -737,11 +732,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (tourOperation == null) return 0;
 
-                var adultPrice = tourOperation.Price;
-                // For now, child price is same as adult price since TourTemplate doesn't have ChildPrice
-                var childPrice = adultPrice;
-
-                return (adultCount * adultPrice) + (childCount * childPrice);
+                return numberOfGuests * tourOperation.Price;
             }
             catch (Exception ex)
             {
@@ -764,9 +755,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 UserId = booking.UserId,
                 UserName = booking.User?.Name ?? "N/A",
                 UserEmail = booking.User?.Email,
-                AdultCount = booking.AdultCount,
-                ChildCount = booking.ChildCount,
-                TotalGuests = booking.NumberOfGuests,
+                NumberOfGuests = booking.NumberOfGuests,
                 TotalPrice = booking.TotalPrice,
                 Status = booking.Status,
                 StatusName = statusName,

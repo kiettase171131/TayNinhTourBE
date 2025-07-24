@@ -14,24 +14,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking
         public Guid TourOperationId { get; set; }
 
         /// <summary>
+        /// ID của TourSlot cụ thể mà khách hàng muốn booking (REQUIRED)
+        /// Khách hàng phải chọn slot cụ thể để booking
+        /// </summary>
+        [Required(ErrorMessage = "TourSlot ID là bắt buộc - vui lòng chọn ngày tour cụ thể")]
+        public Guid TourSlotId { get; set; }
+
+        /// <summary>
         /// Số lượng khách
         /// </summary>
         [Required(ErrorMessage = "Số lượng khách là bắt buộc")]
         [Range(1, 50, ErrorMessage = "Số lượng khách phải từ 1 đến 50")]
         public int NumberOfGuests { get; set; }
-
-        /// <summary>
-        /// Số lượng người lớn
-        /// </summary>
-        [Required(ErrorMessage = "Số lượng người lớn là bắt buộc")]
-        [Range(0, 50, ErrorMessage = "Số lượng người lớn phải từ 0 đến 50")]
-        public int AdultCount { get; set; }
-
-        /// <summary>
-        /// Số lượng trẻ em
-        /// </summary>
-        [Range(0, 50, ErrorMessage = "Số lượng trẻ em phải từ 0 đến 50")]
-        public int ChildCount { get; set; } = 0;
 
         /// <summary>
         /// Tên người liên hệ
@@ -57,11 +51,5 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking
         /// </summary>
         [StringLength(500, ErrorMessage = "Ghi chú không quá 500 ký tự")]
         public string? SpecialRequests { get; set; }
-
-        /// <summary>
-        /// ID của TourSlot cụ thể mà khách hàng muốn booking (optional)
-        /// Nếu có, booking sẽ được gắn với ngày cụ thể của slot này
-        /// </summary>
-        public Guid? TourSlotId { get; set; }
     }
 }

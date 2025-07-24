@@ -11,8 +11,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking
         public Guid TourOperationId { get; set; }
         public Guid UserId { get; set; }
         public int NumberOfGuests { get; set; }
-        public int AdultCount { get; set; }
-        public int ChildCount { get; set; }
         public decimal OriginalPrice { get; set; }
         public decimal DiscountPercent { get; set; }
         public decimal TotalPrice { get; set; }

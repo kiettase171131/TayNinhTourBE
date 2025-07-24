@@ -48,9 +48,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot
         public string StatusName { get; set; } = string.Empty;
 
         /// <summary>
+        /// Số lượng khách tối đa cho slot này
+        /// </summary>
+        public int MaxGuests { get; set; }
+
+        /// <summary>
+        /// Số lượng khách hiện tại đã booking
+        /// </summary>
+        public int CurrentBookings { get; set; }
+
+        /// <summary>
+        /// Số ghế còn lại
+        /// </summary>
+        public int AvailableSpots { get; set; }
+
+        /// <summary>
         /// Slot có đang active không
         /// </summary>
         public bool IsActive { get; set; }
+
+        /// <summary>
+        /// Slot có thể được booking không (dựa trên available spots và trạng thái)
+        /// </summary>
+        public bool IsBookable => IsActive && Status == TourSlotStatus.Available && AvailableSpots > 0;
 
         /// <summary>
         /// Thông tin TourTemplate (nếu include)

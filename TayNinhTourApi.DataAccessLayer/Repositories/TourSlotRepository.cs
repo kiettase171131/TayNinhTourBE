@@ -105,5 +105,90 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             await _context.SaveChangesAsync();
             return slots.Count;
         }
+
+        /// <summary>
+        /// Atomic reserve capacity for a slot using database-level concurrency control
+        /// CHỈ dùng khi thanh toán thành công - CỘNG CurrentBookings
+        /// </summary>
+        public async Task<bool> AtomicReserveCapacityAsync(Guid slotId, int guestsToReserve)
+        {
+            var sql = @"
+                UPDATE TourSlots 
+                SET 
+                    CurrentBookings = CurrentBookings + @guestsToReserve,
+                    UpdatedAt = @updateTime,
+                    Status = CASE 
+                        WHEN (CurrentBookings + @guestsToReserve) >= MaxGuests THEN @fullyBookedStatus
+                        ELSE Status 
+                    END
+                WHERE 
+                    Id = @slotId 
+                    AND IsDeleted = 0 
+                    AND IsActive = 1 
+                    AND Status = @availableStatus
+                    AND (CurrentBookings + @guestsToReserve) <= MaxGuests";
+
+            var parameters = new[]
+            {
+                new MySqlConnector.MySqlParameter("@slotId", slotId.ToString()),
+                new MySqlConnector.MySqlParameter("@guestsToReserve", guestsToReserve),
+                new MySqlConnector.MySqlParameter("@updateTime", DateTime.UtcNow),
+                new MySqlConnector.MySqlParameter("@availableStatus", (int)TourSlotStatus.Available),
+                new MySqlConnector.MySqlParameter("@fullyBookedStatus", (int)TourSlotStatus.FullyBooked)
+            };
+
+            var rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+            return rowsAffected > 0;
+        }
+
+        /// <summary>
+        /// CHỈ CHECK capacity, KHÔNG cộng CurrentBookings
+        /// Dùng khi tạo booking để kiểm tra slot có đủ chỗ không
+        /// </summary>
+        public async Task<bool> CheckSlotCapacityAsync(Guid slotId, int guestsToCheck)
+        {
+            var sql = @"
+                SELECT COUNT(*) 
+                FROM TourSlots 
+                WHERE 
+                    Id = @slotId 
+                    AND IsDeleted = 0 
+                    AND IsActive = 1 
+                    AND Status = @availableStatus
+                    AND (CurrentBookings + @guestsToCheck) <= MaxGuests";
+
+            var parameters = new[]
+            {
+                new MySqlConnector.MySqlParameter("@slotId", slotId.ToString()),
+                new MySqlConnector.MySqlParameter("@guestsToCheck", guestsToCheck),
+                new MySqlConnector.MySqlParameter("@availableStatus", (int)TourSlotStatus.Available)
+            };
+
+            // ✅ Sửa lại: Dùng ExecuteSqlRaw để đếm, sau đó kiểm tra kết quả
+            var result = await _context.TourSlots
+                .FromSqlRaw(@"
+                    SELECT * FROM TourSlots 
+                    WHERE 
+                        Id = @slotId 
+                        AND IsDeleted = 0 
+                        AND IsActive = 1 
+                        AND Status = @availableStatus
+                        AND (CurrentBookings + @guestsToCheck) <= MaxGuests", parameters)
+                .CountAsync();
+
+            return result > 0;
+        }
+
+        /// <summary>
+        /// Get slot with current capacity info for booking validation
+        /// </summary>
+        public async Task<TourSlot?> GetSlotWithCapacityAsync(Guid slotId)
+        {
+            return await _context.TourSlots
+                .Include(ts => ts.TourTemplate)
+                .Include(ts => ts.TourDetails)
+                .Where(ts => ts.Id == slotId && !ts.IsDeleted)
+                .FirstOrDefaultAsync();
+        }
     }
 }

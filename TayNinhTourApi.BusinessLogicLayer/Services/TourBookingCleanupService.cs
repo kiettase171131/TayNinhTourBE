@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
@@ -90,12 +91,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                         await unitOfWork.TourBookingRepository.UpdateAsync(booking);
 
+                        // ❌ KHÔNG trừ TourOperation.CurrentBookings vì chưa từng được cộng
+                        // Chỉ release TourSlot capacity
                         // Release capacity
-                        if (booking.TourOperation != null)
+                        // if (booking.TourOperation != null)
+                        // {
+                        //     booking.TourOperation.CurrentBookings = Math.Max(0, 
+                        //         booking.TourOperation.CurrentBookings - booking.NumberOfGuests);
+                        //     await unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
+                        // }
+
+                        // ✅ CHỈ release TourSlot capacity
+                        if (booking.TourSlotId.HasValue)
                         {
-                            booking.TourOperation.CurrentBookings = Math.Max(0, 
-                                booking.TourOperation.CurrentBookings - booking.NumberOfGuests);
-                            await unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
+                            var tourSlotService = scope.ServiceProvider.GetRequiredService<ITourSlotService>();
+                            await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
                         }
 
                         _logger.LogInformation("Cancelled expired booking {BookingCode} for {Guests} guests", 

@@ -145,7 +145,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
 
     /// <summary>
-    /// DTO cho ngày tour
+    /// DTO cho ngày tour với thông tin slot
     /// </summary>
     public class TourDateDto
     {
@@ -153,6 +153,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public DateTime TourDate { get; set; }
         public string ScheduleDay { get; set; } = string.Empty;
         public bool IsAvailable { get; set; }
+        public int MaxGuests { get; set; }
+        public int CurrentBookings { get; set; }
+        public int AvailableSpots { get; set; }
+        public bool IsBookable { get; set; }
+        public string StatusName { get; set; } = string.Empty;
     }
 
 

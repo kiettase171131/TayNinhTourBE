@@ -33,19 +33,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Booking
         public string? UserEmail { get; set; }
 
         /// <summary>
-        /// Số lượng khách người lớn
+        /// Số lượng khách
         /// </summary>
-        public int AdultCount { get; set; }
-
-        /// <summary>
-        /// Số lượng trẻ em
-        /// </summary>
-        public int ChildCount { get; set; }
-
-        /// <summary>
-        /// Tổng số khách
-        /// </summary>
-        public int TotalGuests { get; set; }
+        public int NumberOfGuests { get; set; }
 
         /// <summary>
         /// Tổng giá tiền

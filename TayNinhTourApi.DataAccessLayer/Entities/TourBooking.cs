@@ -34,19 +34,6 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public int NumberOfGuests { get; set; }
 
         /// <summary>
-        /// Số lượng khách người lớn
-        /// </summary>
-        [Required]
-        [Range(0, 50, ErrorMessage = "Số lượng người lớn phải từ 0 đến 50")]
-        public int AdultCount { get; set; }
-
-        /// <summary>
-        /// Số lượng trẻ em (nếu có)
-        /// </summary>
-        [Range(0, 50, ErrorMessage = "Số lượng trẻ em phải từ 0 đến 50")]
-        public int ChildCount { get; set; } = 0;
-
-        /// <summary>
         /// Giá gốc của tour (trước khi áp dụng discount)
         /// </summary>
         [Required]

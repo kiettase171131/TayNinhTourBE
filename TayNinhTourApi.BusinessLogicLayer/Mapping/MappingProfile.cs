@@ -217,7 +217,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
             #region TourBooking Mapping
             CreateMap<RequestCreateBookingDto, TourBooking>()
-                .ForMember(dest => dest.NumberOfGuests, opt => opt.MapFrom(src => src.TotalGuests))
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.UserId, opt => opt.Ignore())
                 .ForMember(dest => dest.TotalPrice, opt => opt.Ignore())
@@ -227,7 +226,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             CreateMap<TourBooking, ResponseBookingDto>()
                 .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? src.User.Name : "N/A"))
                 .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : null))
-                .ForMember(dest => dest.TotalGuests, opt => opt.MapFrom(src => src.NumberOfGuests))
                 .ForMember(dest => dest.StatusName, opt => opt.Ignore()) // Will set in service
                 .ForMember(dest => dest.TourOperation, opt => opt.Ignore()); // Will set in service
             #endregion

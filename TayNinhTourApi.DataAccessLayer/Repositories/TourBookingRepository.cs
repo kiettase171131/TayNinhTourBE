@@ -80,30 +80,32 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         /// <summary>
         /// Kiểm tra và reserve capacity với optimistic concurrency control
-        /// Trả về true nếu thành công, false nếu không đủ chỗ hoặc có conflict
+        /// CHỈ reserve TourSlot capacity, KHÔNG cộng TourOperation.CurrentBookings
+        /// TourOperation.CurrentBookings chỉ được cộng khi thanh toán thành công
         /// </summary>
         public async Task<bool> TryReserveCapacityAsync(Guid tourOperationId, int requestedGuests)
         {
             try
             {
-                // Lấy TourOperation với tracking để có thể update
+                // Lấy TourOperation để kiểm tra capacity
                 var tourOperation = await _context.TourOperations
                     .FirstOrDefaultAsync(to => to.Id == tourOperationId);
 
                 if (tourOperation == null)
                     return false;
 
-                // Kiểm tra capacity
+                // Kiểm tra capacity available (chỉ check, không update)
                 var availableCapacity = tourOperation.MaxGuests - tourOperation.CurrentBookings;
                 if (availableCapacity < requestedGuests)
                     return false;
 
-                // Update CurrentBookings
-                tourOperation.CurrentBookings += requestedGuests;
-                tourOperation.UpdatedAt = DateTime.UtcNow;
+                // ❌ KHÔNG cộng TourOperation.CurrentBookings ở đây nữa
+                // Chỉ cộng khi thanh toán thành công trong HandlePaymentSuccessAsync
+                // tourOperation.CurrentBookings += requestedGuests; // REMOVED
+                // tourOperation.UpdatedAt = DateTime.UtcNow; // REMOVED
+                // await _context.SaveChangesAsync(); // REMOVED
 
-                // SaveChanges sẽ throw DbUpdateConcurrencyException nếu có conflict
-                await _context.SaveChangesAsync();
+                // ✅ Capacity check passed, let TourSlotService handle slot reservation
                 return true;
             }
             catch (DbUpdateConcurrencyException)

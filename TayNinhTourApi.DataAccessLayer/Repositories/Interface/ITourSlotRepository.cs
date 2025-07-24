@@ -62,5 +62,30 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="status">Trạng thái mới</param>
         /// <returns>Số lượng slots được cập nhật</returns>
         Task<int> BulkUpdateStatusAsync(IEnumerable<Guid> slotIds, TourSlotStatus status);
+
+        /// <summary>
+        /// Atomic reserve capacity for a slot using database-level concurrency control
+        /// CHỈ dùng khi thanh toán thành công - CỘNG CurrentBookings
+        /// </summary>
+        /// <param name="slotId">ID của slot</param>
+        /// <param name="guestsToReserve">Số lượng khách cần reserve</param>
+        /// <returns>True nếu reserve thành công</returns>
+        Task<bool> AtomicReserveCapacityAsync(Guid slotId, int guestsToReserve);
+
+        /// <summary>
+        /// CHỈ CHECK capacity, KHÔNG cộng CurrentBookings
+        /// Dùng khi tạo booking để kiểm tra slot có đủ chỗ không
+        /// </summary>
+        /// <param name="slotId">ID của slot</param>
+        /// <param name="guestsToCheck">Số lượng khách cần check</param>
+        /// <returns>True nếu slot có đủ chỗ</returns>
+        Task<bool> CheckSlotCapacityAsync(Guid slotId, int guestsToCheck);
+
+        /// <summary>
+        /// Get slot with current capacity info for booking validation
+        /// </summary>
+        /// <param name="slotId">ID của slot</param>
+        /// <returns>TourSlot với thông tin capacity</returns>
+        Task<TourSlot?> GetSlotWithCapacityAsync(Guid slotId);
     }
 }

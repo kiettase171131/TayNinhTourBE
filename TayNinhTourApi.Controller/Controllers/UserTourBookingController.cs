@@ -161,11 +161,19 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 if (!ModelState.IsValid)
                 {
+                    var errors = ModelState
+                        .Where(x => x.Value.Errors.Count > 0)
+                        .Select(x => new { 
+                            Field = x.Key, 
+                            Errors = x.Value.Errors.Select(e => e.ErrorMessage) 
+                        })
+                        .ToList();
+
                     return BadRequest(new
                     {
                         success = false,
                         message = "Dữ liệu không hợp lệ",
-                        errors = ModelState
+                        errors = errors
                     });
                 }
 
@@ -193,7 +201,9 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = $"Lỗi khi tạo booking: {ex.Message}"
+                    message = $"Lỗi khi tạo booking: {ex.Message}",
+                    stackTrace = ex.StackTrace,
+                    innerException = ex.InnerException?.Message
                 });
             }
         }
@@ -308,6 +318,197 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     success = false,
                     message = $"Lỗi khi hủy booking: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint - Test dependencies
+        /// </summary>
+        [HttpGet("debug-dependencies")]
+        [Authorize]
+        public async Task<IActionResult> DebugDependencies()
+        {
+            try
+            {
+                var userId = _currentUserService.GetCurrentUserId();
+                var result = new
+                {
+                    userId = userId,
+                    currentUserService = _currentUserService?.GetType().Name ?? "NULL",
+                    userTourBookingService = _userTourBookingService?.GetType().Name ?? "NULL",
+                    timestamp = DateTime.UtcNow
+                };
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Dependencies debug info",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Error in dependencies: {ex.Message}",
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint - Test create booking step by step
+        /// </summary>
+        [HttpPost("debug-create-booking")]
+        [Authorize]
+        public async Task<IActionResult> DebugCreateBooking([FromBody] CreateTourBookingRequest request)
+        {
+            try
+            {
+                var userId = _currentUserService.GetCurrentUserId();
+                var debugInfo = new List<string>();
+
+                debugInfo.Add($"Step 1: UserId = {userId}");
+                debugInfo.Add($"Step 2: Request validation - TourSlotId: {request.TourSlotId}, TourOperationId: {request.TourOperationId}, Guests: {request.NumberOfGuests}");
+
+                // Step 3: Test calling the service directly
+                try
+                {
+                    var result = await _userTourBookingService.CreateBookingAsync(request, userId);
+                    
+                    debugInfo.Add($"Step 3: Service call result - Success: {result.Success}");
+                    debugInfo.Add($"Step 4: Service call message - {result.Message}");
+
+                    if (result.Success)
+                    {
+                        debugInfo.Add($"Step 5: Booking created - ID: {result.BookingId}, Code: {result.BookingCode}");
+                    }
+
+                    return Ok(new
+                    {
+                        success = result.Success,
+                        message = "Debug create booking completed",
+                        debugInfo = debugInfo,
+                        serviceResult = result
+                    });
+                }
+                catch (Exception serviceEx)
+                {
+                    debugInfo.Add($"Step 3 ERROR: Service exception - {serviceEx.Message}");
+                    debugInfo.Add($"Step 3 STACK: {serviceEx.StackTrace}");
+                    
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = "Service call failed",
+                        debugInfo = debugInfo,
+                        error = serviceEx.Message
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Controller error: {ex.Message}",
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint - Test payment URL generation
+        /// </summary>
+        [HttpPost("debug-payment-url")]
+        [Authorize]
+        public async Task<IActionResult> DebugPaymentUrl([FromBody] CreateTourBookingRequest request)
+        {
+            try
+            {
+                var userId = _currentUserService.GetCurrentUserId();
+                var debugInfo = new List<string>();
+
+                debugInfo.Add($"Step 1: Generate booking code and PayOS order code");
+                
+                // Test generating codes
+                var bookingCode = $"TB{DateTime.UtcNow:yyyyMMdd}{new Random().Next(100000, 999999)}";
+                var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+                var timestampLast7 = timestamp.Substring(Math.Max(0, timestamp.Length - 7));
+                var random = new Random().Next(100, 999);
+                var payOsOrderCode = $"TNDT{timestampLast7}{random}";
+                
+                debugInfo.Add($"Step 2: Booking Code = {bookingCode}");
+                debugInfo.Add($"Step 3: PayOS Order Code = {payOsOrderCode}");
+
+                // Test amount calculation
+                var testAmount = 500000m; // Test with 500,000 VND
+                debugInfo.Add($"Step 4: Test Amount = {testAmount:N0} VND");
+
+                // Test PayOS service
+                try
+                {
+                    var payOsService = HttpContext.RequestServices.GetRequiredService<IPayOsService>();
+                    if (payOsService != null)
+                    {
+                        debugInfo.Add($"Step 5: PayOsService found - {payOsService.GetType().Name}");
+                        
+                        var paymentUrl = await payOsService.CreatePaymentUrlAsync(
+                            testAmount,
+                            payOsOrderCode,
+                            "https://tndt.netlify.app");
+                        
+                        debugInfo.Add($"Step 6: Payment URL created successfully");
+                        debugInfo.Add($"Step 7: Payment URL = {paymentUrl}");
+
+                        return Ok(new
+                        {
+                            success = true,
+                            message = "PayOS payment URL generation test completed",
+                            debugInfo = debugInfo,
+                            paymentData = new
+                            {
+                                bookingCode,
+                                payOsOrderCode,
+                                testAmount,
+                                paymentUrl
+                            }
+                        });
+                    }
+                    else
+                    {
+                        debugInfo.Add($"Step 5: PayOsService is NULL");
+                        return BadRequest(new
+                        {
+                            success = false,
+                            message = "PayOsService not available",
+                            debugInfo = debugInfo
+                        });
+                    }
+                }
+                catch (Exception payOsEx)
+                {
+                    debugInfo.Add($"Step 5 ERROR: PayOS service error - {payOsEx.Message}");
+                    debugInfo.Add($"Step 5 STACK: {payOsEx.StackTrace}");
+                    
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = "PayOS service failed",
+                        debugInfo = debugInfo,
+                        error = payOsEx.Message
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Debug payment URL error: {ex.Message}",
+                    stackTrace = ex.StackTrace
                 });
             }
         }

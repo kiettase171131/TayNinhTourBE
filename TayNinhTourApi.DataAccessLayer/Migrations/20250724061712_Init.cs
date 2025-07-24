@@ -1533,7 +1533,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     ScheduleDay = table.Column<int>(type: "int", nullable: false, comment: "Ngày trong tuần của tour (Saturday hoặc Sunday)"),
                     Status = table.Column<int>(type: "int", nullable: false, defaultValue: 1, comment: "Trạng thái của tour slot"),
                     TourDetailsId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của TourDetails được assign cho slot này", collation: "ascii_general_ci"),
+                    MaxGuests = table.Column<int>(type: "int", nullable: false),
+                    CurrentBookings = table.Column<int>(type: "int", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true, comment: "Trạng thái slot có sẵn sàng để booking không"),
+                    RowVersion = table.Column<DateTime>(type: "timestamp(6)", rowVersion: true, nullable: false),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
@@ -1580,8 +1583,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     TourSlotId = table.Column<Guid>(type: "char(36)", nullable: true, comment: "ID của TourSlot cụ thể được booking (optional)", collation: "ascii_general_ci"),
                     UserId = table.Column<Guid>(type: "char(36)", nullable: false, comment: "ID của User thực hiện booking", collation: "ascii_general_ci"),
                     NumberOfGuests = table.Column<int>(type: "int", nullable: false, comment: "Tổng số lượng khách trong booking"),
-                    AdultCount = table.Column<int>(type: "int", nullable: false, comment: "Số lượng khách người lớn"),
-                    ChildCount = table.Column<int>(type: "int", nullable: false, defaultValue: 0, comment: "Số lượng trẻ em"),
                     OriginalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Giá gốc trước khi áp dụng discount"),
                     DiscountPercent = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m, comment: "Phần trăm giảm giá được áp dụng"),
                     TotalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Tổng giá tiền của booking sau discount"),
@@ -1618,9 +1619,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_TourBookings", x => x.Id);
-                    table.CheckConstraint("CK_TourBookings_AdultCount_NonNegative", "AdultCount >= 0");
-                    table.CheckConstraint("CK_TourBookings_ChildCount_NonNegative", "ChildCount >= 0");
-                    table.CheckConstraint("CK_TourBookings_GuestCount_Match", "NumberOfGuests = AdultCount + ChildCount");
                     table.CheckConstraint("CK_TourBookings_NumberOfGuests_Positive", "NumberOfGuests > 0");
                     table.CheckConstraint("CK_TourBookings_TotalPrice_NonNegative", "TotalPrice >= 0");
                     table.ForeignKey(

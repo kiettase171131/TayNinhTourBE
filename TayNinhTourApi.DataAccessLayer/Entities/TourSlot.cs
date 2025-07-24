@@ -42,12 +42,37 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public Guid? TourDetailsId { get; set; }
 
         /// <summary>
+        /// Số lượng khách tối đa cho slot này (lấy từ TourOperation khi được assign)
+        /// </summary>
+        [Required]
+        [Range(1, 100, ErrorMessage = "Số lượng khách tối đa phải từ 1 đến 100")]
+        public int MaxGuests { get; set; } = 0;
+
+        /// <summary>
+        /// Số lượng khách hiện tại đã booking cho slot này
+        /// </summary>
+        [Required]
+        [Range(0, 100, ErrorMessage = "Số lượng khách hiện tại phải từ 0 đến 100")]
+        public int CurrentBookings { get; set; } = 0;
+
+        /// <summary>
+        /// Số ghế còn lại (computed field)
+        /// </summary>
+        public int AvailableSpots => MaxGuests - CurrentBookings;
+
+        /// <summary>
         /// Trạng thái slot có sẵn sàng để booking không
         /// Khác với BaseEntity.IsActive (dùng cho soft delete)
         /// - true: Slot có thể được booking
         /// - false: Slot tạm thời không available (do thời tiết, bảo trì, etc.)
         /// </summary>
         public new bool IsActive { get; set; } = true;
+
+        /// <summary>
+        /// Row version cho optimistic concurrency control
+        /// </summary>
+        [Timestamp]
+        public byte[] RowVersion { get; set; } = null!;
 
         // Navigation Properties
 
@@ -72,5 +97,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// User đã cập nhật slot này lần cuối
         /// </summary>
         public virtual User? UpdatedBy { get; set; }
+
+        /// <summary>
+        /// Danh sách các bookings cho slot này
+        /// </summary>
+        public virtual ICollection<TourBooking> Bookings { get; set; } = new List<TourBooking>();
     }
 }
