@@ -890,7 +890,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                     catch (Exception notificationEx)
                     {
-                        _logger.LogError(notificationEx, "Error sending notification for TourDetails status change on TourDetails {TourDetailsId}", existingDetail.Id);
+                        _logger.LogError(notificationEx, "Error sending notification for status change on TourDetails {TourDetailsId}", existingDetail.Id);
                         // Don't fail the update if notification fails
                     }
                 }
@@ -998,6 +998,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (request.IsApproved)
                 {
                     await TriggerApprovalEmailsAsync(tourDetail, adminId);
+                    
+                    // 🔔 NEW: TRIGGER AUTOMATIC GUIDE INVITATIONS when approved
+                    await TriggerAutomaticGuideInvitationsAsync(tourDetail, adminId);
                 }
 
                 return new BaseResposeDto
@@ -2045,6 +2048,110 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogError(ex, "Error triggering approval emails for TourDetails {TourDetailsId}", tourDetails.Id);
                 // Don't throw - this is a notification operation
+            }
+        }
+
+        /// <summary>
+        /// Trigger automatic guide invitations when admin approves TourDetails
+        /// </summary>
+        private async Task TriggerAutomaticGuideInvitationsAsync(TourDetails tourDetails, Guid adminId)
+        {
+            try
+            {
+                _logger.LogInformation("Triggering automatic guide invitations for approved TourDetails {TourDetailsId}", tourDetails.Id);
+
+                // Get TourGuideInvitationService using DI
+                using var scope = _serviceProvider.CreateScope();
+                var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
+
+                // Create automatic invitations for suitable guides
+                var result = await invitationService.CreateAutomaticInvitationsAsync(tourDetails.Id, adminId);
+
+                if (result.success)
+                {
+                    _logger.LogInformation("Successfully triggered automatic guide invitations for TourDetails {TourDetailsId}: {Message}", 
+                        tourDetails.Id, result.Message);
+
+                    // Send notification to TourCompany about approval and guide invitations
+                    try
+                    {
+                        using var notificationScope = _serviceProvider.CreateScope();
+                        var tourCompanyNotificationService = notificationScope.ServiceProvider
+                            .GetRequiredService<ITourCompanyNotificationService>();
+
+                        await tourCompanyNotificationService.NotifyTourApprovalAsync(
+                            tourDetails.CreatedById,
+                            tourDetails.Title,
+                            tourDetails.CommentApproved);
+
+                        _logger.LogInformation("Successfully sent tour approval notification to TourCompany {CompanyId}", 
+                            tourDetails.CreatedById);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "Error sending tour approval notification for TourDetails {TourDetailsId}", 
+                            tourDetails.Id);
+                        // Don't fail the main process if notification fails
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to trigger automatic guide invitations for TourDetails {TourDetailsId}: {Message}", 
+                        tourDetails.Id, result.Message);
+
+                    // Even if automatic invitations fail, still send approval notification to company
+                    try
+                    {
+                        using var notificationScope = _serviceProvider.CreateScope();
+                        var tourCompanyNotificationService = notificationScope.ServiceProvider
+                            .GetRequiredService<ITourCompanyNotificationService>();
+
+                        var approvalMessage = !string.IsNullOrEmpty(result.Message) 
+                            ? $"Tour đã được duyệt nhưng có lỗi tự động mời hướng dẫn viên: {result.Message}. Vui lòng mời thủ công."
+                            : tourDetails.CommentApproved;
+
+                        await tourCompanyNotificationService.NotifyTourApprovalAsync(
+                            tourDetails.CreatedById,
+                            tourDetails.Title,
+                            approvalMessage);
+
+                        _logger.LogInformation("Successfully sent tour approval notification (with guide invitation warning) to TourCompany {CompanyId}", 
+                            tourDetails.CreatedById);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "Error sending tour approval notification for TourDetails {TourDetailsId}", 
+                            tourDetails.Id);
+                        // Don't fail the main process if notification fails
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error triggering automatic guide invitations for TourDetails {TourDetailsId}", tourDetails.Id);
+                
+                // Send notification to TourCompany about approval but mention manual invitation needed
+                try
+                {
+                    using var notificationScope = _serviceProvider.CreateScope();
+                    var tourCompanyNotificationService = notificationScope.ServiceProvider
+                        .GetRequiredService<ITourCompanyNotificationService>();
+
+                    await tourCompanyNotificationService.NotifyTourApprovalAsync(
+                        tourDetails.CreatedById,
+                        tourDetails.Title,
+                        $"Tour đã được duyệt nhưng có lỗi hệ thống khi tự động mời hướng dẫn viên. Vui lòng mời hướng dẫn viên thủ công. Lỗi: {ex.Message}");
+
+                    _logger.LogInformation("Successfully sent tour approval notification (with error warning) to TourCompany {CompanyId}", 
+                        tourDetails.CreatedById);
+                }
+                catch (Exception notificationEx)
+                {
+                    _logger.LogError(notificationEx, "Error sending tour approval notification for TourDetails {TourDetailsId}", 
+                        tourDetails.Id);
+                }
+
+                // Don't throw - this is a side operation, shouldn't break the main approval flow
             }
         }
 
