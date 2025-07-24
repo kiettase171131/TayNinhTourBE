@@ -65,11 +65,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation
         public bool IsActive { get; set; }
 
         /// <summary>
-        /// Trạng thái của tour operation
-        /// </summary>
-        public TourOperationStatus Status { get; set; }
-
-        /// <summary>
         /// Thời gian tạo
         /// </summary>
         public DateTime CreatedAt { get; set; }
