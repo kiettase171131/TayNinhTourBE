@@ -245,14 +245,37 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         <p><em>{rejectionReason}</em></p>
                     </div>" : "")}
                     
-                    <h3>Hành động tiếp theo:</h3>
-                    <ul>
-                        <li>Mời hướng dẫn viên khác thủ công</li>
-                        <li>Kiểm tra và điều chỉnh yêu cầu kỹ năng nếu cần</li>
-                        <li>Xem xét tăng mức phí hoặc điều kiện tour</li>
-                    </ul>
+                    <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
+                        <h3 style='margin-top: 0; color: #856404;'>⚠️ Hành động cần thực hiện ngay:</h3>
+                        <p style='font-size: 16px; margin-bottom: 10px;'><strong>Tour sẽ KHÔNG THỂ DIỄN RA nếu không có hướng dẫn viên!</strong></p>
+                        <ol style='margin-bottom: 0;'>
+                            <li><strong>Đăng nhập hệ thống ngay</strong> để xem danh sách hướng dẫn viên có sẵn</li>
+                            <li><strong>Chọn và mời hướng dẫn viên khác</strong> từ danh sách hệ thống</li>
+                            <li><strong>Xem xét điều chỉnh:</strong> mức phí, hoặc điều kiện tour</li>
+                        </ol>
+                    </div>
                     
-                    <p><strong>Gợi ý:</strong> Đăng nhập vào hệ thống để xem danh sách hướng dẫn viên có sẵn và gửi lời mời thủ công.</p>
+                    <div style='background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 15px 0;'>
+                        <h4 style='margin-top: 0; color: #155724;'>💡 Gợi ý để tìm hướng dẫn viên phù hợp:</h4>
+                        <ul style='margin-bottom: 0;'>
+                            <li><strong>Vào mục 'Quản lý hướng dẫn viên'</strong> trong hệ thống</li>
+                            <li><strong>Xem danh sách hướng dẫn viên</strong> có kỹ năng và ngôn ngữ phù hợp</li>
+                            <li><strong>Gửi lời mời trực tiếp</strong> đến những hướng dẫn viên bạn muốn chọn</li>
+                            <li><strong>Liên hệ trực tiếp</strong> với hướng dẫn viên để thảo luận điều kiện</li>
+                        </ul>
+                    </div>
+                    
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='#' style='background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;'>
+                            👥 Xem danh sách hướng dẫn viên
+                        </a>
+                    </div>
+                    
+                    <div style='background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;'>
+                        <p style='margin: 0; font-weight: bold; color: #721c24;'>
+                            ⚠️ Lưu ý: Nếu không tìm được hướng dẫn viên trong 5 ngày, tour sẽ bị hủy tự động!
+                        </p>
+                    </div>
                     
                     <br/>
                     <p>Trân trọng,</p>
@@ -288,35 +311,57 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var subject = $"Cần hành động: Tour '{tourDetailsTitle}' chưa có hướng dẫn viên";
                 var htmlBody = $@"
                     <h2>Chào {user.Name},</h2>
-                    <p>Tour <strong>'{tourDetailsTitle}'</strong> của bạn đã được chuyển sang chế độ tìm kiếm hướng dẫn viên thủ công.</p>
+                    <p>Tour <strong>'{tourDetailsTitle}'</strong> của bạn hiện chưa có hướng dẫn viên nào chấp nhận lời mời tự động.</p>
                     
-                    <div style='background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0;'>
+                    <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 15px 0;'>
                         <h3 style='margin-top: 0; color: #856404;'>⚠️ Tình trạng hiện tại:</h3>
                         <ul style='margin-bottom: 0;'>
-                            <li><strong>{expiredInvitationsCount}</strong> lời mời đã hết hạn (24 giờ)</li>
-                            <li>Chưa có hướng dẫn viên nào chấp nhận</li>
-                            <li>Cần tìm hướng dẫn viên thủ công ngay</li>
+                            <li>Hệ thống không tìm thấy hướng dẫn viên phù hợp với kỹ năng yêu cầu</li>
+                            <li>Hoặc các hướng dẫn viên đã từ chối/không phản hồi lời mời ({expiredInvitationsCount} lời mời đã hết hạn)</li>
+                            <li><strong>Tour KHÔNG THỂ DIỄN RA nếu không có hướng dẫn viên!</strong></li>
                         </ul>
                     </div>
                     
-                    <h3>🎯 Hành động cần thực hiện:</h3>
-                    <ol>
-                        <li><strong>Đăng nhập hệ thống</strong> để xem danh sách hướng dẫn viên</li>
-                        <li><strong>Gửi lời mời thủ công</strong> cho các hướng dẫn viên phù hợp</li>
-                        <li><strong>Xem xét điều chỉnh:</strong>
-                            <ul>
-                                <li>Yêu cầu kỹ năng</li>
-                                <li>Mức phí tour</li>
-                                <li>Thời gian tour</li>
-                            </ul>
-                        </li>
-                    </ol>
+                    <div style='background-color: #e7f3ff; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;'>
+                        <h3 style='margin-top: 0; color: #004085;'>🎯 Giải pháp: Tự chọn hướng dẫn viên</h3>
+                        <p style='font-size: 16px; margin-bottom: 15px;'><strong>Chúng tôi khuyến nghị bạn vào hệ thống và tự chọn hướng dẫn viên phù hợp:</strong></p>
+                        <ol style='margin-bottom: 0;'>
+                            <li><strong>Đăng nhập hệ thống</strong> của Tay Ninh Tour</li>
+                            <li><strong>Vào mục 'Danh sách hướng dẫn viên'</strong> để xem tất cả hướng dẫn viên có sẵn</li>
+                            <li><strong>Lọc theo kỹ năng và ngôn ngữ</strong> phù hợp với tour của bạn</li>
+                            <li><strong>Chọn và gửi lời mời trực tiếp</strong> đến hướng dẫn viên bạn muốn</li>
+                            <li><strong>Theo dõi phản hồi</strong> và sẵn sàng thương lượng điều kiện</li>
+                        </ol>
+                    </div>
                     
                     <div style='background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 15px 0;'>
-                        <p style='margin: 0;'><strong>💡 Lưu ý:</strong> Nếu không tìm được hướng dẫn viên trong <strong>5 ngày</strong>, tour sẽ bị hủy tự động.</p>
+                        <h4 style='margin-top: 0; color: #155724;'>💡 Lợi ích của việc tự chọn hướng dẫn viên:</h4>
+                        <ul style='margin-bottom: 0;'>
+                            <li>Xem được <strong>thông tin chi tiết</strong> về từng hướng dẫn viên</li>
+                            <li>Đánh giá <strong>kinh nghiệm và kỹ năng</strong> trước khi mời</li>
+                            <li>Liên hệ trực tiếp để <strong>thỏa thuận điều kiện</strong></li>
+                            <li>Tăng khả năng <strong>tìm được hướng dẫn viên phù hợp</strong></li>
+                        </ul>
+                    </div>
+                    
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='#' style='background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; margin-right: 10px;'>
+                            👥 Xem danh sách hướng dẫn viên
+                        </a>
+                        <a href='#' style='background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;'>
+                            ✉️ Gửi lời mời mới
+                        </a>
+                    </div>
+                    
+                    <div style='background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;'>
+                        <h4 style='margin-top: 0; color: #721c24;'>⏰ Thời hạn quan trọng:</h4>
+                        <p style='margin-bottom: 0; font-weight: bold;'>
+                            Nếu không tìm được hướng dẫn viên trong <strong>5 ngày</strong>, tour sẽ bị hủy tự động và tất cả booking sẽ được hoàn tiền!
+                        </p>
                     </div>
                     
                     <br/>
+                    <p>Chúng tôi tin rằng với danh sách hướng dẫn viên phong phú trong hệ thống, bạn sẽ tìm được người phù hợp cho tour của mình.</p>
                     <p>Trân trọng,</p>
                     <p>Đội ngũ Tay Ninh Tour</p>";
 
@@ -431,7 +476,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     <h2>Chào {user.Name},</h2>
                     
                     <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 15px 0;'>
-                        <h3 style='margin-top: 0; color: #155724;'>🎉 CHÚC MỪNG!</h3>
+                        <h3 style='margin-top: 0; color: #155724;'>🎉 CHÚC MẨNGB!</h3>
                         <p style='font-size: 16px; margin-bottom: 0;'>
                             Tour <strong>'{tourDetailsTitle}'</strong> đã được admin <strong>DUYỆT</strong> và sẵn sàng hoạt động!
                         </p>
@@ -540,11 +585,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         </ul>
                     </div>
                     
-                    <p style='text-align: center; margin: 30px 0;'>
+                    <div style='text-align: center; margin: 30px 0;'>
                         <a href='#' style='background-color: #ffc107; color: #212529; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
                             ✏️ Chỉnh sửa tour ngay
                         </a>
-                    </p>
+                    </div>
                     
                     <div style='background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0;'>
                         <p style='margin: 0;'><strong>🤝 Cần hỗ trợ?</strong> Liên hệ team support qua email: support@tayninhour.com hoặc hotline: 1900-xxx-xxx</p>

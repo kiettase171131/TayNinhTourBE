@@ -113,10 +113,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (!sortedGuides.Any())
                 {
                     _logger.LogWarning("No tour guides found with matching skills for TourDetails {TourDetailsId}", tourDetailsId);
+                    
+                    // Gửi thông báo cho TourCompany về việc không tìm thấy HDV phù hợp
+                    try
+                    {
+                        await NotifyTourCompanyAboutNoSuitableGuidesAsync(tourDetails);
+                    }
+                    catch (Exception notifyEx)
+                    {
+                        _logger.LogWarning("Failed to send no suitable guides notification: {Error}", notifyEx.Message);
+                    }
+                    
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy TourGuide nào có skills phù hợp",
+                        Message = "Không tìm thấy hướng dẫn viên nào có kỹ năng phù hợp. Vui lòng vào hệ thống để xem danh sách hướng dẫn viên và tự chọn người phù hợp cho tour của bạn.",
                         success = false
                     };
                 }
@@ -1578,6 +1589,81 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending guide acceptance notification for TourDetails {TourDetailsId}", invitation.TourDetailsId);
+                // Don't throw - notification failure shouldn't break main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi không tìm thấy hướng dẫn viên phù hợp
+        /// </summary>
+        private async Task NotifyTourCompanyAboutNoSuitableGuidesAsync(TourDetails tourDetails)
+        {
+            try
+            {
+                _logger.LogInformation("Sending no suitable guides notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                using var scope = _serviceProvider.CreateScope();
+                var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+
+                // 🔔 Tạo in-app notification
+                await notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
+                {
+                    UserId = tourDetails.CreatedById,
+                    Title = "⚠️ Không tìm thấy hướng dẫn viên phù hợp",
+                    Message = $"Tour '{tourDetails.Title}' không tìm thấy hướng dẫn viên có kỹ năng phù hợp. Vui lòng vào danh sách hướng dẫn viên để tự chọn.",
+                    Type = DataAccessLayer.Enums.NotificationType.Warning,
+                    Priority = DataAccessLayer.Enums.NotificationPriority.High,
+                    Icon = "⚠️",
+                    ActionUrl = "/guides/list"
+                });
+
+                // 📧 Gửi email notification
+                var user = await _unitOfWork.UserRepository.GetByIdAsync(tourDetails.CreatedById);
+                if (user != null)
+                {
+                    var subject = $"Cần chọn hướng dẫn viên: Tour '{tourDetails.Title}'";
+                    var htmlBody = @"
+                        <h2>Chào " + user.Name + @",</h2>
+                        <p>Hệ thống không tìm thấy hướng dẫn viên nào có kỹ năng phù hợp với tour <strong>'" + tourDetails.Title + @"'</strong>.</p>
+                        
+                        <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
+                            <h3 style='margin-top: 0; color: #856404;'>⚠️ Hành động cần thực hiện:</h3>
+                            <p><strong>Tour KHÔNG THỂ DIỄN RA nếu không có hướng dẫn viên!</strong></p>
+                            <ol>
+                                <li><strong>Đăng nhập hệ thống</strong> để xem danh sách hướng dẫn viên có sẵn</li>
+                                <li><strong>Chọn và mời hướng dẫn viên</strong> từ danh sách hệ thống</li>
+                                <li><strong>Liên hệ trực tiếp</strong> với hướng dẫn viên để thảo luận điều kiện</li>
+                            </ol>
+                        </div>
+                        
+                        <div style='background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 15px 0;'>
+                            <h4 style='margin-top: 0; color: #155724;'>💡 Lợi ích của việc tự chọn hướng dẫn viên:</h4>
+                            <ul>
+                                <li>Xem được <strong>thông tin chi tiết</strong> về từng hướng dẫn viên</li>
+                                <li>Đánh giá <strong>kinh nghiệm và kỹ năng</strong> trước khi mời</li>
+                                <li>Tăng khả năng <strong>tìm được hướng dẫn viên phù hợp</strong></li>
+                            </ul>
+                        </div>
+                        
+                        <div style='background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;'>
+                            <p style='margin: 0; font-weight: bold; color: #721c24;'>
+                                ⚠️ Lưu ý: Nếu không tìm được hướng dẫn viên trong 5 ngày, tour sẽ bị hủy tự động!
+                            </p>
+                        </div>
+                        
+                        <br/>
+                        <p>Chúng tôi tin rằng bạn sẽ tìm được hướng dẫn viên phù hợp từ danh sách hệ thống.</p>
+                        <p>Trân trọng,</p>
+                        <p>Đội ngũ Tay Ninh Tour</p>";
+
+                    await _emailSender.SendEmailAsync(user.Email, user.Name, subject, htmlBody);
+                }
+
+                _logger.LogInformation("Successfully sent no suitable guides notification for TourDetails {TourDetailsId}", tourDetails.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending no suitable guides notification for TourDetails {TourDetailsId}", tourDetails.Id);
                 // Don't throw - notification failure shouldn't break main flow
             }
         }
