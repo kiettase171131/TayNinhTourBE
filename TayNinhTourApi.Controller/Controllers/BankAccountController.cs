@@ -26,6 +26,29 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// Lấy danh sách ngân hàng hỗ trợ
+        /// </summary>
+        /// <returns>Danh sách ngân hàng hỗ trợ</returns>
+        [HttpGet("supported-banks")]
+        [AllowAnonymous] // Cho phép truy cập mà không cần đăng nhập
+        public async Task<IActionResult> GetSupportedBanks()
+        {
+            try
+            {
+                _logger.LogInformation("Getting supported banks list");
+
+                var result = await _bankAccountService.GetSupportedBanksAsync();
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting supported banks list");
+                return StatusCode(500, "Lỗi server khi lấy danh sách ngân hàng hỗ trợ");
+            }
+        }
+
+        /// <summary>
         /// Lấy danh sách tài khoản ngân hàng của user hiện tại
         /// </summary>
         /// <returns>Danh sách tài khoản ngân hàng</returns>

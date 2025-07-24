@@ -35,6 +35,10 @@ namespace TayNinhTourApi.DataAccessLayer.Enums
         Kienlongbank,
         PGBank,
         OceanBank,
-        CoopBank
+        CoopBank,
+        /// <summary>
+        /// Ngân hàng khác - cho phép user nh?p tên ngân hàng t? do
+        /// </summary>
+        Other = 999
     }
 }

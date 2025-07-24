@@ -12,6 +12,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
     public interface IBankAccountService
     {
         /// <summary>
+        /// Lấy danh sách ngân hàng hỗ trợ
+        /// </summary>
+        /// <returns>Danh sách ngân hàng hỗ trợ</returns>
+        Task<ApiResponse<List<SupportedBankDto>>> GetSupportedBanksAsync();
+
+        /// <summary>
         /// Lấy danh sách tài khoản ngân hàng của user hiện tại
         /// </summary>
         /// <param name="userId">ID của user</param>

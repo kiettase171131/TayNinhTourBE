@@ -4,6 +4,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.BankAccount;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -19,6 +20,35 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public BankAccountService(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
+        }
+
+        /// <summary>
+        /// Lấy danh sách ngân hàng hỗ trợ
+        /// </summary>
+        public async Task<ApiResponse<List<SupportedBankDto>>> GetSupportedBanksAsync()
+        {
+            try
+            {
+                var supportedBanks = Enum.GetValues<SupportedBank>()
+                    .Select(bank => new SupportedBankDto
+                    {
+                        Value = (int)bank,
+                        Name = bank.ToString(),
+                        DisplayName = GetBankDisplayName(bank),
+                        ShortName = GetBankShortName(bank),
+                        LogoUrl = GetBankLogoUrl(bank),
+                        IsActive = true
+                    })
+                    .OrderBy(x => x.Value == 999 ? 1 : 0) // Đặt "Other" cuối danh sách
+                    .ThenBy(x => x.DisplayName)
+                    .ToList();
+
+                return ApiResponse<List<SupportedBankDto>>.Success(supportedBanks);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<List<SupportedBankDto>>.Error($"Lỗi khi lấy danh sách ngân hàng hỗ trợ: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -95,8 +125,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
+                // Xử lý tên ngân hàng dựa vào SupportedBankId
+                string finalBankName = ProcessBankName(createDto.SupportedBankId, createDto.BankName, createDto.CustomBankName);
+
                 // Validate duplicate
-                var validationResult = await ValidateBankAccountAsync(createDto.BankName, createDto.AccountNumber, userId);
+                var validationResult = await ValidateBankAccountAsync(finalBankName, createDto.AccountNumber, userId);
                 if (!validationResult.IsSuccess)
                 {
                     return ApiResponse<BankAccountResponseDto>.Error(validationResult.Message);
@@ -119,7 +152,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var bankAccount = new BankAccount
                     {
                         UserId = userId,
-                        BankName = createDto.BankName.Trim(),
+                        BankName = finalBankName.Trim(),
                         AccountNumber = createDto.AccountNumber.Trim(),
                         AccountHolderName = createDto.AccountHolderName.Trim(),
                         IsDefault = shouldSetDefault,
@@ -160,15 +193,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<BankAccountResponseDto>.NotFound("Không tìm thấy tài khoản ngân hàng hoặc bạn không có quyền cập nhật");
                 }
 
+                // Xử lý tên ngân hàng dựa vào SupportedBankId
+                string finalBankName = ProcessBankName(updateDto.SupportedBankId, updateDto.BankName, updateDto.CustomBankName);
+
                 // Validate duplicate (exclude current account)
-                var validationResult = await ValidateBankAccountAsync(updateDto.BankName, updateDto.AccountNumber, currentUserId, bankAccountId);
+                var validationResult = await ValidateBankAccountAsync(finalBankName, updateDto.AccountNumber, currentUserId, bankAccountId);
                 if (!validationResult.IsSuccess)
                 {
                     return ApiResponse<BankAccountResponseDto>.Error(validationResult.Message);
                 }
 
                 // Update properties
-                bankAccount.BankName = updateDto.BankName.Trim();
+                bankAccount.BankName = finalBankName.Trim();
                 bankAccount.AccountNumber = updateDto.AccountNumber.Trim();
                 bankAccount.AccountHolderName = updateDto.AccountHolderName.Trim();
                 bankAccount.Notes = updateDto.Notes?.Trim();
@@ -355,6 +391,123 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var lastFour = accountNumber.Substring(accountNumber.Length - 4);
             var masked = new string('*', accountNumber.Length - 4) + lastFour;
             return masked;
+        }
+
+        /// <summary>
+        /// Xử lý tên ngân hàng dựa vào SupportedBankId
+        /// </summary>
+        private static string ProcessBankName(SupportedBank? supportedBankId, string bankName, string? customBankName)
+        {
+            // Nếu có chọn từ enum và không phải "Other"
+            if (supportedBankId.HasValue && supportedBankId.Value != SupportedBank.Other)
+            {
+                return GetBankDisplayName(supportedBankId.Value);
+            }
+            
+            // Nếu chọn "Other" thì dùng CustomBankName
+            if (supportedBankId == SupportedBank.Other)
+            {
+                if (string.IsNullOrWhiteSpace(customBankName))
+                {
+                    throw new ArgumentException("Tên ngân hàng tự do là bắt buộc khi chọn 'Ngân hàng khác'");
+                }
+                return customBankName.Trim();
+            }
+            
+            // Backward compatibility: nếu không có SupportedBankId thì dùng BankName
+            return bankName.Trim();
+        }
+
+        /// <summary>
+        /// Lấy tên hiển thị của ngân hàng
+        /// </summary>
+        private static string GetBankDisplayName(SupportedBank bank)
+        {
+            return bank switch
+            {
+                SupportedBank.Vietcombank => "Ngân hàng Ngoại thương Việt Nam (Vietcombank)",
+                SupportedBank.VietinBank => "Ngân hàng Công thương Việt Nam (VietinBank)",
+                SupportedBank.BIDV => "Ngân hàng Đầu tư và Phát triển Việt Nam (BIDV)",
+                SupportedBank.Techcombank => "Ngân hàng Kỹ thương Việt Nam (Techcombank)",
+                SupportedBank.Sacombank => "Ngân hàng Sài Gòn Thương tín (Sacombank)",
+                SupportedBank.ACB => "Ngân hàng Á Châu (ACB)",
+                SupportedBank.MBBank => "Ngân hàng Quân đội (MBBank)",
+                SupportedBank.TPBank => "Ngân hàng Tiên Phong (TPBank)",
+                SupportedBank.VPBank => "Ngân hàng Việt Nam Thịnh vượng (VPBank)",
+                SupportedBank.SHB => "Ngân hàng Sài Gòn - Hà Nội (SHB)",
+                SupportedBank.HDBank => "Ngân hàng Phát triển Nhà TP.HCM (HDBank)",
+                SupportedBank.VIB => "Ngân hàng Quốc tế Việt Nam (VIB)",
+                SupportedBank.Eximbank => "Ngân hàng Xuất nhập khẩu Việt Nam (Eximbank)",
+                SupportedBank.SeABank => "Ngân hàng Đông Nam Á (SeABank)",
+                SupportedBank.OCB => "Ngân hàng Phương Đông (OCB)",
+                SupportedBank.MSB => "Ngân hàng Hàng hải (MSB)",
+                SupportedBank.SCB => "Ngân hàng Sài Gòn (SCB)",
+                SupportedBank.DongABank => "Ngân hàng Đông Á (DongA Bank)",
+                SupportedBank.LienVietPostBank => "Ngân hàng Bưu điện Liên Việt (LienVietPostBank)",
+                SupportedBank.ABBANK => "Ngân hàng An Bình (ABBANK)",
+                SupportedBank.PVcomBank => "Ngân hàng Đại chúng Việt Nam (PVcomBank)",
+                SupportedBank.NamABank => "Ngân hàng Nam Á (Nam A Bank)",
+                SupportedBank.BacABank => "Ngân hàng Bắc Á (Bac A Bank)",
+                SupportedBank.Saigonbank => "Ngân hàng Sài Gòn Công thương (Saigonbank)",
+                SupportedBank.VietBank => "Ngân hàng Việt Nam Thương tín (VietBank)",
+                SupportedBank.Kienlongbank => "Ngân hàng Kiên Long (Kienlongbank)",
+                SupportedBank.PGBank => "Ngân hàng Xăng dầu Petrolimex (PGBank)",
+                SupportedBank.OceanBank => "Ngân hàng Đại Dương (OceanBank)",
+                SupportedBank.CoopBank => "Ngân hàng Hợp tác xã Việt Nam (Co-opBank)",
+                SupportedBank.Other => "Ngân hàng khác",
+                _ => bank.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Lấy tên viết tắt của ngân hàng
+        /// </summary>
+        private static string GetBankShortName(SupportedBank bank)
+        {
+            return bank switch
+            {
+                SupportedBank.Vietcombank => "VCB",
+                SupportedBank.VietinBank => "CTG",
+                SupportedBank.BIDV => "BIDV",
+                SupportedBank.Techcombank => "TCB",
+                SupportedBank.Sacombank => "STB",
+                SupportedBank.ACB => "ACB",
+                SupportedBank.MBBank => "MB",
+                SupportedBank.TPBank => "TPB",
+                SupportedBank.VPBank => "VPB",
+                SupportedBank.SHB => "SHB",
+                SupportedBank.HDBank => "HDB",
+                SupportedBank.VIB => "VIB",
+                SupportedBank.Eximbank => "EIB",
+                SupportedBank.SeABank => "SEAB",
+                SupportedBank.OCB => "OCB",
+                SupportedBank.MSB => "MSB",
+                SupportedBank.SCB => "SCB",
+                SupportedBank.DongABank => "DAB",
+                SupportedBank.LienVietPostBank => "LPB",
+                SupportedBank.ABBANK => "ABB",
+                SupportedBank.PVcomBank => "PVCB",
+                SupportedBank.NamABank => "NAB",
+                SupportedBank.BacABank => "BAB",
+                SupportedBank.Saigonbank => "SGB",
+                SupportedBank.VietBank => "VBB",
+                SupportedBank.Kienlongbank => "KLB",
+                SupportedBank.PGBank => "PGB",
+                SupportedBank.OceanBank => "OJB",
+                SupportedBank.CoopBank => "COOP",
+                SupportedBank.Other => "OTHER",
+                _ => bank.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Lấy URL logo của ngân hàng (có thể cấu hình trong config hoặc database)
+        /// </summary>
+        private static string? GetBankLogoUrl(SupportedBank bank)
+        {
+            // Có thể cấu hình URL logo trong appsettings hoặc database
+            // Hiện tại trả về null, có thể implement sau
+            return null;
         }
     }
 }
