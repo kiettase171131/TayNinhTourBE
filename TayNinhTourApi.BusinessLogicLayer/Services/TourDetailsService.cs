@@ -1824,7 +1824,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Check if there's a TourOperation with assigned guide
                 var tourOperation = await _unitOfWork.TourOperationRepository
                     .GetAllAsync(to => to.TourDetailsId == tourDetailsId);
-
                 var hasAssignedGuide = tourOperation.Any(to => to.TourGuideId != null);
 
                 var statusInfo = new
@@ -1887,33 +1886,89 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // Validate guide exists
-                var guide = await _unitOfWork.UserRepository.GetByIdAsync(guideId);
-                if (guide == null)
+                // FIX: Validate TourGuide exists using TourGuideRepository instead of UserRepository
+                // guideId is TourGuide.Id, not User.Id
+                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(guideId);
+                if (tourGuide == null || !tourGuide.IsActive)
                 {
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy TourGuide",
+                        Message = "Không tìm thấy TourGuide hoặc TourGuide không hoạt động",
                         success = false
                     };
                 }
 
-                // TODO: Use TourGuideInvitationService to send invitation when available
-                // For now, just log the invitation attempt
-                _logger.LogInformation("Manual invitation created: TourDetails {TourDetailsId}, Guide {GuideId}, Company {CompanyId}",
-                    tourDetailsId, guideId, companyId);
+                // Additional validation: Check if TourGuide is available
+                var availableGuides = await _unitOfWork.TourGuideRepository.GetAvailableGuidesAsync();
+                if (!availableGuides.Any(g => g.Id == guideId))
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "TourGuide hiện tại không available để nhận lời mời",
+                        success = false
+                    };
+                }
+
+                // Check if there's already a pending invitation for this guide and tour
+                var existingInvitation = await _unitOfWork.TourGuideInvitationRepository
+                    .HasPendingInvitationAsync(tourDetailsId, guideId);
+                
+                if (existingInvitation)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 409,
+                        Message = "Đã có lời mời pending cho hướng dẫn viên này",
+                        success = false
+                    };
+                }
+
+                // FIX: Actually CREATE the invitation record in database
+                var invitation = new DataAccessLayer.Entities.TourGuideInvitation
+                {
+                    Id = Guid.NewGuid(),
+                    TourDetailsId = tourDetailsId,
+                    GuideId = guideId,
+                    CreatedById = companyId,
+                    Status = DataAccessLayer.Enums.InvitationStatus.Pending,
+                    InvitedAt = DateTime.UtcNow,
+                    ExpiresAt = DateTime.UtcNow.AddDays(3), // Default 3 days expiration
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+
+                // Save the invitation to database
+                await _unitOfWork.TourGuideInvitationRepository.AddAsync(invitation);
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Manual invitation created successfully: InvitationId {InvitationId}, TourDetails {TourDetailsId}, TourGuide {GuideId} (Name: {GuideName}), Company {CompanyId}",
+                    invitation.Id, tourDetailsId, guideId, tourGuide.FullName, companyId);
+
+                // TODO: Send notification email to TourGuide when email service is available
+                try
+                {
+                    _logger.LogInformation("Would send invitation email to TourGuide {GuideId} ({GuideName}) for TourDetails {TourDetailsId}",
+                        guideId, tourGuide.FullName, tourDetailsId);
+                }
+                catch (Exception notificationEx)
+                {
+                    _logger.LogError(notificationEx, "Error sending invitation notification to TourGuide {GuideId}", guideId);
+                    // Don't fail the invitation creation if notification fails
+                }
 
                 return new BaseResposeDto
                 {
                     StatusCode = 201,
-                    Message = "Gửi lời mời thành công",
+                    Message = $"Gửi lời mời thành công cho hướng dẫn viên {tourGuide.FullName}. Lời mời sẽ hết hạn sau 3 ngày.",
                     success = true
                 };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating manual invitation for TourDetails {TourDetailsId}", tourDetailsId);
+                _logger.LogError(ex, "Error creating manual invitation for TourDetails {TourDetailsId} with Guide {GuideId}", 
+                    tourDetailsId, guideId);
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
