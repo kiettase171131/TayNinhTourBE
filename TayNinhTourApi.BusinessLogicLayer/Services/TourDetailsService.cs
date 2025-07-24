@@ -1023,8 +1023,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                // Validate TourDetails exists
-                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(request.TourDetailsId);
+                _logger.LogInformation("Creating single timeline item for TourDetails {TourDetailsId} by user {UserId}", 
+                    request.TourDetailsId, createdById);
+
+                // 1. Validate TourDetails exists
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(request.TourDetailsId);
                 if (tourDetails == null)
                 {
                     return new BaseResposeDto
@@ -1035,7 +1038,33 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // Create new timeline item
+                // 2. BUSINESS RULE: Check if tour has guide assigned - prevent adding if guide is already assigned
+                bool hasGuideAssigned = tourDetails.TourOperation?.TourGuideId != null;
+                if (hasGuideAssigned)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Đã có hướng dẫn viên tham gia tour, không thể thêm timeline item nữa",
+                        success = false
+                    };
+                }
+
+                // 3. Check ownership
+                if (tourDetails.CreatedById != createdById)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "Bạn không có quyền chỉnh sửa timeline cho TourDetails này",
+                        success = false
+                    };
+                }
+
+                // Store original status for logic check
+                var originalStatus = tourDetails.Status;
+
+                // 4. Create new timeline item
                 var timelineItem = new TimelineItem
                 {
                     Id = Guid.NewGuid(),
@@ -1050,12 +1079,52 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
 
                 await _unitOfWork.TimelineItemRepository.AddAsync(timelineItem);
+
+                // 5. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
+                bool tourDetailsStatusChanged = false;
+
+                // Always set status to Pending when adding new timeline item (regardless of current status)
+                tourDetails.Status = TourDetailsStatus.Pending;
+                tourDetails.CommentApproved = null; // Clear previous admin comment
+                tourDetails.UpdatedAt = DateTime.UtcNow;
+                tourDetails.UpdatedById = createdById;
+                
+                tourDetailsStatusChanged = true;
+                _logger.LogInformation("TourDetails {TourDetailsId} status changed from {OriginalStatus} to Pending due to new timeline item added", 
+                    tourDetails.Id, originalStatus);
+                
+                // Update TourDetails in database
+                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+
+                // 6. Save all changes
                 await _unitOfWork.SaveChangesAsync();
+
+                // 7. Send notification if TourDetails status changed
+                if (tourDetailsStatusChanged)
+                {
+                    try
+                    {
+                        // TODO: Send notification when notification service is available
+                        _logger.LogInformation("Would send notification about TourDetails status change to Pending for TourDetails {TourDetailsId}", tourDetails.Id);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "Error sending notification for TourDetails status change on TourDetails {TourDetailsId}", tourDetails.Id);
+                        // Don't fail the creation if notification fails
+                    }
+                }
+
+                // 8. Prepare response message based on status change
+                string message = "Tạo timeline item thành công";
+                if (tourDetailsStatusChanged)
+                {
+                    message += ". Tour đã được chuyển về trạng thái 'Chờ duyệt' để admin xem xét lại.";
+                }
 
                 return new BaseResposeDto
                 {
                     StatusCode = 201,
-                    Message = "Tạo timeline item thành công",
+                    Message = message,
                     success = true
                 };
             }
@@ -1336,8 +1405,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                // Validate TourDetails exists
-                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(request.TourDetailsId);
+                _logger.LogInformation("Creating {Count} timeline items for TourDetails {TourDetailsId} by user {UserId}",
+                    request.TimelineItems.Count, request.TourDetailsId, createdById);
+
+                // 1. Validate TourDetails exists
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(request.TourDetailsId);
                 if (tourDetails == null)
                 {
                     return new ResponseCreateTimelineItemsDto
@@ -1348,7 +1420,30 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // Validate sortOrder conflicts within request
+                // 2. BUSINESS RULE: Check if tour has guide assigned - prevent adding if guide is already assigned
+                bool hasGuideAssigned = tourDetails.TourOperation?.TourGuideId != null;
+                if (hasGuideAssigned)
+                {
+                    return new ResponseCreateTimelineItemsDto
+                    {
+                        StatusCode = 400,
+                        Message = "Đã có hướng dẫn viên tham gia tour, không thể thêm timeline items nữa",
+                        success = false
+                    };
+                }
+
+                // 3. Check ownership
+                if (tourDetails.CreatedById != createdById)
+                {
+                    return new ResponseCreateTimelineItemsDto
+                    {
+                        StatusCode = 403,
+                        Message = "Bạn không có quyền chỉnh sửa timeline cho TourDetails này",
+                        success = false
+                    };
+                }
+
+                // 4. Validate sortOrder conflicts within request
                 var requestSortOrders = request.TimelineItems
                     .Where(item => item.SortOrder.HasValue)
                     .Select(item => item.SortOrder.Value)
@@ -1371,7 +1466,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // Get existing timeline items and check for conflicts
+                // 5. Get existing timeline items and check for conflicts
                 var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
                     t => t.TourDetailsId == request.TourDetailsId);
                 var existingSortOrders = existingItems.Select(t => t.SortOrder).ToHashSet();
@@ -1398,6 +1493,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 int currentMaxSortOrder = existingItems.Any() ? existingItems.Max(t => t.SortOrder) : 0;
 
+                // Store original status for logic check
+                var originalStatus = tourDetails.Status;
+
+                // 6. Create timeline items
                 foreach (var itemRequest in request.TimelineItems)
                 {
                     try
@@ -1435,19 +1534,61 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         errors.Add($"Lỗi tạo timeline item '{itemRequest.Activity}': {ex.Message}");
                         failedCount++;
+                        _logger.LogError(ex, "Error creating timeline item '{Activity}' for TourDetails {TourDetailsId}", 
+                            itemRequest.Activity, request.TourDetailsId);
                     }
                 }
 
-                // Save all changes
+                // 7. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
+                bool tourDetailsStatusChanged = false;
+                if (successCount > 0)
+                {
+                    // Always set status to Pending when adding new timeline items (regardless of current status)
+                    tourDetails.Status = TourDetailsStatus.Pending;
+                    tourDetails.CommentApproved = null; // Clear previous admin comment
+                    tourDetails.UpdatedAt = DateTime.UtcNow;
+                    tourDetails.UpdatedById = createdById;
+                    
+                    tourDetailsStatusChanged = true;
+                    _logger.LogInformation("TourDetails {TourDetailsId} status changed from {OriginalStatus} to Pending due to new timeline items added", 
+                        tourDetails.Id, originalStatus);
+                    
+                    // Update TourDetails in database
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+                }
+
+                // 8. Save all changes
                 if (successCount > 0)
                 {
                     await _unitOfWork.SaveChangesAsync();
                 }
 
+                // 9. Send notification if TourDetails status changed
+                if (tourDetailsStatusChanged)
+                {
+                    try
+                    {
+                        // TODO: Send notification when notification service is available
+                        _logger.LogInformation("Would send notification about TourDetails status change to Pending for TourDetails {TourDetailsId}", tourDetails.Id);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "Error sending notification for TourDetails status change on TourDetails {TourDetailsId}", tourDetails.Id);
+                        // Don't fail the creation if notification fails
+                    }
+                }
+
+                // 10. Prepare response message based on status change
+                string message = $"Tạo thành công {successCount}/{request.TimelineItems.Count} timeline items";
+                if (tourDetailsStatusChanged)
+                {
+                    message += ". Tour đã được chuyển về trạng thái 'Chờ duyệt' để admin xem xét lại.";
+                }
+
                 return new ResponseCreateTimelineItemsDto
                 {
                     StatusCode = successCount > 0 ? 201 : 400,
-                    Message = $"Tạo thành công {successCount}/{request.TimelineItems.Count} timeline items",
+                    Message = message,
                     success = successCount > 0,
                     Data = createdItems,
                     CreatedCount = successCount,
@@ -1457,6 +1598,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error creating timeline items for TourDetails {TourDetailsId}", request.TourDetailsId);
                 return new ResponseCreateTimelineItemsDto
                 {
                     StatusCode = 500,
