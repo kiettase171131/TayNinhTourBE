@@ -133,8 +133,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Code = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
                     DiscountAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     DiscountPercent = table.Column<int>(type: "int", nullable: true),
                     StartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -723,6 +724,50 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "VoucherCodes",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    VoucherId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Code = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsClaimed = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    ClaimedByUserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    ClaimedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsUsed = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    UsedByUserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    UsedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_VoucherCodes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_VoucherCodes_Users_ClaimedByUserId",
+                        column: x => x.ClaimedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_VoucherCodes_Users_UsedByUserId",
+                        column: x => x.UsedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_VoucherCodes_Vouchers_VoucherId",
+                        column: x => x.VoucherId,
+                        principalTable: "Vouchers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -2491,6 +2536,21 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 column: "RoleId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_VoucherCodes_ClaimedByUserId",
+                table: "VoucherCodes",
+                column: "ClaimedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VoucherCodes_UsedByUserId",
+                table: "VoucherCodes",
+                column: "UsedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VoucherCodes_VoucherId",
+                table: "VoucherCodes",
+                column: "VoucherId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WithdrawalRequest_BankAccountId",
                 table: "WithdrawalRequests",
                 column: "BankAccountId");
@@ -2603,7 +2663,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "TourGuideInvitations");
 
             migrationBuilder.DropTable(
-                name: "Vouchers");
+                name: "VoucherCodes");
 
             migrationBuilder.DropTable(
                 name: "WithdrawalRequests");
@@ -2634,6 +2694,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             migrationBuilder.DropTable(
                 name: "SpecialtyShops");
+
+            migrationBuilder.DropTable(
+                name: "Vouchers");
 
             migrationBuilder.DropTable(
                 name: "BankAccounts");

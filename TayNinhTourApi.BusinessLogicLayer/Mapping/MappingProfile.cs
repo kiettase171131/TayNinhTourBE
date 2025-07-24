@@ -230,8 +230,32 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.TourOperation, opt => opt.Ignore()); // Will set in service
             #endregion
             #region Voucher Mapping
-            CreateMap<Voucher, VoucherDto>();
+            CreateMap<Voucher, VoucherDto>()
+                .ForMember(dest => dest.ClaimedCount, opt => opt.MapFrom(src => src.VoucherCodes.Count(vc => vc.IsClaimed)))
+                .ForMember(dest => dest.UsedCount, opt => opt.MapFrom(src => src.VoucherCodes.Count(vc => vc.IsUsed)))
+                .ForMember(dest => dest.RemainingCount, opt => opt.MapFrom(src => src.VoucherCodes.Count(vc => !vc.IsClaimed)))
+                .ForMember(dest => dest.VoucherCodes, opt => opt.MapFrom(src => src.VoucherCodes));
 
+            CreateMap<VoucherCode, VoucherCodeDto>()
+                .ForMember(dest => dest.ClaimedByUserName, opt => opt.MapFrom(src => src.ClaimedByUser != null ? src.ClaimedByUser.Name : null))
+                .ForMember(dest => dest.UsedByUserName, opt => opt.MapFrom(src => src.UsedByUser != null ? src.UsedByUser.Name : null));
+
+            CreateMap<VoucherCode, MyVoucherDto>()
+                .ForMember(dest => dest.VoucherCodeId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.VoucherName, opt => opt.MapFrom(src => src.Voucher.Name))
+                .ForMember(dest => dest.DiscountAmount, opt => opt.MapFrom(src => src.Voucher.DiscountAmount))
+                .ForMember(dest => dest.DiscountPercent, opt => opt.MapFrom(src => src.Voucher.DiscountPercent))
+                .ForMember(dest => dest.StartDate, opt => opt.MapFrom(src => src.Voucher.StartDate))
+                .ForMember(dest => dest.EndDate, opt => opt.MapFrom(src => src.Voucher.EndDate))
+                .ForMember(dest => dest.ClaimedAt, opt => opt.MapFrom(src => src.ClaimedAt ?? DateTime.MinValue));
+
+            CreateMap<VoucherCode, AvailableVoucherCodeDto>()
+                .ForMember(dest => dest.VoucherCodeId, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => dest.VoucherName, opt => opt.MapFrom(src => src.Voucher.Name))
+                .ForMember(dest => dest.DiscountAmount, opt => opt.MapFrom(src => src.Voucher.DiscountAmount))
+                .ForMember(dest => dest.DiscountPercent, opt => opt.MapFrom(src => src.Voucher.DiscountPercent))
+                .ForMember(dest => dest.StartDate, opt => opt.MapFrom(src => src.Voucher.StartDate))
+                .ForMember(dest => dest.EndDate, opt => opt.MapFrom(src => src.Voucher.EndDate));
 
 
             #endregion

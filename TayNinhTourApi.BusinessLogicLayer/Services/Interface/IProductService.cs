@@ -26,16 +26,28 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<ResponseGetCartDto> GetCartAsync(CurrentUserObject currentUser);
         Task<BaseResposeDto> RemoveFromCartAsync(CurrentUserObject currentUser);
         Task ClearCartAndUpdateInventoryAsync(Guid orderId);
-        Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, string? voucherCode = null);
+        
+        /// <summary>
+        /// Checkout cart chỉ với voucher từ kho cá nhân
+        /// </summary>
+        /// <param name="cartItemIds">Danh sách cart item IDs</param>
+        /// <param name="currentUser">User hiện tại</param>
+        /// <param name="myVoucherCodeId">ID voucher từ kho cá nhân (optional)</param>
+        /// <returns>Checkout result với payment URL</returns>
+        Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, Guid? myVoucherCodeId = null);
+        
         Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId);
         Task<BaseResposeDto> FeedbackProductAsync(CreateProductFeedbackDto dto, Guid userId);
         Task<ProductReviewSummaryDto> GetProductReviewSummaryAsync(Guid productId);
-        Task<ApplyVoucherResult> ApplyVoucherForCartAsync(string voucherCode, List<CartItemDto> cartItems);
         Task<ResponseCreateVoucher> CreateAsync(CreateVoucherDto dto, Guid userId);
         Task<ResponseGetVouchersDto> GetAllVouchersAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status);
         Task<ResponseGetVoucherDto> GetVoucherByIdAsync(Guid id);
         Task<BaseResposeDto> UpdateVoucherAsync(Guid id, UpdateVoucherDto dto, Guid userId);
         Task<BaseResposeDto> DeleteVoucherAsync(Guid id);
+        Task<ResponseGetAvailableVoucherCodesDto> GetAvailableVoucherCodesAsync(int? pageIndex, int? pageSize);
+        Task<ResponseClaimVoucherDto> ClaimVoucherCodeAsync(Guid voucherCodeId, CurrentUserObject currentUser);
+        Task<ResponseGetMyVouchersDto> GetMyVouchersAsync(CurrentUserObject currentUser, int? pageIndex, int? pageSize, string? status);
+        Task<ApplyVoucherResult> ApplyMyVoucherForCartAsync(Guid voucherCodeId, List<CartItemDto> cartItems, CurrentUserObject currentUser);
         Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status);
         Task<ResponseGetOrdersDto> GetOrdersByUserAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, CurrentUserObject currentUserObject);
         Task<ResponseGetOrdersDto> GetOrdersByCurrentShopAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, CurrentUserObject currentUserObject);

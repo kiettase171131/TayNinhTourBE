@@ -153,21 +153,88 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var url = await _productService.CheckoutCartAsync(dto.CartItemIds, currentUser, dto.VoucherCode);
+                // Validate request
+                if (!ModelState.IsValid)
+                {
+                    var errors = ModelState
+                        .Where(x => x.Value.Errors.Count > 0)
+                        .SelectMany(x => x.Value.Errors)
+                        .Select(x => x.ErrorMessage)
+                        .ToList();
+                    
+                    return BadRequest(new 
+                    { 
+                        message = "Dữ liệu không hợp lệ", 
+                        errors = errors 
+                    });
+                }
 
-                if (url == null)
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                
+                // Gọi service chỉ với myVoucherCodeId (bỏ voucherCode)
+                var result = await _productService.CheckoutCartAsync(
+                    dto.CartItemIds, 
+                    currentUser, 
+                    dto.MyVoucherCodeId);
+
+                if (result == null)
                     return BadRequest("Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho.");
 
-                return Ok(new { CheckoutUrl = url });
+                return Ok(result);
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(ex.Message); // Báo thiếu tồn kho
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, "Có lỗi xảy ra: " + ex.Message);
+                return StatusCode(500, new { message = "Có lỗi xảy ra: " + ex.Message });
+            }
+        }
+        [HttpPost("test-checkout")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> TestCheckout([FromBody] object rawRequest)
+        {
+            try
+            {
+                // Debug raw request
+                Console.WriteLine($"Raw request received: {System.Text.Json.JsonSerializer.Serialize(rawRequest)}");
+
+                // Kiểm tra ModelState
+                Console.WriteLine($"ModelState IsValid: {ModelState.IsValid}");
+                if (!ModelState.IsValid)
+                {
+                    var allErrors = ModelState
+                        .SelectMany(x => x.Value.Errors)
+                        .Select(x => new { 
+                            Field = x.Exception?.Data?.Keys?.Cast<object>()?.FirstOrDefault()?.ToString() ?? "Unknown",
+                            Message = x.ErrorMessage 
+                        })
+                        .ToList();
+                    
+                    Console.WriteLine($"ModelState errors: {System.Text.Json.JsonSerializer.Serialize(allErrors)}");
+                }
+
+                return Ok(new 
+                {
+                    message = "Test endpoint - Debug info",
+                    modelStateIsValid = ModelState.IsValid,
+                    rawRequest = rawRequest,
+                    errors = ModelState.IsValid ? null : ModelState
+                        .Where(x => x.Value.Errors.Count > 0)
+                        .ToDictionary(
+                            x => x.Key,
+                            x => x.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                        )
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    message = "Test error", 
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
             }
         }
         [HttpGet("GetAll-Voucher")]
@@ -209,6 +276,31 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<IActionResult> DeleteVoucher(Guid id)
         {
             var result = await _productService.DeleteVoucherAsync(id);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("GetAvailable-VoucherCodes")]
+        public async Task<IActionResult> GetAvailableVoucherCodes([FromQuery] int? pageIndex, [FromQuery] int? pageSize)
+        {
+            var result = await _productService.GetAvailableVoucherCodesAsync(pageIndex, pageSize);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpPost("Claim-VoucherCode/{voucherCodeId}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> ClaimVoucherCode(Guid voucherCodeId)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.ClaimVoucherCodeAsync(voucherCodeId, currentUser);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("My-Vouchers")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetMyVouchers([FromQuery] int? pageIndex, [FromQuery] int? pageSize, [FromQuery] string? status)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.GetMyVouchersAsync(currentUser, pageIndex, pageSize, status);
             return StatusCode(result.StatusCode, result);
         }
         [HttpGet("AllOrder")]
@@ -266,5 +358,44 @@ namespace TayNinhTourApi.Controller.Controllers
             return Ok(result);
         }
 
+        [HttpPost("simple-checkout")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> SimpleCheckout([FromBody] CheckoutSelectedCartItemsDto dto)
+        {
+            try
+            {
+                // Log request info
+                Console.WriteLine($"SimpleCheckout called");
+                Console.WriteLine($"CartItemIds count: {dto?.CartItemIds?.Count ?? 0}");
+                Console.WriteLine($"MyVoucherCodeId: {dto?.MyVoucherCodeId}");
+
+                // Validate basic requirements
+                if (dto?.CartItemIds == null || !dto.CartItemIds.Any())
+                {
+                    return BadRequest(new { message = "CartItemIds is required and cannot be empty" });
+                }
+
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                
+                // Call service chỉ với myVoucherCodeId
+                var result = await _productService.CheckoutCartAsync(
+                    dto.CartItemIds, 
+                    currentUser, 
+                    dto.MyVoucherCodeId);
+
+                if (result == null)
+                    return BadRequest("Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho.");
+
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Có lỗi xảy ra: " + ex.Message });
+            }
+        }
     }
 }

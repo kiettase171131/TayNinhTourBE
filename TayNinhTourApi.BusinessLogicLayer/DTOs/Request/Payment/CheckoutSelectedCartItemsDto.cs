@@ -12,6 +12,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment
         [Required(ErrorMessage = "Danh sách sản phẩm không được để trống")]
         [MinLength(1, ErrorMessage = "Phải chọn ít nhất 1 sản phẩm để checkout")]
         public List<Guid> CartItemIds { get; set; } = new List<Guid>();
-        public string? VoucherCode { get; set; }
+
+        /// <summary>
+        /// ID của voucher code từ kho cá nhân của user
+        /// OPTIONAL - có thể để trống nếu không sử dụng voucher
+        /// Chỉ có thể sử dụng voucher đã claim trong kho cá nhân
+        /// </summary>
+        public Guid? MyVoucherCodeId { get; set; }
     }
 }

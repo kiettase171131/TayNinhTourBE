@@ -238,6 +238,7 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<ITourGuideInvitationRepository, TourGuideInvitationRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
+builder.Services.AddScoped<IVoucherCodeRepository, VoucherCodeRepository>();
 builder.Services.AddScoped<IOrderDetailRepository, OrderDetailRepository>();
 
 // Notification Repository

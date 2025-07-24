@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher
 {
-    public class ResponseGetVoucherDto
+    public class ResponseGetVoucherDto : BaseResposeDto
     {
-        public int StatusCode { get; set; }
-        public string? Message { get; set; }
         public VoucherDto? Data { get; set; }
     }
 
