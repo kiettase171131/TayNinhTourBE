@@ -309,5 +309,84 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// DEBUG: Lấy thông tin chi tiết operation để kiểm tra trạng thái hiện tại
+        /// </summary>
+        /// <param name="id">ID của operation</param>
+        /// <returns>Thông tin debug chi tiết</returns>
+        [HttpGet("debug/{id:guid}")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult> DebugOperation(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("Debug operation {OperationId}", id);
+
+                var operation = await _tourOperationService.GetOperationByIdAsync(id);
+
+                if (operation == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        Message = "Operation không tồn tại",
+                        OperationId = id
+                    });
+                }
+
+                // Get TourDetails info for comprehensive debug
+                var tourDetailsOperation = await _tourOperationService.GetOperationByTourDetailsAsync(operation.TourDetailsId);
+                
+                // Return comprehensive debug information
+                return Ok(new
+                {
+                    success = true,
+                    Message = "Debug operation thành công",
+                    DebugInfo = new
+                    {
+                        OperationId = operation.Id,
+                        TourDetailsId = operation.TourDetailsId,
+                        CurrentPrice = operation.Price,
+                        OperationStatus = operation.Status,
+                        OperationStatusName = operation.Status.ToString(),
+                        HasGuideAssigned = operation.GuideId != null,
+                        GuideId = operation.GuideId,
+                        GuideName = operation.GuideName,
+                        MaxSeats = operation.MaxSeats,
+                        BookedSeats = operation.BookedSeats,
+                        IsActive = operation.IsActive,
+                        CreatedAt = operation.CreatedAt,
+                        UpdatedAt = operation.UpdatedAt,
+                        Description = operation.Description,
+                        Notes = operation.Notes
+                    },
+                    TourDetailsInfo = new
+                    {
+                        Message = "TourDetails status là status quan trọng cho admin approval",
+                        Note = "Khi edit operation → TourDetails status sẽ thay đổi (không phải operation status)"
+                    },
+                    BusinessRuleChecks = new
+                    {
+                        CanEdit = operation.GuideId == null ? "✅ Có thể edit (chưa có guide)" : "❌ Không thể edit (đã có guide)",
+                        WillChangeTourDetailsStatus = "🔄 Sẽ thay đổi TourDetails status nếu đang AwaitingGuideAssignment → AwaitingAdminApproval",
+                        CurrentLogic = operation.GuideId != null ? "BLOCKED - Đã có guide assigned" : 
+                                     "ALLOW EDIT - Sẽ update TourDetails status để admin duyệt lại",
+                        ImportantNote = "⚠️ QUAN TRỌNG: Status để admin duyệt là TourDetails.Status, không phải TourOperation.Status!"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error debugging operation {OperationId}", id);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    Message = "Lỗi hệ thống khi debug operation",
+                    Error = ex.Message
+                });
+            }
+        }
     }
 }

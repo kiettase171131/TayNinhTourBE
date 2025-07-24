@@ -784,50 +784,195 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<ResponseUpdateTourDetailDto> UpdateTimelineItemAsync(Guid timelineItemId, RequestUpdateTourDetailDto request, Guid updatedById)
         {
-            // TODO: Update for new approach
-            throw new NotImplementedException("This method will be updated for new TourDetails approach");
-        }
+            try
+            {
+                _logger.LogInformation("Updating timeline item {TimelineItemId} by user {UserId}", timelineItemId, updatedById);
 
-        public async Task<ResponseDeleteTourDetailDto> DeleteTimelineItemAsync(Guid timelineItemId, Guid deletedById)
-        {
-            // TODO: Update for new approach
-            throw new NotImplementedException("This method will be updated for new TourDetails approach");
-        }
+                // 1. Get the timeline item first
+                var timelineItem = await _unitOfWork.TimelineItemRepository.GetByIdAsync(timelineItemId);
+                if (timelineItem == null)
+                {
+                    return new ResponseUpdateTourDetailDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy timeline item này",
+                        success = false
+                    };
+                }
 
-        public async Task<ResponseReorderTimelineDto> ReorderTimelineAsync(RequestReorderTimelineDto request, Guid updatedById)
-        {
-            // TODO: Update for new approach
-            throw new NotImplementedException("This method will be updated for new TourDetails approach");
-        }
+                // 2. Get the related TourDetails
+                var existingDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(timelineItem.TourDetailsId);
+                if (existingDetail == null)
+                {
+                    return new ResponseUpdateTourDetailDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy TourDetails liên quan",
+                        success = false
+                    };
+                }
 
-        public async Task<ResponseValidateTimelineDto> ValidateTimelineAsync(Guid tourDetailsId)
-        {
-            // TODO: Implement validation for TourDetails timeline
-            throw new NotImplementedException("This method will be implemented for TourDetails validation");
-        }
+                // 3. BUSINESS RULE 1: Check if tour has guide assigned - prevent editing if guide is already assigned
+                bool hasGuideAssigned = existingDetail.TourOperation?.TourGuideId != null;
+                if (hasGuideAssigned)
+                {
+                    return new ResponseUpdateTourDetailDto
+                    {
+                        StatusCode = 400,
+                        Message = "Đã có hướng dẫn viên tham gia tour, không thể edit timeline nữa",
+                        success = false
+                    };
+                }
 
-        public async Task<ResponseTimelineStatisticsDto> GetTimelineStatisticsAsync(Guid tourDetailsId)
-        {
-            // TODO: Implement statistics for TourDetails timeline
-            throw new NotImplementedException("This method will be implemented for TourDetails statistics");
-        }
+                // 4. Check ownership
+                if (existingDetail.CreatedById != updatedById)
+                {
+                    return new ResponseUpdateTourDetailDto
+                    {
+                        StatusCode = 403,
+                        Message = "Bạn không có quyền chỉnh sửa timeline item này",
+                        success = false
+                    };
+                }
 
-        public async Task<bool> CanDeleteTimelineItemAsync(Guid timelineItemId)
-        {
-            // TODO: Implement delete validation
-            throw new NotImplementedException("This method will be implemented for delete validation");
-        }
+                // Store original status for logic check
+                var originalStatus = existingDetail.Status;
 
-        public async Task<ResponseCreateTourDetailDto> DuplicateTimelineItemAsync(Guid timelineItemId, Guid createdById)
-        {
-            // TODO: Implement timeline item duplication
-            throw new NotImplementedException("This method will be implemented for timeline item duplication");
-        }
+                // 5. Update timeline item fields if provided
+                if (!string.IsNullOrEmpty(request.Activity))
+                {
+                    timelineItem.Activity = request.Activity;
+                }
 
-        public async Task<ResponseUpdateTourDetailDto> GetTimelineItemByIdAsync(Guid timelineItemId)
-        {
-            // TODO: Implement getting timeline item by ID
-            throw new NotImplementedException("This method will be implemented for getting timeline item");
+                if (!string.IsNullOrEmpty(request.CheckInTime))
+                {
+                    if (TimeSpan.TryParse(request.CheckInTime, out var parsedTime))
+                    {
+                        timelineItem.CheckInTime = parsedTime;
+                    }
+                    else
+                    {
+                        return new ResponseUpdateTourDetailDto
+                        {
+                            StatusCode = 400,
+                            Message = "Định dạng thời gian không hợp lệ",
+                            success = false
+                        };
+                    }
+                }
+
+                if (request.SpecialtyShopId.HasValue)
+                {
+                    timelineItem.SpecialtyShopId = request.SpecialtyShopId;
+                }
+
+                if (request.SortOrder.HasValue)
+                {
+                    // Check for sort order conflicts
+                    var existingItemWithSameOrder = await _unitOfWork.TimelineItemRepository
+                        .GetAllAsync(t => t.TourDetailsId == timelineItem.TourDetailsId && 
+                                         t.SortOrder == request.SortOrder.Value && 
+                                         t.Id != timelineItemId);
+
+                    if (existingItemWithSameOrder.Any())
+                    {
+                        return new ResponseUpdateTourDetailDto
+                        {
+                            StatusCode = 400,
+                            Message = $"SortOrder {request.SortOrder.Value} đã được sử dụng",
+                            success = false
+                        };
+                    }
+
+                    timelineItem.SortOrder = request.SortOrder.Value;
+                }
+
+                timelineItem.UpdatedAt = DateTime.UtcNow;
+                timelineItem.UpdatedById = updatedById;
+
+                // 6. BUSINESS RULE 2: Check TourDetails status and update if needed
+                bool tourDetailsStatusWillChange = false;
+
+                // If TourDetails status is AwaitingGuideAssignment (waiting for guide assignment) → send back to admin for approval
+                if (originalStatus == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    existingDetail.Status = TourDetailsStatus.AwaitingAdminApproval; // Reset to "pending admin approval"
+                    existingDetail.CommentApproved = null; // Clear previous admin comment
+                    existingDetail.UpdatedAt = DateTime.UtcNow;
+                    existingDetail.UpdatedById = updatedById;
+                    
+                    tourDetailsStatusWillChange = true;
+                    _logger.LogInformation("TourDetails {TourDetailsId} status changed from AwaitingGuideAssignment to AwaitingAdminApproval due to timeline edit", 
+                        existingDetail.Id);
+                    
+                    // Update TourDetails in database
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(existingDetail);
+                }
+
+                // 7. Save timeline item changes
+                await _unitOfWork.TimelineItemRepository.UpdateAsync(timelineItem);
+                await _unitOfWork.SaveChangesAsync();
+
+                // 8. Send notification if TourDetails status changed back to admin approval
+                if (tourDetailsStatusWillChange)
+                {
+                    try
+                    {
+                        using var scope = _serviceProvider.CreateScope();
+                        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                        
+                        // Create in-app notification for tour company
+                        await notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
+                        {
+                            UserId = updatedById,
+                            Title = "📝 Tour đã gửi lại admin",
+                            Message = $"Tour '{existingDetail.Title}' đã được gửi lại cho admin duyệt do có chỉnh sửa timeline trong lúc chờ hướng dẫn viên được phân công.",
+                            Type = DataAccessLayer.Enums.NotificationType.Tour,
+                            Priority = DataAccessLayer.Enums.NotificationPriority.Medium,
+                            Icon = "📝",
+                            ActionUrl = "/tours/awaiting-admin-approval"
+                        });
+
+                        _logger.LogInformation("Sent notification about TourDetails status change back to admin approval for TourDetails {TourDetailsId}", existingDetail.Id);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "Error sending notification for TourDetails status change on TourDetails {TourDetailsId}", existingDetail.Id);
+                        // Don't fail the update if notification fails
+                    }
+                }
+
+                // 9. Get updated TourDetails with relationships for response
+                var updatedDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(existingDetail.Id);
+                var tourDetailDto = _mapper.Map<TourDetailDto>(updatedDetail);
+
+                // 10. Prepare response message based on status change
+                string message = "Cập nhật timeline item thành công";
+                if (tourDetailsStatusWillChange)
+                {
+                    message += ". Tour đã được gửi lại cho admin duyệt do có thay đổi trong lúc chờ hướng dẫn viên được phân công.";
+                }
+
+                _logger.LogInformation("Successfully updated timeline item {TimelineItemId}", timelineItemId);
+
+                return new ResponseUpdateTourDetailDto
+                {
+                    StatusCode = 200,
+                    Message = message,
+                    success = true,
+                    Data = tourDetailDto
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating timeline item {TimelineItemId}", timelineItemId);
+                return new ResponseUpdateTourDetailDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi cập nhật timeline item",
+                    success = false
+                };
+            }
         }
 
         /// <summary>
@@ -934,7 +1079,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<BaseResposeDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById)
+        public async Task<ResponseCreateTourDetailDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById)
         {
             try
             {
@@ -1446,9 +1591,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 using var scope = _serviceProvider.CreateScope();
                 var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
-
-                _logger.LogInformation("TourGuideInvitationService resolved successfully");
-
                 var invitationResult = await invitationService.CreateAutomaticInvitationsAsync(tourDetail.Id, adminId);
 
                 _logger.LogInformation("CreateAutomaticInvitationsAsync completed");

@@ -212,15 +212,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Cập nhật operation
+        /// Cập nhật operation - Enhanced với business rules tương tự TourDetails
         /// </summary>
         public async Task<ResponseUpdateOperationDto> UpdateOperationAsync(Guid id, RequestUpdateOperationDto request)
         {
             try
             {
-                _logger.LogInformation("Updating operation {OperationId}", id);
+                _logger.LogInformation("Updating operation {OperationId} with request: {@Request}", id, request);
 
-                // 1. Get existing operation
+                // 1. Get existing operation with navigation properties
                 var operation = await _unitOfWork.TourOperationRepository.GetByIdAsync(id);
                 if (operation == null)
                 {
@@ -231,7 +231,28 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 2. Validate constraints
+                // Store original values for debugging and logic
+                var originalStatus = operation.Status;
+                var originalPrice = operation.Price;
+                var originalGuideId = operation.TourGuideId;
+
+                _logger.LogInformation("Operation {OperationId} current state - Status: {Status}, Price: {Price}, GuideId: {GuideId}", 
+                    id, originalStatus, originalPrice, originalGuideId);
+
+                // 2. BUSINESS RULE 1: Check if tour guide is ASSIGNED - prevent editing if guide is already assigned
+                // This is the STRONGEST rule - once a guide is assigned and working, NO EDITS allowed
+                bool hasGuideAssigned = operation.TourGuideId != null;
+                if (hasGuideAssigned)
+                {
+                    _logger.LogWarning("Operation {OperationId} edit blocked - Guide already assigned: {GuideId}", id, operation.TourGuideId);
+                    return new ResponseUpdateOperationDto
+                    {
+                        success = false,
+                        Message = "Đã có hướng dẫn viên tham gia tour operation, không thể edit nữa"
+                    };
+                }
+
+                // 3. Validate constraints
                 if (request.MaxSeats.HasValue)
                 {
                     var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(operation.TourDetailsId);
@@ -240,9 +261,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     // MaxGuests validation removed - now managed at operation level
                 }
 
-                // 3. Validate TourGuide (nếu thay đổi)
+                // 4. FIXED: Only validate TourGuide if explicitly trying to assign one
+                // Allow updating other fields without needing to validate GuideId
                 if (request.GuideId.HasValue)
                 {
+                    // Only validate if we're actually trying to assign a guide
                     var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(request.GuideId.Value);
                     if (tourGuide == null)
                     {
@@ -254,21 +277,97 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 4. Update fields
+                // 5. Update fields
                 var oldMaxGuests = operation.MaxGuests;
-                if (request.Price.HasValue) operation.Price = request.Price.Value;
+                if (request.Price.HasValue) 
+                {
+                    _logger.LogInformation("Updating operation {OperationId} price from {OldPrice} to {NewPrice}", 
+                        id, operation.Price, request.Price.Value);
+                    operation.Price = request.Price.Value;
+                }
                 if (request.MaxSeats.HasValue) operation.MaxGuests = request.MaxSeats.Value;
                 if (request.Description != null) operation.Description = request.Description;
-                if (request.GuideId.HasValue) operation.TourGuideId = request.GuideId;
+                
+                // Only update TourGuideId if explicitly provided in request
+                if (request.GuideId.HasValue) 
+                {
+                    operation.TourGuideId = request.GuideId;
+                }
+                
                 if (request.Notes != null) operation.Notes = request.Notes;
                 if (request.IsActive.HasValue) operation.IsActive = request.IsActive.Value;
 
+                // 6. BUSINESS RULE 2: Check TourDetails status and update if needed
+                // Get the related TourDetails to check its status
+                var relatedTourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(operation.TourDetailsId);
+                if (relatedTourDetails == null)
+                {
+                    return new ResponseUpdateOperationDto
+                    {
+                        success = false,
+                        Message = "TourDetails liên quan không tồn tại"
+                    };
+                }
+
+                bool tourDetailsStatusWillChange = false;
+                var originalTourDetailsStatus = relatedTourDetails.Status;
+
+                // If TourDetails status is PendingConfirmation (waiting for guide acceptance) → send back to admin for approval
+                // This only applies when NO guide is assigned yet (rule 2 comes after rule 1)
+                if (originalTourDetailsStatus == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    relatedTourDetails.Status = TourDetailsStatus.AwaitingAdminApproval; // Reset to "pending admin approval"
+                    relatedTourDetails.CommentApproved = null; // Clear previous admin comment
+                    relatedTourDetails.UpdatedAt = DateTime.UtcNow;
+                    
+                    tourDetailsStatusWillChange = true;
+                    _logger.LogInformation("TourDetails {TourDetailsId} status changed from AwaitingGuideAssignment to AwaitingAdminApproval due to operation edit", 
+                        operation.TourDetailsId);
+                    
+                    // Update TourDetails in database
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(relatedTourDetails);
+                }
+
                 operation.UpdatedAt = DateTime.UtcNow;
+
+                _logger.LogInformation("About to save operation {OperationId} - New Price: {Price}, TourDetails Status: {TourDetailsStatus}", 
+                    id, operation.Price, relatedTourDetails.Status);
 
                 await _unitOfWork.TourOperationRepository.UpdateAsync(operation);
                 await _unitOfWork.SaveChangesAsync();
 
-                // 5. Sync slot capacity if MaxGuests changed
+                _logger.LogInformation("Successfully saved operation {OperationId}", id);
+
+                // 7. Send notification if TourDetails status changed back to admin approval
+                if (tourDetailsStatusWillChange)
+                {
+                    try
+                    {
+                        using var scope = _serviceProvider.CreateScope();
+                        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                        
+                        // Create in-app notification for tour company
+                        await notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
+                        {
+                            UserId = operation.CreatedById,
+                            Title = "📝 Tour đã gửi lại admin",
+                            Message = $"Tour '{relatedTourDetails.Title}' đã được gửi lại cho admin duyệt do có chỉnh sửa trong lúc chờ hướng dẫn viên được phân công.",
+                            Type = DataAccessLayer.Enums.NotificationType.Tour,
+                            Priority = DataAccessLayer.Enums.NotificationPriority.Medium,
+                            Icon = "📝",
+                            ActionUrl = "/tours/awaiting-admin-approval"
+                        });
+
+                        _logger.LogInformation("Sent notification about TourDetails status change back to admin approval for TourDetails {TourDetailsId}", operation.TourDetailsId);
+                    }
+                    catch (Exception notificationEx)
+                    {
+                        _logger.LogError(notificationEx, "Error sending notification for TourDetails status change on TourDetails {TourDetailsId}", operation.TourDetailsId);
+                        // Don't fail the update if notification fails
+                    }
+                }
+
+                // 8. Sync slot capacity if MaxGuests changed
                 if (request.MaxSeats.HasValue && oldMaxGuests != operation.MaxGuests)
                 {
                     var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
@@ -278,14 +377,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         operation.TourDetailsId, oldMaxGuests, operation.MaxGuests);
                 }
 
-                var operationDto = _mapper.Map<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>(operation);
+                // 9. Get fresh data from database to return
+                var updatedOperation = await _unitOfWork.TourOperationRepository.GetByIdAsync(id);
+                var operationDto = _mapper.Map<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>(updatedOperation);
 
-                _logger.LogInformation("Operation {OperationId} updated successfully", id);
+                // 10. Prepare response message based on status change
+                string message = "Cập nhật operation thành công";
+                if (tourDetailsStatusWillChange)
+                {
+                    message += ". Tour đã được gửi lại cho admin duyệt do có thay đổi trong lúc chờ hướng dẫn viên được phân công.";
+                }
+
+                _logger.LogInformation("Operation {OperationId} updated successfully - Response Price: {Price}, TourDetails Status: {TourDetailsStatus}", 
+                    id, operationDto.Price, relatedTourDetails.Status);
 
                 return new ResponseUpdateOperationDto
                 {
                     success = true,
-                    Message = "Cập nhật operation thành công",
+                    Message = message,
                     Operation = operationDto
                 };
             }
