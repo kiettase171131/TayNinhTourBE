@@ -121,19 +121,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <summary>
         /// Cập nhật thông tin timeline item
         /// </summary>
-        /// <param name="tourDetailId">ID của tour detail cần cập nhật</param>
+        /// <param name="timelineItemId">ID của timeline item cần cập nhật</param>
         /// <param name="request">Thông tin cập nhật</param>
         /// <param name="updatedById">ID của user cập nhật</param>
-        /// <returns>Tour detail sau khi cập nhật</returns>
-        Task<ResponseUpdateTourDetailDto> UpdateTimelineItemAsync(Guid tourDetailId, RequestUpdateTourDetailDto request, Guid updatedById);
+        /// <returns>Timeline item sau khi cập nhật</returns>
+        Task<ResponseUpdateTourDetailDto> UpdateTimelineItemAsync(Guid timelineItemId, RequestUpdateTimelineItemDto request, Guid updatedById);
 
         /// <summary>
         /// Xóa timeline item và tự động reorder các items còn lại
         /// </summary>
-        /// <param name="tourDetailId">ID của tour detail cần xóa</param>
+        /// <param name="timelineItemId">ID của timeline item cần xóa</param>
         /// <param name="deletedById">ID của user thực hiện xóa</param>
         /// <returns>Kết quả xóa</returns>
-        Task<ResponseDeleteTourDetailDto> DeleteTimelineItemAsync(Guid tourDetailId, Guid deletedById);
+        Task<ResponseDeleteTourDetailDto> DeleteTimelineItemAsync(Guid timelineItemId, Guid deletedById);
 
         /// <summary>
         /// Sắp xếp lại timeline theo thứ tự mới (drag-and-drop)
@@ -168,9 +168,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <summary>
         /// Kiểm tra xem có thể xóa tour detail không (business rules)
         /// </summary>
-        /// <param name="tourDetailId">ID của tour detail</param>
+        /// <param name="timelineItemId">ID của timeline item</param>
         /// <returns>True nếu có thể xóa, false nếu không</returns>
-        Task<bool> CanDeleteTimelineItemAsync(Guid tourDetailId);
+        Task<bool> CanDeleteTimelineItemAsync(Guid timelineItemId);
 
         /// <summary>
         /// Admin duyệt hoặc từ chối tour details
@@ -194,17 +194,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <summary>
         /// Duplicate một timeline item
         /// </summary>
-        /// <param name="tourDetailId">ID của tour detail cần duplicate</param>
+        /// <param name="timelineItemId">ID của timeline item cần duplicate</param>
         /// <param name="createdById">ID của user tạo</param>
         /// <returns>Tour detail mới được tạo</returns>
-        Task<ResponseCreateTourDetailDto> DuplicateTimelineItemAsync(Guid tourDetailId, Guid createdById);
+        Task<ResponseCreateTourDetailDto> DuplicateTimelineItemAsync(Guid timelineItemId, Guid createdById);
 
         /// <summary>
         /// Lấy timeline item theo ID với đầy đủ thông tin
         /// </summary>
-        /// <param name="tourDetailId">ID của tour detail</param>
+        /// <param name="timelineItemId">ID của timeline item</param>
         /// <returns>Thông tin chi tiết của timeline item</returns>
-        Task<ResponseUpdateTourDetailDto> GetTimelineItemByIdAsync(Guid tourDetailId);
+        Task<ResponseUpdateTourDetailDto> GetTimelineItemByIdAsync(Guid timelineItemId);
 
         // ===== TOUR GUIDE ASSIGNMENT WORKFLOW =====
 

@@ -131,7 +131,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// <summary>
         /// Danh sách lỗi validation (nếu có)
         /// </summary>
-        public List<string> ValidationErrors { get; set; } = new List<string>();
+        public new List<string> ValidationErrors { get; set; } = new List<string>();
 
         /// <summary>
         /// Số lượng timeline items được kiểm tra
@@ -142,6 +142,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// Số lượng lỗi tìm thấy
         /// </summary>
         public int ErrorCount { get; set; }
+
+        /// <summary>
+        /// Tổng số lỗi
+        /// </summary>
+        public int TotalErrors { get; set; }
     }
 
     /// <summary>

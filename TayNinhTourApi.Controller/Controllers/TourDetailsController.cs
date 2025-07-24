@@ -431,7 +431,7 @@ namespace TayNinhTourApi.Controller.Controllers
         [Authorize(Roles = Constants.RoleTourCompanyName)]
         public async Task<IActionResult> UpdateTimelineItem(
             [FromRoute] Guid id,
-            [FromBody] RequestUpdateTourDetailDto request)
+            [FromBody] RequestUpdateTimelineItemDto request)
         {
             try
             {

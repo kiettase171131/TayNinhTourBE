@@ -4,17 +4,6 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
 {
     /// <summary>
-    /// Response DTO cho việc lấy timeline đầy đủ
-    /// </summary>
-    public class ResponseGetTimelineDto : BaseResposeDto
-    {
-        /// <summary>
-        /// Thông tin timeline
-        /// </summary>
-        public TimelineDto? Data { get; set; }
-    }
-
-    /// <summary>
     /// Response DTO cho việc tạo tour detail
     /// Bao gồm thông tin về clone logic cho TourSlots
     /// </summary>
@@ -74,22 +63,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     }
 
     /// <summary>
-    /// Response DTO cho việc sắp xếp lại timeline
-    /// </summary>
-    public class ResponseReorderTimelineDto : BaseResposeDto
-    {
-        /// <summary>
-        /// Timeline sau khi sắp xếp lại
-        /// </summary>
-        public TimelineDto? Data { get; set; }
-
-        /// <summary>
-        /// Số lượng items đã được reorder
-        /// </summary>
-        public int ReorderedCount { get; set; }
-    }
-
-    /// <summary>
     /// Response DTO cho việc lấy danh sách shops có sẵn
     /// </summary>
     public class ResponseGetAvailableShopsDto : BaseResposeDto
@@ -103,40 +76,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// Tổng số shops
         /// </summary>
         public int TotalCount { get; set; }
-    }
-
-
-
-    /// <summary>
-    /// Response DTO cho việc validate timeline
-    /// </summary>
-    public class ResponseValidateTimelineDto : BaseResposeDto
-    {
-        /// <summary>
-        /// Timeline có hợp lệ không
-        /// </summary>
-        public bool IsValid { get; set; }
-
-        /// <summary>
-        /// Danh sách lỗi validation (nếu có)
-        /// </summary>
-        public new List<string> ValidationErrors { get; set; } = new List<string>();
-
-        /// <summary>
-        /// Danh sách cảnh báo (nếu có)
-        /// </summary>
-        public List<string> Warnings { get; set; } = new List<string>();
-    }
-
-    /// <summary>
-    /// Response DTO cho việc lấy thống kê timeline
-    /// </summary>
-    public class ResponseTimelineStatisticsDto : BaseResposeDto
-    {
-        /// <summary>
-        /// Thống kê timeline
-        /// </summary>
-        public TimelineStatistics? Data { get; set; }
     }
 
     /// <summary>
