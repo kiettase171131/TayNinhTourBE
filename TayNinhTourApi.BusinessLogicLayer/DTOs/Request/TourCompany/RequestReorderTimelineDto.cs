@@ -8,6 +8,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
     public class RequestReorderTimelineDto
     {
         /// <summary>
+        /// ID của tour details mà timeline items thuộc về
+        /// </summary>
+        [Required(ErrorMessage = "TourDetailsId là bắt buộc")]
+        public Guid TourDetailsId { get; set; }
+
+        /// <summary>
+        /// Danh sách ID timeline items theo thứ tự mới
+        /// </summary>
+        [Required(ErrorMessage = "TimelineItemIds là bắt buộc")]
+        [MinLength(1, ErrorMessage = "TimelineItemIds phải có ít nhất 1 item")]
+        public List<Guid> TimelineItemIds { get; set; } = new List<Guid>();
+    }
+
+    /// <summary>
+    /// DTO cho request sắp xếp lại thứ tự timeline (legacy version)
+    /// </summary>
+    public class RequestReorderTimelineLegacyDto
+    {
+        /// <summary>
         /// ID của tour template
         /// </summary>
         [Required(ErrorMessage = "TourTemplateId là bắt buộc")]

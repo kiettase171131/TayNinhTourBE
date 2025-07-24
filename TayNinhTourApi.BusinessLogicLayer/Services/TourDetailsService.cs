@@ -654,10 +654,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return (errors.Count == 0, errors);
         }
 
-        #endregion
-
-        #region Missing Interface Methods
-
         /// <summary>
         /// Lấy thông tin chi tiết TourDetails theo ID
         /// </summary>
@@ -767,22 +763,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        // TODO: Implement remaining timeline methods - these are existing methods that need to be updated
-        // For now, adding placeholders to satisfy interface requirements
-
-        public async Task<ResponseGetTimelineDto> GetTimelineAsync(RequestGetTimelineDto request)
-        {
-            // TODO: Update to use TourDetails approach or mark as obsolete
-            throw new NotImplementedException("This method will be updated to work with TourDetails approach");
-        }
-
-        public async Task<ResponseCreateTourDetailDto> AddTimelineItemAsync(RequestCreateTourDetailDto request, Guid createdById)
-        {
-            // TODO: Update for new approach
-            throw new NotImplementedException("This method will be updated for new TourDetails approach");
-        }
-
-        public async Task<ResponseUpdateTourDetailDto> UpdateTimelineItemAsync(Guid timelineItemId, RequestUpdateTourDetailDto request, Guid updatedById)
+        public async Task<ResponseUpdateTourDetailDto> UpdateTimelineItemAsync(Guid timelineItemId, RequestUpdateTimelineItemDto request, Guid updatedById)
         {
             try
             {
@@ -1079,7 +1060,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<ResponseCreateTourDetailDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById)
+        public async Task<BaseResposeDto> CreateTimelineItemAsync(RequestCreateTimelineItemDto request, Guid createdById)
         {
             try
             {
@@ -1103,7 +1084,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     CheckInTime = TimeSpan.Parse(request.CheckInTime),
                     Activity = request.Activity,
                     SpecialtyShopId = request.SpecialtyShopId,
-                    SortOrder = await GetNextSortOrderAsync(request.TourDetailsId),
+                    SortOrder = request.SortOrder ?? await GetNextSortOrderAsync(request.TourDetailsId),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     CreatedById = createdById
@@ -1121,10 +1102,272 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error creating timeline item for TourDetails {TourDetailsId}", request.TourDetailsId);
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi tạo timeline item",
+                    success = false
+                };
+            }
+        }
+
+        public async Task<ResponseDeleteTourDetailDto> DeleteTimelineItemAsync(Guid timelineItemId, Guid deletedById)
+        {
+            try
+            {
+                _logger.LogInformation("Deleting timeline item {TimelineItemId} by user {UserId}", timelineItemId, deletedById);
+
+                var timelineItem = await _unitOfWork.TimelineItemRepository.GetByIdAsync(timelineItemId);
+                if (timelineItem == null)
+                {
+                    return new ResponseDeleteTourDetailDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy timeline item này",
+                        success = false
+                    };
+                }
+
+                // Soft delete timeline item
+                timelineItem.IsDeleted = true;
+                timelineItem.DeletedAt = DateTime.UtcNow;
+                timelineItem.UpdatedAt = DateTime.UtcNow;
+                timelineItem.UpdatedById = deletedById;
+
+                await _unitOfWork.TimelineItemRepository.UpdateAsync(timelineItem);
+                await _unitOfWork.SaveChangesAsync();
+
+                return new ResponseDeleteTourDetailDto
+                {
+                    StatusCode = 200,
+                    Message = "Xóa timeline item thành công",
+                    success = true,
+                    DeletedTourDetailId = timelineItemId
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting timeline item {TimelineItemId}", timelineItemId);
+                return new ResponseDeleteTourDetailDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi xóa timeline item",
+                    success = false
+                };
+            }
+        }
+
+        public async Task<ResponseReorderTimelineDto> ReorderTimelineAsync(RequestReorderTimelineDto request, Guid updatedById)
+        {
+            try
+            {
+                _logger.LogInformation("Reordering timeline for TourDetails {TourDetailsId}", request.TourDetailsId);
+
+                // Validate timeline items exist
+                var timelineItems = await _unitOfWork.TimelineItemRepository
+                    .GetAllAsync(t => t.TourDetailsId == request.TourDetailsId && !t.IsDeleted);
+
+                if (!timelineItems.Any())
+                {
+                    return new ResponseReorderTimelineDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy timeline items",
+                        success = false
+                    };
+                }
+
+                // Update sort orders based on new order
+                for (int i = 0; i < request.TimelineItemIds.Count; i++)
+                {
+                    var itemId = request.TimelineItemIds[i];
+                    var item = timelineItems.FirstOrDefault(t => t.Id == itemId);
+                    if (item != null)
+                    {
+                        item.SortOrder = i + 1;
+                        item.UpdatedAt = DateTime.UtcNow;
+                        item.UpdatedById = updatedById;
+                        await _unitOfWork.TimelineItemRepository.UpdateAsync(item);
+                    }
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                return new ResponseReorderTimelineDto
+                {
+                    StatusCode = 200,
+                    Message = "Sắp xếp lại timeline thành công",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reordering timeline for TourDetails {TourDetailsId}", request.TourDetailsId);
+                return new ResponseReorderTimelineDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi sắp xếp lại timeline",
+                    success = false
+                };
+            }
+        }
+
+        public async Task<ResponseTimelineStatisticsDto> GetTimelineStatisticsAsync(Guid tourTemplateId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting timeline statistics for TourTemplate {TourTemplateId}", tourTemplateId);
+
+                var tourDetails = await _unitOfWork.TourDetailsRepository
+                    .GetByTourTemplateOrderedAsync(tourTemplateId, false);
+
+                var totalTourDetails = tourDetails.Count();
+                var totalTimelineItems = tourDetails.Sum(td => td.Timeline?.Count(t => t.IsActive) ?? 0);
+                var avgItemsPerDetail = totalTourDetails > 0 ? (double)totalTimelineItems / totalTourDetails : 0;
+
+                return new ResponseTimelineStatisticsDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy thống kê timeline thành công",
+                    success = true,
+                    TotalTourDetails = totalTourDetails,
+                    TotalTimelineItems = totalTimelineItems,
+                    AverageItemsPerDetail = Math.Round(avgItemsPerDetail, 2)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting timeline statistics for TourTemplate {TourTemplateId}", tourTemplateId);
+                return new ResponseTimelineStatisticsDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy thống kê timeline",
+                    success = false
+                };
+            }
+        }
+
+        public async Task<bool> CanDeleteTimelineItemAsync(Guid timelineItemId)
+        {
+            try
+            {
+                var timelineItem = await _unitOfWork.TimelineItemRepository.GetByIdAsync(timelineItemId);
+                if (timelineItem == null) return false;
+
+                // Get the related TourDetails
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(timelineItem.TourDetailsId);
+                if (tourDetails == null) return false;
+
+                // Check if tour has guide assigned - prevent deletion if guide is already assigned
+                var tourOperation = await _unitOfWork.TourOperationRepository
+                    .GetAllAsync(to => to.TourDetailsId == tourDetails.Id);
+                
+                bool hasGuideAssigned = tourOperation.Any(to => to.TourGuideId != null);
+                
+                return !hasGuideAssigned;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if timeline item {TimelineItemId} can be deleted", timelineItemId);
+                return false;
+            }
+        }
+
+        public async Task<ResponseCreateTourDetailDto> DuplicateTimelineItemAsync(Guid timelineItemId, Guid createdById)
+        {
+            try
+            {
+                _logger.LogInformation("Duplicating timeline item {TimelineItemId} by user {UserId}", timelineItemId, createdById);
+
+                var originalItem = await _unitOfWork.TimelineItemRepository.GetByIdAsync(timelineItemId);
+                if (originalItem == null)
+                {
+                    return new ResponseCreateTourDetailDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy timeline item để duplicate",
+                        success = false
+                    };
+                }
+
+                // Create duplicated item with new sort order
+                var duplicatedItem = new TimelineItem
+                {
+                    Id = Guid.NewGuid(),
+                    TourDetailsId = originalItem.TourDetailsId,
+                    CheckInTime = originalItem.CheckInTime,
+                    Activity = $"{originalItem.Activity} (Copy)",
+                    SpecialtyShopId = originalItem.SpecialtyShopId,
+                    SortOrder = await GetNextSortOrderAsync(originalItem.TourDetailsId),
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedById = createdById
+                };
+
+                await _unitOfWork.TimelineItemRepository.AddAsync(duplicatedItem);
+                await _unitOfWork.SaveChangesAsync();
+
+                // Return TourDetails response format for consistency
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(originalItem.TourDetailsId);
+                var tourDetailDto = _mapper.Map<TourDetailDto>(tourDetails);
+
+                return new ResponseCreateTourDetailDto
+                {
+                    StatusCode = 201,
+                    Message = "Duplicate timeline item thành công",
+                    success = true,
+                    Data = tourDetailDto
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error duplicating timeline item {TimelineItemId}", timelineItemId);
+                return new ResponseCreateTourDetailDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi duplicate timeline item",
+                    success = false
+                };
+            }
+        }
+
+        public async Task<ResponseUpdateTourDetailDto> GetTimelineItemByIdAsync(Guid timelineItemId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting timeline item by ID {TimelineItemId}", timelineItemId);
+
+                var timelineItem = await _unitOfWork.TimelineItemRepository.GetByIdAsync(timelineItemId);
+                if (timelineItem == null)
+                {
+                    return new ResponseUpdateTourDetailDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy timeline item",
+                        success = false
+                    };
+                }
+
+                // Get the related TourDetails
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(timelineItem.TourDetailsId);
+                var tourDetailDto = _mapper.Map<TourDetailDto>(tourDetails);
+
+                return new ResponseUpdateTourDetailDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy thông tin timeline item thành công",
+                    success = true,
+                    Data = tourDetailDto
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting timeline item by ID {TimelineItemId}", timelineItemId);
+                return new ResponseUpdateTourDetailDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy thông tin timeline item",
                     success = false
                 };
             }
@@ -1265,417 +1508,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        private async Task<int> GetNextSortOrderAsync(Guid tourDetailsId)
-        {
-            var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
-                t => t.TourDetailsId == tourDetailsId);
-            return existingItems.Any() ? existingItems.Max(t => t.SortOrder) + 1 : 1;
-        }
-
-        /// <summary>
-        /// Lấy danh sách TourDetails với filter theo status và quyền user
-        /// </summary>
-        public async Task<ResponseGetTourDetailsDto> GetTourDetailsWithPermissionAsync(Guid tourTemplateId, Guid currentUserId, string userRole, bool includeInactive = false)
-        {
-            try
-            {
-                _logger.LogInformation("Getting tour details for TourTemplate {TourTemplateId} with permission for user {UserId} role {UserRole}",
-                    tourTemplateId, currentUserId, userRole);
-
-                // Kiểm tra tour template tồn tại
-                var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourTemplateId);
-                if (tourTemplate == null || tourTemplate.IsDeleted)
-                {
-                    return new ResponseGetTourDetailsDto
-                    {
-                        StatusCode = 404,
-                        Message = "Không tìm thấy tour template"
-                    };
-                }
-
-                // Lấy danh sách tour details
-                var tourDetails = await _unitOfWork.TourDetailsRepository
-                    .GetByTourTemplateOrderedAsync(tourTemplateId, includeInactive);
-
-                // Filter theo quyền user
-                var filteredTourDetails = FilterTourDetailsByPermission(tourDetails, currentUserId, userRole);
-
-                // Map to DTOs
-                var tourDetailDtos = _mapper.Map<List<TourDetailDto>>(filteredTourDetails);
-
-                return new ResponseGetTourDetailsDto
-                {
-                    StatusCode = 200,
-                    Message = "Lấy danh sách lịch trình thành công",
-                    success = true,
-                    Data = tourDetailDtos,
-                    TotalCount = tourDetailDtos.Count
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting tour details with permission for TourTemplate {TourTemplateId}", tourTemplateId);
-                return new ResponseGetTourDetailsDto
-                {
-                    StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy danh sách lịch trình"
-                };
-            }
-        }
-
-        /// <summary>
-        /// Filter TourDetails theo quyền user
-        /// </summary>
-        private IEnumerable<TourDetails> FilterTourDetailsByPermission(IEnumerable<TourDetails> tourDetails, Guid currentUserId, string userRole)
-        {
-            switch (userRole.ToLower())
-            {
-                case "admin":
-                    // Admin thấy tất cả TourDetails
-                    return tourDetails;
-
-                case "tour guide":
-                case "specialty shop":
-                case "tour company":
-                    // Tour Guide/Shop/Company thấy:
-                    // - TourDetails của mình (tất cả status)
-                    // - TourDetails đã approved của người khác
-                    return tourDetails.Where(td =>
-                        td.CreatedById == currentUserId ||
-                        td.Status == TourDetailsStatus.Approved);
-
-                case "user":
-                default:
-                    // User thường chỉ thấy TourDetails đã approved
-                    return tourDetails.Where(td => td.Status == TourDetailsStatus.Approved);
-            }
-        }
-
         #endregion
-
-        // ===== TOUR GUIDE ASSIGNMENT WORKFLOW =====
-
-        public async Task<BaseResposeDto> GetGuideAssignmentStatusAsync(Guid tourDetailsId)
-        {
-            try
-            {
-                _logger.LogInformation("Getting guide assignment status for TourDetails {TourDetailsId}", tourDetailsId);
-
-                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailsId);
-                if (tourDetails == null)
-                {
-                    return new BaseResposeDto
-                    {
-                        StatusCode = 404,
-                        Message = "TourDetails không tồn tại",
-                        success = false
-                    };
-                }
-
-                // Get invitations for this TourDetails
-                var invitations = await _unitOfWork.TourGuideInvitationRepository.GetByTourDetailsAsync(tourDetailsId);
-
-                // Get assigned guide info if exists
-                var assignedGuide = tourDetails.TourOperation?.TourGuideId != null
-                    ? await _unitOfWork.TourGuideRepository.GetByIdAsync(tourDetails.TourOperation.TourGuideId.Value)
-                    : null;
-
-                var statusInfo = new
-                {
-                    TourDetailsId = tourDetailsId,
-                    Title = tourDetails.Title,
-                    Status = tourDetails.Status.ToString(),
-                    SkillsRequired = tourDetails.SkillsRequired,
-                    AssignedGuide = assignedGuide != null ? new
-                    {
-                        Id = assignedGuide.Id,
-                        Name = assignedGuide.FullName,
-                        Email = assignedGuide.Email
-                    } : null,
-                    InvitationsSummary = new
-                    {
-                        Total = invitations.Count(),
-                        Pending = invitations.Count(i => i.Status == InvitationStatus.Pending),
-                        Accepted = invitations.Count(i => i.Status == InvitationStatus.Accepted),
-                        Rejected = invitations.Count(i => i.Status == InvitationStatus.Rejected),
-                        Expired = invitations.Count(i => i.Status == InvitationStatus.Expired)
-                    },
-                    CreatedAt = tourDetails.CreatedAt,
-                    UpdatedAt = tourDetails.UpdatedAt
-                };
-
-                return new BaseResposeDto
-                {
-                    StatusCode = 200,
-                    Message = "Lấy trạng thái phân công thành công",
-                    success = true
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting guide assignment status for TourDetails {TourDetailsId}", tourDetailsId);
-                return new BaseResposeDto
-                {
-                    StatusCode = 500,
-                    Message = $"Có lỗi xảy ra: {ex.Message}",
-                    success = false
-                };
-            }
-        }
-
-        public async Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid userId)
-        {
-            try
-            {
-                _logger.LogInformation("User {UserId} manually inviting Guide {GuideId} for TourDetails {TourDetailsId}",
-                    userId, guideId, tourDetailsId);
-
-                // Validate TourDetails exists and belongs to user
-                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(tourDetailsId);
-                if (tourDetails == null)
-                {
-                    return new BaseResposeDto
-                    {
-                        StatusCode = 404,
-                        Message = "TourDetails không tồn tại",
-                        success = false
-                    };
-                }
-
-                if (tourDetails.CreatedById != userId)
-                {
-                    return new BaseResposeDto
-                    {
-                        StatusCode = 403,
-                        Message = "Bạn không có quyền mời hướng dẫn viên cho tour này",
-                        success = false
-                    };
-                }
-
-                // Check if TourDetails is in correct status for manual invitation
-                if (tourDetails.Status != TourDetailsStatus.AwaitingGuideAssignment)
-                {
-                    return new BaseResposeDto
-                    {
-                        StatusCode = 400,
-                        Message = "TourDetails không ở trạng thái cho phép mời thủ công",
-                        success = false
-                    };
-                }
-
-                // Use invitation service to create manual invitation
-                using var scope = _serviceProvider.CreateScope();
-                var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
-                var result = await invitationService.CreateManualInvitationAsync(tourDetailsId, guideId, userId);
-
-                _logger.LogInformation("Manual invitation result for TourDetails {TourDetailsId}: {success}",
-                    tourDetailsId, result.success);
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating manual invitation for TourDetails {TourDetailsId} to Guide {GuideId}",
-                    tourDetailsId, guideId);
-                return new BaseResposeDto
-                {
-                    StatusCode = 500,
-                    Message = $"Có lỗi xảy ra khi mời hướng dẫn viên: {ex.Message}",
-                    success = false
-                };
-            }
-        }
-
-        /// <summary>
-        /// Trigger email invitations khi admin approve TourDetails
-        /// Gửi email mời SpecialtyShop và TourGuide
-        /// </summary>
-        private async Task TriggerApprovalEmailsAsync(TourDetails tourDetail, Guid adminId)
-        {
-            try
-            {
-                _logger.LogInformation("Triggering approval emails for TourDetails {TourDetailId}", tourDetail.Id);
-
-                using var scope = _serviceProvider.CreateScope();
-                var emailSender = scope.ServiceProvider.GetRequiredService<EmailSender>();
-
-                // 1. SEND SPECIALTY SHOP INVITATIONS
-                await SendSpecialtyShopInvitationsAsync(tourDetail, emailSender);
-
-                // 2. SEND TOUR GUIDE INVITATIONS
-                await SendTourGuideInvitationsAsync(tourDetail, adminId);
-
-                _logger.LogInformation("Successfully triggered all approval emails for TourDetails {TourDetailId}", tourDetail.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error triggering approval emails for TourDetails {TourDetailId}", tourDetail.Id);
-                // Don't fail the approval process if email sending fails
-            }
-        }
-
-        /// <summary>
-        /// Gửi email mời SpecialtyShop tham gia tour
-        /// </summary>
-        private async Task SendSpecialtyShopInvitationsAsync(TourDetails tourDetail, EmailSender emailSender)
-        {
-            try
-            {
-                // Lấy danh sách SpecialtyShop invitations
-                var shopInvitations = await _unitOfWork.TourDetailsSpecialtyShopRepository
-                    .GetByTourDetailsIdAsync(tourDetail.Id);
-
-                if (!shopInvitations.Any())
-                {
-                    _logger.LogInformation("No SpecialtyShop invitations found for TourDetails {TourDetailId}", tourDetail.Id);
-                    return;
-                }
-
-                _logger.LogInformation("Sending emails to {ShopCount} SpecialtyShops for TourDetails {TourDetailId}",
-                    shopInvitations.Count(), tourDetail.Id);
-
-                // Lấy thông tin TourTemplate để có tour date
-                var tourTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(tourDetail.TourTemplateId);
-                var tourCompany = await _unitOfWork.UserRepository.GetByIdAsync(tourDetail.CreatedById);
-
-                foreach (var invitation in shopInvitations)
-                {
-                    try
-                    {
-                        await emailSender.SendSpecialtyShopTourInvitationAsync(
-                            invitation.SpecialtyShop.User.Email,
-                            invitation.SpecialtyShop.ShopName,
-                            invitation.SpecialtyShop.User.Name,
-                            tourDetail.Title,
-                            tourCompany?.Name ?? "Tour Company",
-                            DateTime.Now.AddDays(30), // Placeholder tour date
-                            invitation.ExpiresAt,
-                            invitation.Id.ToString()
-                        );
-
-                        _logger.LogInformation("Successfully sent email to SpecialtyShop {ShopId} for TourDetails {TourDetailId}",
-                            invitation.SpecialtyShopId, tourDetail.Id);
-                    }
-                    catch (Exception emailEx)
-                    {
-                        _logger.LogError(emailEx, "Failed to send email to SpecialtyShop {ShopId} for TourDetails {TourDetailId}",
-                            invitation.SpecialtyShopId, tourDetail.Id);
-                        // Continue with other emails
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending SpecialtyShop invitations for TourDetails {TourDetailId}", tourDetail.Id);
-            }
-        }
-
-        /// <summary>
-        /// Gửi email mời TourGuide dựa trên SkillsRequired
-        /// </summary>
-        private async Task SendTourGuideInvitationsAsync(TourDetails tourDetail, Guid adminId)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(tourDetail.SkillsRequired))
-                {
-                    _logger.LogInformation("No skills required for TourDetails {TourDetailId}, skipping TourGuide invitations", tourDetail.Id);
-                    return;
-                }
-
-                _logger.LogInformation("=== STARTING TOURGUIDE INVITATION PROCESS ===");
-                _logger.LogInformation("TourDetails ID: {TourDetailId}", tourDetail.Id);
-                _logger.LogInformation("TourDetails Title: {Title}", tourDetail.Title);
-                _logger.LogInformation("Skills Required: {SkillsRequired}", tourDetail.SkillsRequired);
-                _logger.LogInformation("Admin ID: {AdminId}", adminId);
-
-                using var scope = _serviceProvider.CreateScope();
-                var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
-                var invitationResult = await invitationService.CreateAutomaticInvitationsAsync(tourDetail.Id, adminId);
-
-                _logger.LogInformation("CreateAutomaticInvitationsAsync completed");
-                _logger.LogInformation("Result Success: {success}", invitationResult.success);
-                _logger.LogInformation("Result Message: {Message}", invitationResult.Message);
-                _logger.LogInformation("Result StatusCode: {StatusCode}", invitationResult.StatusCode);
-
-                if (invitationResult.success)
-                {
-                    _logger.LogInformation("✅ Successfully created TourGuide invitations for TourDetails {TourDetailId}", tourDetail.Id);
-                }
-                else
-                {
-                    _logger.LogWarning("❌ Failed to create TourGuide invitations for TourDetails {TourDetailId}: {Message}",
-                        tourDetail.Id, invitationResult.Message);
-                }
-
-                _logger.LogInformation("=== TOURGUIDE INVITATION PROCESS COMPLETED ===");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending TourGuide invitations for TourDetails {TourDetailId}", tourDetail.Id);
-            }
-        }
-
-        /// <summary>
-        /// Hủy tất cả invitation pending cho tour details khi admin reject
-        /// </summary>
-        private async Task CancelPendingInvitationsAsync(Guid tourDetailsId)
-        {
-            try
-            {
-                _logger.LogInformation("Cancelling pending invitations for TourDetails {TourDetailsId}", tourDetailsId);
-
-                // Lấy tất cả invitation pending
-                var pendingInvitations = await _unitOfWork.TourGuideInvitationRepository
-                    .GetAllAsync(inv => inv.TourDetailsId == tourDetailsId &&
-                                       inv.Status == InvitationStatus.Pending &&
-                                       !inv.IsDeleted);
-
-                if (pendingInvitations.Any())
-                {
-                    foreach (var invitation in pendingInvitations)
-                    {
-                        invitation.Status = InvitationStatus.Expired;
-                        invitation.UpdatedAt = DateTime.UtcNow;
-                        invitation.RejectionReason = "Tour details bị từ chối bởi admin";
-
-                        await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(invitation);
-                    }
-
-                    _logger.LogInformation("Cancelled {Count} pending invitations for TourDetails {TourDetailsId}",
-                        pendingInvitations.Count(), tourDetailsId);
-                }
-                else
-                {
-                    _logger.LogInformation("No pending invitations found for TourDetails {TourDetailsId}", tourDetailsId);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error cancelling pending invitations for TourDetails {TourDetailsId}", tourDetailsId);
-                // Không throw exception để không ảnh hưởng đến flow chính
-            }
-        }
-
-        /// <summary>
-        /// Helper method để xử lý backward compatibility giữa ImageUrls và ImageUrl
-        /// </summary>
-        private List<string> GetImageUrlsFromRequest(List<string>? imageUrls, string? imageUrl)
-        {
-            // Ưu tiên ImageUrls nếu có
-            if (imageUrls != null && imageUrls.Any())
-            {
-                return imageUrls;
-            }
-
-            // Fallback sang ImageUrl nếu có
-            if (!string.IsNullOrEmpty(imageUrl))
-            {
-                return new List<string> { imageUrl };
-            }
-
-            // Trả về empty list nếu không có gì
-            return new List<string>();
-        }
     }
 }
