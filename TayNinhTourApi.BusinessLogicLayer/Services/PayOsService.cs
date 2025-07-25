@@ -42,10 +42,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var orderCode2 = long.Parse(numericPart);
 
             var orderCodeDisplay = payOsOrderCodeString;
+            // Fix: Rút ngắn description để phù hợp với giới hạn 25 ký tự của PayOS
             PaymentData paymentData = new PaymentData(
              orderCode: orderCode2,
              amount: (int)amount,
-             description: $"Product Order - {orderCodeDisplay}",
+             description: $"{orderCodeDisplay}",
              items: items,
              cancelUrl: $"{baseUrl}/product-payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
              returnUrl: $"{baseUrl}/product-payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
@@ -74,10 +75,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var orderCode2 = long.Parse(numericPart);
 
             var orderCodeDisplay = payOsOrderCodeString;
+            // Fix: Rút ngắn description để phù hợp với giới hạn 25 ký tự của PayOS
             PaymentData paymentData = new PaymentData(
              orderCode: orderCode2,
              amount: (int)amount,
-             description: $"Tour Booking - {orderCodeDisplay}",
+             description: $"Tour {orderCodeDisplay}",
              items: items,
              cancelUrl: $"{baseUrl}/tour-payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
              returnUrl: $"{baseUrl}/tour-payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
