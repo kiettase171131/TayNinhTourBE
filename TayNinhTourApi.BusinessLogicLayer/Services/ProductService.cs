@@ -1522,43 +1522,55 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
         }
 
-        public async Task<ResponseGetMyVouchersDto> GetMyVouchersAsync(CurrentUserObject currentUser, int? pageIndex, int? pageSize, string? status)
+        public async Task<ResponseGetMyVouchersDto> GetMyVouchersAsync(CurrentUserObject currentUser, int? pageIndex, int? pageSize, string? status, string? textSearch)
         {
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
             var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
 
-            // Lấy tất cả voucher codes của user
-            var userVoucherCodes = await _voucherCodeRepository.GetClaimedByUserAsync(currentUser.Id, pageIndexValue, pageSizeValue);
-
-            // Filter theo status nếu có
-            if (!string.IsNullOrEmpty(status))
-            {
-                var nowForFilter = DateTime.UtcNow;
-                userVoucherCodes = status.ToLower() switch
-                {
-                    "active" => userVoucherCodes.Where(vc => !vc.IsUsed && vc.Voucher.EndDate >= nowForFilter).ToList(),
-                    "used" => userVoucherCodes.Where(vc => vc.IsUsed).ToList(),
-                    "expired" => userVoucherCodes.Where(vc => !vc.IsUsed && vc.Voucher.EndDate < nowForFilter).ToList(),
-                    _ => userVoucherCodes
-                };
-            }
-
+            // Lấy TẤT CẢ voucher codes của user trước (không pagination)
             var allUserVouchers = await _voucherCodeRepository.GetAllAsync(vc => 
                 !vc.IsDeleted && 
                 vc.IsClaimed && 
                 vc.ClaimedByUserId == currentUser.Id,
                 new[] { nameof(VoucherCode.Voucher) });
 
-            var totalUserVouchers = allUserVouchers.Count();
-            var totalPages = (int)Math.Ceiling((double)totalUserVouchers / pageSizeValue);
+            // Apply textSearch filter trước
+            if (!string.IsNullOrEmpty(textSearch))
+            {
+                allUserVouchers = allUserVouchers.Where(vc => 
+                    vc.Voucher.Name.Contains(textSearch, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
 
-            var myVouchers = _mapper.Map<List<MyVoucherDto>>(userVoucherCodes);
+            // Apply status filter
+            if (!string.IsNullOrEmpty(status))
+            {
+                var nowForFilter = DateTime.UtcNow;
+                allUserVouchers = status.ToLower() switch
+                {
+                    "active" => allUserVouchers.Where(vc => !vc.IsUsed && vc.Voucher.EndDate >= nowForFilter).ToList(),
+                    "used" => allUserVouchers.Where(vc => vc.IsUsed).ToList(),
+                    "expired" => allUserVouchers.Where(vc => !vc.IsUsed && vc.Voucher.EndDate < nowForFilter).ToList(),
+                    _ => allUserVouchers
+                };
+            }
 
-            // Tính toán statistics
+            // Tính toán thống kê từ tất cả vouchers sau khi filter
             var nowForStats = DateTime.UtcNow;
             var activeCount = allUserVouchers.Count(vc => !vc.IsUsed && vc.Voucher.EndDate >= nowForStats);
             var usedCount = allUserVouchers.Count(vc => vc.IsUsed);
             var expiredCount = allUserVouchers.Count(vc => !vc.IsUsed && vc.Voucher.EndDate < nowForStats);
+
+            var totalUserVouchers = allUserVouchers.Count();
+            var totalPages = (int)Math.Ceiling((double)totalUserVouchers / pageSizeValue);
+
+            // Apply pagination SAU KHI đã filter
+            var pagedVouchers = allUserVouchers
+                .OrderByDescending(vc => vc.ClaimedAt)
+                .Skip((pageIndexValue - 1) * pageSizeValue)
+                .Take(pageSizeValue)
+                .ToList();
+
+            var myVouchers = _mapper.Map<List<MyVoucherDto>>(pagedVouchers);
 
             return new ResponseGetMyVouchersDto
             {
@@ -1573,7 +1585,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 ExpiredCount = expiredCount
             };
         }
-
         public async Task<ApplyVoucherResult> ApplyMyVoucherForCartAsync(Guid voucherCodeId, List<CartItemDto> cartItems, CurrentUserObject currentUser)
         {
             if (!cartItems.Any())

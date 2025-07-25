@@ -297,11 +297,32 @@ namespace TayNinhTourApi.Controller.Controllers
 
         [HttpGet("My-Vouchers")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetMyVouchers([FromQuery] int? pageIndex, [FromQuery] int? pageSize, [FromQuery] string? status)
+        public async Task<IActionResult> GetMyVouchers([FromQuery] int? pageIndex, [FromQuery] int? pageSize, [FromQuery] string? status, [FromQuery] string? textSearch)
         {
-            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _productService.GetMyVouchersAsync(currentUser, pageIndex, pageSize, status);
-            return StatusCode(result.StatusCode, result);
+            try
+            {
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                var result = await _productService.GetMyVouchersAsync(currentUser, pageIndex, pageSize, status, textSearch);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                // Log lỗi chi tiết
+                Console.WriteLine($"GetMyVouchers error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
+                
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách voucher",
+                    Error = ex.Message,
+                    success = false
+                });
+            }
         }
         [HttpGet("AllOrder")]
         public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
