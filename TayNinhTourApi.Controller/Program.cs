@@ -55,11 +55,17 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Register DbContext with MySQL (Pomelo provider) - removed retry policy to fix transaction issues
+// Register DbContext with MySQL (Pomelo provider) with retry policy and extended timeouts
 builder.Services.AddDbContext<TayNinhTouApiDbContext>(options =>
     options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection")!,
         new MySqlServerVersion(new Version(8, 0, 21)),
-        mySqlOptions => mySqlOptions.CommandTimeout(120)));
+        mySqlOptions => {
+            mySqlOptions.CommandTimeout(300); // Tăng command timeout lên 5 phút
+            mySqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+        }));
 
 // Add authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>

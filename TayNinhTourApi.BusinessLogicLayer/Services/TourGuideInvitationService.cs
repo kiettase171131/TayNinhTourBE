@@ -387,7 +387,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     InvitationType = InvitationType.Manual,
                     Status = InvitationStatus.Pending,
                     InvitedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddDays(3), // 3 days for manual invitations
+                    ExpiresAt = DateTime.UtcNow.AddHours(24), // 24 hours for manual invitations
                     CreatedById = createdById,
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true

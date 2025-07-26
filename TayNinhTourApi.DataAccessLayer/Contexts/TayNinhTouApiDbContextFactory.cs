@@ -26,15 +26,21 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
             
             if (string.IsNullOrEmpty(connectionString))
             {
-                // Fallback connection string n?u kh�ng t�m th?y trong config
-                connectionString = "Server=103.216.119.189;Port=3306;Database=TayNinhTourDb;Uid=TayNinhTour;Pwd=App@123456;SslMode=none;AllowPublicKeyRetrieval=true;Connection Timeout=30;Command Timeout=60;";
+                // Fallback connection string với timeout được tăng
+                connectionString = "Server=103.216.119.189;Port=3306;Database=TayNinhTourDb;Uid=TayNinhTour;Pwd=App@123456;SslMode=none;AllowPublicKeyRetrieval=true;Connection Timeout=120;Command Timeout=300;";
             }
 
-            // Configure DbContext options
+            // Configure DbContext options with retry policy and extended timeouts
             var optionsBuilder = new DbContextOptionsBuilder<TayNinhTouApiDbContext>();
             optionsBuilder.UseMySql(connectionString, 
                 new MySqlServerVersion(new Version(8, 0, 21)),
-                mySqlOptions => mySqlOptions.CommandTimeout(120));
+                mySqlOptions => {
+                    mySqlOptions.CommandTimeout(300); // Tăng command timeout lên 5 phút
+                    mySqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null);
+                });
 
             return new TayNinhTouApiDbContext(optionsBuilder.Options);
         }

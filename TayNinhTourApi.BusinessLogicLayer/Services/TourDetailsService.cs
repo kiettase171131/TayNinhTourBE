@@ -1937,7 +1937,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     CreatedById = companyId,
                     Status = DataAccessLayer.Enums.InvitationStatus.Pending,
                     InvitedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddDays(3), // Default 3 days expiration
+                    ExpiresAt = DateTime.UtcNow.AddHours(24), // 24 hours expiration for consistency
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true
                 };
