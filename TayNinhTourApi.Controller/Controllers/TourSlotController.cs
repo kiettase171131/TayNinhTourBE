@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourSlot;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -375,6 +379,74 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     success = false,
                     message = "Có lỗi xảy ra khi lấy chi tiết slot",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Hủy tour slot công khai và gửi thông báo cho khách hàng
+        /// </summary>
+        /// <param name="slotId">ID của slot cần hủy</param>
+        /// <param name="request">Thông tin lý do hủy tour</param>
+        /// <returns>Kết quả hủy tour</returns>
+        [HttpPost("{slotId}/cancel-public")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<IActionResult> CancelPublicTourSlot(Guid slotId, [FromBody] CancelPublicTourSlotDto request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Dữ liệu không hợp lệ",
+                        errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)
+                    });
+                }
+
+                // Get current user ID
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("Id")?.Value;
+                if (!Guid.TryParse(userIdClaim, out var tourCompanyUserId))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        message = "Không thể xác thực người dùng"
+                    });
+                }
+
+                var (success, message, customersNotified) = await _tourSlotService.CancelPublicTourSlotAsync(
+                    slotId, request.Reason, tourCompanyUserId);
+
+                if (!success)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message
+                    });
+                }
+
+                return Ok(new CancelTourSlotResultDto
+                {
+                    Success = true,
+                    Message = message,
+                    CustomersNotified = customersNotified,
+                    AffectedBookings = 0, // Will be updated if needed
+                    TotalRefundAmount = 0, // Will be updated if needed
+                    AffectedCustomers = new List<AffectedCustomerInfo>() // Will be updated if needed
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cancelling public tour slot: {SlotId}", slotId);
+                
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi hủy tour",
                     error = ex.Message
                 });
             }
