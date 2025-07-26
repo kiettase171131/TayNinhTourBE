@@ -469,18 +469,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     bookingCode, request.NumberOfGuests);
 
                 // 10. Create PayOS payment URL for tour booking (with proper error handling)
-                string paymentUrl = $"{baseUrl}/payment-cancel?orderId={booking.Id}&orderCode={payOsOrderCode}"; // Default fallback URL
+                string paymentUrl = $"{baseUrl}/tour-payment-cancel?orderId={booking.Id}&orderCode={payOsOrderCode}"; // Default fallback URL
                 try
                 {
                     if (_payOsService != null)
                     {
-                        // Sử dụng method CreatePaymentUrlAsync như trong ProductService
-                        paymentUrl = await _payOsService.CreatePaymentUrlAsync(
+                        // FIXED: Use correct method for tour booking payment URLs
+                        paymentUrl = await _payOsService.CreateTourBookingPaymentUrlAsync(
                             totalPrice,
                             payOsOrderCode,
                             "https://tndt.netlify.app") ?? paymentUrl;
-                        
-                        _logger.LogInformation("PayOS payment URL created successfully for booking {BookingCode}: {PaymentUrl}", 
+
+                        _logger.LogInformation("PayOS tour booking payment URL created successfully for booking {BookingCode}: {PaymentUrl}",
                             bookingCode, paymentUrl);
                     }
                     else
@@ -490,7 +490,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error creating PayOS URL for booking {BookingCode}, using fallback", bookingCode);
+                    _logger.LogError(ex, "Error creating PayOS tour booking URL for booking {BookingCode}, using fallback", bookingCode);
                     // Keep the fallback URL
                 }
 

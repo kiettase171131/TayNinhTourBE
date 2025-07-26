@@ -30,10 +30,11 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// PayOS callback khi thanh toán thành công
+        /// PayOS webhook callback khi thanh toán thành công cho product orders
         /// URL: /api/payment-callback/paid/{orderCode}
         /// Supports both string PayOsOrderCode (TNDT format) and GUID Order.Id
         /// Status = 1 (Paid) + Trừ stock + Xóa cart + Cộng tiền vào ví shop (sau khi trừ 10% commission)
+        /// Follows PayOS best practices for webhook handling
         /// </summary>
         [HttpPost("paid/{orderCode}")]
         public async Task<IActionResult> PaymentPaidCallback(string orderCode)

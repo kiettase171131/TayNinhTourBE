@@ -455,7 +455,8 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         debugInfo.Add($"Step 5: PayOsService found - {payOsService.GetType().Name}");
                         
-                        var paymentUrl = await payOsService.CreatePaymentUrlAsync(
+                        // FIXED: Use correct method for tour booking debug
+                        var paymentUrl = await payOsService.CreateTourBookingPaymentUrlAsync(
                             testAmount,
                             payOsOrderCode,
                             "https://tndt.netlify.app");
