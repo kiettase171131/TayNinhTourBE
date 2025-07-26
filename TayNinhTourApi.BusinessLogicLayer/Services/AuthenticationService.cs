@@ -476,7 +476,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     Name = payload.Name,
                     Email = payload.Email,
-                    Avatar = payload.Picture,
+                    Avatar = payload.Picture,                
                     IsVerified = true,
                     IsActive = true,
                     RoleId = role.Id,
