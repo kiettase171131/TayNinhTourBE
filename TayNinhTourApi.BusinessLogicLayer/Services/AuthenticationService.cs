@@ -444,7 +444,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<ResponseAuthenticationDto> LoginWithGoogleAsync(GoogleLoginRequestDto request)
         {
             GoogleJsonWebSignature.Payload payload;
+            var includes = new string[]
+           {
+                nameof(User.Role)
+           };
 
+            // ✅ Bước 1: Xác thực token từ Google
             try
             {
                 payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken);
@@ -458,8 +463,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            var user = await _userRepository.GetUserByEmailAsync(payload.Email);
+            // ✅ Bước 2: Tìm user theo email
+            var user = await _userRepository.GetUserByEmailAsync(payload.Email,includes);
 
+            // ✅ Bước 3: Nếu chưa có user, tạo mới
             if (user == null)
             {
                 var role = await _roleRepository.GetRoleByNameAsync(Constants.RoleUserName);
@@ -468,7 +475,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new ResponseAuthenticationDto
                     {
                         StatusCode = 500,
-                        Message = "Role not found"
+                        Message = "Role not found in system."
                     };
                 }
 
@@ -476,29 +483,46 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     Name = payload.Name,
                     Email = payload.Email,
-                    Avatar = payload.Picture,                
+                    Avatar = payload.Picture,
                     IsVerified = true,
                     IsActive = true,
                     RoleId = role.Id,
-                    Role = role,
-                    PasswordHash = ""
+                    PasswordHash = "" // có thể cập nhật thành random string nếu muốn
                 };
 
                 await _userRepository.AddAsync(user);
                 await _userRepository.SaveChangesAsync();
+
+                // 🔁 Reload để đảm bảo user có đầy đủ Role navigation property
+                user = await _userRepository.GetUserByEmailAsync(user.Email!);
             }
 
+            // ✅ Bước 4: Kiểm tra tài khoản bị khóa
             if (!user.IsActive)
             {
                 return new ResponseAuthenticationDto
                 {
                     StatusCode = 400,
-                    Message = "This account is not available at this time!"
+                    Message = "This account is not available at this time."
                 };
             }
 
-            return await GenerateTokenAsync(user);
+            // ✅ Bước 5: Sinh token trả về
+            try
+            {
+                return await GenerateTokenAsync(user);
+            }
+            catch (Exception ex)
+            {
+                // Có thể log lỗi vào hệ thống log
+                return new ResponseAuthenticationDto
+                {
+                    StatusCode = 500,
+                    Message = "Error while generating token: " + ex.Message
+                };
+            }
         }
+
 
     }
 
