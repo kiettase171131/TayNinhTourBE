@@ -982,17 +982,17 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     // Images for Bamboo Basket
                     new ProductImage
                     {
-                        Id = Guid.Parse("11111-1111-1111-1111-111111111111"),
-                        ProductId = Guid.Parse("111111-1111-1111-1111-111111111111"),
+                        Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                        ProductId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
                         Url = "https://example.com/images/bamboo-basket-1.jpg",
                         CreatedAt = now.AddDays(-10),
                         CreatedById = firstSpecialtyShopUserId,
                         IsActive = true
                     },
-                    // Images for Pottery
+                    // Images for Pottery   
                     new ProductImage
                     {
-                        Id = Guid.Parse("22222-2222-2222-2222-222222222222"),
+                        Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
                         ProductId = Guid.Parse("222222-2222-2222-2222-222222222222"),
                         Url = "https://example.com/images/pottery-set-1.jpg",
                         CreatedAt = now.AddDays(-8),
@@ -1002,7 +1002,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     // Images for Traditional Textile
                     new ProductImage
                     {
-                        Id = Guid.Parse("33333-3333-3333-3333-333333333333"),
+                        Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
                         ProductId = Guid.Parse("333333-3333-3333-3333-333333333333"),
                         Url = "https://example.com/images/traditional-textile-1.jpg",
                         CreatedAt = now.AddDays(-5),
