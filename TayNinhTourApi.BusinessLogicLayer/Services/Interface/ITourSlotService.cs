@@ -115,5 +115,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="slotId">ID của slot</param>
         /// <returns>Tuple với thông tin valid và debug info</returns>
         Task<(bool IsValid, string DebugInfo)> GetSlotCapacityDebugInfoAsync(Guid slotId);
+
+        /// <summary>
+        /// Lấy chi tiết slot với thông tin tour và danh sách user đã book
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <returns>Chi tiết slot với thông tin tour và danh sách user đã book</returns>
+        Task<TourSlotWithBookingsDto?> GetSlotWithTourDetailsAndBookingsAsync(Guid slotId);
     }
 }

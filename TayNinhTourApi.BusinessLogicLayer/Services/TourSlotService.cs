@@ -539,5 +539,154 @@ Slot Debug Info for {slotId}:
                 _ => status.ToString()
             };
         }
+
+        /// <summary>
+        /// Lấy chi tiết slot với thông tin tour và danh sách user đã book
+        /// </summary>
+        public async Task<TourSlotWithBookingsDto?> GetSlotWithTourDetailsAndBookingsAsync(Guid slotId)
+        {
+            try
+            {
+                // Get slot with all related data
+                var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Include(s => s.TourTemplate)
+                    .Include(s => s.TourDetails)
+                        .ThenInclude(td => td!.TourOperation)
+                    .Include(s => s.Bookings.Where(b => !b.IsDeleted))
+                        .ThenInclude(b => b.User)
+                    .FirstOrDefaultAsync(s => s.Id == slotId && !s.IsDeleted);
+
+                if (slot == null)
+                {
+                    _logger.LogWarning("TourSlot not found: {SlotId}", slotId);
+                    return null;
+                }
+
+                // Map basic slot info
+                var slotDto = MapToDto(slot);
+
+                // Create result DTO
+                var result = new TourSlotWithBookingsDto
+                {
+                    Slot = slotDto,
+                    BookedUsers = new List<BookedUserInfo>(),
+                    Statistics = new BookingStatistics()
+                };
+
+                // Map TourDetails summary if available
+                if (slot.TourDetails != null)
+                {
+                    result.TourDetails = new TourDetailsSummary
+                    {
+                        Id = slot.TourDetails.Id,
+                        Title = slot.TourDetails.Title,
+                        Description = slot.TourDetails.Description ?? string.Empty,
+                        ImageUrls = slot.TourDetails.ImageUrls ?? new List<string>(),
+                        SkillsRequired = !string.IsNullOrEmpty(slot.TourDetails.SkillsRequired) 
+                            ? slot.TourDetails.SkillsRequired.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList()
+                            : new List<string>(),
+                        Status = slot.TourDetails.Status,
+                        StatusName = GetTourDetailsStatusName(slot.TourDetails.Status),
+                        CreatedAt = slot.TourDetails.CreatedAt,
+                        TourTemplate = slotDto.TourTemplate,
+                        TourOperation = slotDto.TourOperation
+                    };
+                }
+
+                // Map booked users
+                var bookings = slot.Bookings.Where(b => !b.IsDeleted).ToList();
+                
+                foreach (var booking in bookings)
+                {
+                    var bookedUser = new BookedUserInfo
+                    {
+                        BookingId = booking.Id,
+                        UserId = booking.UserId,
+                        UserName = booking.User?.Name ?? "N/A",
+                        UserEmail = booking.User?.Email,
+                        ContactName = booking.ContactName,
+                        ContactPhone = booking.ContactPhone,
+                        ContactEmail = booking.ContactEmail,
+                        NumberOfGuests = booking.NumberOfGuests,
+                        TotalPrice = booking.TotalPrice,
+                        OriginalPrice = booking.OriginalPrice,
+                        DiscountPercent = booking.DiscountPercent,
+                        Status = booking.Status,
+                        StatusName = GetBookingStatusName(booking.Status),
+                        BookingDate = booking.BookingDate,
+                        ConfirmedDate = booking.ConfirmedDate,
+                        BookingCode = booking.BookingCode,
+                        CustomerNotes = booking.CustomerNotes
+                    };
+
+                    result.BookedUsers.Add(bookedUser);
+                }
+
+                // Calculate statistics
+                result.Statistics = CalculateBookingStatistics(bookings, slot.MaxGuests);
+
+                _logger.LogInformation("Retrieved slot {SlotId} with {BookingCount} bookings", slotId, bookings.Count);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting slot with tour details and bookings: {SlotId}", slotId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Lấy tên trạng thái booking bằng tiếng Việt
+        /// </summary>
+        private string GetBookingStatusName(BookingStatus status)
+        {
+            return status switch
+            {
+                BookingStatus.Pending => "Chờ xử lý",
+                BookingStatus.Confirmed => "Đã xác nhận",
+                BookingStatus.CancelledByCustomer => "Hủy bởi khách hàng",
+                BookingStatus.CancelledByCompany => "Hủy bởi công ty",
+                BookingStatus.Completed => "Hoàn thành",
+                BookingStatus.Refunded => "Đã hoàn tiền",
+                BookingStatus.NoShow => "Không xuất hiện",
+                _ => status.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Tính toán thống kê booking
+        /// </summary>
+        private BookingStatistics CalculateBookingStatistics(List<DataAccessLayer.Entities.TourBooking> bookings, int maxGuests)
+        {
+            var stats = new BookingStatistics();
+
+            if (!bookings.Any())
+            {
+                return stats;
+            }
+
+            stats.TotalBookings = bookings.Count;
+            stats.TotalGuests = bookings.Sum(b => b.NumberOfGuests);
+            stats.ConfirmedBookings = bookings.Count(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed);
+            stats.PendingBookings = bookings.Count(b => b.Status == BookingStatus.Pending);
+            stats.CancelledBookings = bookings.Count(b => b.Status == BookingStatus.CancelledByCustomer || b.Status == BookingStatus.CancelledByCompany);
+            
+            stats.TotalRevenue = bookings.Sum(b => b.TotalPrice);
+            stats.ConfirmedRevenue = bookings
+                .Where(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed)
+                .Sum(b => b.TotalPrice);
+
+            // Calculate occupancy rate
+            if (maxGuests > 0)
+            {
+                var confirmedGuests = bookings
+                    .Where(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed)
+                    .Sum(b => b.NumberOfGuests);
+                stats.OccupancyRate = Math.Round((double)confirmedGuests / maxGuests * 100, 2);
+            }
+
+            return stats;
+        }
     }
 }

@@ -276,5 +276,46 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Lấy chi tiết slot với thông tin tour và danh sách user đã book
+        /// </summary>
+        /// <param name="id">ID của TourSlot</param>
+        /// <returns>Chi tiết slot với thông tin tour và danh sách user đã book</returns>
+        [HttpGet("{id}/tour-details-and-bookings")]
+        public async Task<IActionResult> GetSlotWithTourDetailsAndBookings(Guid id)
+        {
+            try
+            {
+                var result = await _tourSlotService.GetSlotWithTourDetailsAndBookingsAsync(id);
+                
+                if (result == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy tour slot"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy chi tiết slot với thông tin tour và bookings thành công",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting slot with tour details and bookings: {SlotId}", id);
+                
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy chi tiết slot",
+                    error = ex.Message
+                });
+            }
+        }
     }
 }
