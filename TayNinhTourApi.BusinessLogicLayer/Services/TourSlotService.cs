@@ -129,6 +129,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        public async Task<IEnumerable<TourSlotDto>> GetUnassignedTemplateSlotsByTemplateAsync(Guid tourTemplateId, bool includeInactive = false)
+        {
+            try
+            {
+                var slots = await _tourSlotRepository.GetUnassignedTemplateSlotsByTemplateAsync(tourTemplateId, includeInactive);
+                return slots.Select(MapToDto).OrderBy(s => s.TourDate);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting unassigned template slots for TourTemplate: {TourTemplateId}", tourTemplateId);
+                throw;
+            }
+        }
+
         public async Task<IEnumerable<TourSlotDto>> GetAvailableSlotsAsync(
             Guid? tourTemplateId = null,
             DateOnly? fromDate = null,

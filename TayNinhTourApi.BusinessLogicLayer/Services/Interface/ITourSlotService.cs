@@ -48,6 +48,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<IEnumerable<TourSlotDto>> GetSlotsByTourTemplateAsync(Guid tourTemplateId);
 
         /// <summary>
+        /// Lấy các slots template chưa được assign tour details (slots gốc được tạo từ template)
+        /// </summary>
+        /// <param name="tourTemplateId">ID của TourTemplate</param>
+        /// <param name="includeInactive">Có bao gồm slots không active không</param>
+        /// <returns>Danh sách slots chưa có tour details</returns>
+        Task<IEnumerable<TourSlotDto>> GetUnassignedTemplateSlotsByTemplateAsync(Guid tourTemplateId, bool includeInactive = false);
+
+        /// <summary>
         /// Lấy các slots available cho booking
         /// </summary>
         /// <param name="tourTemplateId">ID của TourTemplate (optional)</param>

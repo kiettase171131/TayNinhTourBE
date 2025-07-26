@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -161,21 +162,45 @@ namespace TayNinhTourApi.Controller.Controllers
         /// Lấy TourSlots của một TourTemplate cụ thể
         /// </summary>
         /// <param name="tourTemplateId">ID của TourTemplate</param>
+        /// <param name="onlyUnassigned">Chỉ lấy slots chưa có tour details (default: false)</param>
+        /// <param name="includeInactive">Có bao gồm slots không active không (default: false)</param>
         /// <returns>Danh sách TourSlots của TourTemplate</returns>
         [HttpGet("tour-template/{tourTemplateId}")]
-        public async Task<IActionResult> GetSlotsByTourTemplate(Guid tourTemplateId)
+        public async Task<IActionResult> GetSlotsByTourTemplate(
+            Guid tourTemplateId, 
+            [FromQuery] bool onlyUnassigned = false,
+            [FromQuery] bool includeInactive = false)
         {
             try
             {
-                var slots = await _tourSlotService.GetSlotsByTourTemplateAsync(tourTemplateId);
+                IEnumerable<TourSlotDto> slots;
+                
+                if (onlyUnassigned)
+                {
+                    // Chỉ lấy slots chưa có tour details
+                    slots = await _tourSlotService.GetUnassignedTemplateSlotsByTemplateAsync(tourTemplateId, includeInactive);
+                }
+                else
+                {
+                    // Lấy tất cả slots của template
+                    slots = await _tourSlotService.GetSlotsByTourTemplateAsync(tourTemplateId);
+                    
+                    if (!includeInactive)
+                    {
+                        slots = slots.Where(s => s.IsActive);
+                    }
+                }
 
                 return Ok(new
                 {
                     success = true,
-                    message = "Lấy danh sách tour slots của tour template thành công",
+                    message = onlyUnassigned 
+                        ? "Lấy danh sách tour slots chưa có tour details thành công"
+                        : "Lấy danh sách tour slots của tour template thành công",
                     data = slots,
                     totalCount = slots.Count(),
-                    tourTemplateId
+                    tourTemplateId,
+                    filters = new { onlyUnassigned, includeInactive }
                 });
             }
             catch (Exception ex)
@@ -186,6 +211,43 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     success = false,
                     message = "Có lỗi xảy ra khi lấy danh sách tour slots",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Lấy các slots template chưa được assign tour details (slots gốc được tạo từ template)
+        /// Endpoint này được sử dụng trong UI để hiển thị các slot ban đầu của template
+        /// </summary>
+        /// <param name="tourTemplateId">ID của TourTemplate</param>
+        /// <param name="includeInactive">Có bao gồm slots không active không (default: false)</param>
+        /// <returns>Danh sách slots chưa có tour details</returns>
+        [HttpGet("tour-template/{tourTemplateId}/unassigned")]
+        public async Task<IActionResult> GetUnassignedTemplateSlots(Guid tourTemplateId, [FromQuery] bool includeInactive = false)
+        {
+            try
+            {
+                var slots = await _tourSlotService.GetUnassignedTemplateSlotsByTemplateAsync(tourTemplateId, includeInactive);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy danh sách tour slots chưa có tour details thành công",
+                    data = slots,
+                    totalCount = slots.Count(),
+                    tourTemplateId,
+                    description = "Danh sách các slot gốc được tạo từ template (chưa có tour details assign)"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting unassigned template slots for TourTemplate: {TourTemplateId}", tourTemplateId);
+                
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy danh sách slots chưa có tour details",
                     error = ex.Message
                 });
             }

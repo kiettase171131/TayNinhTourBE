@@ -87,5 +87,13 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="slotId">ID của slot</param>
         /// <returns>TourSlot với thông tin capacity</returns>
         Task<TourSlot?> GetSlotWithCapacityAsync(Guid slotId);
+
+        /// <summary>
+        /// Lấy các slots template chưa được assign tour details (slots gốc được tạo từ template)
+        /// </summary>
+        /// <param name="tourTemplateId">ID của tour template</param>
+        /// <param name="includeInactive">Có bao gồm slots không active không</param>
+        /// <returns>Danh sách slots chưa có tour details</returns>
+        Task<IEnumerable<TourSlot>> GetUnassignedTemplateSlotsByTemplateAsync(Guid tourTemplateId, bool includeInactive = false);
     }
 }
