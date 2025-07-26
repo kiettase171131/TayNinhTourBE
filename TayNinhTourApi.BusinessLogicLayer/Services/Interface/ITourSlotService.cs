@@ -48,6 +48,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<IEnumerable<TourSlotDto>> GetSlotsByTourTemplateAsync(Guid tourTemplateId);
 
         /// <summary>
+        /// Lấy các slots template chưa được assign tour details (slots gốc được tạo từ template)
+        /// </summary>
+        /// <param name="tourTemplateId">ID của TourTemplate</param>
+        /// <param name="includeInactive">Có bao gồm slots không active không</param>
+        /// <returns>Danh sách slots chưa có tour details</returns>
+        Task<IEnumerable<TourSlotDto>> GetUnassignedTemplateSlotsByTemplateAsync(Guid tourTemplateId, bool includeInactive = false);
+
+        /// <summary>
+        /// Hủy tour slot và gửi thông báo cho khách hàng đã đặt
+        /// Business Rules:
+        /// - Slot phải có TourDetailsId (đã được assign)
+        /// - TourDetails phải ở trạng thái Public
+        /// - Chỉ tour company sở hữu mới có thể hủy
+        /// - Tự động gửi email thông báo cho tất cả khách hàng đã booking
+        /// - Set IsActive = false và Status = Cancelled
+        /// </summary>
+        /// <param name="slotId">ID của slot cần hủy</param>
+        /// <param name="reason">Lý do hủy tour</param>
+        /// <param name="tourCompanyUserId">ID của tour company thực hiện hủy</param>
+        /// <returns>Kết quả hủy tour và thông tin khách hàng được thông báo</returns>
+        Task<(bool Success, string Message, int CustomersNotified)> CancelPublicTourSlotAsync(Guid slotId, string reason, Guid tourCompanyUserId);
+
+        /// <summary>
         /// Lấy các slots available cho booking
         /// </summary>
         /// <param name="tourTemplateId">ID của TourTemplate (optional)</param>
@@ -115,5 +138,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="slotId">ID của slot</param>
         /// <returns>Tuple với thông tin valid và debug info</returns>
         Task<(bool IsValid, string DebugInfo)> GetSlotCapacityDebugInfoAsync(Guid slotId);
+
+        /// <summary>
+        /// Lấy chi tiết slot với thông tin tour và danh sách user đã book
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <returns>Chi tiết slot với thông tin tour và danh sách user đã book</returns>
+        Task<TourSlotWithBookingsDto?> GetSlotWithTourDetailsAndBookingsAsync(Guid slotId);
     }
 }

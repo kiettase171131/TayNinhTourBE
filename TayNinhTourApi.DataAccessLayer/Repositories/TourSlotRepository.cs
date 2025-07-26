@@ -190,5 +190,22 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Where(ts => ts.Id == slotId && !ts.IsDeleted)
                 .FirstOrDefaultAsync();
         }
+
+        /// <summary>
+        /// Lấy các slots template chưa được assign tour details (slots gốc được tạo từ template)
+        /// </summary>
+        public async Task<IEnumerable<TourSlot>> GetUnassignedTemplateSlotsByTemplateAsync(Guid tourTemplateId, bool includeInactive = false)
+        {
+            var query = _context.TourSlots
+                .Include(ts => ts.TourTemplate)
+                .Where(ts => ts.TourTemplateId == tourTemplateId && ts.TourDetailsId == null);
+
+            if (!includeInactive)
+            {
+                query = query.Where(ts => ts.IsActive);
+            }
+
+            return await query.OrderBy(ts => ts.TourDate).ToListAsync();
+        }
     }
 }

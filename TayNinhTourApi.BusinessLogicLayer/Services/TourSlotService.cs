@@ -1,8 +1,10 @@
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourSlot;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
@@ -17,15 +19,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly ITourSlotRepository _tourSlotRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<TourSlotService> _logger;
+        private readonly EmailSender _emailSender;
 
         public TourSlotService(
             ITourSlotRepository tourSlotRepository,
             IUnitOfWork unitOfWork,
-            ILogger<TourSlotService> logger)
+            ILogger<TourSlotService> logger,
+            EmailSender emailSender)
         {
             _tourSlotRepository = tourSlotRepository;
             _unitOfWork = unitOfWork;
             _logger = logger;
+            _emailSender = emailSender;
         }
 
         public async Task<IEnumerable<TourSlotDto>> GetSlotsAsync(
@@ -126,6 +131,320 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogError(ex, "Error getting tour slots for TourTemplate: {TourTemplateId}", tourTemplateId);
                 throw;
+            }
+        }
+
+        public async Task<IEnumerable<TourSlotDto>> GetUnassignedTemplateSlotsByTemplateAsync(Guid tourTemplateId, bool includeInactive = false)
+        {
+            try
+            {
+                var slots = await _tourSlotRepository.GetUnassignedTemplateSlotsByTemplateAsync(tourTemplateId, includeInactive);
+                return slots.Select(MapToDto).OrderBy(s => s.TourDate);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting unassigned template slots for TourTemplate: {TourTemplateId}", tourTemplateId);
+                throw;
+            }
+        }
+
+        public async Task<(bool Success, string Message, int CustomersNotified)> CancelPublicTourSlotAsync(Guid slotId, string reason, Guid tourCompanyUserId)
+        {
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                // 1. Lấy thông tin slot với tất cả related data
+                var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Include(s => s.TourDetails)
+                        .ThenInclude(td => td!.TourOperation)
+                    .Include(s => s.TourTemplate)
+                    .Include(s => s.Bookings.Where(b => !b.IsDeleted && 
+                        (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)))
+                        .ThenInclude(b => b.User)
+                    .FirstOrDefaultAsync(s => s.Id == slotId && !s.IsDeleted);
+
+                if (slot == null)
+                {
+                    return (false, "Không tìm thấy tour slot", 0);
+                }
+
+                // 2. Validate business rules
+                if (slot.TourDetailsId == null)
+                {
+                    return (false, "Slot này chưa được assign tour details, không thể hủy", 0);
+                }
+
+                if (slot.TourDetails?.Status != TourDetailsStatus.Public)
+                {
+                    return (false, "Chỉ có thể hủy tour đang ở trạng thái Public", 0);
+                }
+
+                if (slot.TourDetails?.CreatedById != tourCompanyUserId)
+                {
+                    return (false, "Bạn không có quyền hủy tour này", 0);
+                }
+
+                if (!slot.IsActive)
+                {
+                    return (false, "Tour slot đã bị hủy trước đó", 0);
+                }
+
+                // 3. Lấy danh sách bookings cần xử lý
+                var affectedBookings = slot.Bookings.Where(b => !b.IsDeleted && 
+                    (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)).ToList();
+
+                // 4. Deactivate slot và set status
+                slot.IsActive = false;
+                slot.Status = TourSlotStatus.Cancelled;
+                slot.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
+
+                // 5. Update các bookings thành cancelled
+                var affectedCustomers = new List<AffectedCustomerInfo>();
+                int customersNotified = 0;
+
+                foreach (var booking in affectedBookings)
+                {
+                    // Cancel booking
+                    booking.Status = BookingStatus.CancelledByCompany;
+                    booking.CancelledDate = DateTime.UtcNow;
+                    booking.CancellationReason = reason;
+                    booking.UpdatedAt = DateTime.UtcNow;
+
+                    await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
+
+                    // Tạo thông tin khách hàng bị ảnh hưởng - Ưu tiên ContactEmail từ booking
+                    var customerInfo = new AffectedCustomerInfo
+                    {
+                        BookingId = booking.Id,
+                        BookingCode = booking.BookingCode,
+                        CustomerName = !string.IsNullOrEmpty(booking.ContactName) ? booking.ContactName : booking.User?.Name ?? "Khách hàng",
+                        CustomerEmail = !string.IsNullOrEmpty(booking.ContactEmail) ? booking.ContactEmail : booking.User?.Email ?? "",
+                        NumberOfGuests = booking.NumberOfGuests,
+                        RefundAmount = booking.TotalPrice,
+                        EmailSent = false
+                    };
+
+                    affectedCustomers.Add(customerInfo);
+                }
+
+                // 6. Release capacity từ TourOperation
+                if (slot.TourDetails?.TourOperation != null)
+                {
+                    var totalGuestsToRelease = affectedBookings.Sum(b => b.NumberOfGuests);
+                    slot.TourDetails.TourOperation.CurrentBookings = Math.Max(0, 
+                        slot.TourDetails.TourOperation.CurrentBookings - totalGuestsToRelease);
+                    
+                    await _unitOfWork.TourOperationRepository.UpdateAsync(slot.TourDetails.TourOperation);
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // 7. Gửi email thông báo cho khách hàng (sau khi commit transaction)
+                customersNotified = await SendCancellationEmailsToCustomersAsync(
+                    affectedCustomers, slot.TourDetails!.Title, slot.TourDate, reason);
+
+                // 8. Gửi thông báo cho tour company
+                await NotifyTourCompanyAboutCancellationAsync(
+                    tourCompanyUserId, slot.TourDetails!.Title, slot.TourDate, affectedBookings.Count, reason);
+
+                _logger.LogInformation("Tour slot {SlotId} cancelled successfully. Affected bookings: {BookingCount}, Customers notified: {CustomersNotified}", 
+                    slotId, affectedBookings.Count, customersNotified);
+
+                return (true, $"Hủy tour thành công. Đã thông báo cho {customersNotified} khách hàng và xử lý {affectedBookings.Count} booking.", customersNotified);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error cancelling tour slot: {SlotId}", slotId);
+                return (false, "Có lỗi xảy ra khi hủy tour", 0);
+            }
+        }
+
+        /// <summary>
+        /// Gửi email thông báo hủy tour cho khách hàng
+        /// </summary>
+        private async Task<int> SendCancellationEmailsToCustomersAsync(
+            List<AffectedCustomerInfo> affectedCustomers, 
+            string tourTitle, 
+            DateOnly tourDate, 
+            string reason)
+        {
+            int successCount = 0;
+
+            foreach (var customer in affectedCustomers)
+            {
+                try
+                {
+                    // Kiểm tra email hợp lệ trước khi gửi
+                    if (string.IsNullOrEmpty(customer.CustomerEmail) || !IsValidEmail(customer.CustomerEmail))
+                    {
+                        _logger.LogWarning("Invalid email address for customer {CustomerName} with booking {BookingCode}: {Email}", 
+                            customer.CustomerName, customer.BookingCode, customer.CustomerEmail);
+                        customer.EmailSent = false;
+                        continue;
+                    }
+
+                    var subject = $"🚨 Thông báo hủy tour: {tourTitle}";
+                    var htmlBody = $@"
+                        <h2>Kính chào {customer.CustomerName},</h2>
+                        
+                        <div style='background-color: #f8d7da; padding: 20px; border-left: 4px solid #dc3545; margin: 15px 0;'>
+                            <h3 style='margin-top: 0; color: #721c24;'>🚨 THÔNG BÁO HỦY TOUR</h3>
+                            <p style='font-size: 16px; margin-bottom: 0;'>
+                                Chúng tôi rất tiếc phải thông báo rằng tour <strong>'{tourTitle}'</strong> dự kiến ngày <strong>{tourDate:dd/MM/yyyy}</strong> đã bị hủy.
+                            </p>
+                        </div>
+                        
+                        <h3>📋 Thông tin booking của bạn:</h3>
+                        <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #6c757d; margin: 10px 0;'>
+                            <ul style='margin: 0; list-style: none; padding: 0;'>
+                                <li><strong>🆔 Mã booking:</strong> {customer.BookingCode}</li>
+                                <li><strong>👥 Số lượng khách:</strong> {customer.NumberOfGuests}</li>
+                                <li><strong>💰 Số tiền:</strong> {customer.RefundAmount:N0} VNĐ</li>
+                            </ul>
+                        </div>
+                        
+                        <h3>📝 Lý do hủy tour:</h3>
+                        <div style='background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 10px 0;'>
+                            <p style='font-style: italic; margin: 0;'>{reason}</p>
+                        </div>
+                        
+                        <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0;'>
+                            <h3 style='margin-top: 0; color: #155724;'>💰 HOÀN TIỀN TỰ ĐỘNG</h3>
+                            <p style='font-size: 16px; margin-bottom: 10px;'>
+                                <strong>Số tiền {customer.RefundAmount:N0} VNĐ sẽ được hoàn trả đầy đủ</strong>
+                            </p>
+                            <ul style='margin-bottom: 0;'>
+                                <li>⏰ <strong>Thời gian:</strong> 3-5 ngày làm việc</li>
+                                <li>💳 <strong>Phương thức:</strong> Hoàn về tài khoản thanh toán gốc</li>
+                                <li>📧 <strong>Xác nhận:</strong> Bạn sẽ nhận email xác nhận khi tiền được hoàn</li>
+                                <li>📞 <strong>Hỗ trợ:</strong> Nhân viên sẽ liên hệ để hỗ trợ thủ tục hoàn tiền</li>
+                            </ul>
+                        </div>
+                        
+                        <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                            <h4 style='margin-top: 0; color: #004085;'>🎯 Gợi ý cho bạn:</h4>
+                            <ul style='margin-bottom: 0;'>
+                                <li><strong>Khám phá tour khác:</strong> Xem danh sách tour tương tự trên website</li>
+                                <li><strong>Đặt lại sau:</strong> Tour có thể được mở lại với lịch trình mới</li>
+                                <li><strong>Nhận ưu đãi:</strong> Theo dõi để nhận thông báo khuyến mãi đặc biệt</li>
+                                <li><strong>Voucher bù đắp:</strong> Chúng tôi sẽ gửi voucher giảm giá cho lần đặt tour tiếp theo</li>
+                            </ul>
+                        </div>
+                        
+                        <div style='text-align: center; margin: 30px 0;'>
+                            <a href='#' style='background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-right: 10px;'>
+                                🔍 Xem tour khác
+                            </a>
+                            <a href='#' style='background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
+                                📞 Liên hệ hỗ trợ
+                            </a>
+                        </div>
+                        
+                        <div style='background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                            <h4 style='margin-top: 0; color: #721c24;'>🙏 Lời xin lỗi chân thành</h4>
+                            <p style='margin-bottom: 0;'>
+                                Chúng tôi thành thật xin lỗi vì sự bất tiện này. Đây là quyết định khó khăn nhưng cần thiết để đảm bảo an toàn và chất lượng dịch vụ cho quý khách. 
+                                <strong>Nhân viên của chúng tôi sẽ liên hệ trực tiếp để hỗ trợ quá trình hoàn tiền trong thời gian sớm nhất.</strong>
+                            </p>
+                        </div>
+                        
+                        <p><strong>📞 Cần hỗ trợ khẩn cấp?</strong> Liên hệ hotline: <a href='tel:1900-xxx-xxx'>1900-xxx-xxx</a> hoặc email: support@tayninhour.com</p>
+                        
+                        <br/>
+                        <p>Cảm ơn sự thông cảm của quý khách,</p>
+                        <p><strong>Đội ngũ Tay Ninh Tour</strong></p>";
+
+                    await _emailSender.SendEmailAsync(customer.CustomerEmail, customer.CustomerName, subject, htmlBody);
+                    customer.EmailSent = true;
+                    successCount++;
+                    
+                    _logger.LogInformation("Cancellation email sent successfully to {CustomerEmail} for booking {BookingCode}", 
+                        customer.CustomerEmail, customer.BookingCode);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send cancellation email to customer {CustomerEmail} for booking {BookingCode}", 
+                        customer.CustomerEmail, customer.BookingCode);
+                    customer.EmailSent = false;
+                }
+            }
+
+            return successCount;
+        }
+
+        /// <summary>
+        /// Validate email address format
+        /// </summary>
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho tour company về việc hủy tour
+        /// </summary>
+        private async Task NotifyTourCompanyAboutCancellationAsync(
+            Guid tourCompanyUserId, 
+            string tourTitle, 
+            DateOnly tourDate, 
+            int affectedBookingsCount, 
+            string reason)
+        {
+            try
+            {
+                var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
+                if (user == null) return;
+
+                var subject = $"✅ Xác nhận hủy tour: {tourTitle}";
+                var htmlBody = $@"
+                    <h2>Chào {user.Name},</h2>
+                    
+                    <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 15px 0;'>
+                        <h3 style='margin-top: 0; color: #155724;'>✅ HỦY TOUR THÀNH CÔNG</h3>
+                        <p style='font-size: 16px; margin-bottom: 0;'>
+                            Tour <strong>'{tourTitle}'</strong> ngày <strong>{tourDate:dd/MM/yyyy}</strong> đã được hủy thành công.
+                        </p>
+                    </div>
+                    
+                    <h3>📊 Thống kê:</h3>
+                    <ul>
+                        <li><strong>Số booking bị ảnh hưởng:</strong> {affectedBookingsCount}</li>
+                        <li><strong>Lý do hủy:</strong> {reason}</li>
+                        <li><strong>Thời gian hủy:</strong> {DateTime.UtcNow:dd/MM/yyyy HH:mm}</li>
+                    </ul>
+                    
+                    <div style='background-color: #cce5ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                        <h4 style='margin-top: 0; color: #004085;'>📋 Những gì đã được xử lý:</h4>
+                        <ul style='margin-bottom: 0;'>
+                            <li>✅ Slot tour đã được deactivate</li>
+                            <li>✅ Tất cả booking đã được hủy</li>
+                            <li>✅ Khách hàng đã được thông báo qua email</li>
+                            <li>✅ Tiền sẽ được hoàn trả tự động trong 3-5 ngày</li>
+                        </ul>
+                    </div>
+                    
+                    <br/>
+                    <p>Cảm ơn bạn đã sử dụng hệ thống một cách có trách nhiệm.</p>
+                    <p>Trân trọng,</p>
+                    <p>Đội ngũ Tay Ninh Tour</p>";
+
+                await _emailSender.SendEmailAsync(user.Email, user.Name, subject, htmlBody);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send notification to tour company {TourCompanyUserId}", tourCompanyUserId);
             }
         }
 
@@ -445,6 +764,7 @@ Slot Debug Info for {slotId}:
                 UpdatedAt = slot.UpdatedAt,
                 FormattedDate = slot.TourDate.ToString("dd/MM/yyyy"),
                 FormattedDateWithDay = $"{GetScheduleDayName(slot.ScheduleDay)} - {slot.TourDate.ToString("dd/MM/yyyy")}"
+
             };
 
             // Map TourTemplate info if available
@@ -538,6 +858,155 @@ Slot Debug Info for {slotId}:
                 TourDetailsStatus.Public => "Công khai",
                 _ => status.ToString()
             };
+        }
+
+        /// <summary>
+        /// Lấy chi tiết slot với thông tin tour và danh sách user đã book
+        /// </summary>
+        public async Task<TourSlotWithBookingsDto?> GetSlotWithTourDetailsAndBookingsAsync(Guid slotId)
+        {
+            try
+            {
+                // Get slot with all related data
+                var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Include(s => s.TourTemplate)
+                    .Include(s => s.TourDetails)
+                        .ThenInclude(td => td!.TourOperation)
+                    .Include(s => s.Bookings.Where(b => !b.IsDeleted))
+                        .ThenInclude(b => b.User)
+                    .FirstOrDefaultAsync(s => s.Id == slotId && !s.IsDeleted);
+
+                if (slot == null)
+                {
+                    _logger.LogWarning("TourSlot not found: {SlotId}", slotId);
+                    return null;
+                }
+
+                // Map basic slot info
+                var slotDto = MapToDto(slot);
+
+                // Create result DTO
+                var result = new TourSlotWithBookingsDto
+                {
+                    Slot = slotDto,
+                    BookedUsers = new List<BookedUserInfo>(),
+                    Statistics = new BookingStatistics()
+                };
+
+                // Map TourDetails summary if available
+                if (slot.TourDetails != null)
+                {
+                    result.TourDetails = new TourDetailsSummary
+                    {
+                        Id = slot.TourDetails.Id,
+                        Title = slot.TourDetails.Title,
+                        Description = slot.TourDetails.Description ?? string.Empty,
+                        ImageUrls = slot.TourDetails.ImageUrls ?? new List<string>(),
+                        SkillsRequired = !string.IsNullOrEmpty(slot.TourDetails.SkillsRequired) 
+                            ? slot.TourDetails.SkillsRequired.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList()
+                            : new List<string>(),
+                        Status = slot.TourDetails.Status,
+                        StatusName = GetTourDetailsStatusName(slot.TourDetails.Status),
+                        CreatedAt = slot.TourDetails.CreatedAt,
+                        TourTemplate = slotDto.TourTemplate,
+                        TourOperation = slotDto.TourOperation
+                    };
+                }
+
+                // Map booked users
+                var bookings = slot.Bookings.Where(b => !b.IsDeleted).ToList();
+                
+                foreach (var booking in bookings)
+                {
+                    var bookedUser = new BookedUserInfo
+                    {
+                        BookingId = booking.Id,
+                        UserId = booking.UserId,
+                        UserName = booking.User?.Name ?? "N/A",
+                        UserEmail = booking.User?.Email,
+                        ContactName = booking.ContactName,
+                        ContactPhone = booking.ContactPhone,
+                        ContactEmail = booking.ContactEmail,
+                        NumberOfGuests = booking.NumberOfGuests,
+                        TotalPrice = booking.TotalPrice,
+                        OriginalPrice = booking.OriginalPrice,
+                        DiscountPercent = booking.DiscountPercent,
+                        Status = booking.Status,
+                        StatusName = GetBookingStatusName(booking.Status),
+                        BookingDate = booking.BookingDate,
+                        ConfirmedDate = booking.ConfirmedDate,
+                        BookingCode = booking.BookingCode,
+                        CustomerNotes = booking.CustomerNotes
+                    };
+
+                    result.BookedUsers.Add(bookedUser);
+                }
+
+                // Calculate statistics
+                result.Statistics = CalculateBookingStatistics(bookings, slot.MaxGuests);
+
+                _logger.LogInformation("Retrieved slot {SlotId} with {BookingCount} bookings", slotId, bookings.Count);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting slot with tour details and bookings: {SlotId}", slotId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Lấy tên trạng thái booking bằng tiếng Việt
+        /// </summary>
+        private string GetBookingStatusName(BookingStatus status)
+        {
+            return status switch
+            {
+                BookingStatus.Pending => "Chờ xử lý",
+                BookingStatus.Confirmed => "Đã xác nhận",
+                BookingStatus.CancelledByCustomer => "Hủy bởi khách hàng",
+                BookingStatus.CancelledByCompany => "Hủy bởi công ty",
+                BookingStatus.Completed => "Hoàn thành",
+                BookingStatus.Refunded => "Đã hoàn tiền",
+                BookingStatus.NoShow => "Không xuất hiện",
+                _ => status.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Tính toán thống kê booking
+        /// </summary>
+        private BookingStatistics CalculateBookingStatistics(List<DataAccessLayer.Entities.TourBooking> bookings, int maxGuests)
+        {
+            var stats = new BookingStatistics();
+
+            if (!bookings.Any())
+            {
+                return stats;
+            }
+
+            stats.TotalBookings = bookings.Count;
+            stats.TotalGuests = bookings.Sum(b => b.NumberOfGuests);
+            stats.ConfirmedBookings = bookings.Count(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed);
+            stats.PendingBookings = bookings.Count(b => b.Status == BookingStatus.Pending);
+            stats.CancelledBookings = bookings.Count(b => b.Status == BookingStatus.CancelledByCustomer || b.Status == BookingStatus.CancelledByCompany);
+            
+            stats.TotalRevenue = bookings.Sum(b => b.TotalPrice);
+            stats.ConfirmedRevenue = bookings
+                .Where(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed)
+                .Sum(b => b.TotalPrice);
+
+            // Calculate occupancy rate
+            if (maxGuests > 0)
+            {
+                var confirmedGuests = bookings
+                    .Where(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed)
+                    .Sum(b => b.NumberOfGuests);
+                stats.OccupancyRate = Math.Round((double)confirmedGuests / maxGuests * 100, 2);
+            }
+
+            return stats;
         }
     }
 }
