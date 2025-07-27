@@ -194,15 +194,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         private async Task<string> GenerateAndSaveRefreshTokenAsync(User newUser)
         {
-            using (var transaction = _unitOfWork.BeginTransaction())
-            {
-                var refreshToken = _jwtUtility.GenerateRefreshToken();
-                newUser.RefreshToken = refreshToken;
-                newUser.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-                await _unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return refreshToken;
-            }
+            // Remove manual transaction to avoid MySQL execution strategy conflict
+            var refreshToken = _jwtUtility.GenerateRefreshToken();
+            newUser.RefreshToken = refreshToken;
+            newUser.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _unitOfWork.SaveChangesAsync();
+            return refreshToken;
         }
 
         public async Task<ResponseVerifyOtpDto> VerifyOtpAsync(RegisterVerifyOtpRequestDto request)

@@ -118,28 +118,31 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 _logger.LogInformation("Getting guides list, includeInactive: {IncludeInactive}", includeInactive);
 
-                // Lấy users có role Guide
-                var guides = await _unitOfWork.UserRepository.GetUsersByRoleAsync("Guide");
+                // Lấy tour guides từ bảng TourGuides với User information
+                var tourGuides = await _unitOfWork.TourGuideRepository.GetAllWithUserAsync();
+
+                // Include User information
+                var guidesWithUsers = tourGuides.Where(tg => tg.User != null);
 
                 if (!includeInactive)
                 {
-                    guides = guides.Where(g => g.IsActive).ToList();
+                    guidesWithUsers = guidesWithUsers.Where(tg => tg.IsActive && tg.User.IsActive);
                 }
 
-                var guideDtos = guides.Select(guide => new GuideDto
+                var guideDtos = guidesWithUsers.Select(tourGuide => new GuideDto
                 {
-                    Id = guide.Id,
-                    FullName = guide.Name,
-                    Email = guide.Email,
-                    PhoneNumber = guide.PhoneNumber,
-                    IsActive = guide.IsActive,
-                    IsAvailable = true, // Default, sẽ check chi tiết ở endpoint khác
-                    ExperienceYears = 0, // TODO: Implement when User entity has these fields
-                    Specialization = null,
-                    AverageRating = null,
-                    CompletedTours = 0,
-                    JoinedDate = guide.CreatedAt,
-                    CurrentStatus = guide.IsActive ? "Available" : "Inactive"
+                    Id = tourGuide.Id, // Use TourGuide.Id for backend compatibility
+                    FullName = tourGuide.FullName,
+                    Email = tourGuide.Email,
+                    PhoneNumber = tourGuide.PhoneNumber,
+                    IsActive = tourGuide.IsActive && tourGuide.User.IsActive,
+                    IsAvailable = tourGuide.IsAvailable,
+                    ExperienceYears = CalculateExperienceYears(tourGuide.Experience),
+                    Specialization = tourGuide.Skills,
+                    AverageRating = tourGuide.Rating,
+                    CompletedTours = tourGuide.TotalToursGuided,
+                    JoinedDate = tourGuide.ApprovedAt != default ? tourGuide.ApprovedAt : tourGuide.CreatedAt,
+                    CurrentStatus = (tourGuide.IsActive && tourGuide.User.IsActive && tourGuide.IsAvailable) ? "Available" : "Inactive"
                 }).OrderBy(g => g.FullName).ToList();
 
                 _logger.LogInformation("Found {Count} guides", guideDtos.Count);
@@ -154,6 +157,26 @@ namespace TayNinhTourApi.Controller.Controllers
                     Message = "Lỗi hệ thống khi lấy danh sách hướng dẫn viên"
                 });
             }
+        }
+
+        /// <summary>
+        /// Helper method to calculate experience years from experience text
+        /// </summary>
+        private int CalculateExperienceYears(string? experience)
+        {
+            if (string.IsNullOrEmpty(experience))
+                return 0;
+
+            // Try to extract number from experience text (e.g., "5 years" -> 5)
+            var match = System.Text.RegularExpressions.Regex.Match(experience, @"(\d+)\s*(?:year|năm)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            if (match.Success && int.TryParse(match.Groups[1].Value, out int years))
+            {
+                return years;
+            }
+
+            return 0; // Default if can't parse
         }
 
         /// <summary>
@@ -183,9 +206,9 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                // 1. Lấy tất cả guides active
-                var allGuides = await _unitOfWork.UserRepository.GetUsersByRoleAsync("Guide");
-                var activeGuides = allGuides.Where(g => g.IsActive).ToList();
+                // 1. Lấy tất cả tour guides active
+                var allTourGuides = await _unitOfWork.TourGuideRepository.GetAllWithUserAsync();
+                var activeTourGuides = allTourGuides.Where(tg => tg.IsActive && tg.User.IsActive && tg.IsAvailable).ToList();
 
                 // 2. Lấy các operations đã có trong ngày đó
                 var existingOperations = await _unitOfWork.TourOperationRepository
@@ -199,39 +222,39 @@ namespace TayNinhTourApi.Controller.Controllers
                         .ToList();
                 }
 
-                // 4. Lấy danh sách guide IDs đã busy
-                var busyGuideIds = existingOperations
+                // 4. Lấy danh sách tour guide IDs đã busy (TourOperation.TourGuideId references TourGuides.Id)
+                var busyTourGuideIds = existingOperations
                     .Where(op => op.TourGuideId.HasValue)
                     .Select(op => op.TourGuideId.Value)
                     .ToHashSet();
 
                 // 5. Filter available guides
-                var availableGuides = activeGuides
-                    .Where(guide => !busyGuideIds.Contains(guide.Id))
-                    .Select(guide => new GuideDto
+                var availableGuides = activeTourGuides
+                    .Where(tourGuide => !busyTourGuideIds.Contains(tourGuide.Id))
+                    .Select(tourGuide => new GuideDto
                     {
-                        Id = guide.Id,
-                        FullName = guide.Name,
-                        Email = guide.Email,
-                        PhoneNumber = guide.PhoneNumber,
-                        IsActive = guide.IsActive,
-                        IsAvailable = true,
-                        ExperienceYears = 0, // TODO: Implement when User entity has these fields
-                        Specialization = null,
-                        AverageRating = null,
-                        CompletedTours = 0,
-                        JoinedDate = guide.CreatedAt,
+                        Id = tourGuide.Id, // Use TourGuide.Id for backend compatibility
+                        FullName = tourGuide.FullName,
+                        Email = tourGuide.Email,
+                        PhoneNumber = tourGuide.PhoneNumber,
+                        IsActive = tourGuide.IsActive && tourGuide.User.IsActive,
+                        IsAvailable = tourGuide.IsAvailable,
+                        ExperienceYears = CalculateExperienceYears(tourGuide.Experience),
+                        Specialization = tourGuide.Skills,
+                        AverageRating = tourGuide.Rating,
+                        CompletedTours = tourGuide.TotalToursGuided,
+                        JoinedDate = tourGuide.ApprovedAt != default ? tourGuide.ApprovedAt : tourGuide.CreatedAt,
                         CurrentStatus = "Available"
                     })
                     .OrderBy(g => g.FullName)
                     .ToList();
 
-                _logger.LogInformation("Found {Count} available guides for {Date}", availableGuides.Count, date);
+                _logger.LogInformation("Found {Count} available guides for date {Date}", availableGuides.Count, date.ToString());
                 return Ok(availableGuides);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting available guides for date {Date}", date);
+                _logger.LogError(ex, "Error getting available guides for date {Date}", date.ToString());
                 return StatusCode(500, new BaseResposeDto
                 {
                     success = false,

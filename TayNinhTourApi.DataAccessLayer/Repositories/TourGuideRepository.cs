@@ -272,6 +272,17 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Get all tour guides with User information included
+        /// </summary>
+        public async Task<List<TourGuide>> GetAllWithUserAsync()
+        {
+            return await _context.TourGuides
+                .Include(tg => tg.User)
+                .Where(tg => !tg.IsDeleted)
+                .OrderBy(tg => tg.FullName)
+                .ToListAsync();
+        }
 
     }
 }

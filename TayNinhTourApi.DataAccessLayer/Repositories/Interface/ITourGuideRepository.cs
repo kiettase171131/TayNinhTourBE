@@ -118,6 +118,11 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <returns>Danh sách TourGuides available</returns>
         Task<IEnumerable<TourGuide>> GetAvailableTourGuidesAsync();
 
+        /// <summary>
+        /// Get all tour guides with User information included
+        /// </summary>
+        /// <returns>List of tour guides with User navigation property loaded</returns>
+        Task<List<TourGuide>> GetAllWithUserAsync();
 
     }
 

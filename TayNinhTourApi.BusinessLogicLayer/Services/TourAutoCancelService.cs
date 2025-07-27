@@ -118,15 +118,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         private async Task ProcessTourBatchForCancellationAsync(
-            IEnumerable<dynamic> tourBatch, 
-            DateTime twoDaysFromNow, 
+            IEnumerable<object> tourBatch,
+            DateTime twoDaysFromNow,
             DateTime currentTime,
-            IServiceProvider serviceProvider, 
+            IServiceProvider serviceProvider,
             CancellationToken cancellationToken)
         {
             var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
-            
-            var tourIds = tourBatch.Select(t => (int)t.Id).ToList();
+
+            var tourIds = tourBatch.Cast<dynamic>().Select(t => (Guid)t.Id).ToList();
             
             // Get tour operations with minimal data first
             var tours = await unitOfWork.TourOperationRepository.GetQueryable()
@@ -255,7 +255,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     .Where(s => s.TourDetailsId == tourOperation.TourDetailsId)
                     .Select(s => s.TourDate.ToDateTime(TimeOnly.MinValue))
                     .OrderBy(d => d)
-                    .FirstOrDefaultAsync(cancellationToken) ?? DateTime.UtcNow;
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (tourStartDate == default(DateTime))
+                {
+                    tourStartDate = DateTime.UtcNow;
+                }
 
                 await notificationService.NotifyTourCancellationAsync(
                     tourOperation.CreatedById,
@@ -325,7 +330,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         private async Task ProcessTourBatchForRevenueTransferAsync(
-            IEnumerable<dynamic> tourBatch,
+            IEnumerable<object> tourBatch,
             DateTime threeDaysAgo,
             IServiceProvider serviceProvider,
             CancellationToken cancellationToken)
@@ -334,15 +339,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var revenueService = serviceProvider.GetRequiredService<ITourRevenueService>();
             var notificationService = serviceProvider.GetRequiredService<ITourCompanyNotificationService>();
 
-            foreach (var tour in tourBatch)
+            foreach (var tourObj in tourBatch)
             {
                 if (cancellationToken.IsCancellationRequested) break;
 
                 try
                 {
+                    dynamic tour = tourObj;
+                    var tourDetailsId = (Guid)tour.TourDetailsId;
+                    var tourId = (Guid)tour.Id;
+                    var createdById = (Guid)tour.CreatedById;
+
                     // Check if tour has slots completed 3 days ago
                     var hasEligibleSlots = await unitOfWork.TourSlotRepository.GetQueryable()
-                        .Where(s => s.TourDetailsId == (int)tour.TourDetailsId)
+                        .Where(s => s.TourDetailsId == tourDetailsId)
                         .Where(s => s.TourDate.ToDateTime(TimeOnly.MinValue) <= threeDaysAgo)
                         .AnyAsync(cancellationToken);
 
@@ -350,13 +360,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     // Get tour details separately
                     var tourDetails = await unitOfWork.TourDetailsRepository.GetQueryable()
-                        .Where(td => td.Id == (int)tour.TourDetailsId)
+                        .Where(td => td.Id == tourDetailsId)
                         .FirstOrDefaultAsync(cancellationToken);
 
                     // Tính tổng tiền từ các bookings confirmed của tour này
                     var confirmedBookings = await unitOfWork.TourBookingRepository.GetQueryable()
-                        .Where(b => b.TourOperationId == (int)tour.Id && 
-                                   b.Status == BookingStatus.Confirmed && 
+                        .Where(b => b.TourOperationId == tourId &&
+                                   b.Status == BookingStatus.Confirmed &&
                                    !b.IsDeleted)
                         .Select(b => b.TotalPrice)
                         .ToListAsync(cancellationToken);
@@ -364,13 +374,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     if (!confirmedBookings.Any()) continue;
 
                     var totalBookingAmount = confirmedBookings.Sum();
-                    
+
                     // Get tour completion date separately
                     var tourCompletedDate = await unitOfWork.TourSlotRepository.GetQueryable()
-                        .Where(s => s.TourDetailsId == (int)tour.TourDetailsId)
+                        .Where(s => s.TourDetailsId == tourDetailsId)
                         .Select(s => s.TourDate.ToDateTime(TimeOnly.MinValue))
                         .OrderByDescending(d => d)
-                        .FirstOrDefaultAsync(cancellationToken) ?? DateTime.UtcNow;
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    if (tourCompletedDate == default(DateTime))
+                    {
+                        tourCompletedDate = DateTime.UtcNow;
+                    }
 
                     // Calculate the amount in revenue hold (90% of total booking amount due to 10% commission)
                     var commissionRate = 0.10m;
@@ -378,14 +393,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     // Transfer from revenue hold to wallet (only the 90% that's actually in the hold)
                     var transferResult = await revenueService.TransferFromHoldToWalletAsync(
-                        (string)tour.CreatedById, 
+                        createdById,
                         availableAmountInHold);
 
                     if (transferResult.success)
                     {
                         // Send notification with the amount actually transferred (90% of booking)
                         await notificationService.NotifyRevenueTransferAsync(
-                            (string)tour.CreatedById,
+                            createdById,
                             availableAmountInHold,
                             tourDetails?.Title ?? "Unknown Tour",
                             tourCompletedDate);
@@ -401,7 +416,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error processing tour {TourId} for revenue transfer", tour.Id);
+                    dynamic tour = tourObj;
+                    _logger.LogError(ex, "Error processing tour {TourId} for revenue transfer", (Guid)tour.Id);
                 }
             }
         }
