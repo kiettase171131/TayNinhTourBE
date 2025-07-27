@@ -98,6 +98,15 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                               && !i.IsDeleted);
         }
 
+        public async Task<bool> HasRejectedInvitationAsync(Guid tourDetailsId, Guid guideId)
+        {
+            return await _context.TourGuideInvitations
+                .AnyAsync(i => i.TourDetailsId == tourDetailsId
+                              && i.GuideId == guideId
+                              && i.Status == InvitationStatus.Rejected
+                              && !i.IsDeleted);
+        }
+
         public async Task<TourGuideInvitation?> GetWithDetailsAsync(Guid id)
         {
             return await _context.TourGuideInvitations

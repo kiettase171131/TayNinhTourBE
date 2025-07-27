@@ -365,10 +365,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 3. Check existing invitation
-                var hasExisting = await _unitOfWork.TourGuideInvitationRepository
+                // 3. Check existing pending invitation
+                var hasPending = await _unitOfWork.TourGuideInvitationRepository
                     .HasPendingInvitationAsync(tourDetailsId, guideId);
-                if (hasExisting)
+                if (hasPending)
                 {
                     return new BaseResposeDto
                     {
@@ -378,7 +378,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 4. Create manual invitation
+                // 4. ✅ NEW: Check if guide has rejected invitation for this tour before
+                var hasRejected = await _unitOfWork.TourGuideInvitationRepository
+                    .HasRejectedInvitationAsync(tourDetailsId, guideId);
+                if (hasRejected)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Hướng dẫn viên này đã từ chối lời mời cho tour này trước đó. Không thể mời lại.",
+                        success = false
+                    };
+                }
+
+                // 5. Create manual invitation
                 var invitation = new TourGuideInvitation
                 {
                     Id = Guid.NewGuid(),
@@ -396,7 +409,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.TourGuideInvitationRepository.AddAsync(invitation);
                 await _unitOfWork.SaveChangesAsync();
 
-                // 5. Send invitation email
+                // 6. Send invitation email
                 try
                 {
                     await _emailSender.SendTourGuideInvitationAsync(
@@ -1279,7 +1292,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Cập nhật TourDetails status sau khi guide accept invitation
+        /// Cập nhật TourDetails status sau khi guide accept lời mời
         /// </summary>
         /// <param name="tourDetailsId">ID của TourDetails</param>
         /// <param name="acceptedInvitationId">ID của invitation được accept</param>

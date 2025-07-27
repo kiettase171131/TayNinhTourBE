@@ -53,6 +53,14 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<bool> HasPendingInvitationAsync(Guid tourDetailsId, Guid guideId);
 
         /// <summary>
+        /// Kiểm tra xem TourGuide đã từ chối lời mời cho TourDetails này trước đó chưa
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="guideId">ID của TourGuide</param>
+        /// <returns>True nếu đã có invitation bị reject</returns>
+        Task<bool> HasRejectedInvitationAsync(Guid tourDetailsId, Guid guideId);
+
+        /// <summary>
         /// Lấy invitation với đầy đủ thông tin related entities
         /// </summary>
         /// <param name="id">ID của invitation</param>

@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250724142702_Init")]
+    [Migration("20250727135354_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -2878,7 +2878,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("PhoneNumber")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("RefreshToken")
