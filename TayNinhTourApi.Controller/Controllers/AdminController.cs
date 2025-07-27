@@ -523,5 +523,27 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Debug: Test thông báo khi không tìm thấy hướng dẫn viên phù hợp
+        /// </summary>
+        [HttpPost("debug/test-no-suitable-guides-notification/{tourDetailsId:guid}")]
+        public async Task<IActionResult> DebugTestNoSuitableGuidesNotification([FromRoute] Guid tourDetailsId)
+        {
+            try
+            {
+                var result = await _invitationService.DebugTestNoSuitableGuidesNotificationAsync(tourDetailsId);
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in debug test no suitable guides notification for TourDetails {TourDetailsId}", tourDetailsId);
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi test thông báo debug"
+                });
+            }
+        }
     }
 }

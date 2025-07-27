@@ -109,5 +109,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="invitationId">ID của invitation đã được accept</param>
         /// <returns>Kết quả debug</returns>
         Task<BaseResposeDto> DebugUpdateTourOperationAsync(Guid invitationId);
+
+        /// <summary>
+        /// Debug method để test notification khi không tìm thấy guide phù hợp
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails để test</param>
+        /// <returns>Kết quả test notification</returns>
+        Task<BaseResposeDto> DebugTestNoSuitableGuidesNotificationAsync(Guid tourDetailsId);
     }
 }
