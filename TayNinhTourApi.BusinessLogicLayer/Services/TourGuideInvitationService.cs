@@ -531,46 +531,54 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 3. Check if guide has other pending invitations that might conflict
-                var otherPendingInvitations = await _unitOfWork.TourGuideInvitationRepository.ListAsync(
-                    i => i.GuideId == guideId &&
-                         i.Id != invitationId &&
-                         i.Status == InvitationStatus.Pending &&
-                         !i.IsDeleted,
-                    null);
-
-                if (otherPendingInvitations.Any())
+                // 3. ✅ NEW LOGIC: Check for template schedule conflicts BEFORE any changes
+                _logger.LogInformation("Starting template schedule conflict check for guide {GuideId} accepting TourDetails {TourDetailsId}", guideId, invitation.TourDetailsId);
+                
+                var templateConflictInfo = await CheckTemplateScheduleConflictsAsync(guideId, invitation.TourDetailsId, invitationId);
+                
+                if (templateConflictInfo.HasConflicts)
                 {
-                    _logger.LogWarning("Guide {GuideId} has {Count} other pending invitations. Expiring them to avoid conflicts.",
-                        guideId, otherPendingInvitations.Count());
-
-                    // Expire other pending invitations to avoid unique constraint conflicts
-                    foreach (var otherInvitation in otherPendingInvitations)
+                    var conflictMessages = new List<string>();
+                    
+                    foreach (var conflict in templateConflictInfo.ConflictingInvitations)
                     {
-                        otherInvitation.Status = InvitationStatus.Expired;
-                        otherInvitation.UpdatedAt = DateTime.UtcNow;
-                        await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(otherInvitation);
+                        var scheduleText = GetScheduleDayText(conflict.ScheduleDays);
+                        conflictMessages.Add($"Tour '{conflict.TourTitle}' ({scheduleText} - Tháng {conflict.Month}/{conflict.Year})");
                     }
 
-                    // Save the expired invitations first
-                    await _unitOfWork.SaveChangesAsync();
+                    var conflictMessage = $"❌ KHÔNG THỂ CHẤP NHẬN: Bạn đã đồng ý tham gia tour khác cùng thời gian biểu. ";
+                    if (templateConflictInfo.NewTemplateInfo != null)
+                    {
+                        var newScheduleText = GetScheduleDayText(templateConflictInfo.NewTemplateInfo.ScheduleDays);
+                        conflictMessage += $"Tour hiện tại: {newScheduleText} - Tháng {templateConflictInfo.NewTemplateInfo.Month}/{templateConflictInfo.NewTemplateInfo.Year}. ";
+                    }
+                    conflictMessage += $"Tour bị trùng: {string.Join("; ", conflictMessages)}. ";
+                    conflictMessage += "Vui lòng kiểm tra lại lịch của bạn.";
 
-                    _logger.LogInformation("Expired {Count} other pending invitations for guide {GuideId}",
-                        otherPendingInvitations.Count(), guideId);
+                    _logger.LogWarning("Guide {GuideId} cannot accept invitation {InvitationId} due to template schedule conflicts: {ConflictMessages}",
+                        guideId, invitationId, string.Join("; ", conflictMessages));
+
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 409, // 409 Conflict
+                        Message = conflictMessage,
+                        success = false,
+                        ValidationErrors = new List<string> { "Xung đột lịch trình template với tour đã đồng ý trước đó" }
+                    };
                 }
 
-                // 4. Try to update invitation status step by step
+                _logger.LogInformation("Guide {GuideId} has no template schedule conflicts, proceeding with acceptance", guideId);
+
+                // 4. Update invitation status
                 _logger.LogInformation("Starting invitation update process...");
 
-                // Update invitation properties
                 invitation.Status = InvitationStatus.Accepted;
                 invitation.RespondedAt = DateTime.UtcNow;
                 invitation.UpdatedAt = DateTime.UtcNow;
-                // Don't set UpdatedById for now to avoid FK issues
 
                 _logger.LogInformation("Updated invitation properties in memory");
 
-                // Try to save changes
+                // 5. Save changes
                 try
                 {
                     await _unitOfWork.TourGuideInvitationRepository.UpdateAsync(invitation);
@@ -579,7 +587,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     await _unitOfWork.SaveChangesAsync();
                     _logger.LogInformation("Called SaveChangesAsync on unit of work");
 
-                    // 5. UPDATE TOURDETAILS STATUS: Khi guide accept invitation, cập nhật TourDetails status
+                    // 6. UPDATE TOURDETAILS STATUS: Khi guide accept invitation, cập nhật TourDetails status
                     await UpdateTourDetailsStatusAfterGuideAcceptanceAsync(invitation.TourDetailsId, invitationId);
 
                     // 🔔 SEND NOTIFICATION TO TOUR COMPANY: Gửi thông báo khi guide chấp nhận lời mời
@@ -1125,12 +1133,44 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     validationErrors.Add("Lời mời đã hết hạn");
                 }
 
-                // TODO: Add more validations (conflicts, availability, etc.)
+                // ✅ NEW: Check for template schedule conflicts using the new logic
+                if (validationErrors.Count == 0) // Only check conflicts if basic validation passes
+                {
+                    _logger.LogInformation("Validating template schedule conflicts for guide {GuideId} and TourDetails {TourDetailsId}", guideId, invitation.TourDetailsId);
+
+                    var templateConflictInfo = await CheckTemplateScheduleConflictsAsync(guideId, invitation.TourDetailsId, invitationId);
+                    
+                    if (templateConflictInfo.HasConflicts)
+                    {
+                        var conflictMessages = new List<string>();
+                        
+                        foreach (var conflict in templateConflictInfo.ConflictingInvitations)
+                        {
+                            var scheduleText = GetScheduleDayText(conflict.ScheduleDays);
+                            conflictMessages.Add($"Tour '{conflict.TourTitle}' ({scheduleText} - Tháng {conflict.Month}/{conflict.Year})");
+                        }
+
+                        var conflictMessage = "Không thể chấp nhận do xung đột lịch trình template: ";
+                        if (templateConflictInfo.NewTemplateInfo != null)
+                        {
+                            var newScheduleText = GetScheduleDayText(templateConflictInfo.NewTemplateInfo.ScheduleDays);
+                            conflictMessage += $"Tour hiện tại ({newScheduleText} - Tháng {templateConflictInfo.NewTemplateInfo.Month}/{templateConflictInfo.NewTemplateInfo.Year}) ";
+                        }
+                        conflictMessage += $"trùng với: {string.Join("; ", conflictMessages)}";
+                        
+                        validationErrors.Add(conflictMessage);
+                        
+                        _logger.LogWarning("Guide {GuideId} cannot accept invitation {InvitationId} due to template schedule conflicts: {ConflictMessages}",
+                            guideId, invitationId, string.Join("; ", conflictMessages));
+                    }
+                }
 
                 return new BaseResposeDto
                 {
                     StatusCode = validationErrors.Any() ? 400 : 200,
-                    Message = validationErrors.Any() ? "Validation failed" : "Có thể chấp nhận lời mời",
+                    Message = validationErrors.Any() 
+                        ? string.Join("; ", validationErrors)
+                        : "Có thể chấp nhận lời mời",
                     success = !validationErrors.Any(),
                     ValidationErrors = validationErrors
                 };
@@ -1148,66 +1188,462 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Helper method để lấy TourGuideApplication của một user
+        /// Helper method để chuyển đổi ScheduleDay sang text tiếng Việt
         /// </summary>
-        private async Task<TourGuideApplication?> GetTourGuideApplicationAsync(Guid userId)
+        /// <param name="scheduleDay">ScheduleDay enum</param>
+        /// <returns>Text tiếng Việt</returns>
+        private string GetScheduleDayText(ScheduleDay scheduleDay)
+        {
+            return scheduleDay switch
+            {
+                ScheduleDay.Saturday => "Thứ 7",
+                ScheduleDay.Sunday => "Chủ nhật",
+                _ => scheduleDay.ToString()
+            };
+        }
+
+        /// <summary>
+        /// Helper method để lấy thông tin template của TourDetails để kiểm tra xung đột lịch trình
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <returns>Thông tin template (ScheduleDays, Month, Year)</returns>
+        private async Task<TourTemplateScheduleInfo?> GetTourTemplateScheduleInfoAsync(Guid tourDetailsId)
         {
             try
             {
-                _logger.LogInformation("Getting TourGuideApplication for user {UserId}", userId);
+                _logger.LogInformation("Getting template schedule info for TourDetails {TourDetailsId}", tourDetailsId);
 
-                // Lấy application approved mới nhất của user
-                var applications = await _unitOfWork.TourGuideApplicationRepository
-                    .GetAllAsync(app => app.UserId == userId &&
-                                       app.Status == TourGuideApplicationStatus.Approved &&
-                                       app.IsActive);
-
-                _logger.LogInformation("Found {Count} approved applications for user {UserId}", applications.Count(), userId);
-
-                var latestApplication = applications.OrderByDescending(app => app.ProcessedAt).FirstOrDefault();
-
-                if (latestApplication != null)
+                // Get TourDetails with TourTemplate
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId, new[] { "TourTemplate" });
+                if (tourDetails?.TourTemplate == null)
                 {
-                    _logger.LogInformation("Latest application for user {UserId}: Id={ApplicationId}, Skills={Skills}, Languages={Languages}",
-                        userId, latestApplication.Id, latestApplication.Skills, latestApplication.Languages);
-                }
-                else
-                {
-                    _logger.LogWarning("No approved application found for user {UserId}", userId);
+                    _logger.LogWarning("TourDetails {TourDetailsId} or its TourTemplate not found", tourDetailsId);
+                    return null;
                 }
 
-                return latestApplication;
+                var template = tourDetails.TourTemplate;
+                var scheduleInfo = new TourTemplateScheduleInfo
+                {
+                    TourDetailsId = tourDetailsId,
+                    TourTemplateId = template.Id,
+                    ScheduleDays = template.ScheduleDays,
+                    Month = template.Month,
+                    Year = template.Year,
+                    TemplateTitle = template.Title
+                };
+
+                _logger.LogInformation("Template schedule info for TourDetails {TourDetailsId}: {ScheduleDays} - Tháng {Month}/{Year} - '{TemplateTitle}'", 
+                    tourDetailsId, template.ScheduleDays, template.Month, template.Year, template.Title);
+
+                return scheduleInfo;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting TourGuideApplication for user {UserId}", userId);
+                _logger.LogError(ex, "Error getting template schedule info for TourDetails {TourDetailsId}", tourDetailsId);
                 return null;
             }
         }
 
         /// <summary>
-        /// Helper method để lấy skills string từ TourGuideApplication
-        /// Ưu tiên Skills field, fallback về Languages field
+        /// Helper method để kiểm tra xung đột lịch trình dựa trên TourTemplate (thứ, tháng, năm)
         /// </summary>
-        /// <param name="application">TourGuideApplication entity</param>
-        /// <returns>Skills string for matching</returns>
-        private static string? GetGuideSkillsString(TourGuideApplication application)
+        /// <param name="guideId">ID của guide</param>
+        /// <param name="newTourDetailsId">ID của TourDetails đang được chấp nhận</param>
+        /// <param name="currentInvitationId">ID của invitation hiện tại (để exclude)</param>
+        /// <returns>Thông tin chi tiết về xung đột</returns>
+        private async Task<TemplateScheduleConflictInfo> CheckTemplateScheduleConflictsAsync(Guid guideId, Guid newTourDetailsId, Guid currentInvitationId)
         {
-            // Priority 1: Skills field (new system)
-            if (!string.IsNullOrWhiteSpace(application.Skills))
+            try
             {
-                return application.Skills;
-            }
+                _logger.LogInformation("Checking template schedule conflicts for guide {GuideId} accepting TourDetails {TourDetailsId}", guideId, newTourDetailsId);
 
-            // Priority 2: Languages field (backward compatibility)
-            if (!string.IsNullOrWhiteSpace(application.Languages))
+                var conflictInfo = new TemplateScheduleConflictInfo();
+
+                // 1. Get template schedule info for the new TourDetails
+                var newTemplateInfo = await GetTourTemplateScheduleInfoAsync(newTourDetailsId);
+                if (newTemplateInfo == null)
+                {
+                    _logger.LogWarning("Cannot get template info for new TourDetails {TourDetailsId}", newTourDetailsId);
+                    return conflictInfo; // Cannot determine conflicts
+                }
+
+                _logger.LogInformation("New TourDetails template: {ScheduleDays} - Tháng {Month}/{Year} - '{TemplateTitle}'", 
+                    newTemplateInfo.ScheduleDays, newTemplateInfo.Month, newTemplateInfo.Year, newTemplateInfo.TemplateTitle);
+
+                // 2. Get all accepted invitations for this guide
+                var acceptedInvitations = await _unitOfWork.TourGuideInvitationRepository.ListAsync(
+                    i => i.GuideId == guideId &&
+                         i.Id != currentInvitationId &&
+                         i.Status == InvitationStatus.Accepted &&
+                         !i.IsDeleted,
+                    null);
+
+                if (!acceptedInvitations.Any())
+                {
+                    _logger.LogInformation("Guide {GuideId} has no other accepted invitations", guideId);
+                    return conflictInfo; // No conflicts
+                }
+
+                _logger.LogInformation("Guide {GuideId} has {Count} other accepted invitations to check for conflicts", guideId, acceptedInvitations.Count());
+
+                // 3. Check each accepted invitation for template schedule conflicts
+                var conflictingInvitations = new List<ConflictingTemplateInfo>();
+
+                foreach (var acceptedInvitation in acceptedInvitations)
+                {
+                    var existingTemplateInfo = await GetTourTemplateScheduleInfoAsync(acceptedInvitation.TourDetailsId);
+                    
+                    if (existingTemplateInfo == null) continue;
+
+                    _logger.LogInformation("Checking against existing invitation {InvitationId}: {ScheduleDays} - Tháng {Month}/{Year} - '{TemplateTitle}'", 
+                        acceptedInvitation.Id, existingTemplateInfo.ScheduleDays, existingTemplateInfo.Month, existingTemplateInfo.Year, existingTemplateInfo.TemplateTitle);
+
+                    // ✅ KEY LOGIC: Check if templates have same schedule (ScheduleDays, Month, Year)
+                    bool hasTemplateConflict = 
+                        newTemplateInfo.ScheduleDays == existingTemplateInfo.ScheduleDays &&
+                        newTemplateInfo.Month == existingTemplateInfo.Month &&
+                        newTemplateInfo.Year == existingTemplateInfo.Year;
+
+                    if (hasTemplateConflict)
+                    {
+                        conflictingInvitations.Add(new ConflictingTemplateInfo
+                        {
+                            InvitationId = acceptedInvitation.Id,
+                            TourDetailsId = acceptedInvitation.TourDetailsId,
+                            TourTitle = existingTemplateInfo.TemplateTitle,
+                            ScheduleDays = existingTemplateInfo.ScheduleDays,
+                            Month = existingTemplateInfo.Month,
+                            Year = existingTemplateInfo.Year
+                        });
+
+                        _logger.LogInformation("Found template schedule conflict: Guide already accepted invitation {InvitationId} for tour '{TourTitle}' with same schedule: {ScheduleDays} - Tháng {Month}/{Year}", 
+                            acceptedInvitation.Id, existingTemplateInfo.TemplateTitle, existingTemplateInfo.ScheduleDays, existingTemplateInfo.Month, existingTemplateInfo.Year);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("No template conflict with invitation {InvitationId} - different schedule", acceptedInvitation.Id);
+                    }
+                }
+
+                conflictInfo.HasConflicts = conflictingInvitations.Any();
+                conflictInfo.ConflictingInvitationsCount = conflictingInvitations.Count;
+                conflictInfo.ConflictingInvitations = conflictingInvitations;
+                conflictInfo.NewTemplateInfo = newTemplateInfo;
+
+                _logger.LogInformation("Template schedule conflict check result: HasConflicts={HasConflicts}, ConflictingCount={Count}", 
+                    conflictInfo.HasConflicts, conflictInfo.ConflictingInvitationsCount);
+
+                return conflictInfo;
+            }
+            catch (Exception ex)
             {
-                // Convert legacy languages to skills format
-                return TourGuideSkillUtility.MigrateLegacyLanguages(application.Languages);
+                _logger.LogError(ex, "Error checking template schedule conflicts for guide {GuideId} and TourDetails {TourDetailsId}", guideId, newTourDetailsId);
+                return new TemplateScheduleConflictInfo(); // Return empty info on error
             }
+        }
 
-            // Default: Vietnamese if no skills/languages specified
-            return "Vietnamese";
+        /// <summary>
+        /// Cập nhật TourDetails status sau khi guide accept lời mời
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="acceptedInvitationId">ID của invitation được accept</param>
+        private async Task UpdateTourDetailsStatusAfterGuideAcceptanceAsync(Guid tourDetailsId, Guid acceptedInvitationId)
+        {
+            try
+            {
+                _logger.LogInformation("Updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
+
+                // 1. Get TourDetails
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetails == null)
+                {
+                    _logger.LogWarning("TourDetails {TourDetailsId} not found", tourDetailsId);
+                    return;
+                }
+
+                // 2. Only update if currently AwaitingGuideAssignment
+                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                {
+                    // Update TourDetails status to WaitToPublic (guide assignment completed, waiting for tour company to activate public)
+                    tourDetails.Status = TourDetailsStatus.WaitToPublic;
+                    tourDetails.UpdatedAt = DateTime.UtcNow;
+                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+
+                    _logger.LogInformation("Updated TourDetails {TourDetailsId} status from AwaitingGuideAssignment to WaitToPublic", tourDetailsId);
+
+                    // 3. Update TourOperation with accepted guide information
+                    await UpdateTourOperationWithGuideAsync(tourDetailsId, acceptedInvitationId);
+
+                    // 4. Expire other pending invitations for this TourDetails
+                    var expiredCount = await _unitOfWork.TourGuideInvitationRepository
+                        .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitationId);
+
+                    _logger.LogInformation("Expired {Count} pending invitations for TourDetails {TourDetailsId}", expiredCount, tourDetailsId);
+
+                    // 5. Save all changes
+                    await _unitOfWork.SaveChangesAsync();
+
+                    _logger.LogInformation("Successfully updated TourDetails {TourDetailsId} status and expired pending invitations", tourDetailsId);
+                }
+                else
+                {
+                    _logger.LogInformation("TourDetails {TourDetailsId} status is {Status}, no update needed", tourDetailsId, tourDetails.Status);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
+                // Don't throw - this is a side effect, shouldn't break the main flow
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật TourOperation với thông tin guide khi invitation được accept
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="acceptedInvitationId">ID của invitation được accept</param>
+        private async Task UpdateTourOperationWithGuideAsync(Guid tourDetailsId, Guid acceptedInvitationId)
+        {
+            try
+            {
+                _logger.LogInformation("Updating TourOperation with guide info for TourDetails {TourDetailsId}", tourDetailsId);
+
+                // 1. Get the accepted invitation to get guide info
+                var acceptedInvitation = await _unitOfWork.TourGuideInvitationRepository.GetByIdAsync(acceptedInvitationId);
+                if (acceptedInvitation == null)
+                {
+                    _logger.LogWarning("Accepted invitation {InvitationId} not found", acceptedInvitationId);
+                    return;
+                }
+                _logger.LogInformation("Found accepted invitation: GuideId={GuideId}", acceptedInvitation.GuideId);
+
+                // 2. Get TourOperation for this TourDetails
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
+                if (tourOperation == null)
+                {
+                    _logger.LogWarning("TourOperation not found for TourDetails {TourDetailsId}", tourDetailsId);
+                    return;
+                }
+                _logger.LogInformation("Found TourOperation: Id={OperationId}, CurrentTourGuideId={CurrentTourGuideId}",
+                    tourOperation.Id, tourOperation.TourGuideId);
+
+                // 3. Get guide User info from TourGuide
+                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(acceptedInvitation.GuideId);
+                if (tourGuide == null)
+                {
+                    _logger.LogWarning("TourGuide {GuideId} not found", acceptedInvitation.GuideId);
+                    return;
+                }
+                _logger.LogInformation("Found TourGuide: Id={TourGuideId}, UserId={UserId}",
+                    tourGuide.Id, tourGuide.UserId);
+
+                var guideUser = await _unitOfWork.UserRepository.GetByIdAsync(tourGuide.UserId);
+                if (guideUser == null)
+                {
+                    _logger.LogWarning("Guide User {UserId} not found", tourGuide.UserId);
+                    return;
+                }
+                _logger.LogInformation("Found Guide User: Id={UserId}, Name={Name}, Email={Email}",
+                    guideUser.Id, guideUser.Name, guideUser.Email);
+
+                // 4. Update TourOperation with guide info
+                var oldTourGuideId = tourOperation.TourGuideId;
+                tourOperation.TourGuideId = tourGuide.Id; // Use TourGuide ID
+                tourOperation.UpdatedAt = DateTime.UtcNow;
+
+                _logger.LogInformation("Updating TourOperation {OperationId}: TourGuideId {OldTourGuideId} -> {NewTourGuideId} (TourGuide: {TourGuideName})",
+                    tourOperation.Id, oldTourGuideId, tourGuide.Id, tourGuide.FullName);
+
+                await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
+
+                _logger.LogInformation("Successfully updated TourOperation {OperationId} with TourGuide {TourGuideId} (User: {UserId}) for TourDetails {TourDetailsId}",
+                    tourOperation.Id, tourGuide.Id, guideUser.Id, tourDetailsId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating TourOperation with guide info for TourDetails {TourDetailsId}: {Message}. StackTrace: {StackTrace}",
+                    tourDetailsId, ex.Message, ex.StackTrace);
+                // Don't throw - this is a side effect, shouldn't break the main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi TourGuide chấp nhận lời mời
+        /// </summary>
+        private async Task NotifyTourCompanyAboutGuideAcceptanceAsync(TourGuideInvitation invitation, Guid guideId)
+        {
+            try
+            {
+                _logger.LogInformation("Sending guide acceptance notification to TourCompany for TourDetails {TourDetailsId}", invitation.TourDetailsId);
+
+                // Get TourDetails and TourGuide info
+                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(invitation.TourDetailsId);
+                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(guideId);
+
+                if (tourDetails == null || tourGuide == null)
+                {
+                    _logger.LogWarning("Cannot send guide acceptance notification - TourDetails or TourGuide not found");
+                    return;
+                }
+
+                await _notificationService.NotifyGuideAcceptanceAsync(
+                    tourDetails.CreatedById,
+                    tourDetails.Title,
+                    tourGuide.FullName,
+                    tourGuide.Email,
+                    invitation.RespondedAt ?? DateTime.UtcNow);
+
+                _logger.LogInformation("Successfully sent guide acceptance notification for TourDetails {TourDetailsId}", invitation.TourDetailsId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending guide acceptance notification for TourDetails {TourDetailsId}", invitation.TourDetailsId);
+                // Don't throw - notification failure shouldn't break main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi TourGuide từ chối lời mời
+        /// </summary>
+        private async Task NotifyTourCompanyAboutRejectionAsync(TourDetails tourDetails, TourGuide tourGuide, string? rejectionReason)
+        {
+            try
+            {
+                _logger.LogInformation("Sending rejection notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                await _notificationService.NotifyGuideRejectionAsync(
+                    tourDetails.CreatedById,
+                    tourDetails.Title,
+                    tourGuide.FullName,
+                    rejectionReason);
+
+                _logger.LogInformation("Successfully sent rejection notification for TourDetails {TourDetailsId}", tourDetails.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending rejection notification for TourDetails {TourDetailsId}", tourDetails.Id);
+                // Don't throw - notification failure shouldn't break main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi cần tìm guide thủ công (sau 24h)
+        /// </summary>
+        private async Task NotifyTourCompanyAboutManualSelectionAsync(TourDetails tourDetails, int expiredInvitationsCount)
+        {
+            try
+            {
+                _logger.LogInformation("Sending manual selection notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                await _notificationService.NotifyManualGuideSelectionNeededAsync(
+                    tourDetails.CreatedById,
+                    tourDetails.Title,
+                    expiredInvitationsCount);
+
+                _logger.LogInformation("Successfully sent manual selection notification for TourDetails {TourDetailsId}", tourDetails.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending manual selection notification for TourDetails {TourDetailsId}", tourDetails.Id);
+                // Don't throw - notification failure shouldn't break main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi tour sắp bị hủy
+        /// </summary>
+        private async Task NotifyTourCompanyAboutRiskCancellationAsync(TourDetails tourDetails, int daysUntilCancellation)
+        {
+            try
+            {
+                _logger.LogInformation("Sending risk cancellation notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                await _notificationService.NotifyTourRiskCancellationAsync(
+                    tourDetails.CreatedById,
+                    tourDetails.Title,
+                    daysUntilCancellation);
+
+                _logger.LogInformation("Successfully sent risk cancellation notification for TourDetails {TourDetailsId}", tourDetails.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending risk cancellation notification for TourDetails {TourDetailsId}", tourDetails.Id);
+                // Don't throw - notification failure shouldn't break main flow
+            }
+        }
+
+        /// <summary>
+        /// Gửi thông báo cho TourCompany khi không tìm thấy hướng dẫn viên phù hợp
+        /// </summary>
+        private async Task NotifyTourCompanyAboutNoSuitableGuidesAsync(TourDetails tourDetails)
+        {
+            try
+            {
+                _logger.LogInformation("Sending no suitable guides notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                // 🔔 Tạo in-app notification trực tiếp qua repository
+                var notification = new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = tourDetails.CreatedById,
+                    Title = "⚠️ Không tìm thấy hướng dẫn viên phù hợp",
+                    Message = $"Tour '{tourDetails.Title}' không tìm thấy hướng dẫn viên có kỹ năng phù hợp. Vui lòng vào danh sách hướng dẫn viên để tự chọn.",
+                    Type = DataAccessLayer.Enums.NotificationType.Warning,
+                    Priority = DataAccessLayer.Enums.NotificationPriority.High,
+                    Icon = "⚠️",
+                    ActionUrl = "/guides/list",
+                    ExpiresAt = DateTime.UtcNow.AddDays(7),
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+
+                await _unitOfWork.NotificationRepository.AddAsync(notification);
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Successfully created in-app notification for TourDetails {TourDetailsId}", tourDetails.Id);
+
+                // 📧 Gửi email notification
+                try
+                {
+                    var user = await _unitOfWork.UserRepository.GetByIdAsync(tourDetails.CreatedById);
+                    if (user != null)
+                    {
+                        var subject = $"Cần chọn hướng dẫn viên: Tour '{tourDetails.Title}'";
+                        var htmlBody = $@"<h2>Chào {user.Name},</h2>
+<p>Hệ thống không tìm thấy hướng dẫn viên nào có kỹ năng phù hợp với tour <strong>'{tourDetails.Title}'</strong>.</p>
+<div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
+    <h3 style='margin-top: 0; color: #856404;'>Hành động cần thực hiện:</h3>
+    <p><strong>Đăng nhập hệ thống</strong> để xem danh sách hướng dẫn viên có sẵn</p>
+    <p><strong>Chọn và mời hướng dẫn viên</strong> từ danh sách hệ thống</p>
+    <p><strong>Liên hệ trực tiếp</strong> với hướng dẫn viên để thảo luận điều kiện</p>
+    <p><strong>Xem xét điều chỉnh yêu cầu kỹ năng</strong> hoặc tăng phí để thu hút guide</p>
+</div>
+<br/>
+<p>Trân trọng,</p>
+<p>Đội ngũ Tay Ninh Tour</p>";
+
+                        await _emailSender.SendEmailAsync(user.Email, user.Name, subject, htmlBody);
+                        _logger.LogInformation("Successfully sent email notification for no suitable guides to {Email}", user.Email);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Cannot send email - User {UserId} not found", tourDetails.CreatedById);
+                    }
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Error sending email notification for no suitable guides");
+                    // Don't fail the main flow if email fails
+                }
+
+                _logger.LogInformation("Successfully sent no suitable guides notification for TourDetails {TourDetailsId}", tourDetails.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending no suitable guides notification for TourDetails {TourDetailsId}", tourDetails.Id);
+                // Don't throw - notification failure shouldn't break main flow
+            }
         }
 
         /// <summary>
@@ -1288,61 +1724,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = $"Có lỗi xảy ra: {ex.Message}",
                     success = false
                 };
-            }
-        }
-
-        /// <summary>
-        /// Cập nhật TourDetails status sau khi guide accept lời mời
-        /// </summary>
-        /// <param name="tourDetailsId">ID của TourDetails</param>
-        /// <param name="acceptedInvitationId">ID của invitation được accept</param>
-        private async Task UpdateTourDetailsStatusAfterGuideAcceptanceAsync(Guid tourDetailsId, Guid acceptedInvitationId)
-        {
-            try
-            {
-                _logger.LogInformation("Updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
-
-                // 1. Get TourDetails
-                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
-                if (tourDetails == null)
-                {
-                    _logger.LogWarning("TourDetails {TourDetailsId} not found", tourDetailsId);
-                    return;
-                }
-
-                // 2. Only update if currently AwaitingGuideAssignment
-                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
-                {
-                    // Update TourDetails status to WaitToPublic (guide assignment completed, waiting for tour company to activate public)
-                    tourDetails.Status = TourDetailsStatus.WaitToPublic;
-                    tourDetails.UpdatedAt = DateTime.UtcNow;
-                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
-
-                    _logger.LogInformation("Updated TourDetails {TourDetailsId} status from AwaitingGuideAssignment to WaitToPublic", tourDetailsId);
-
-                    // 3. Update TourOperation with accepted guide information
-                    await UpdateTourOperationWithGuideAsync(tourDetailsId, acceptedInvitationId);
-
-                    // 4. Expire other pending invitations for this TourDetails
-                    var expiredCount = await _unitOfWork.TourGuideInvitationRepository
-                        .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitationId);
-
-                    _logger.LogInformation("Expired {Count} pending invitations for TourDetails {TourDetailsId}", expiredCount, tourDetailsId);
-
-                    // 5. Save all changes
-                    await _unitOfWork.SaveChangesAsync();
-
-                    _logger.LogInformation("Successfully updated TourDetails {TourDetailsId} status and expired pending invitations", tourDetailsId);
-                }
-                else
-                {
-                    _logger.LogInformation("TourDetails {TourDetailsId} status is {Status}, no update needed", tourDetailsId, tourDetails.Status);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
-                // Don't throw - this is a side effect, shouldn't break the main flow
             }
         }
 
@@ -1432,294 +1813,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Cập nhật TourOperation với thông tin guide khi invitation được accept
-        /// </summary>
-        /// <param name="tourDetailsId">ID của TourDetails</param>
-        /// <param name="acceptedInvitationId">ID của invitation được accept</param>
-        private async Task UpdateTourOperationWithGuideAsync(Guid tourDetailsId, Guid acceptedInvitationId)
-        {
-            try
-            {
-                _logger.LogInformation("Updating TourOperation with guide info for TourDetails {TourDetailsId}", tourDetailsId);
-
-                // 1. Get the accepted invitation to get guide info
-                var acceptedInvitation = await _unitOfWork.TourGuideInvitationRepository.GetByIdAsync(acceptedInvitationId);
-                if (acceptedInvitation == null)
-                {
-                    _logger.LogWarning("Accepted invitation {InvitationId} not found", acceptedInvitationId);
-                    return;
-                }
-                _logger.LogInformation("Found accepted invitation: GuideId={GuideId}", acceptedInvitation.GuideId);
-
-                // 2. Get TourOperation for this TourDetails
-                var tourOperation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetailsId);
-                if (tourOperation == null)
-                {
-                    _logger.LogWarning("TourOperation not found for TourDetails {TourDetailsId}", tourDetailsId);
-                    return;
-                }
-                _logger.LogInformation("Found TourOperation: Id={OperationId}, CurrentTourGuideId={CurrentTourGuideId}",
-                    tourOperation.Id, tourOperation.TourGuideId);
-
-                // 3. Get guide User info from TourGuide
-                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(acceptedInvitation.GuideId);
-                if (tourGuide == null)
-                {
-                    _logger.LogWarning("TourGuide {GuideId} not found", acceptedInvitation.GuideId);
-                    return;
-                }
-                _logger.LogInformation("Found TourGuide: Id={TourGuideId}, UserId={UserId}",
-                    tourGuide.Id, tourGuide.UserId);
-
-                var guideUser = await _unitOfWork.UserRepository.GetByIdAsync(tourGuide.UserId);
-                if (guideUser == null)
-                {
-                    _logger.LogWarning("Guide User {UserId} not found", tourGuide.UserId);
-                    return;
-                }
-                _logger.LogInformation("Found Guide User: Id={UserId}, Name={Name}, Email={Email}",
-                    guideUser.Id, guideUser.Name, guideUser.Email);
-
-                // 4. Update TourOperation with guide info
-                var oldTourGuideId = tourOperation.TourGuideId;
-                tourOperation.TourGuideId = tourGuide.Id; // Use TourGuide ID
-                tourOperation.UpdatedAt = DateTime.UtcNow;
-
-                _logger.LogInformation("Updating TourOperation {OperationId}: TourGuideId {OldTourGuideId} -> {NewTourGuideId} (TourGuide: {TourGuideName})",
-                    tourOperation.Id, oldTourGuideId, tourGuide.Id, tourGuide.FullName);
-
-                await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
-
-                _logger.LogInformation("Successfully updated TourOperation {OperationId} with TourGuide {TourGuideId} (User: {UserId}) for TourDetails {TourDetailsId}",
-                    tourOperation.Id, tourGuide.Id, guideUser.Id, tourDetailsId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating TourOperation with guide info for TourDetails {TourDetailsId}: {Message}. StackTrace: {StackTrace}",
-                    tourDetailsId, ex.Message, ex.StackTrace);
-                // Don't throw - this is a side effect, shouldn't break the main flow
-            }
-        }
-
-        /// <summary>
-        /// Gửi thông báo cho TourCompany khi TourGuide từ chối lời mời
-        /// </summary>
-        private async Task NotifyTourCompanyAboutRejectionAsync(TourDetails tourDetails, TourGuide tourGuide, string? rejectionReason)
-        {
-            try
-            {
-                _logger.LogInformation("Sending rejection notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
-
-                await _notificationService.NotifyGuideRejectionAsync(
-                    tourDetails.CreatedById,
-                    tourDetails.Title,
-                    tourGuide.FullName,
-                    rejectionReason);
-
-                _logger.LogInformation("Successfully sent rejection notification for TourDetails {TourDetailsId}", tourDetails.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending rejection notification for TourDetails {TourDetailsId}", tourDetails.Id);
-                // Don't throw - notification failure shouldn't break main flow
-            }
-        }
-
-        /// <summary>
-        /// Gửi thông báo cho TourCompany khi cần tìm guide thủ công (sau 24h)
-        /// </summary>
-        private async Task NotifyTourCompanyAboutManualSelectionAsync(TourDetails tourDetails, int expiredInvitationsCount)
-        {
-            try
-            {
-                _logger.LogInformation("Sending manual selection notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
-
-                await _notificationService.NotifyManualGuideSelectionNeededAsync(
-                    tourDetails.CreatedById,
-                    tourDetails.Title,
-                    expiredInvitationsCount);
-
-                _logger.LogInformation("Successfully sent manual selection notification for TourDetails {TourDetailsId}", tourDetails.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending manual selection notification for TourDetails {TourDetailsId}", tourDetails.Id);
-                // Don't throw - notification failure shouldn't break main flow
-            }
-        }
-
-        /// <summary>
-        /// Gửi thông báo cho TourCompany khi tour sắp bị hủy
-        /// </summary>
-        private async Task NotifyTourCompanyAboutRiskCancellationAsync(TourDetails tourDetails, int daysUntilCancellation)
-        {
-            try
-            {
-                _logger.LogInformation("Sending risk cancellation notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
-
-                await _notificationService.NotifyTourRiskCancellationAsync(
-                    tourDetails.CreatedById,
-                    tourDetails.Title,
-                    daysUntilCancellation);
-
-                _logger.LogInformation("Successfully sent risk cancellation notification for TourDetails {TourDetailsId}", tourDetails.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending risk cancellation notification for TourDetails {TourDetailsId}", tourDetails.Id);
-                // Don't throw - notification failure shouldn't break main flow
-            }
-        }
-
-        /// <summary>
-        /// Gửi thông báo cho TourCompany khi TourGuide chấp nhận lời mời
-        /// </summary>
-        private async Task NotifyTourCompanyAboutGuideAcceptanceAsync(TourGuideInvitation invitation, Guid guideId)
-        {
-            try
-            {
-                _logger.LogInformation("Sending guide acceptance notification to TourCompany for TourDetails {TourDetailsId}", invitation.TourDetailsId);
-
-                // Get TourDetails and TourGuide info
-                var tourDetails = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(invitation.TourDetailsId);
-                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdAsync(guideId);
-
-                if (tourDetails == null || tourGuide == null)
-                {
-                    _logger.LogWarning("Cannot send guide acceptance notification - TourDetails or TourGuide not found");
-                    return;
-                }
-
-                await _notificationService.NotifyGuideAcceptanceAsync(
-                    tourDetails.CreatedById,
-                    tourDetails.Title,
-                    tourGuide.FullName,
-                    tourGuide.Email,
-                    invitation.RespondedAt ?? DateTime.UtcNow);
-
-                _logger.LogInformation("Successfully sent guide acceptance notification for TourDetails {TourDetailsId}", invitation.TourDetailsId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending guide acceptance notification for TourDetails {TourDetailsId}", invitation.TourDetailsId);
-                // Don't throw - notification failure shouldn't break main flow
-            }
-        }
-
-        /// <summary>
-        /// Gửi thông báo cho TourCompany khi không tìm thấy hướng dẫn viên phù hợp
-        /// </summary>
-        private async Task NotifyTourCompanyAboutNoSuitableGuidesAsync(TourDetails tourDetails)
-        {
-            try
-            {
-                _logger.LogInformation("Sending no suitable guides notification to TourCompany for TourDetails {TourDetailsId}", tourDetails.Id);
-
-                // 🔔 Tạo in-app notification trực tiếp qua repository
-                var notification = new Notification
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = tourDetails.CreatedById,
-                    Title = "⚠️ Không tìm thấy hướng dẫn viên phù hợp",
-                    Message = $"Tour '{tourDetails.Title}' không tìm thấy hướng dẫn viên có kỹ năng phù hợp. Vui lòng vào danh sách hướng dẫn viên để tự chọn.",
-                    Type = DataAccessLayer.Enums.NotificationType.Warning,
-                    Priority = DataAccessLayer.Enums.NotificationPriority.High,
-                    Icon = "⚠️",
-                    ActionUrl = "/guides/list",
-                    ExpiresAt = DateTime.UtcNow.AddDays(7),
-                    IsRead = false,
-                    CreatedAt = DateTime.UtcNow,
-                    IsActive = true
-                };
-
-                await _unitOfWork.NotificationRepository.AddAsync(notification);
-                await _unitOfWork.SaveChangesAsync();
-
-                _logger.LogInformation("Successfully created in-app notification for TourDetails {TourDetailsId}", tourDetails.Id);
-
-                // 📧 Gửi email notification
-                try
-                {
-                    var user = await _unitOfWork.UserRepository.GetByIdAsync(tourDetails.CreatedById);
-                    if (user != null)
-                    {
-                        var subject = $"Cần chọn hướng dẫn viên: Tour '{tourDetails.Title}'";
-                        var htmlBody = $@"
-                            <h2>Chào {user.Name},</h2>
-                            <p>Hệ thống không tìm thấy hướng dẫn viên nào có kỹ năng phù hợp với tour <strong>'{tourDetails.Title}'</strong>.</p>
-                            
-                            <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
-                                <h3 style='margin-top: 0; color: #856404;'>⚠️ Hành động cần thực hiện:</h3>
-                                <p><strong>Tour KHÔNG THỂ DIỄN RA nếu không có hướng dẫn viên!</strong></p>
-                                <ol>
-                                    <li><strong>Đăng nhập hệ thống</strong> để xem danh sách hướng dẫn viên có sẵn</li>
-                                    <li><strong>Chọn và mời hướng dẫn viên</strong> từ danh sách hệ thống</li>
-                                    <li><strong>Liên hệ trực tiếp</strong> với hướng dẫn viên để thảo luận điều kiện</li>
-                                    <li><strong>Xem xét điều chỉnh yêu cầu kỹ năng</strong> hoặc tăng phí để thu hút guide</li>
-                                </ol>
-                            </div>
-                            
-                            <div style='background-color: #e7f3ff; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;'>
-                                <h4 style='margin-top: 0; color: #004085;'>💡 Gợi ý tìm hướng dẫn viên:</h4>
-                                <ul>
-                                    <li>Xem danh sách <strong>tất cả hướng dẫn viên</strong> trong hệ thống</li>
-                                    <li>Lọc theo <strong>kỹ năng và ngôn ngữ</strong> gần đúng</li>
-                                    <li>Gửi lời mời đến <strong>nhiều hướng dẫn viên</strong> cùng lúc</li>
-                                    <li>Thảo luận <strong>điều kiện linh hoạt</strong> với hướng dẫn viên</li>
-                                </ul>
-                            </div>
-                            
-                            <div style='background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 15px 0;'>
-                                <h4 style='margin-top: 0; color: #155724;'>🎯 Kỹ năng tour đang yêu cầu:</h4>
-                                <p><strong>{tourDetails.SkillsRequired ?? "Không có yêu cầu cụ thể"}</strong></p>
-                                <p><em>Bạn có thể tìm hướng dẫn viên có kỹ năng tương tự hoặc liên hệ để thảo luận điều chỉnh.</em></p>
-                            </div>
-                            
-                            <div style='background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;'>
-                                <p style='margin: 0; font-weight: bold; color: #721c24;'>
-                                    ⚠️ Lưu ý: Nếu không tìm được hướng dẫn viên trong 5 ngày, tour sẽ bị hủy tự động!
-                                </p>
-                            </div>
-                            
-                            <div style='text-align: center; margin: 30px 0;'>
-                                <a href='#' style='background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; margin-right: 10px;'>
-                                    👥 Xem danh sách hướng dẫn viên
-                                </a>
-                                <a href='#' style='background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;'>
-                                    ✉️ Gửi lời mời mới
-                                </a>
-                            </div>
-                            
-                            <br/>
-                            <p>Chúng tôi tin rằng bạn sẽ tìm được hướng dẫn viên phù hợp từ danh sách hệ thống.</p>
-                            <p>📞 <strong>Cần hỗ trợ?</strong> Liên hệ hotline: 1900-xxx-xxx</p>
-                            <p>Trân trọng,</p>
-                            <p>Đội ngũ Tay Ninh Tour</p>";
-
-                        await _emailSender.SendEmailAsync(user.Email, user.Name, subject, htmlBody);
-                        _logger.LogInformation("Successfully sent email notification for no suitable guides to {Email}", user.Email);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Cannot send email - User {UserId} not found", tourDetails.CreatedById);
-                    }
-                }
-                catch (Exception emailEx)
-                {
-                    _logger.LogError(emailEx, "Error sending email notification for no suitable guides");
-                    // Don't fail the main flow if email fails
-                }
-
-                _logger.LogInformation("Successfully sent no suitable guides notification for TourDetails {TourDetailsId}", tourDetails.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending no suitable guides notification for TourDetails {TourDetailsId}", tourDetails.Id);
-                // Don't throw - notification failure shouldn't break main flow
-            }
-        }
-
-        /// <summary>
         /// Debug method để test notification khi không tìm thấy guide phù hợp
         /// </summary>
         public async Task<BaseResposeDto> DebugTestNoSuitableGuidesNotificationAsync(Guid tourDetailsId)
@@ -1760,6 +1853,43 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     success = false
                 };
             }
+        }
+
+        /// <summary>
+        /// Class để lưu thông tin schedule của TourTemplate
+        /// </summary>
+        private class TourTemplateScheduleInfo
+        {
+            public Guid TourDetailsId { get; set; }
+            public Guid TourTemplateId { get; set; }
+            public ScheduleDay ScheduleDays { get; set; }
+            public int Month { get; set; }
+            public int Year { get; set; }
+            public string TemplateTitle { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// Class để lưu thông tin về xung đột template schedule
+        /// </summary>
+        private class TemplateScheduleConflictInfo
+        {
+            public bool HasConflicts { get; set; } = false;
+            public int ConflictingInvitationsCount { get; set; } = 0;
+            public List<ConflictingTemplateInfo> ConflictingInvitations { get; set; } = new();
+            public TourTemplateScheduleInfo? NewTemplateInfo { get; set; }
+        }
+
+        /// <summary>
+        /// Class để lưu thông tin về template bị xung đột
+        /// </summary>
+        private class ConflictingTemplateInfo
+        {
+            public Guid InvitationId { get; set; }
+            public Guid TourDetailsId { get; set; }
+            public string TourTitle { get; set; } = string.Empty;
+            public ScheduleDay ScheduleDays { get; set; }
+            public int Month { get; set; }
+            public int Year { get; set; }
         }
     }
 }
