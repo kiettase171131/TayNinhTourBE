@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+Ôªøusing Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Notification;
@@ -8,8 +8,8 @@ using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 namespace TayNinhTourApi.Controller.Controllers
 {
     /// <summary>
-    /// Controller qu?n l˝ in-app notifications
-    /// Cung c?p API ?? xem, qu?n l˝ thÙng b·o trong ?ng d?ng
+    /// Controller qu?n l√Ω in-app notifications
+    /// Cung c?p API ?? xem, qu?n l√Ω th√¥ng b√°o trong ?ng d?ng
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -28,13 +28,13 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// L?y danh s·ch thÙng b·o c?a user hi?n t?i
+        /// L?y danh s√°ch th√¥ng b√°o c?a user hi?n t?i
         /// </summary>
         /// <param name="pageIndex">Trang hi?n t?i (0-based, default: 0)</param>
-        /// <param name="pageSize">KÌch th??c trang (default: 20, max: 100)</param>
-        /// <param name="isRead">L?c theo tr?ng th·i ??c (null = t?t c?)</param>
-        /// <param name="type">L?c theo lo?i thÙng b·o (null = t?t c?)</param>
-        /// <returns>Danh s·ch thÙng b·o</returns>
+        /// <param name="pageSize">K√≠ch th??c trang (default: 20, max: 100)</param>
+        /// <param name="isRead">L?c theo tr?ng th√°i ??c (null = t?t c?)</param>
+        /// <param name="type">L?c theo lo?i th√¥ng b√°o (null = t?t c?)</param>
+        /// <returns>Danh s√°ch th√¥ng b√°o</returns>
         [HttpGet]
         public async Task<ActionResult<NotificationsResponseDto>> GetMyNotifications(
             [FromQuery] int pageIndex = 0,
@@ -70,16 +70,16 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new NotificationsResponseDto
                 {
                     StatusCode = 500,
-                    Message = "CÛ l?i x?y ra khi l?y danh s·ch thÙng b·o",
+                    Message = "C√≥ l·ªói x·∫£y ra khi l·∫•y danh s√°ch th√¥ng b√°o",
                     success = false
                 });
             }
         }
 
         /// <summary>
-        /// L?y s? l??ng thÙng b·o ch?a ??c
+        /// L?y s? l??ng th√¥ng b√°o ch?a ??c
         /// </summary>
-        /// <returns>S? l??ng thÙng b·o ch?a ??c</returns>
+        /// <returns>S? l??ng th√¥ng b√°o ch?a ??c</returns>
         [HttpGet("unread-count")]
         public async Task<ActionResult<UnreadCountResponseDto>> GetUnreadCount()
         {
@@ -95,17 +95,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new UnreadCountResponseDto
                 {
                     StatusCode = 500,
-                    Message = "CÛ l?i x?y ra khi l?y s? thÙng b·o ch?a ??c",
+                    Message = "C√≥ l·ªói x·∫£y ra khi s·ªë th√¥ng b√°o ch∆∞a ƒë·ªçc",
                     success = false
                 });
             }
         }
 
         /// <summary>
-        /// ?·nh d?u thÙng b·o ?„ ??c
+        /// ?√°nh d?u th√¥ng b√°o ?√£ ??c
         /// </summary>
-        /// <param name="notificationId">ID c?a thÙng b·o</param>
-        /// <returns>K?t qu? thao t·c</returns>
+        /// <param name="notificationId">ID c?a th√¥ng b√°o</param>
+        /// <returns>K?t qu? thao t√°c</returns>
         [HttpPut("{notificationId}/read")]
         public async Task<ActionResult> MarkAsRead(Guid notificationId)
         {
@@ -124,16 +124,16 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "CÛ l?i x?y ra khi ?·nh d?u thÙng b·o ?„ ??c",
+                    Message = "C√≥ l·ªói x·∫£y ra khi ƒë√°nh d·∫•u th√¥ng b√°o ƒë√£ ƒë·ªçc",
                     success = false
                 });
             }
         }
 
         /// <summary>
-        /// ?·nh d?u t?t c? thÙng b·o ?„ ??c
+        /// ?√°nh d?u t?t c? th√¥ng b√°o ?√£ ??c
         /// </summary>
-        /// <returns>K?t qu? thao t·c</returns>
+        /// <returns>K?t qu? thao t√°c</returns>
         [HttpPut("mark-all-read")]
         public async Task<ActionResult> MarkAllAsRead()
         {
@@ -151,17 +151,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "CÛ l?i x?y ra khi ?·nh d?u t?t c? thÙng b·o ?„ ??c",
+                    Message = "C√≥ l·ªói x·∫£y ra khi ƒë√°nh d·∫•u t·∫•t c·∫£ th√¥ng b√°o ƒë√£ ƒë·ªçc",
                     success = false
                 });
             }
         }
 
         /// <summary>
-        /// XÛa thÙng b·o
+        /// X√≥a th√¥ng b√°o
         /// </summary>
-        /// <param name="notificationId">ID c?a thÙng b·o</param>
-        /// <returns>K?t qu? thao t·c</returns>
+        /// <param name="notificationId">ID c?a th√¥ng b√°o</param>
+        /// <returns>K?t qu? thao t√°c</returns>
         [HttpDelete("{notificationId}")]
         public async Task<ActionResult> DeleteNotification(Guid notificationId)
         {
@@ -180,16 +180,16 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "CÛ l?i x?y ra khi xÛa thÙng b·o",
+                    Message = "C√≥ l·ªói x·∫£y ra khi x√≥a th√¥ng b√°o",
                     success = false
                 });
             }
         }
 
         /// <summary>
-        /// L?y th?ng kÍ thÙng b·o
+        /// L?y th?ng k√™ th√¥ng b√°o
         /// </summary>
-        /// <returns>Th?ng kÍ thÙng b·o</returns>
+        /// <returns>Th?ng k√™ th√¥ng b√°o</returns>
         [HttpGet("stats")]
         public async Task<ActionResult<NotificationStatsDto>> GetNotificationStats()
         {
@@ -205,17 +205,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "CÛ l?i x?y ra khi l?y th?ng kÍ thÙng b·o",
+                    Message = "C√≥ l·ªói x·∫£y ra khi l·∫•y th·ªëng k√™ th√¥ng b√°o",
                     success = false
                 });
             }
         }
 
         /// <summary>
-        /// L?y thÙng b·o m?i nh?t (realtime polling endpoint)
+        /// L?y th√¥ng b√°o m?i nh?t (realtime polling endpoint)
         /// </summary>
         /// <param name="lastCheckTime">Th?i gian check l?n cu?i (ISO format)</param>
-        /// <returns>ThÙng b·o m?i t? th?i ?i?m lastCheckTime</returns>
+        /// <returns>Th√¥ng b√°o m?i t? th?i ?i?m lastCheckTime</returns>
         [HttpGet("latest")]
         public async Task<ActionResult<NotificationsResponseDto>> GetLatestNotifications(
             [FromQuery] DateTime? lastCheckTime = null)
@@ -255,17 +255,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new NotificationsResponseDto
                 {
                     StatusCode = 500,
-                    Message = "CÛ l?i x?y ra khi l?y thÙng b·o m?i nh?t",
+                    Message = "C√≥ l·ªói x·∫£y ra khi l·∫•y th√¥ng b√°o m·ªõi nh·∫•t",
                     success = false
                 });
             }
         }
 
         /// <summary>
-        /// Admin endpoint: T?o thÙng b·o cho user c? th?
+        /// Admin endpoint: T?o th√¥ng b√°o cho user c? th?
         /// </summary>
-        /// <param name="createDto">ThÙng tin thÙng b·o</param>
-        /// <returns>K?t qu? t?o thÙng b·o</returns>
+        /// <param name="createDto">Th√¥ng tin th√¥ng b√°o</param>
+        /// <returns>K?t qu? t?o th√¥ng b√°o</returns>
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult> CreateNotification([FromBody] CreateNotificationDto createDto)
@@ -283,7 +283,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "CÛ l?i x?y ra khi t?o thÙng b·o",
+                    Message = "C√≥ l·ªói x·∫£y ra khi t·∫°o th√¥ng b√°o",
                     success = false
                 });
             }
