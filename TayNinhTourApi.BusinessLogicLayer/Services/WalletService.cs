@@ -27,12 +27,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (tourCompany == null)
                 {
-                    return ApiResponse<TourCompanyWalletDto>.NotFound("Kh�ng t�m th?y th�ng tin c�ng ty tour. Vui l�ng li�n h? qu?n tr? vi�n.");
+                    return ApiResponse<TourCompanyWalletDto>.NotFound("Không tìm thấy thông tin công ty tour. Vui lòng liên hệ quản trị viên.");
                 }
 
                 if (!tourCompany.IsActive)
                 {
-                    return ApiResponse<TourCompanyWalletDto>.BadRequest("T�i kho?n c�ng ty tour ?� b? v� hi?u h�a.");
+                    return ApiResponse<TourCompanyWalletDto>.BadRequest("Tài khoản công ty tour đã bị vô hiệu hóa.");
                 }
 
                 var walletDto = new TourCompanyWalletDto
@@ -45,11 +45,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UpdatedAt = tourCompany.UpdatedAt ?? tourCompany.CreatedAt
                 };
 
-                return ApiResponse<TourCompanyWalletDto>.Success(walletDto, "L?y th�ng tin v� c�ng ty tour th�nh c�ng");
+                return ApiResponse<TourCompanyWalletDto>.Success(walletDto, "Lấy thông tin ví công ty tour thành công");
             }
             catch (Exception ex)
             {
-                return ApiResponse<TourCompanyWalletDto>.Error(500, $"L?i khi l?y th�ng tin v�: {ex.Message}");
+                return ApiResponse<TourCompanyWalletDto>.Error(500, $"Lỗi khi lấy thông tin ví: {ex.Message}");
             }
         }
 
@@ -64,12 +64,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (specialtyShop == null)
                 {
-                    return ApiResponse<SpecialtyShopWalletDto>.NotFound("Kh�ng t�m th?y th�ng tin shop. Vui l�ng ??ng k� l�m shop tr??c.");
+                    return ApiResponse<SpecialtyShopWalletDto>.NotFound("Không tìm thấy thông tin shop. Vui lòng đăng ký làm shop trước.");
                 }
 
                 if (!specialtyShop.IsActive)
                 {
-                    return ApiResponse<SpecialtyShopWalletDto>.BadRequest("T�i kho?n shop ?� b? v� hi?u h�a.");
+                    return ApiResponse<SpecialtyShopWalletDto>.BadRequest("Tài khoản shop đã bị vô hiệu hóa.");
                 }
 
                 var walletDto = new SpecialtyShopWalletDto
@@ -81,11 +81,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UpdatedAt = specialtyShop.UpdatedAt ?? specialtyShop.CreatedAt
                 };
 
-                return ApiResponse<SpecialtyShopWalletDto>.Success(walletDto, "L?y th�ng tin v� shop th�nh c�ng");
+                return ApiResponse<SpecialtyShopWalletDto>.Success(walletDto, "Lấy thông tin ví shop thành công");
             }
             catch (Exception ex)
             {
-                return ApiResponse<SpecialtyShopWalletDto>.Error(500, $"L?i khi l?y th�ng tin v�: {ex.Message}");
+                return ApiResponse<SpecialtyShopWalletDto>.Error(500, $"Lỗi khi lấy thông tin ví: {ex.Message}");
             }
         }
 
@@ -110,7 +110,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         UpdatedAt = tourCompany.UpdatedAt ?? tourCompany.CreatedAt
                     };
 
-                    return ApiResponse<WalletInfoDto>.Success(tourCompanyWallet, "L?y th�ng tin v� c�ng ty tour th�nh c�ng");
+                    return ApiResponse<WalletInfoDto>.Success(tourCompanyWallet, "Lấy thông tin ví công ty tour thành công");
                 }
 
                 // Ki?m tra xem user c� ph?i SpecialtyShop kh�ng
@@ -127,14 +127,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         UpdatedAt = specialtyShop.UpdatedAt ?? specialtyShop.CreatedAt
                     };
 
-                    return ApiResponse<WalletInfoDto>.Success(specialtyShopWallet, "L?y th�ng tin v� shop th�nh c�ng");
+                    return ApiResponse<WalletInfoDto>.Success(specialtyShopWallet, "Lấy thông tin ví shop thành công");
                 }
 
-                return ApiResponse<WalletInfoDto>.NotFound("B?n ch?a c� v� ti?n. Vui l�ng ??ng k� l�m c�ng ty tour ho?c shop ?? c� v�.");
+                return ApiResponse<WalletInfoDto>.NotFound("Bạn chưa có ví tiền. Vui lòng đăng ký làm công ty tour hoặc shop để có ví.");
             }
             catch (Exception ex)
             {
-                return ApiResponse<WalletInfoDto>.Error(500, $"L?i khi l?y th�ng tin v�: {ex.Message}");
+                return ApiResponse<WalletInfoDto>.Error(500, $"Lỗi khi lấy thông tin ví: {ex.Message}");
             }
         }
 
