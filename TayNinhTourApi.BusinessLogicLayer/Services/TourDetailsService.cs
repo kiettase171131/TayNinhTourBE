@@ -806,16 +806,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var originalStatus = existingDetail.Status;
 
                 // 5. Update timeline item fields if provided
-                if (!string.IsNullOrEmpty(request.Activity))
+                if (!string.IsNullOrEmpty(request.Activity)
+                    && request.Activity != timelineItem.Activity)
                 {
                     timelineItem.Activity = request.Activity;
                 }
 
+                TimeSpan? newCheckInTime = null;
                 if (!string.IsNullOrEmpty(request.CheckInTime))
                 {
                     if (TimeSpan.TryParse(request.CheckInTime, out var parsedTime))
                     {
                         timelineItem.CheckInTime = parsedTime;
+                        newCheckInTime = parsedTime;
                     }
                     else
                     {
@@ -857,7 +860,48 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 timelineItem.UpdatedAt = DateTime.UtcNow;
                 timelineItem.UpdatedById = updatedById;
 
-                // 6. BUSINESS RULE 2: Check TourDetails status and update if needed
+                // 6. NEW: Validate time chronological order if time or sort order is being updated
+                if (newCheckInTime.HasValue || request.SortOrder.HasValue)
+                {
+                    // Get all other timeline items for validation
+                    var allTimelineItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
+                        t => t.TourDetailsId == timelineItem.TourDetailsId && !t.IsDeleted && t.IsActive && t.Id != timelineItemId);
+
+                    var finalCheckInTime = newCheckInTime ?? timelineItem.CheckInTime;
+                    var finalSortOrder = request.SortOrder ?? timelineItem.SortOrder;
+
+                    // Validate chronological order with other items
+                    foreach (var otherItem in allTimelineItems)
+                    {
+                        // If updated item has a lower sort order, its time must be < other item's time
+                        if (finalSortOrder < otherItem.SortOrder && finalCheckInTime >= otherItem.CheckInTime)
+                        {
+                            return new ResponseUpdateTourDetailDto
+                            {
+                                StatusCode = 400,
+                                Message = $"Thời gian không hợp lệ: Hoạt động '{timelineItem.Activity}' (SortOrder {finalSortOrder}) có thời gian {finalCheckInTime:hh\\:mm} " +
+                                         $"phải nhỏ hơn thời gian của '{otherItem.Activity}' (SortOrder {otherItem.SortOrder}) là {otherItem.CheckInTime:hh\\:mm}. " +
+                                         $"Đây là tour du lịch trong ngày, không thể có 2 hoạt động cùng 1 khung giờ.",
+                                success = false
+                            };
+                        }
+                        
+                        // If updated item has a higher sort order, its time must be > other item's time
+                        if (finalSortOrder > otherItem.SortOrder && finalCheckInTime <= otherItem.CheckInTime)
+                        {
+                            return new ResponseUpdateTourDetailDto
+                            {
+                                StatusCode = 400,
+                                Message = $"Thời gian không hợp lệ: Hoạt động '{timelineItem.Activity}' (SortOrder {finalSortOrder}) có thời gian {finalCheckInTime:hh\\:mm} " +
+                                         $"phải lớn hơn thời gian của '{otherItem.Activity}' (SortOrder {otherItem.SortOrder}) là {otherItem.CheckInTime:hh\\:mm}. " +
+                                         $"Đây là tour du lịch trong ngày, không thể có 2 hoạt động cùng 1 khung giờ.",
+                                success = false
+                            };
+                        }
+                    }
+                }
+
+                // 7. BUSINESS RULE 2: Check TourDetails status and update if needed
                 bool tourDetailsStatusWillChange = false;
 
                 // If TourDetails status is AwaitingGuideAssignment (waiting for guide assignment) → send back to admin for approval
@@ -876,11 +920,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     await _unitOfWork.TourDetailsRepository.UpdateAsync(existingDetail);
                 }
 
-                // 7. Save timeline item changes
+                // 8. Save timeline item changes
                 await _unitOfWork.TimelineItemRepository.UpdateAsync(timelineItem);
                 await _unitOfWork.SaveChangesAsync();
 
-                // 8. Send notification if TourDetails status changed
+                // 9. Send notification if TourDetails status changed
                 if (tourDetailsStatusWillChange)
                 {
                     try
@@ -895,11 +939,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 9. Get updated TourDetails with relationships for response
+                // 10. Get updated TourDetails with relationships for response
                 var updatedDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(existingDetail.Id);
                 var tourDetailDto = _mapper.Map<TourDetailDto>(updatedDetail);
 
-                // 10. Prepare response message based on status change
+                // 11. Prepare response message based on status change
                 string message = "Cập nhật timeline item thành công";
                 if (tourDetailsStatusWillChange)
                 {
@@ -1064,18 +1108,66 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
+                // 4. Validate time format
+                if (!TimeSpan.TryParse(request.CheckInTime, out var checkInTime))
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Định dạng thời gian không hợp lệ",
+                        success = false
+                    };
+                }
+
+                // 5. Get existing timeline items for validation
+                var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
+                    t => t.TourDetailsId == request.TourDetailsId && !t.IsDeleted && t.IsActive);
+
+                // 6. NEW: Validate time chronological order based on sort order
+                int newSortOrder = request.SortOrder ?? await GetNextSortOrderAsync(request.TourDetailsId);
+                
+                // Check if there are existing items that would conflict with time order
+                foreach (var existingItem in existingItems)
+                {
+                    // If new item has a lower sort order, its time must be < existing item's time
+                    if (newSortOrder < existingItem.SortOrder && checkInTime >= existingItem.CheckInTime)
+                    {
+                        return new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = $"Thời gian không hợp lệ: Hoạt động '{request.Activity}' (SortOrder {newSortOrder}) có thời gian {checkInTime:hh\\:mm} " +
+                                     $"phải nhỏ hơn thời gian của '{existingItem.Activity}' (SortOrder {existingItem.SortOrder}) là {existingItem.CheckInTime:hh\\:mm}. " +
+                                     $"Đây là tour du lịch trong ngày, không thể có 2 hoạt động cùng 1 khung giờ.",
+                            success = false
+                        };
+                    }
+                    
+                    // If new item has a higher sort order, its time must be > existing item's time
+                    if (newSortOrder > existingItem.SortOrder && checkInTime <= existingItem.CheckInTime)
+                    {
+                        return new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = $"Thời gian không hợp lệ: Hoạt động '{request.Activity}' (SortOrder {newSortOrder}) có thời gian {checkInTime:hh\\:mm} " +
+                                     $"phải lớn hơn thời gian của '{existingItem.Activity}' (SortOrder {existingItem.SortOrder}) là {existingItem.CheckInTime:hh\\:mm}. " +
+                                     $"Đây là tour du lịch trong ngày, không thể có 2 hoạt động cùng 1 khung giờ.",
+                            success = false
+                        };
+                    }
+                }
+
                 // Store original status for logic check
                 var originalStatus = tourDetails.Status;
 
-                // 4. Create new timeline item
+                // 7. Create new timeline item
                 var timelineItem = new TimelineItem
                 {
                     Id = Guid.NewGuid(),
                     TourDetailsId = request.TourDetailsId,
-                    CheckInTime = TimeSpan.Parse(request.CheckInTime),
+                    CheckInTime = checkInTime,
                     Activity = request.Activity,
                     SpecialtyShopId = request.SpecialtyShopId,
-                    SortOrder = request.SortOrder ?? await GetNextSortOrderAsync(request.TourDetailsId),
+                    SortOrder = newSortOrder,
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     CreatedById = createdById
@@ -1083,7 +1175,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.TimelineItemRepository.AddAsync(timelineItem);
 
-                // 5. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
+                // 8. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
                 bool tourDetailsStatusChanged = false;
 
                 // Always set status to Pending when adding new timeline item (regardless of current status)
@@ -1099,10 +1191,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Update TourDetails in database
                 await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
 
-                // 6. Save all changes
+                // 9. Save all changes
                 await _unitOfWork.SaveChangesAsync();
 
-                // 7. Send notification if TourDetails status changed
+                // 10. Send notification if TourDetails status changed
                 if (tourDetailsStatusChanged)
                 {
                     try
@@ -1117,7 +1209,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 8. Prepare response message based on status change
+                // 11. Prepare response message based on status change
                 string message = "Tạo timeline item thành công";
                 if (tourDetailsStatusChanged)
                 {
@@ -1471,7 +1563,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // 5. Get existing timeline items and check for conflicts
                 var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
-                    t => t.TourDetailsId == request.TourDetailsId);
+                    t => t.TourDetailsId == request.TourDetailsId && !t.IsDeleted);
                 var existingSortOrders = existingItems.Select(t => t.SortOrder).ToHashSet();
 
                 var conflictingSortOrders = requestSortOrders
@@ -1489,6 +1581,73 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
+                // 6. NEW: Validate time chronological order based on sort order
+                var timeValidationErrors = new List<string>();
+                
+                // Create a combined list of existing and new timeline items for validation
+                var allTimelineItems = new List<(int SortOrder, TimeSpan CheckInTime, string Activity)>();
+                
+                // Add existing items
+                foreach (var existingItem in existingItems.Where(t => t.IsActive))
+                {
+                    allTimelineItems.Add((existingItem.SortOrder, existingItem.CheckInTime, existingItem.Activity));
+                }
+
+                // Add new items from request (validate time format first)
+                var validNewItems = new List<(int SortOrder, TimeSpan CheckInTime, string Activity)>();
+                foreach (var newItem in request.TimelineItems)
+                {
+                    if (!TimeSpan.TryParse(newItem.CheckInTime, out var checkInTime))
+                    {
+                        timeValidationErrors.Add($"Định dạng thời gian không hợp lệ cho hoạt động '{newItem.Activity}': {newItem.CheckInTime}");
+                        continue;
+                    }
+
+                    int sortOrder = newItem.SortOrder.HasValue ? newItem.SortOrder.Value : (existingItems.Any() ? existingItems.Max(t => t.SortOrder) + validNewItems.Count + 1 : validNewItems.Count + 1);
+                    validNewItems.Add((sortOrder, checkInTime, newItem.Activity));
+                    allTimelineItems.Add((sortOrder, checkInTime, newItem.Activity));
+                }
+
+                if (timeValidationErrors.Any())
+                {
+                    return new ResponseCreateTimelineItemsDto
+                    {
+                        StatusCode = 400,
+                        Message = "Có lỗi định dạng thời gian",
+                        success = false,
+                        Errors = timeValidationErrors
+                    };
+                }
+
+                // Sort all items by sort order and validate chronological order
+                var sortedItems = allTimelineItems.OrderBy(item => item.SortOrder).ToList();
+                
+                for (int i = 1; i < sortedItems.Count; i++)
+                {
+                    var previousItem = sortedItems[i - 1];
+                    var currentItem = sortedItems[i];
+                    
+                    // Check if current time is strictly greater than previous time (no equal times allowed)
+                    if (currentItem.CheckInTime <= previousItem.CheckInTime)
+                    {
+                        timeValidationErrors.Add(
+                            $"Thời gian không hợp lệ: Hoạt động '{currentItem.Activity}' (SortOrder {currentItem.SortOrder}) có thời gian {currentItem.CheckInTime:hh\\:mm} " +
+                            $"phải lớn hơn thời gian của '{previousItem.Activity}' (SortOrder {previousItem.SortOrder}) là {previousItem.CheckInTime:hh\\:mm}. " +
+                            $"Đây là tour du lịch trong ngày, không thể có 2 hoạt động cùng 1 khung giờ.");
+                    }
+                }
+
+                if (timeValidationErrors.Any())
+                {
+                    return new ResponseCreateTimelineItemsDto
+                    {
+                        StatusCode = 400,
+                        Message = "Thứ tự thời gian timeline không hợp lệ",
+                        success = false,
+                        Errors = timeValidationErrors
+                    };
+                }
+
                 var createdItems = new List<TimelineItemDto>();
                 var errors = new List<string>();
                 int successCount = 0;
@@ -1499,12 +1658,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Store original status for logic check
                 var originalStatus = tourDetails.Status;
 
-                // 6. Create timeline items
+                // 7. Create timeline items
                 foreach (var itemRequest in request.TimelineItems)
                 {
                     try
                     {
-                        // Validate time format
+                        // Validate time format (already done above, but keeping for safety)
                         if (!TimeSpan.TryParse(itemRequest.CheckInTime, out var checkInTime))
                         {
                             errors.Add($"Định dạng thời gian không hợp lệ: {itemRequest.CheckInTime}");
@@ -1520,7 +1679,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             CheckInTime = checkInTime,
                             Activity = itemRequest.Activity,
                             SpecialtyShopId = itemRequest.SpecialtyShopId,
-                            SortOrder = itemRequest.SortOrder.HasValue ? itemRequest.SortOrder.Value : (++currentMaxSortOrder),
+                            SortOrder = itemRequest.SortOrder.HasValue ? itemRequest.SortOrder.Value : (existingItems.Any() ? existingItems.Max(t => t.SortOrder) + validNewItems.Count + 1 : validNewItems.Count + 1),
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,
                             CreatedById = createdById
@@ -1542,31 +1701,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 7. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
+                // 8. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
                 bool tourDetailsStatusChanged = false;
-                if (successCount > 0)
-                {
-                    // Always set status to Pending when adding new timeline items (regardless of current status)
-                    tourDetails.Status = TourDetailsStatus.Pending;
-                    tourDetails.CommentApproved = null; // Clear previous admin comment
-                    tourDetails.UpdatedAt = DateTime.UtcNow;
-                    tourDetails.UpdatedById = createdById;
-                    
-                    tourDetailsStatusChanged = true;
-                    _logger.LogInformation("TourDetails {TourDetailsId} status changed from {OriginalStatus} to Pending due to new timeline items added", 
-                        tourDetails.Id, originalStatus);
-                    
-                    // Update TourDetails in database
-                    await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
-                }
 
-                // 8. Save all changes
+                // Always set status to Pending when adding new timeline items (regardless of current status)
+                tourDetails.Status = TourDetailsStatus.Pending;
+                tourDetails.CommentApproved = null; // Clear previous admin comment
+                tourDetails.UpdatedAt = DateTime.UtcNow;
+                tourDetails.UpdatedById = createdById;
+                
+                tourDetailsStatusChanged = true;
+                _logger.LogInformation("TourDetails {TourDetailsId} status changed from {OriginalStatus} to Pending due to new timeline items added", 
+                    tourDetails.Id, originalStatus);
+                
+                // Update TourDetails in database
+                await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
+
+                // 9. Save all changes
                 if (successCount > 0)
                 {
                     await _unitOfWork.SaveChangesAsync();
                 }
 
-                // 9. Send notification if TourDetails status changed
+                // 10. Send notification if TourDetails status changed
                 if (tourDetailsStatusChanged)
                 {
                     try
@@ -1581,7 +1738,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 10. Prepare response message based on status change
+                // 11. Prepare response message based on status change
                 string message = $"Tạo thành công {successCount}/{request.TimelineItems.Count} timeline items";
                 if (tourDetailsStatusChanged)
                 {
@@ -1842,7 +1999,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     StatusCode = 200,
                     Message = "Lấy trạng thái phân công guide thành công",
                     success = true
-                    // Note: Data property not available in BaseResposeDto, will be included in response
                 };
             }
             catch (Exception ex)
@@ -1907,8 +2063,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     _logger.LogError(serviceEx, "Error using TourGuideInvitationService for manual invitation");
                     
-                    return new BaseResposeDto
-                    {
+                    return new BaseResposeDto {
                         StatusCode = 500,
                         Message = "Có lỗi xảy ra khi xử lý lời mời",
                         success = false
@@ -2016,7 +2171,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (result.success)
                 {
-                    _logger.LogInformation("Successfully triggered automatic guide invitations for TourDetails {TourDetailsId}: {Message}", 
+                    _logger.LogInformation("Successfully triggered automatic guide invitations for TourDetails {TourDetailsId}: {Message}",
                         tourDetails.Id, result.Message);
 
                     // Send notification to TourCompany about approval and guide invitations
