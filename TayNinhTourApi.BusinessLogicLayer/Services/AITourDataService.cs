@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service cung c?p th�ng tin tour cho AI Chatbot
+    /// Service cung c?p thông tin tour cho AI Chatbot
     /// </summary>
     public class AITourDataService : IAITourDataService
     {
@@ -137,7 +137,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 SkillsRequired = !string.IsNullOrEmpty(tourDetail?.SkillsRequired) 
                     ? tourDetail.SkillsRequired.Split(',').Select(s => s.Trim()).ToList()
                     : new List<string>(),
-                NextAvailableDate = DateTime.Now.AddDays(1), // Placeholder - c� th? c?i thi?n b?ng c�ch check TourSlots
+                NextAvailableDate = DateTime.Now.AddDays(1), // Placeholder - có th? c?i thi?n b?ng cách check TourSlots
                 Highlights = GenerateTourHighlights(tour)
             };
         }
@@ -146,35 +146,36 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var highlights = new List<string>();
 
-            // Th�m highlights d?a tr�n th�ng tin tour
+            // Thêm highlights d?a trên thông tin tour
             if (tour.TemplateType == TourTemplateType.FreeScenic)
             {
-                highlights.Add("Tour danh lam th?ng c?nh - kh�ng t?n v� v�o c?a");
-                highlights.Add("Ph� d?ch v? bao g?m guide, xe, coordination");
+                highlights.Add("Tour danh lam thắng cảnh - không tốn vé vào cửa");
+                highlights.Add("Phí dịch vụ bao gồm guide, xe, coordination");
             }
             else if (tour.TemplateType == TourTemplateType.PaidAttraction)
             {
-                highlights.Add("Tour khu vui ch?i - ph� d?ch v? + v� v�o c?a");
-                highlights.Add("Tr?i nghi?m ??y ?? v?i h??ng d?n vi�n");
+                highlights.Add("Tour khu vui chơi - phí dịch vụ + vé vào cửa");
+                highlights.Add("Trải nghiệm đầy đủ với hướng dẫn viên");
             }
 
-            if (tour.StartLocation.Contains("TP.HCM") || tour.StartLocation.Contains("H? Ch� Minh"))
+            if (tour.StartLocation.Contains("TP.HCM") || tour.StartLocation.Contains("Hồ Chí Minh"))
             {
-                highlights.Add("Kh?i h�nh t? TP.HCM thu?n ti?n");
+                highlights.Add("Khởi hành từ TP.HCM thuận tiện");
             }
 
-            if (tour.EndLocation.Contains("N�i B� ?en"))
+            if (tour.EndLocation.Contains("Núi Bà Đen"))
             {
-                highlights.Add("Kh�m ph� ng?n n�i cao nh?t Nam B?");
-                highlights.Add("Tr?i nghi?m c�p treo hi?n ??i");
-                highlights.Add("Th?m c�c ng�i ch�a linh thi�ng");
+                highlights.Add("Khám phá ngọn núi cao nhất Nam Bộ");
+                highlights.Add("Trải nghiệm cáp treo hiện đại");
+                highlights.Add("Thăm các ngôi chùa linh thiêng");
             }
 
-            if (tour.EndLocation.Contains("T�y Ninh"))
+            if (tour.EndLocation.Contains("Tây Ninh"))
             {
-                highlights.Add("T�m hi?u v?n h�a t�m linh ??c ?�o");
-                highlights.Add("Th??ng th?c ?m th?c ??a ph??ng");
+                highlights.Add("Tìm hiểu văn hóa tâm linh độc đáo");
+                highlights.Add("Thưởng thức ẩm thực địa phương");
             }
+
 
             return highlights;
         }
