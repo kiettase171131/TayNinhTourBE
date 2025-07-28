@@ -1,4 +1,4 @@
-using System.Diagnostics;
+ï»¿using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -11,7 +11,7 @@ using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service ?? tích h?p v?i Gemini AI API v?i rate limiting và caching
+    /// Service ?? tÃ­ch h?p v?i Gemini AI API v?i rate limiting vÃ  caching
     /// </summary>
     public class GeminiAIService : IGeminiAIService
     {
@@ -39,7 +39,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var stopwatch = Stopwatch.StartNew();
 
-            // T?o cache key t? prompt và conversation history
+            // T?o cache key t? prompt vÃ  conversation history
             var cacheKey = GenerateCacheKey(prompt, conversationHistory);
             
             // Ki?m tra cache tr??c
@@ -80,7 +80,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             }
 
-            // Enrich prompt v?i thông tin tour n?u có t? khóa liên quan
+            // Enrich prompt v?i thÃ´ng tin tour n?u cÃ³ t? khÃ³a liÃªn quan
             var enrichedPrompt = await EnrichPromptWithTourDataAsync(prompt);
 
             // Ch? th? 1 l?n ?? ti?t ki?m quota
@@ -96,7 +96,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         QuotaTracker.RecordRequest(_geminiSettings.ApiKey);
                     }
 
-                    // T?o request payload v?i c?u hình t?i ?u
+                    // T?o request payload v?i c?u hÃ¬nh t?i ?u
                     var requestPayload = CreateRequestPayload(enrichedPrompt, conversationHistory);
                     var jsonPayload = JsonSerializer.Serialize(requestPayload, new JsonSerializerOptions
                     {
@@ -194,21 +194,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         _logger.LogWarning("? Attempt {Attempt}: Gemini API failed. Status: {Status}, Response: {Response}",
                             attempt, response.StatusCode, responseContent.Substring(0, Math.Min(500, responseContent.Length)));
 
-                        // N?u là 429 (rate limit), không retry - dùng fallback ngay
+                        // N?u lÃ  429 (rate limit), khÃ´ng retry - dÃ¹ng fallback ngay
                         if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                         {
                             _logger.LogError("?? QUOTA EXCEEDED! Using fallback response.");
                             return await CreateFallbackResponseAsync(prompt, stopwatch, "Quota exceeded - API returned 429");
                         }
 
-                        // N?u là 503 (overload), fail nhanh và dùng fallback
+                        // N?u lÃ  503 (overload), fail nhanh vÃ  dÃ¹ng fallback
                         if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
                         {
                             _logger.LogWarning("Model overloaded (503), using fallback immediately");
                             return await CreateFallbackResponseAsync(prompt, stopwatch, "Gemini API is overloaded");
                         }
 
-                        // Không retry cho các l?i khác ?? ti?t ki?m quota
+                        // KhÃ´ng retry cho cÃ¡c l?i khÃ¡c ?? ti?t ki?m quota
                         return await CreateFallbackResponseAsync(prompt, stopwatch, $"API request failed: {response.StatusCode}");
                     }
                 }
@@ -224,7 +224,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             }
 
-            // Fallback cu?i cùng
+            // Fallback cu?i cÃ¹ng
             return await CreateFallbackResponseAsync(prompt, stopwatch, $"Gemini API failed after {_geminiSettings.MaxRetries} attempts");
         }
 
@@ -232,7 +232,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                var titlePrompt = $"T?o tiêu ?? ng?n cho: {firstMessage}";
+                var titlePrompt = $"Táº¡o tiÃªu Ä‘á» ngáº¯n cho: {firstMessage}";
 
                 var response = await GenerateContentAsync(titlePrompt);
 
@@ -284,87 +284,89 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 var lowerPrompt = prompt.ToLower();
 
-                // Ki?m tra t? khóa liên quan ??n tour
-                var tourKeywords = new[] { "tour", "du l?ch", "núi bà ?en", "tây ninh", "giá", "booking", "??t tour", "?i du l?ch" };
+                // Ki?m tra t? khÃ³a liÃªn quan ??n tour
+                var tourKeywords = new[] { "tour", "du lá»‹ch", "nÃºi bÃ  Ä‘en", "tÃ¢y ninh", "giÃ¡", "booking", "Ä‘áº·t tour", "Ä‘i du lá»‹ch" };
 
                 if (!tourKeywords.Any(keyword => lowerPrompt.Contains(keyword)))
                 {
-                    return prompt; // Không liên quan ??n tour
+                    return prompt; // KhÃ´ng liÃªn quan ??n tour
                 }
 
                 var tourData = new StringBuilder();
 
-                // L?y thông tin tours ph? bi?n
-                if (lowerPrompt.Contains("tour") || lowerPrompt.Contains("du l?ch"))
+                // L?y thÃ´ng tin tours ph? bi?n
+                if (lowerPrompt.Contains("tour") || lowerPrompt.Contains("du lá»‹ch"))
                 {
                     var availableTours = await _tourDataService.GetAvailableToursAsync(5);
                     if (availableTours.Any())
                     {
-                        tourData.AppendLine("\n=== THÔNG TIN TOURS HI?N CÓ ===");
+                        tourData.AppendLine("\n=== THÃ”NG TIN TOURS HIá»†N CÃ“ ===");
                         foreach (var tour in availableTours)
                         {
-                            tourData.AppendLine($"• {tour.Title}");
-                            tourData.AppendLine($"  - T?: {tour.StartLocation} ??n {tour.EndLocation}");
-                            tourData.AppendLine($"  - Phí d?ch v?: {tour.Price:N0} VN?");
-                            tourData.AppendLine($"  - Ch? tr?ng: {tour.AvailableSlots}/{tour.MaxGuests}");
-                            tourData.AppendLine($"  - Lo?i: {tour.TourType}");
+                            tourData.AppendLine($"â€¢ {tour.Title}");
+                            tourData.AppendLine($"  - Tá»«: {tour.StartLocation} Ä‘áº¿n {tour.EndLocation}");
+                            tourData.AppendLine($"  - PhÃ­ dá»‹ch vá»¥: {tour.Price:N0} VNÄ");
+                            tourData.AppendLine($"  - Chá»— trá»‘ng: {tour.AvailableSlots}/{tour.MaxGuests}");
+                            tourData.AppendLine($"  - Loáº¡i: {tour.TourType}");
 
                             if (tour.TourType == "FreeScenic")
                             {
-                                tourData.AppendLine($"  - Ghi chú: Ch? phí d?ch v?, không t?n vé vào c?a");
+                                tourData.AppendLine($"  - Ghi chÃº: Chá»‰ phÃ­ dá»‹ch vá»¥, khÃ´ng tá»‘n vÃ© vÃ o cá»­a");
                             }
                             else if (tour.TourType == "PaidAttraction")
                             {
-                                tourData.AppendLine($"  - Ghi chú: Phí d?ch v? + vé vào c?a ??a ?i?m");
+                                tourData.AppendLine($"  - Ghi chÃº: PhÃ­ dá»‹ch vá»¥ + vÃ© vÃ o cá»­a Ä‘á»‹a Ä‘iá»ƒm");
                             }
 
                             if (tour.Highlights.Any())
                             {
-                                tourData.AppendLine($"  - ?i?m n?i b?t: {string.Join(", ", tour.Highlights.Take(2))}");
+                                tourData.AppendLine($"  - Äiá»ƒm ná»•i báº­t: {string.Join(", ", tour.Highlights.Take(2))}");
                             }
                             tourData.AppendLine();
+
                         }
                     }
                 }
 
-                // Tìm ki?m c? th?
-                if (lowerPrompt.Contains("núi bà ?en"))
+                // TÃ¬m ki?m c? th?
+                if (lowerPrompt.Contains("nÃºi bÃ  Ä‘en"))
                 {
-                    var nuiBaDenTours = await _tourDataService.SearchToursAsync("Núi Bà ?en", 3);
+                    var nuiBaDenTours = await _tourDataService.SearchToursAsync("NÃºi BÃ  Äen", 3);
                     if (nuiBaDenTours.Any())
                     {
-                        tourData.AppendLine("\n=== TOURS NÚI BÀ ?EN ===");
+                        tourData.AppendLine("\n=== TOURS NÃšI BÃ€ ÄEN ===");
                         foreach (var tour in nuiBaDenTours)
                         {
-                            tourData.AppendLine($"• {tour.Title} - {tour.Price:N0} VN? (phí d?ch v?)");
+                            tourData.AppendLine($"â€¢ {tour.Title} - {tour.Price:N0} VN? (phÃ­ dá»‹ch vá»¥)");
                         }
                     }
                 }
 
-                // Tìm theo giá n?u có t? khóa v? giá
-                if (lowerPrompt.Contains("r?") || lowerPrompt.Contains("ti?t ki?m"))
+                // TÃ¬m theo giÃ¡ n?u cÃ³ t? khÃ³a v? giÃ¡
+                if (lowerPrompt.Contains("ráº»") || lowerPrompt.Contains("tiáº¿t kiá»‡m"))
                 {
                     var cheapTours = await _tourDataService.GetToursByPriceRangeAsync(0, 300000, 3);
                     if (cheapTours.Any())
                     {
-                        tourData.AppendLine("\n=== TOURS PHÍ D?CH V? H?P Lİ ===");
+                        tourData.AppendLine("\n=== TOURS PHÃ Dá»ŠCH Vá»¤ Há»¢P LÃ ===");
                         foreach (var tour in cheapTours)
                         {
-                            tourData.AppendLine($"• {tour.Title} - {tour.Price:N0} VN?");
+                            tourData.AppendLine($"â€¢ {tour.Title} - {tour.Price:N0} VNÄ");
                             if (tour.TourType == "FreeScenic")
                             {
-                                tourData.AppendLine($"  (Không t?n vé vào c?a, ch? phí d?ch v?)");
+                                tourData.AppendLine($"  (KhÃ´ng tá»‘n vÃ© vÃ o cá»­a, chá»‰ phÃ­ dá»‹ch vá»¥)");
                             }
                         }
                     }
                 }
+
 
                 return prompt + tourData.ToString();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error enriching prompt with tour data");
-                return prompt; // Tr? v? prompt g?c n?u có l?i
+                return prompt; // Tr? v? prompt g?c n?u cÃ³ l?i
             }
         }
 
@@ -391,29 +393,30 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var lowerPrompt = prompt.ToLower();
 
-            // Fallback cho bánh tráng Tây Ninh
-            if (lowerPrompt.Contains("bánh tráng") || lowerPrompt.Contains("banh trang"))
+            // Fallback cho bÃ¡nh trÃ¡ng TÃ¢y Ninh
+            if (lowerPrompt.Contains("bÃ¡nh trÃ¡ng") || lowerPrompt.Contains("banh trang"))
             {
-                if (lowerPrompt.Contains("giá") || lowerPrompt.Contains("bao nhiêu"))
+                if (lowerPrompt.Contains("giÃ¡") || lowerPrompt.Contains("bao nhiÃªu"))
                 {
-                    return "Bánh tráng Tr?ng Bàng Tây Ninh có giá kho?ng 15.000-25.000 VN?/kg tùy lo?i. " +
-                           "Bánh tráng n??ng mu?i tôm kho?ng 5.000-10.000 VN?/cái. " +
-                           "Các tour c?a chúng tôi th??ng ghé mua bánh tráng làm quà!";
+                    return "BÃ¡nh trÃ¡ng Tráº£ng BÃ ng TÃ¢y Ninh cÃ³ giÃ¡ khoáº£ng 15.000-25.000 VNÄ/kg tÃ¹y loáº¡i. " +
+                           "BÃ¡nh trÃ¡ng nÆ°á»›ng muá»‘i tÃ´m khoáº£ng 5.000-10.000 VNÄ/cÃ¡i. " +
+                           "CÃ¡c tour cá»§a chÃºng tÃ´i thÆ°á»ng ghÃ© mua bÃ¡nh trÃ¡ng lÃ m quÃ !";
                 }
-                return "Bánh tráng Tr?ng Bàng là ??c s?n n?i ti?ng Tây Ninh, làm t? g?o ST25. " +
-                       "Có bánh tráng n??ng mu?i tôm, bánh tráng cu?n th?t n??ng r?t ngon!";
+                return "BÃ¡nh trÃ¡ng Tráº£ng BÃ ng lÃ  Ä‘áº·c sáº£n ná»•i tiáº¿ng TÃ¢y Ninh, lÃ m tá»« gáº¡o ST25. " +
+                       "CÃ³ bÃ¡nh trÃ¡ng nÆ°á»›ng muá»‘i tÃ´m, bÃ¡nh trÃ¡ng cuá»‘n thá»‹t nÆ°á»›ng ráº¥t ngon!";
+
             }
 
-            // Fallback v?i thông tin tour th?c t?
-            if (lowerPrompt.Contains("tour") || lowerPrompt.Contains("du l?ch"))
+            // Fallback v?i thÃ´ng tin tour th?c t?
+            if (lowerPrompt.Contains("tour") || lowerPrompt.Contains("du lá»‹ch"))
             {
                 try
                 {
                     var tours = await _tourDataService.GetAvailableToursAsync(3);
                     if (tours.Any())
                     {
-                        var tourList = string.Join(", ", tours.Select(t => $"{t.Title} ({t.Price:N0} VN?)"));
-                        return $"Hi?n t?i chúng tôi có các tour: {tourList}. B?n mu?n bi?t thêm chi ti?t tour nào?";
+                        var tourList = string.Join(", ", tours.Select(t => $"{t.Title} ({t.Price:N0} VNÄ)"));
+                        return $"Hiá»‡n táº¡i chÃºng tÃ´i cÃ³ cÃ¡c tour: {tourList}. Báº¡n muá»‘n biáº¿t thÃªm chi tiáº¿t tour nÃ o?";
                     }
                 }
                 catch (Exception ex)
@@ -421,17 +424,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     _logger.LogError(ex, "Error in fallback tour data");
                 }
 
-                return "Chúng tôi có tour danh lam th?ng c?nh (không t?n vé vào c?a) và tour khu vui ch?i " +
-                       "(có vé vào c?a) v?i nhi?u m?c giá khác nhau. Liên h? ?? bi?t thêm chi ti?t!";
+                return "ChÃºng tÃ´i cÃ³ tour danh lam tháº¯ng cáº£nh (khÃ´ng tá»‘n vÃ© vÃ o cá»­a) vÃ  tour khu vui chÆ¡i " +
+                       "(cÃ³ vÃ© vÃ o cá»­a) vá»›i nhiá»u má»©c giÃ¡ khÃ¡c nhau. LiÃªn há»‡ Ä‘á»ƒ biáº¿t thÃªm chi tiáº¿t!";
             }
 
-            if (lowerPrompt.Contains("núi bà ?en") || lowerPrompt.Contains("núi bà"))
+
+            if (lowerPrompt.Contains("nÃºi bÃ  Ä‘en") || lowerPrompt.Contains("nÃºi bÃ "))
             {
-                return "Núi Bà ?en cao nh?t Nam B? (986m), có cáp treo và chùa linh thiêng. " +
-                       "Chúng tôi có tour ?i Núi Bà ?en v?i d?ch v? t?t nh?t!";
+                return "NÃºi BÃ  Äen cao nháº¥t Nam Bá»™ (986m), cÃ³ cÃ¡p treo vÃ  chÃ¹a linh thiÃªng. " +
+                       "ChÃºng tÃ´i cÃ³ tour Ä‘i NÃºi BÃ  Äen vá»›i dá»‹ch vá»¥ tá»‘t nháº¥t!";
             }
 
-            return "Xin l?i, tôi không hi?u yêu c?u c?a b?n. Vui lòng cung c?p thêm thông tin chi ti?t.";
+            return "Xin lá»—i, tÃ´i khÃ´ng hiá»ƒu yÃªu cáº§u cá»§a báº¡n. Vui lÃ²ng cung cáº¥p thÃªm thÃ´ng tin chi tiáº¿t.";
+
         }
 
         private object CreateRequestPayload(string prompt, List<GeminiMessage>? conversationHistory)
@@ -487,7 +492,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         private int EstimateTokens(string text)
         {
-            return text.Length / 4; // ??c l??ng s? tokens t? ?? dài text
+            return text.Length / 4; // ??c l??ng s? tokens t? ?? dÃ i text
         }
     }
 }
