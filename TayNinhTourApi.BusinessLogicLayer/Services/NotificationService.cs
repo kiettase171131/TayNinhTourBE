@@ -58,7 +58,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 201,
-                    Message = "T?o th�ng b�o th�nh c�ng",
+                    Message = "Tạo thông báo thành công",
                     success = true
                 };
             }
@@ -68,7 +68,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra khi t?o th�ng b�o: {ex.Message}",
+                    Message = $"Có lỗi xảy ra khi tạo thông báo: {ex.Message}",
                     success = false
                 };
             }
@@ -97,7 +97,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new NotificationsResponseDto
                 {
                     StatusCode = 200,
-                    Message = "L?y danh s�ch th�ng b�o th�nh c�ng",
+                    Message = "Lấy danh sách thông báo thành công",
                     success = true,
                     Notifications = notificationDtos,
                     TotalCount = totalCount,
@@ -115,7 +115,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new NotificationsResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra khi l?y th�ng b�o: {ex.Message}",
+                    Message = $"Có lỗi xảy ra khi tạo thông báo: {ex.Message}",
                     success = false
                 };
             }
@@ -133,7 +133,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new UnreadCountResponseDto
                 {
                     StatusCode = 200,
-                    Message = "L?y s? th�ng b�o ch?a ??c th�nh c�ng",
+                    Message = "Lấy số thông báo chưa đọc thành công",
                     success = true,
                     UnreadCount = unreadCount
                 };
@@ -144,7 +144,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new UnreadCountResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra: {ex.Message}",
+                    Message = $"Có lỗi xảy ra khi: {ex.Message}",
                     success = false
                 };
             }
@@ -164,7 +164,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y th�ng b�o ho?c th�ng b�o ?� ???c ??c",
+                        Message = "Không tìm thấy thông báo hoặc thông báo đã được đọc",
                         success = false
                     };
                 }
@@ -172,7 +172,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "?� ?�nh d?u th�ng b�o ?� ??c",
+                    Message = "Đã đánh dấu thông báo đã đọc",
                     success = true
                 };
             }
@@ -183,7 +183,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra: {ex.Message}",
+                    Message = $"Có lỗi xảy ra: {ex.Message}",
                     success = false
                 };
             }
@@ -201,7 +201,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = $"?� ?�nh d?u {updatedCount} th�ng b�o ?� ??c",
+                    Message = $"Đã đánh dấu {updatedCount} thông báo đã đọc",
                     success = true
                 };
             }
@@ -211,7 +211,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra: {ex.Message}",
+                    Message = $"Có lỗi xảy ra: {ex.Message}",
                     success = false
                 };
             }
@@ -231,7 +231,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y th�ng b�o",
+                        Message = "Không tìm thấy thông báo",
                         success = false
                     };
                 }
@@ -246,7 +246,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "?� x�a th�ng b�o",
+                    Message = "Đã xóa thông báo",
                     success = true
                 };
             }
@@ -257,7 +257,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra: {ex.Message}",
+                    Message = $"Có lỗi xảy ra: {ex.Message}",
                     success = false
                 };
             }
@@ -339,12 +339,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var createDto = new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "Booking m?i",
-                Message = $"B?n c� booking m?i #{bookingCode} cho tour '{tourTitle}'",
+                Title = "📩 Booking mới",
+                Message = $"Bạn có booking mới #{bookingCode} cho tour '{tourTitle}'",
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.Normal,
-                Icon = "??",
+                Icon = "📩",
                 ActionUrl = $"/bookings/{bookingCode}"
+
             };
 
             return await CreateNotificationAsync(createDto);
@@ -362,12 +363,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "H??ng d?n vi�n t? ch?i",
-                Message = $"{guideName} ?� t? ch?i tour '{tourTitle}'. {(rejectionReason != null ? $"L� do: {rejectionReason}" : "")}",
+                Title = "🚫 Hướng dẫn viên từ chối",
+                Message = $"{guideName} đã từ chối tour '{tourTitle}'. {(rejectionReason != null ? $"Lý do: {rejectionReason}" : "")}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
-                Icon = "?",
+                Icon = "🚫",
                 ActionUrl = "/tours/pending-guide"
+
             });
         }
 
@@ -382,12 +384,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "C?n t�m h??ng d?n vi�n th? c�ng",
-                Message = $"Tour '{tourTitle}' c� {expiredCount} l?i m?i ?� h?t h?n. C?n t�m h??ng d?n vi�n th? c�ng.",
+                Title = "⚠️ Cần tìm hướng dẫn viên thủ công",
+                Message = $"Tour '{tourTitle}' có {expiredCount} lời mời đã hết hạn. Cần tìm hướng dẫn viên thủ công.",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
-                Icon = "?",
+                Icon = "⚠️",
                 ActionUrl = "/tours/manual-guide-selection"
+
             });
         }
 
@@ -402,12 +405,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "?? Tour s?p b? h?y!",
-                Message = $"Tour '{tourTitle}' s? b? h?y trong {daysUntilCancellation} ng�y n?u kh�ng t�m ???c h??ng d?n vi�n!",
+                Title = "🚨 Tour sắp bị hủy!",
+                Message = $"Tour '{tourTitle}' sẽ bị hủy trong {daysUntilCancellation} ngày nếu không tìm được hướng dẫn viên!",
                 Type = NotificationType.Critical,
                 Priority = NotificationPriority.Critical,
-                Icon = "??",
+                Icon = "🚨",
                 ActionUrl = "/tours/urgent-guide-needed"
+
             });
         }
 
@@ -425,21 +429,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                var message = $"B?n ???c m?i tham gia tour '{tourTitle}' b?i {tourCompanyName}.";
+                var message = $"Bạn được mời tham gia tour '{tourTitle}' bởi {tourCompanyName}.";
                 if (!string.IsNullOrEmpty(skillsRequired))
                 {
-                    message += $" K? n?ng y�u c?u: {skillsRequired}.";
+                    message += $"Kỹ năng yêu cầu: {skillsRequired}.";
                 }
 
                 var hoursUntilExpiry = (int)(expiresAt - DateTime.UtcNow).TotalHours;
-                message += $" H?n ph?n h?i: {hoursUntilExpiry} gi?.";
+                message += $"Hạn phản hồi: {hoursUntilExpiry} giờ.";
 
                 var icon = invitationType.ToLower() == "manual" ? "??" : "??"; // Manual = personal invite, Auto = skill-matched
 
                 return await CreateNotificationAsync(new CreateNotificationDto
                 {
                     UserId = guideUserId,
-                    Title = "?? L?i m?i tour m?i!",
+                    Title = "Lời mời tour mới!",
                     Message = message,
                     Type = NotificationType.TourGuide,
                     Priority = NotificationPriority.High,
@@ -462,7 +466,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra khi t?o th�ng b�o: {ex.Message}",
+                    Message = $"Có lỗi xảy ra khi tạo thông báo: {ex.Message}",
                     success = false
                 };
             }
@@ -479,14 +483,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                var urgencyIcon = hoursUntilExpiry <= 2 ? "??" : hoursUntilExpiry <= 6 ? "?" : "?";
-                var urgencyText = hoursUntilExpiry <= 2 ? "G?P!" : hoursUntilExpiry <= 6 ? "S?p h?t h?n" : "Nh?c nh?";
+                var urgencyIcon = hoursUntilExpiry <= 2 ? "⏰" : hoursUntilExpiry <= 6 ? "⚠️" : "🔔";
+                var urgencyText = hoursUntilExpiry <= 2 ? "GẤP!" : hoursUntilExpiry <= 6 ? "Sắp hết hạn" : "Nhắc nhở";
+
 
                 return await CreateNotificationAsync(new CreateNotificationDto
                 {
                     UserId = guideUserId,
-                    Title = $"{urgencyIcon} {urgencyText} - L?i m?i tour",
-                    Message = $"L?i m?i tour '{tourTitle}' s? h?t h?n trong {hoursUntilExpiry} gi?. Vui l�ng ph?n h?i s?m!",
+                    Title = $"{urgencyIcon} {urgencyText} - Lời mời tour",
+                    Message = $"Lời mời tour '{tourTitle}' sẽ hết hạn trong {hoursUntilExpiry} giờ. Vui lòng phản hồi sớm!",
                     Type = hoursUntilExpiry <= 2 ? NotificationType.Critical : NotificationType.Warning,
                     Priority = hoursUntilExpiry <= 2 ? NotificationPriority.Critical : NotificationPriority.High,
                     Icon = urgencyIcon,
@@ -506,7 +511,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra khi t?o th�ng b�o nh?c nh?: {ex.Message}",
+                    Message = $"Có lỗi xảy ra khi tạo thông báo nhắc nhở: {ex.Message}",
                     success = false
                 };
             }
@@ -549,15 +554,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var timeSpan = DateTime.UtcNow - createdAt;
 
             if (timeSpan.TotalMinutes < 1)
-                return "V?a xong";
+                return "Vừa xong";
             if (timeSpan.TotalMinutes < 60)
-                return $"{(int)timeSpan.TotalMinutes} ph�t tr??c";
+                return $"{(int)timeSpan.TotalMinutes} phút trước";
             if (timeSpan.TotalHours < 24)
-                return $"{(int)timeSpan.TotalHours} gi? tr??c";
+                return $"{(int)timeSpan.TotalHours} giờ trước";
             if (timeSpan.TotalDays < 7)
-                return $"{(int)timeSpan.TotalDays} ng�y tr??c";
+                return $"{(int)timeSpan.TotalDays} ngày trước";
             if (timeSpan.TotalDays < 30)
-                return $"{(int)(timeSpan.TotalDays / 7)} tu?n tr??c";
+                return $"{(int)(timeSpan.TotalDays / 7)} tuần trước";
+
 
             return createdAt.ToString("dd/MM/yyyy");
         }
@@ -611,11 +617,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "Booking m?i",
-                Message = "B?n c� m?t booking tour m?i",
+                Title = "Booking mới",
+                Message = "Bạn có một booking tour mới",
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.High,
-                Icon = "??"
+                Icon = "📥" // Hoặc "🆕", "📩", tùy phong cách hệ thống
+
             });
         }
 
@@ -638,11 +645,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "Tour b? h?y",
-                Message = $"Tour '{tourTitle}' ?� b? h?y: {reason}",
+                Title = "Tour bị hủy",
+                Message = $"Tour '{tourTitle}' đã bị hủy: {reason}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
-                Icon = "??"
+                Icon = "❌" // Hoặc "⚠️", "🚫", "📛" tùy mức độ cảnh báo
+
             });
         }
 
@@ -658,11 +666,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await CreateNotificationAsync(new CreateNotificationDto
             {
                 UserId = userId,
-                Title = "Booking b? h?y",
-                Message = $"Kh�ch h�ng ?� h?y booking. L� do: {reason ?? "Kh�ng c� l� do"}",
+                Title = "Booking bị hủy",
+                Message = $"Khách hàng đã hủy booking. Lý do: {reason ?? "Không có lý do"}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.Medium,
-                Icon = "??"
+                Icon = "🚫" // Hoặc "❌", "⚠️", "📭" tùy mức cảnh báo bạn muốn thể hiện
+
             });
         }
 
@@ -684,7 +693,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new NotificationsResponseDto
                 {
                     StatusCode = 200,
-                    Message = "L?y th�ng b�o m?i th�nh c�ng",
+                    Message = "Lấy thông báo mới thành công",
                     success = true,
                     Notifications = notificationDtos,
                     TotalCount = totalCount,
@@ -699,7 +708,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new NotificationsResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"C� l?i x?y ra: {ex.Message}",
+                    Message = $"Có lỗi xảy ra: {ex.Message}",
                     success = false
                 };
             }
