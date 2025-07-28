@@ -365,7 +365,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 3. Check existing pending invitation
+                // 3. ✅ NEW: Check if tour already has an accepted tour guide
+                var hasAcceptedGuide = await _unitOfWork.TourGuideInvitationRepository
+                    .HasAcceptedInvitationAsync(tourDetailsId);
+                if (hasAcceptedGuide)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Tour này đã có hướng dẫn viên được chấp nhận. Không thể mời thêm hướng dẫn viên khác.",
+                        success = false
+                    };
+                }
+
+                // 4. Check existing pending invitation
                 var hasPending = await _unitOfWork.TourGuideInvitationRepository
                     .HasPendingInvitationAsync(tourDetailsId, guideId);
                 if (hasPending)
@@ -378,7 +391,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 4. ✅ NEW: Check if guide has rejected invitation for this tour before
+                // 5. ✅ Check if guide has rejected invitation for this tour before
                 var hasRejected = await _unitOfWork.TourGuideInvitationRepository
                     .HasRejectedInvitationAsync(tourDetailsId, guideId);
                 if (hasRejected)
@@ -391,7 +404,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 5. Create manual invitation
+                // 6. Create manual invitation
                 var invitation = new TourGuideInvitation
                 {
                     Id = Guid.NewGuid(),
@@ -409,7 +422,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.TourGuideInvitationRepository.AddAsync(invitation);
                 await _unitOfWork.SaveChangesAsync();
 
-                // 6. Send invitation email
+                // 7. Send invitation email
                 try
                 {
                     await _emailSender.SendTourGuideInvitationAsync(
@@ -427,7 +440,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         guide.Email, emailEx.Message);
                 }
 
-                // 🔔 Send in-app notification to TourGuide
+                // 8. 🔔 Send in-app notification to TourGuide
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
