@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+Ôªøusing Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +11,7 @@ using TayNinhTourApi.Controller.Helper;
 namespace TayNinhTourApi.Controller.Controllers
 {
     /// <summary>
-    /// Controller qu?n l˝ AI Chat - chat v?i AI chatbot s? d?ng Gemini API
+    /// Controller qu?n l√Ω AI Chat - chat v?i AI chatbot s? d?ng Gemini API
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
@@ -35,7 +35,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Test endpoint ?? ki?m tra Gemini API (khÙng c?n authentication)
+        /// Test endpoint ?? ki?m tra Gemini API (kh√¥ng c?n authentication)
         /// </summary>
         /// <param name="message">Tin nh?n test</param>
         /// <returns>Ph?n h?i t? Gemini AI</returns>
@@ -51,7 +51,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return Ok(new
                 {
                     success = response.Success,
-                    message = response.Success ? "Gemini API test th‡nh cÙng" : "Gemini API test th?t b?i",
+                    message = response.Success ? "Gemini API test th√†nh c√¥ng" : "Gemini API test th·∫•t b·∫°i",
                     data = new
                     {
                         userMessage = request.Message,
@@ -68,17 +68,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "CÛ l?i x?y ra khi test Gemini API",
+                    message = "C√≥ l·ªói x·∫£y ra khi test Gemini API",
                     error = ex.Message
                 });
             }
         }
 
         /// <summary>
-        /// Test endpoint ?? test tour recommendations (khÙng c?n authentication)
+        /// Test endpoint ?? test tour recommendations (kh√¥ng c?n authentication)
         /// </summary>
         /// <param name="request">Request v?i query v? tour</param>
-        /// <returns>Ph?n h?i t? AI v?i thÙng tin tour</returns>
+        /// <returns>Ph?n h?i t? AI v?i th√¥ng tin tour</returns>
         [HttpPost("test-tour-recommendations")]
         public async Task<ActionResult> TestTourRecommendations([FromBody] TestTourRecommendationRequest request)
         {
@@ -91,7 +91,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return Ok(new
                 {
                     success = response.Success,
-                    message = response.Success ? "Tour recommendation test th‡nh cÙng" : "Tour recommendation test th?t b?i",
+                    message = response.Success ? "Tour recommendation test th√†nh c√¥ng" : "Tour recommendation test th·∫•t b·∫°i",
                     data = new
                     {
                         userQuery = request.Query,
@@ -109,17 +109,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "CÛ l?i x?y ra khi test tour recommendations",
+                    message = "C√≥ l·ªói x·∫£y ra khi test tour recommendations",
                     error = ex.Message
                 });
             }
         }
 
         /// <summary>
-        /// T?o phiÍn chat m?i
+        /// T?o phi√™n chat m?i
         /// </summary>
-        /// <param name="request">ThÙng tin phiÍn chat m?i</param>
-        /// <returns>K?t qu? t?o phiÍn chat</returns>
+        /// <param name="request">Th√¥ng tin phi√™n chat m?i</param>
+        /// <returns>K?t qu? t?o phi√™n chat</returns>
         [HttpPost("sessions")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseCreateChatSessionDto>> CreateChatSession([FromBody] RequestCreateChatSessionDto request)
@@ -135,7 +135,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return StatusCode(401, new ResponseCreateChatSessionDto
                     {
                         success = false,
-                        Message = "KhÙng th? x·c th?c ng??i d˘ng",
+                        Message = "Kh√¥ng th·ªÉ x√°c th·ª±c ng∆∞·ªùi d√πng",
                         StatusCode = 401
                     });
                 }
@@ -151,7 +151,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new ResponseCreateChatSessionDto
                 {
                     success = false,
-                    Message = $"CÛ l?i x?y ra khi t?o phiÍn chat: {ex.Message}",
+                    Message = $"C√≥ l·ªói x·∫£y ra khi t·∫°o phi√™n chat: {ex.Message}",
                     StatusCode = 500
                 });
             }
@@ -160,7 +160,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <summary>
         /// G?i tin nh?n ??n AI chatbot
         /// </summary>
-        /// <param name="request">ThÙng tin tin nh?n</param>
+        /// <param name="request">Th√¥ng tin tin nh?n</param>
         /// <returns>Ph?n h?i t? AI</returns>
         [HttpPost("messages")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
@@ -178,19 +178,19 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new ResponseSendMessageDto
                 {
                     success = false,
-                    Message = "CÛ l?i x?y ra khi g?i tin nh?n",
+                    Message = "C√≥ l·ªói x·∫£y ra khi g·ª≠i tin nh·∫Øn",
                     StatusCode = 500
                 });
             }
         }
 
         /// <summary>
-        /// L?y danh s·ch phiÍn chat c?a user hi?n t?i
+        /// L?y danh s√°ch phi√™n chat c?a user hi?n t?i
         /// </summary>
         /// <param name="page">Trang hi?n t?i (0-based)</param>
         /// <param name="pageSize">S? l??ng sessions per page</param>
-        /// <param name="status">Tr?ng th·i session (Active, Archived, All)</param>
-        /// <returns>Danh s·ch phiÍn chat</returns>
+        /// <param name="status">Tr?ng th√°i session (Active, Archived, All)</param>
+        /// <returns>Danh s√°ch phi√™n chat</returns>
         [HttpGet("sessions")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseGetChatSessionsDto>> GetChatSessions(
@@ -217,19 +217,19 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new ResponseGetChatSessionsDto
                 {
                     success = false,
-                    Message = "CÛ l?i x?y ra khi l?y danh s·ch phiÍn chat",
+                    Message = "C√≥ l·ªói x·∫£y ra khi l·∫•y danh s√°ch phi√™n chat",
                     StatusCode = 500
                 });
             }
         }
 
         /// <summary>
-        /// L?y tin nh?n trong phiÍn chat
+        /// L?y tin nh?n trong phi√™n chat
         /// </summary>
-        /// <param name="sessionId">ID c?a phiÍn chat</param>
+        /// <param name="sessionId">ID c?a phi√™n chat</param>
         /// <param name="page">Trang hi?n t?i (0-based)</param>
         /// <param name="pageSize">S? l??ng messages per page</param>
-        /// <returns>Tin nh?n trong phiÍn chat</returns>
+        /// <returns>Tin nh?n trong phi√™n chat</returns>
         [HttpGet("sessions/{sessionId}/messages")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseGetMessagesDto>> GetMessages(
@@ -256,17 +256,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new ResponseGetMessagesDto
                 {
                     success = false,
-                    Message = "CÛ l?i x?y ra khi l?y tin nh?n",
+                    Message = "C√≥ l·ªói x·∫£y ra khi l·∫•y tin nh·∫Øn",
                     StatusCode = 500
                 });
             }
         }
 
         /// <summary>
-        /// L?u tr? phiÍn chat (archive)
+        /// L?u tr? phi√™n chat (archive)
         /// </summary>
-        /// <param name="sessionId">ID c?a phiÍn chat</param>
-        /// <returns>K?t qu? thao t·c</returns>
+        /// <param name="sessionId">ID c?a phi√™n chat</param>
+        /// <returns>K?t qu? thao t√°c</returns>
         [HttpPut("sessions/{sessionId}/archive")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> ArchiveSession([FromRoute] Guid sessionId)
@@ -283,17 +283,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new ResponseSessionActionDto
                 {
                     success = false,
-                    Message = "CÛ l?i x?y ra khi l?u tr? phiÍn chat",
+                    Message = "C√≥ l·ªói x·∫£y ra khi l∆∞u tr·ªØ phi√™n chat",
                     StatusCode = 500
                 });
             }
         }
 
         /// <summary>
-        /// XÛa phiÍn chat
+        /// X√≥a phi√™n chat
         /// </summary>
-        /// <param name="sessionId">ID c?a phiÍn chat</param>
-        /// <returns>K?t qu? thao t·c</returns>
+        /// <param name="sessionId">ID c?a phi√™n chat</param>
+        /// <returns>K?t qu? thao t√°c</returns>
         [HttpDelete("sessions/{sessionId}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> DeleteSession([FromRoute] Guid sessionId)
@@ -310,18 +310,18 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new ResponseSessionActionDto
                 {
                     success = false,
-                    Message = "CÛ l?i x?y ra khi xÛa phiÍn chat",
+                    Message = "C√≥ l·ªói x·∫£y ra khi x√≥a phi√™n chat",
                     StatusCode = 500
                 });
             }
         }
 
         /// <summary>
-        /// C?p nh?t tiÍu ?? phiÍn chat
+        /// C?p nh?t ti√™u ?? phi√™n chat
         /// </summary>
-        /// <param name="sessionId">ID c?a phiÍn chat</param>
-        /// <param name="request">TiÍu ?? m?i</param>
-        /// <returns>K?t qu? thao t·c</returns>
+        /// <param name="sessionId">ID c?a phi√™n chat</param>
+        /// <param name="request">Ti√™u ?? m?i</param>
+        /// <returns>K?t qu? thao t√°c</returns>
         [HttpPut("sessions/{sessionId}/title")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> UpdateSessionTitle(
@@ -340,16 +340,16 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new ResponseSessionActionDto
                 {
                     success = false,
-                    Message = "CÛ l?i x?y ra khi c?p nh?t tiÍu ??",
+                    Message = "C√≥ l·ªói x·∫£y ra khi c·∫≠p nh·∫≠t ti√™u ƒë·ªÅ",
                     StatusCode = 500
                 });
             }
         }
 
         /// <summary>
-        /// L?y th?ng kÍ AI Chat c?a user
+        /// L?y th?ng k√™ AI Chat c?a user
         /// </summary>
-        /// <returns>Th?ng kÍ chat</returns>
+        /// <returns>Th?ng k√™ chat</returns>
         [HttpGet("stats")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<object>> GetChatStats()
@@ -358,18 +358,18 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 
-                // L?y th?ng kÍ c? b?n
+                // L?y th?ng k√™ c? b?n
                 var sessionsRequest = new RequestGetChatSessionsDto { PageSize = 1 };
                 var sessionsResponse = await _aiChatService.GetChatSessionsAsync(sessionsRequest, currentUser.UserId);
                 
                 return Ok(new
                 {
                     success = true,
-                    Message = "L?y th?ng kÍ th‡nh cÙng",
+                    Message = "L·∫•y th·ªëng k√™ th√†nh c√¥ng",
                     Data = new
                     {
                         TotalSessions = sessionsResponse.TotalCount,
-                        ActiveSessions = sessionsResponse.TotalCount // CÛ th? m? r?ng ?? ??m riÍng active sessions
+                        ActiveSessions = sessionsResponse.TotalCount // C√≥ th? m? r?ng ?? ??m ri√™ng active sessions
                     }
                 });
             }
@@ -379,7 +379,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    Message = "CÛ l?i x?y ra khi l?y th?ng kÍ"
+                    Message = "C√≥ l·ªói x·∫£y ra khi l·∫•y th·ªëng k√™"
                 });
             }
         }
@@ -405,7 +405,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = "Quota ?„ ???c reset th‡nh cÙng",
+                    message = "Quota ƒë√£ ƒë∆∞·ª£c reset th√†nh c√¥ng",
                     timestamp = DateTime.UtcNow
                 });
             }
@@ -415,7 +415,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "CÛ l?i x?y ra khi reset quota",
+                    message = "C√≥ l·ªói x·∫£y ra khi reset quota",
                     error = ex.Message
                 });
             }
@@ -464,7 +464,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     success = false,
-                    message = "CÛ l?i x?y ra khi l?y quota status",
+                    message = "C√≥ l·ªói x·∫£y ra khi l·∫•y quota status",
                     error = ex.Message
                 });
             }
