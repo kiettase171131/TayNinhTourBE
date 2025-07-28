@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+Ôªøusing Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Wallet;
@@ -7,7 +7,7 @@ using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 namespace TayNinhTourApi.Controller.Controllers
 {
     /// <summary>
-    /// Controller cho qu?n l˝ vÌ ti?n c?a Tour Company v‡ Specialty Shop
+    /// Controller cho qu?n l√Ω v√≠ ti?n c?a Tour Company v√† Specialty Shop
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
@@ -29,10 +29,10 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// L?y thÙng tin vÌ c?a user hi?n t?i
-        /// T? ??ng detect role (Tour Company ho?c Specialty Shop) v‡ tr? v? vÌ t??ng ?ng
+        /// L?y th√¥ng tin v√≠ c?a user hi?n t?i
+        /// T? ??ng detect role (Tour Company ho?c Specialty Shop) v√† tr? v? v√≠ t??ng ?ng
         /// </summary>
-        /// <returns>ThÙng tin vÌ theo role c?a user</returns>
+        /// <returns>Th√¥ng tin v√≠ theo role c?a user</returns>
         [HttpGet("my-wallet")]
         public async Task<IActionResult> GetMyWallet()
         {
@@ -42,7 +42,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 if (userId == Guid.Empty)
                 {
                     _logger.LogWarning("User ID not found in authentication context");
-                    return BadRequest("KhÙng tÏm th?y thÙng tin user trong token");
+                    return BadRequest("Kh√¥ng t√¨m th?y th√¥ng tin user trong token");
                 }
 
                 _logger.LogInformation("Getting wallet information for user: {UserId}", userId);
@@ -56,17 +56,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "L?i h? th?ng khi l?y thÙng tin vÌ",
+                    Message = "L·ªói h·ªá th·ªëng khi l·∫•y th√¥ng tin v√≠",
                     Success = false
                 });
             }
         }
 
         /// <summary>
-        /// L?y thÙng tin vÌ Tour Company c?a user hi?n t?i
-        /// Ch? user cÛ role "Tour Company" m?i cÛ th? g?i
+        /// L?y th√¥ng tin v√≠ Tour Company c?a user hi?n t?i
+        /// Ch? user c√≥ role "Tour Company" m?i c√≥ th? g?i
         /// </summary>
-        /// <returns>ThÙng tin vÌ Tour Company chi ti?t</returns>
+        /// <returns>Th√¥ng tin v√≠ Tour Company chi ti?t</returns>
         [HttpGet("tour-company")]
         [Authorize(Roles = "Tour Company")]
         public async Task<IActionResult> GetTourCompanyWallet()
@@ -77,7 +77,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 if (userId == Guid.Empty)
                 {
                     _logger.LogWarning("Tour Company user ID not found in authentication context");
-                    return BadRequest("KhÙng tÏm th?y thÙng tin user trong token");
+                    return BadRequest("Kh√¥ng t√¨m th·∫•y th√¥ng tin user trong token");
                 }
 
                 _logger.LogInformation("Getting Tour Company wallet for user: {UserId}", userId);
@@ -91,17 +91,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "L?i h? th?ng khi l?y thÙng tin vÌ cÙng ty tour",
+                    Message = "L·ªói h·ªá th·ªëng khi l·∫•y th√¥ng tin v√≠ c√¥ng ty tour",
                     Success = false
                 });
             }
         }
 
         /// <summary>
-        /// L?y thÙng tin vÌ Specialty Shop c?a user hi?n t?i
-        /// Ch? user cÛ role "Specialty Shop" m?i cÛ th? g?i
+        /// L?y th√¥ng tin v√≠ Specialty Shop c?a user hi?n t?i
+        /// Ch? user c√≥ role "Specialty Shop" m?i c√≥ th? g?i
         /// </summary>
-        /// <returns>ThÙng tin vÌ Specialty Shop</returns>
+        /// <returns>Th√¥ng tin v√≠ Specialty Shop</returns>
         [HttpGet("specialty-shop")]
         [Authorize(Roles = "Specialty Shop")]
         public async Task<IActionResult> GetSpecialtyShopWallet()
@@ -112,7 +112,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 if (userId == Guid.Empty)
                 {
                     _logger.LogWarning("Specialty Shop user ID not found in authentication context");
-                    return BadRequest("KhÙng tÏm th?y thÙng tin user trong token");
+                    return BadRequest("Kh√¥ng t√¨m th·∫•y th√¥ng tin user trong token");
                 }
 
                 _logger.LogInformation("Getting Specialty Shop wallet for user: {UserId}", userId);
@@ -126,16 +126,16 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "L?i h? th?ng khi l?y thÙng tin vÌ shop",
+                    Message = "L·ªói h·ªá th·ªëng khi l·∫•y th√¥ng tin v√≠ shop",
                     Success = false
                 });
             }
         }
 
         /// <summary>
-        /// Ki?m tra user hi?n t?i cÛ vÌ ti?n khÙng
+        /// Ki?m tra user hi?n t?i c√≥ v√≠ ti?n kh√¥ng
         /// </summary>
-        /// <returns>True n?u user cÛ vÌ, False n?u khÙng cÛ</returns>
+        /// <returns>True n?u user c√≥ v√≠, False n?u kh√¥ng c√≥</returns>
         [HttpGet("has-wallet")]
         public async Task<IActionResult> HasWallet()
         {
@@ -144,7 +144,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 var userId = _currentUserService.GetCurrentUserId();
                 if (userId == Guid.Empty)
                 {
-                    return BadRequest("KhÙng tÏm th?y thÙng tin user trong token");
+                    return BadRequest("Kh√¥ng t√¨m th·∫•y th√¥ng tin user trong token");
                 }
 
                 var hasWallet = await _walletService.HasWalletAsync(userId);
@@ -153,7 +153,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return Ok(new
                 {
                     StatusCode = 200,
-                    Message = hasWallet ? "User cÛ vÌ ti?n" : "User ch?a cÛ vÌ ti?n",
+                    Message = hasWallet ? "User c√≥ v√≠ ti·ªÅn" : "User ch∆∞a c√≥ v√≠ ti·ªÅn",
                     Success = true,
                     Data = new
                     {
@@ -168,16 +168,16 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "L?i h? th?ng khi ki?m tra tr?ng th·i vÌ",
+                    Message = "L·ªói h·ªá th·ªëng khi ki·ªÉm tra tr·∫°ng th√°i v√≠",
                     Success = false
                 });
             }
         }
 
         /// <summary>
-        /// L?y lo?i vÌ c?a user hi?n t?i
+        /// L?y lo?i v√≠ c?a user hi?n t?i
         /// </summary>
-        /// <returns>Lo?i vÌ (TourCompany ho?c SpecialtyShop) ho?c null n?u khÙng cÛ</returns>
+        /// <returns>Lo?i v√≠ (TourCompany ho?c SpecialtyShop) ho?c null n?u kh√¥ng c√≥</returns>
         [HttpGet("wallet-type")]
         public async Task<IActionResult> GetWalletType()
         {
@@ -186,7 +186,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 var userId = _currentUserService.GetCurrentUserId();
                 if (userId == Guid.Empty)
                 {
-                    return BadRequest("KhÙng tÏm th?y thÙng tin user trong token");
+                    return BadRequest("Kh√¥ng t√¨m th·∫•y th√¥ng tin user trong token");
                 }
 
                 var walletType = await _walletService.GetUserWalletTypeAsync(userId);
@@ -194,7 +194,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return Ok(new
                 {
                     StatusCode = 200,
-                    Message = walletType != null ? "L?y lo?i vÌ th‡nh cÙng" : "User ch?a cÛ vÌ",
+                    Message = walletType != null ? "L·∫•y lo·∫°i v√≠ th√†nh c√¥ng" : "User ch∆∞a c√≥ v√≠",
                     Success = true,
                     Data = new
                     {
@@ -208,7 +208,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "L?i h? th?ng khi l?y lo?i vÌ",
+                    Message = "L·ªói h·ªá th·ªëng khi l·∫•y lo·∫°i v√≠",
                     Success = false
                 });
             }
