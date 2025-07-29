@@ -746,6 +746,20 @@ Slot Debug Info for {slotId}:
         /// </summary>
         private TourSlotDto MapToDto(DataAccessLayer.Entities.TourSlot slot)
         {
+            // Determine capacity info
+            // MaxGuests: Use TourOperation.MaxGuests if available (shared capacity for all slots)
+            // CurrentBookings: Always use slot.CurrentBookings (specific to this slot)
+            int maxGuests = slot.MaxGuests;
+            int currentBookings = slot.CurrentBookings;
+
+            if (slot.TourDetails?.TourOperation != null)
+            {
+                maxGuests = slot.TourDetails.TourOperation.MaxGuests;
+                // Keep currentBookings from slot (slot-specific bookings)
+            }
+
+            int availableSpots = maxGuests - currentBookings;
+
             var dto = new TourSlotDto
             {
                 Id = slot.Id,
@@ -756,9 +770,9 @@ Slot Debug Info for {slotId}:
                 ScheduleDayName = GetScheduleDayName(slot.ScheduleDay),
                 Status = slot.Status,
                 StatusName = GetStatusName(slot.Status),
-                MaxGuests = slot.MaxGuests,
-                CurrentBookings = slot.CurrentBookings,
-                AvailableSpots = slot.AvailableSpots,
+                MaxGuests = maxGuests,
+                CurrentBookings = currentBookings,
+                AvailableSpots = availableSpots,
                 IsActive = slot.IsActive,
                 CreatedAt = slot.CreatedAt,
                 UpdatedAt = slot.UpdatedAt,

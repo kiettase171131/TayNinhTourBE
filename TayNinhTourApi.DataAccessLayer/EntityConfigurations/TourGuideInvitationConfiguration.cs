@@ -54,6 +54,11 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false)
                 .HasComment("Ghi chú từ TourGuide khi từ chối lời mời");
 
+            builder.Property(i => i.InvitationMessage)
+                .HasMaxLength(500)
+                .IsRequired(false)
+                .HasComment("Tin nhắn từ TourCompany khi gửi lời mời");
+
             // Foreign Key Relationships
 
             // TourDetails relationship (Required)

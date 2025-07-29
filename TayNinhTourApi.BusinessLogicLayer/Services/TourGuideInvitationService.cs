@@ -334,7 +334,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<BaseResposeDto> CreateManualInvitationAsync(Guid tourDetailsId, Guid guideId, Guid createdById)
+        public async Task<BaseResposeDto> CreateManualInvitationAsync(Guid tourDetailsId, Guid guideId, Guid createdById, string? invitationMessage = null)
         {
             try
             {
@@ -414,6 +414,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Status = InvitationStatus.Pending,
                     InvitedAt = DateTime.UtcNow,
                     ExpiresAt = DateTime.UtcNow.AddHours(24), // 24 hours for manual invitations
+                    InvitationMessage = invitationMessage,
                     CreatedById = createdById,
                     CreatedAt = DateTime.UtcNow,
                     IsActive = true
@@ -778,6 +779,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ExpiresAt = inv.ExpiresAt,
                     RespondedAt = inv.RespondedAt,
                     RejectionReason = inv.RejectionReason,
+                    InvitationMessage = inv.InvitationMessage,
                     ImprovementSuggestion = null // TODO: Add if needed
                     // Note: HoursUntilExpiry, CanAccept, CanReject are computed properties
                 }).ToList();
@@ -846,7 +848,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     InvitedAt = inv.InvitedAt,
                     ExpiresAt = inv.ExpiresAt,
                     RespondedAt = inv.RespondedAt,
-                    RejectionReason = inv.RejectionReason
+                    RejectionReason = inv.RejectionReason,
+                    InvitationMessage = inv.InvitationMessage
                 }).ToList();
 
                 // Calculate statistics

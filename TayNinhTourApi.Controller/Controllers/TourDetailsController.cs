@@ -624,7 +624,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogInformation("TourCompany {CompanyId} manually inviting Guide {GuideId} for TourDetails {TourDetailsId}",
                     userId, request.GuideId, id);
 
-                var response = await _tourDetailsService.ManualInviteGuideAsync(id, request.GuideId, userId);
+                var response = await _tourDetailsService.ManualInviteGuideAsync(id, request.GuideId, userId, request.AdditionalMessage);
                 return StatusCode(response.StatusCode, response);
             }
             catch (Exception ex)

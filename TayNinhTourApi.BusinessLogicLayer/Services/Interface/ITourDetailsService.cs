@@ -221,7 +221,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="tourDetailsId">ID của TourDetails</param>
         /// <param name="guideId">ID của TourGuide được mời</param>
         /// <param name="companyId">ID của TourCompany</param>
+        /// <param name="invitationMessage">Tin nhắn từ TourCompany khi mời</param>
         /// <returns>Kết quả gửi lời mời</returns>
-        Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid companyId);
+        Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid companyId, string? invitationMessage = null);
     }
 }

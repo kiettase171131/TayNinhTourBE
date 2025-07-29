@@ -57,6 +57,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         public string? RejectionReason { get; set; }
 
         /// <summary>
+        /// Tin nhắn từ TourCompany khi gửi lời mời
+        /// </summary>
+        public string? InvitationMessage { get; set; }
+
+        /// <summary>
         /// Gợi ý cải thiện từ TourGuide (nếu có)
         /// </summary>
         public string? ImprovementSuggestion { get; set; }

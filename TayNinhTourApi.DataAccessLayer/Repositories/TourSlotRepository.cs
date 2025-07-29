@@ -21,6 +21,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourSlots
                 .Include(ts => ts.TourTemplate)
                 .Include(ts => ts.TourDetails)
+                    .ThenInclude(td => td.TourOperation)
                 .Where(ts => ts.TourTemplateId == tourTemplateId)
                 .OrderBy(ts => ts.TourDate)
                 .ToListAsync();
@@ -31,6 +32,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourSlots
                 .Include(ts => ts.TourTemplate)
                 .Include(ts => ts.TourDetails)
+                    .ThenInclude(td => td.TourOperation)
                 .Where(ts => ts.TourDetailsId == tourDetailsId)
                 .OrderBy(ts => ts.TourDate)
                 .ToListAsync();
@@ -41,6 +43,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourSlots
                 .Include(ts => ts.TourTemplate)
                 .Include(ts => ts.TourDetails)
+                    .ThenInclude(td => td.TourOperation)
                 .FirstOrDefaultAsync(ts => ts.TourTemplateId == tourTemplateId && ts.TourDate == date);
         }
 
@@ -54,6 +57,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var query = _context.TourSlots
                 .Include(ts => ts.TourTemplate)
                 .Include(ts => ts.TourDetails)
+                    .ThenInclude(td => td.TourOperation)
                 .AsQueryable();
 
             if (tourTemplateId.HasValue)
@@ -187,6 +191,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await _context.TourSlots
                 .Include(ts => ts.TourTemplate)
                 .Include(ts => ts.TourDetails)
+                    .ThenInclude(td => td.TourOperation)
                 .Where(ts => ts.Id == slotId && !ts.IsDeleted)
                 .FirstOrDefaultAsync();
         }

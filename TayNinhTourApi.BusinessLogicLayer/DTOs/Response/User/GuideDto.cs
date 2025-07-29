@@ -38,9 +38,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.User
         public bool IsAvailable { get; set; }
 
         /// <summary>
-        /// Số năm kinh nghiệm
+        /// Mô tả kinh nghiệm chi tiết
         /// </summary>
-        public int? ExperienceYears { get; set; }
+        public string? Experience { get; set; }
 
         /// <summary>
         /// Chuyên môn/khu vực

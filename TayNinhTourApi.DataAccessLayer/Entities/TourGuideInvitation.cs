@@ -56,6 +56,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [StringLength(500)]
         public string? RejectionReason { get; set; }
 
+        /// <summary>
+        /// Tin nhắn từ TourCompany khi gửi lời mời
+        /// </summary>
+        [StringLength(500)]
+        public string? InvitationMessage { get; set; }
+
         // Navigation Properties
 
         /// <summary>

@@ -137,7 +137,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     PhoneNumber = tourGuide.PhoneNumber,
                     IsActive = tourGuide.IsActive && tourGuide.User.IsActive,
                     IsAvailable = tourGuide.IsAvailable,
-                    ExperienceYears = CalculateExperienceYears(tourGuide.Experience),
+                    Experience = tourGuide.Experience,
                     Specialization = tourGuide.Skills,
                     AverageRating = tourGuide.Rating,
                     CompletedTours = tourGuide.TotalToursGuided,
@@ -159,25 +159,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
 
-        /// <summary>
-        /// Helper method to calculate experience years from experience text
-        /// </summary>
-        private int CalculateExperienceYears(string? experience)
-        {
-            if (string.IsNullOrEmpty(experience))
-                return 0;
 
-            // Try to extract number from experience text (e.g., "5 years" -> 5)
-            var match = System.Text.RegularExpressions.Regex.Match(experience, @"(\d+)\s*(?:year|năm)",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-            if (match.Success && int.TryParse(match.Groups[1].Value, out int years))
-            {
-                return years;
-            }
-
-            return 0; // Default if can't parse
-        }
 
         /// <summary>
         /// Lấy danh sách hướng dẫn viên available cho ngày cụ thể
@@ -239,7 +221,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         PhoneNumber = tourGuide.PhoneNumber,
                         IsActive = tourGuide.IsActive && tourGuide.User.IsActive,
                         IsAvailable = tourGuide.IsAvailable,
-                        ExperienceYears = CalculateExperienceYears(tourGuide.Experience),
+                        Experience = tourGuide.Experience,
                         Specialization = tourGuide.Skills,
                         AverageRating = tourGuide.Rating,
                         CompletedTours = tourGuide.TotalToursGuided,

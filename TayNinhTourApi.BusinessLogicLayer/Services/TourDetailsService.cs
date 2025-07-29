@@ -2016,7 +2016,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// TourCompany mời thủ công một TourGuide cụ thể
         /// </summary>
-        public async Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid companyId)
+        public async Task<BaseResposeDto> ManualInviteGuideAsync(Guid tourDetailsId, Guid guideId, Guid companyId, string? invitationMessage = null)
         {
             try
             {
@@ -2052,7 +2052,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     using var scope = _serviceProvider.CreateScope();
                     var invitationService = scope.ServiceProvider.GetRequiredService<ITourGuideInvitationService>();
 
-                    var result = await invitationService.CreateManualInvitationAsync(tourDetailsId, guideId, companyId);
+                    var result = await invitationService.CreateManualInvitationAsync(tourDetailsId, guideId, companyId, invitationMessage);
                     
                     _logger.LogInformation("Manual invitation result for TourDetails {TourDetailsId}, Guide {GuideId}: Status={StatusCode}, Success={Success}, Message={Message}",
                         tourDetailsId, guideId, result.StatusCode, result.success, result.Message);

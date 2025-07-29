@@ -24,8 +24,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="tourDetailsId">ID của TourDetails</param>
         /// <param name="guideId">ID của TourGuide được mời</param>
         /// <param name="createdById">ID của user tạo invitation (TourCompany)</param>
+        /// <param name="invitationMessage">Tin nhắn từ TourCompany khi mời</param>
         /// <returns>Kết quả tạo invitation</returns>
-        Task<BaseResposeDto> CreateManualInvitationAsync(Guid tourDetailsId, Guid guideId, Guid createdById);
+        Task<BaseResposeDto> CreateManualInvitationAsync(Guid tourDetailsId, Guid guideId, Guid createdById, string? invitationMessage = null);
 
         /// <summary>
         /// TourGuide chấp nhận invitation
