@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace TayNinhTourApi.Controller.Controllers
@@ -76,7 +77,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 // Prepare email data
                 var customerName = booking.ContactName ?? "Test Customer";
                 var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Test Tour";
-                var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.Now;
+                var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
                 var emailAddress = testEmail ?? booking.ContactEmail ?? "test@example.com";
 
                 // Send email

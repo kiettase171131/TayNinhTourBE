@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
 {
@@ -35,7 +36,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
 
         [Required(ErrorMessage = "Vui lòng chọn năm")]
         [Range(2024, 2030, ErrorMessage = "Năm phải từ 2024 đến 2030")]
-        public int Year { get; set; } = DateTime.Now.Year;
+        public int Year { get; set; } = VietnamTimeZoneUtility.GetVietnamNow().Year;
 
         public List<string> Images { get; set; } = new List<string>();
     }

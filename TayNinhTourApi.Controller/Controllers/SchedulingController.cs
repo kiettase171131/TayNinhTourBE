@@ -7,6 +7,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Tests;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -61,7 +62,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // Get weekend dates
                 var weekendDates = _schedulingService.CalculateWeekendDates(year, month, scheduleDays);
-                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                var today = DateOnly.FromDateTime(VietnamTimeZoneUtility.GetVietnamNow());
 
                 // Build detailed response
                 var weekendDateInfos = weekendDates.Select((date, index) => new WeekendDateInfo
@@ -229,8 +230,8 @@ namespace TayNinhTourApi.Controller.Controllers
                     request.Count,
                     request.StartDate);
 
-                var searchEndDate = (request.StartDate ?? DateOnly.FromDateTime(DateTime.UtcNow)).AddMonths(6);
-                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                var searchEndDate = (request.StartDate ?? DateOnly.FromDateTime(VietnamTimeZoneUtility.GetVietnamNow())).AddMonths(6);
+                var today = DateOnly.FromDateTime(VietnamTimeZoneUtility.GetVietnamNow());
 
                 // Build detailed response
                 var availableSlotInfos = availableSlots.Select(date => new AvailableSlotInfo

@@ -4,6 +4,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -81,7 +82,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             // Use optimal distribution algorithm for better slot spacing
             return CalculateOptimalSlotDistribution(year, month, scheduleDays, numberOfSlots)
-                .Where(d => excludePastDates ? d >= DateOnly.FromDateTime(DateTime.UtcNow) : true)
+                .Where(d => excludePastDates ? d >= DateOnly.FromDateTime(VietnamTimeZoneUtility.GetVietnamNow()) : true)
                 .Take(numberOfSlots)
                 .ToList();
         }

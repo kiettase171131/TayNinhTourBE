@@ -1,3 +1,5 @@
+using TayNinhTourApi.DataAccessLayer.Utilities;
+
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
 {
     /// <summary>
@@ -154,14 +156,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         /// <summary>
         /// Số ngày còn lại để tìm guide
         /// </summary>
-        public int? DaysUntilDeadline => 
-            GuideAssignmentDeadline > DateTime.UtcNow 
-                ? (int)(GuideAssignmentDeadline - DateTime.UtcNow).TotalDays 
+        public int? DaysUntilDeadline =>
+            GuideAssignmentDeadline > VietnamTimeZoneUtility.GetVietnamNow()
+                ? (int)(GuideAssignmentDeadline - VietnamTimeZoneUtility.GetVietnamNow()).TotalDays
                 : null;
 
         /// <summary>
         /// Có đang trong thời hạn không
         /// </summary>
-        public bool IsWithinDeadline => GuideAssignmentDeadline > DateTime.UtcNow;
+        public bool IsWithinDeadline => GuideAssignmentDeadline > VietnamTimeZoneUtility.GetVietnamNow();
     }
 }

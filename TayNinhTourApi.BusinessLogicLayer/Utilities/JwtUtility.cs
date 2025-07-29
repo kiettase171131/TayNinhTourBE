@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Utilities
 {
@@ -32,7 +33,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
                 issuer: configuration["Jwt:Issuer"],
                 audience: configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(Constants.TokenExpiredTime),
+                expires: VietnamTimeZoneUtility.GetVietnamNow().AddDays(Constants.TokenExpiredTime),
                 signingCredentials: credentials
             );
 

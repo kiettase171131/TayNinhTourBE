@@ -7,6 +7,7 @@ using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -700,7 +701,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             do
             {
                 // Format: TN + YYYYMMDD + 4 random digits
-                var datePart = DateTime.Now.ToString("yyyyMMdd");
+                var datePart = VietnamTimeZoneUtility.GetVietnamNow().ToString("yyyyMMdd");
                 var randomPart = new Random().Next(1000, 9999).ToString();
                 bookingCode = $"TN{datePart}{randomPart}";
 
@@ -710,7 +711,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (attempts >= maxAttempts)
                 {
                     // Fallback với timestamp để đảm bảo unique
-                    var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+                    var timestamp = VietnamTimeZoneUtility.GetVietnamNow().Ticks.ToString();
                     bookingCode = $"TN{timestamp.Substring(timestamp.Length - 8)}";
                     break;
                 }

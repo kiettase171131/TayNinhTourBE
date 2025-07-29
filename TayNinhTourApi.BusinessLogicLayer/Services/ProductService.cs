@@ -22,6 +22,7 @@ using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -746,7 +747,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
                 
             // Tạo PayOsOrderCode với format TNDT + 10 số
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+            var timestamp = VietnamTimeZoneUtility.GetVietnamNow().Ticks.ToString();
             var random = new Random().Next(100, 999).ToString(); // 3 số random
             var payOsOrderCodeString = $"TNDT{timestamp.Substring(Math.Max(0, timestamp.Length - 7))}{random}";
             

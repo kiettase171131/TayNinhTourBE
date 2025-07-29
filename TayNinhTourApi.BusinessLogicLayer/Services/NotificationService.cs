@@ -7,6 +7,7 @@ using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -435,7 +436,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     message += $"Kỹ năng yêu cầu: {skillsRequired}.";
                 }
 
-                var hoursUntilExpiry = (int)(expiresAt - DateTime.UtcNow).TotalHours;
+                var hoursUntilExpiry = (int)(expiresAt - VietnamTimeZoneUtility.GetVietnamNow()).TotalHours;
                 message += $"Hạn phản hồi: {hoursUntilExpiry} giờ.";
 
                 var icon = invitationType.ToLower() == "manual" ? "??" : "??"; // Manual = personal invite, Auto = skill-matched
@@ -551,7 +552,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         private static string GetTimeAgo(DateTime createdAt)
         {
-            var timeSpan = DateTime.UtcNow - createdAt;
+            var timeSpan = VietnamTimeZoneUtility.GetVietnamNow() - createdAt;
 
             if (timeSpan.TotalMinutes < 1)
                 return "Vừa xong";

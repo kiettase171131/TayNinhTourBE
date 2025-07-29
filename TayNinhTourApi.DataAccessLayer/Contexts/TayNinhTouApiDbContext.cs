@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.DataAccessLayer.Contexts
 {
@@ -90,7 +91,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
             foreach (var entry in entries)
             {
                 var entity = (BaseEntity)entry.Entity;
-                var now = DateTime.UtcNow; // Use UTC for consistency
+                var now = VietnamTimeZoneUtility.GetVietnamNow(); // Use Vietnam timezone
 
                 if (entry.State == EntityState.Added)
                 {

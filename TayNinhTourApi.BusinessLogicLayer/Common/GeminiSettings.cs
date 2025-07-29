@@ -1,3 +1,5 @@
+using TayNinhTourApi.DataAccessLayer.Utilities;
+
 namespace TayNinhTourApi.BusinessLogicLayer.Common
 {
     public class GeminiSettings
@@ -126,7 +128,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Common
                     return 0;
                 }
 
-                var now = DateTime.UtcNow;
+                var now = VietnamTimeZoneUtility.GetVietnamNow();
                 var oneDayAgo = now.AddDays(-1);
 
                 _requestHistory[apiKey].RemoveAll(time => time < oneDayAgo);
@@ -144,7 +146,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Common
                     return TimeSpan.Zero;
                 }
 
-                var now = DateTime.UtcNow;
+                var now = VietnamTimeZoneUtility.GetVietnamNow();
                 var timeSinceLastRequest = now - _lastRequestTime[apiKey];
                 var requiredDelay = TimeSpan.FromMilliseconds(requestDelayMs);
 

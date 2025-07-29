@@ -7,6 +7,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
@@ -134,7 +135,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // 4. Tạo invitations cho matching guides (ưu tiên guides có match score cao)
                 var invitationsCreated = 0;
-                var expiresAt = DateTime.UtcNow.AddHours(24); // 24 hours expiry
+                var expiresAt = VietnamTimeZoneUtility.GetVietnamNow().AddHours(24); // 24 hours expiry
 
                 foreach (var guide in sortedGuides)
                 {
@@ -233,10 +234,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             GuideId = guide.Id,
                             InvitationType = InvitationType.Automatic,
                             Status = InvitationStatus.Pending,
-                            InvitedAt = DateTime.UtcNow,
+                            InvitedAt = VietnamTimeZoneUtility.GetVietnamNow(),
                             ExpiresAt = expiresAt,
                             CreatedById = createdById,
-                            CreatedAt = DateTime.UtcNow,
+                            CreatedAt = VietnamTimeZoneUtility.GetVietnamNow(),
                             IsActive = true
                         };
 
@@ -412,11 +413,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     GuideId = guideId,
                     InvitationType = InvitationType.Manual,
                     Status = InvitationStatus.Pending,
-                    InvitedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddHours(24), // 24 hours for manual invitations
+                    InvitedAt = VietnamTimeZoneUtility.GetVietnamNow(),
+                    ExpiresAt = VietnamTimeZoneUtility.GetVietnamNow().AddHours(24), // 24 hours for manual invitations
                     InvitationMessage = invitationMessage,
                     CreatedById = createdById,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = VietnamTimeZoneUtility.GetVietnamNow(),
                     IsActive = true
                 };
 
@@ -925,7 +926,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 // Find TourDetails that are Pending for more than 24 hours with no accepted invitations
-                var cutoffTime = DateTime.UtcNow.AddHours(-24);
+                var cutoffTime = VietnamTimeZoneUtility.GetVietnamNow().AddHours(-24);
                 var tourDetailsToTransition = await _unitOfWork.TourDetailsRepository
                     .GetAllAsync(td => td.Status == TourDetailsStatus.Pending && td.CreatedAt <= cutoffTime);
 

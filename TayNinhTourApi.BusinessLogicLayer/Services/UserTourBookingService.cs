@@ -9,6 +9,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
@@ -109,12 +110,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     IsEarlyBirdEligible = _pricingService.IsEarlyBirdEligible(
                         td.AssignedSlots.Any() ? td.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : DateTime.MaxValue,
                         td.CreatedAt,
-                        DateTime.UtcNow),
+                        VietnamTimeZoneUtility.GetVietnamNow()),
                     EarlyBirdPrice = _pricingService.CalculatePrice(
                         td.TourOperation.Price,
                         td.AssignedSlots.Any() ? td.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : DateTime.MaxValue,
                         td.CreatedAt,
-                        DateTime.UtcNow).finalPrice,
+                        VietnamTimeZoneUtility.GetVietnamNow()).finalPrice,
                     CreatedAt = td.CreatedAt
                 })
                 .ToListAsync();
@@ -224,13 +225,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 tourOperation.TourDetails.Status != TourDetailsStatus.Public)
                 return null;
 
-            var bookingDate = request.BookingDate ?? DateTime.UtcNow;
+            var bookingDate = request.BookingDate ?? VietnamTimeZoneUtility.GetVietnamNow();
             var tourStartDate = tourOperation.TourDetails.AssignedSlots.Any() ? 
                 tourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : 
                 DateTime.MaxValue;
 
             var availableSpots = tourOperation.MaxGuests - tourOperation.CurrentBookings;
-            var isAvailable = availableSpots >= request.NumberOfGuests && tourStartDate > DateTime.Now;
+            var isAvailable = availableSpots >= request.NumberOfGuests && tourStartDate > VietnamTimeZoneUtility.GetVietnamNow();
 
             var pricingInfo = _pricingService.GetPricingInfo(
                 tourOperation.Price,
@@ -357,7 +358,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 var tourStartDate = tourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
-                if (tourStartDate <= DateTime.Now)
+                if (tourStartDate <= VietnamTimeZoneUtility.GetVietnamNow())
                 {
                     _logger.LogWarning("Tour already started. TourSlotId: {TourSlotId}, TourDate: {TourDate}", 
                         request.TourSlotId, tourStartDate);
@@ -455,7 +456,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     CustomerNotes = request.SpecialRequests,
                     CreatedAt = bookingDate,
                     CreatedById = userId,
-                    ReservedUntil = DateTime.UtcNow.AddMinutes(30) // Reserve slot for 30 minutes
+                    ReservedUntil = VietnamTimeZoneUtility.GetVietnamNow().AddMinutes(30) // Reserve slot for 30 minutes
                 };
 
                 await _unitOfWork.TourBookingRepository.AddAsync(booking);
@@ -545,7 +546,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         private string GenerateBookingCode()
         {
-            var dateStr = DateTime.UtcNow.ToString("yyyyMMdd");
+            var dateStr = VietnamTimeZoneUtility.GetVietnamNow().ToString("yyyyMMdd");
             var random = new Random().Next(100000, 999999);
             return $"TB{dateStr}{random}";
         }
@@ -557,7 +558,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private string GeneratePayOsOrderCode()
         {
             // Tạo timestamp với milliseconds để tăng tính unique
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
+            var timestamp = VietnamTimeZoneUtility.GetVietnamNow().Ticks.ToString();
             var timestampLast7 = timestamp.Substring(Math.Max(0, timestamp.Length - 7));
             var random = new Random().Next(100, 999);
             return $"TNDT{timestampLast7}{random}";
@@ -1013,7 +1014,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Prepare email data
                 var customerName = booking.ContactName ?? "Valued Customer";
                 var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience";
-                var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.Now;
+                var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
 
                 // Send email
                 await _emailSender.SendTourBookingConfirmationAsync(

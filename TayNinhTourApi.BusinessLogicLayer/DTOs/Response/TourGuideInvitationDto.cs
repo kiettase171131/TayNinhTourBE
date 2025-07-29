@@ -1,3 +1,5 @@
+using TayNinhTourApi.DataAccessLayer.Utilities;
+
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
 {
     /// <summary>
@@ -69,22 +71,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response
         /// <summary>
         /// Số giờ còn lại trước khi hết hạn (tính toán)
         /// </summary>
-        public double? HoursUntilExpiry => 
-            Status == "Pending" && ExpiresAt > DateTime.UtcNow 
-                ? (ExpiresAt - DateTime.UtcNow).TotalHours 
+        public double? HoursUntilExpiry =>
+            Status == "Pending" && ExpiresAt > VietnamTimeZoneUtility.GetVietnamNow()
+                ? (ExpiresAt - VietnamTimeZoneUtility.GetVietnamNow()).TotalHours
                 : null;
 
         /// <summary>
         /// Có thể chấp nhận lời mời không (tính toán)
         /// </summary>
-        public bool CanAccept => 
-            Status == "Pending" && ExpiresAt > DateTime.UtcNow;
+        public bool CanAccept =>
+            Status == "Pending" && ExpiresAt > VietnamTimeZoneUtility.GetVietnamNow();
 
         /// <summary>
         /// Có thể từ chối lời mời không (tính toán)
         /// </summary>
-        public bool CanReject => 
-            Status == "Pending" && ExpiresAt > DateTime.UtcNow;
+        public bool CanReject =>
+            Status == "Pending" && ExpiresAt > VietnamTimeZoneUtility.GetVietnamNow();
     }
 
     /// <summary>

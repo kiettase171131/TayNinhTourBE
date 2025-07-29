@@ -8,6 +8,9 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Globalization;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.Mapping;
 using TayNinhTourApi.BusinessLogicLayer.Services;
@@ -25,7 +28,30 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+// Configure Vietnam timezone and culture
+var vietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+var vietnamCulture = new CultureInfo("vi-VN");
+CultureInfo.DefaultThreadCurrentCulture = vietnamCulture;
+CultureInfo.DefaultThreadCurrentUICulture = vietnamCulture;
+
+// Configure JSON serialization for Vietnam timezone
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.SerializerOptions.WriteIndented = true;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.WriteIndented = true;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        // Configure DateTime serialization to handle Vietnam timezone
+        options.JsonSerializerOptions.Converters.Add(new VietnamDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new VietnamNullableDateTimeConverter());
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

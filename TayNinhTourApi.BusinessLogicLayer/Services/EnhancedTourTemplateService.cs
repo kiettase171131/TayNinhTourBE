@@ -6,6 +6,7 @@ using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -852,7 +853,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Find next available date
                 DateTime? nextAvailableDate = null;
-                var futureSlots = slots.Where(s => s.TourDate > DateOnly.FromDateTime(DateTime.Now) && s.IsActive)
+                var futureSlots = slots.Where(s => s.TourDate > DateOnly.FromDateTime(VietnamTimeZoneUtility.GetVietnamNow()) && s.IsActive)
                                       .OrderBy(s => s.TourDate);
 
                 foreach (var slot in futureSlots)

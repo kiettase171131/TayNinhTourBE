@@ -1,4 +1,5 @@
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {

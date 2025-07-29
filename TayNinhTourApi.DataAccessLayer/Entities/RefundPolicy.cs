@@ -75,7 +75,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Policy có đang được áp dụng không
         /// </summary>
         [Required]
-        public bool IsActive { get; set; } = true;
+        public new bool IsActive { get; set; } = true;
 
         /// <summary>
         /// Ngày bắt đầu có hiệu lực

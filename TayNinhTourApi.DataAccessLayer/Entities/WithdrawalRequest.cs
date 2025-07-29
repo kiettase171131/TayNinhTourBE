@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -42,7 +43,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Tự động set khi tạo record
         /// </summary>
         [Required]
-        public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
+        public DateTime RequestedAt { get; set; } = VietnamTimeZoneUtility.GetVietnamNow();
 
         /// <summary>
         /// Thời gian admin xử lý yêu cầu (approve/reject)
