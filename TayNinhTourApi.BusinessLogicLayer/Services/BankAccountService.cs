@@ -139,39 +139,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var hasExistingAccounts = await _unitOfWork.BankAccountRepository.HasBankAccountAsync(userId);
                 var shouldSetDefault = createDto.IsDefault || !hasExistingAccounts;
 
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
+                BankAccount bankAccount;
+
+                // Unset default cũ nếu cần
+                if (shouldSetDefault)
                 {
-                    // Unset default cũ nếu cần
-                    if (shouldSetDefault)
-                    {
-                        await _unitOfWork.BankAccountRepository.UnsetAllDefaultAsync(userId);
-                    }
-
-                    // Tạo bank account mới
-                    var bankAccount = new BankAccount
-                    {
-                        UserId = userId,
-                        BankName = finalBankName.Trim(),
-                        AccountNumber = createDto.AccountNumber.Trim(),
-                        AccountHolderName = createDto.AccountHolderName.Trim(),
-                        IsDefault = shouldSetDefault,
-                        Notes = createDto.Notes?.Trim(),
-                        IsActive = true
-                    };
-
-                    await _unitOfWork.BankAccountRepository.AddAsync(bankAccount);
-                    await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    var responseDto = MapToResponseDto(bankAccount);
-                    return ApiResponse<BankAccountResponseDto>.Success(responseDto, "Tạo tài khoản ngân hàng thành công");
+                    await _unitOfWork.BankAccountRepository.UnsetAllDefaultAsync(userId);
                 }
-                catch
+
+                // Tạo bank account mới
+                bankAccount = new BankAccount
                 {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                    UserId = userId,
+                    BankName = finalBankName.Trim(),
+                    AccountNumber = createDto.AccountNumber.Trim(),
+                    AccountHolderName = createDto.AccountHolderName.Trim(),
+                    IsDefault = shouldSetDefault,
+                    Notes = createDto.Notes?.Trim(),
+                    IsActive = true
+                };
+
+                await _unitOfWork.BankAccountRepository.AddAsync(bankAccount);
+                await _unitOfWork.SaveChangesAsync();
+
+                var responseDto = MapToResponseDto(bankAccount);
+                return ApiResponse<BankAccountResponseDto>.Success(responseDto, "Tạo tài khoản ngân hàng thành công");
             }
             catch (Exception ex)
             {
@@ -242,34 +234,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<bool>.Error("Không thể xóa tài khoản ngân hàng này vì có yêu cầu rút tiền đang chờ xử lý");
                 }
 
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
+                // Soft delete
+                await _unitOfWork.BankAccountRepository.DeleteAsync(bankAccount.Id);
+                
+                // Nếu xóa tài khoản default, set tài khoản khác làm default
+                if (bankAccount.IsDefault)
                 {
-                    // Soft delete
-                    await _unitOfWork.BankAccountRepository.DeleteAsync(bankAccount.Id);
-                    
-                    // Nếu xóa tài khoản default, set tài khoản khác làm default
-                    if (bankAccount.IsDefault)
+                    var remainingAccounts = await _unitOfWork.BankAccountRepository.GetByUserIdAsync(currentUserId);
+                    var firstRemaining = remainingAccounts.FirstOrDefault();
+                    if (firstRemaining != null)
                     {
-                        var remainingAccounts = await _unitOfWork.BankAccountRepository.GetByUserIdAsync(currentUserId);
-                        var firstRemaining = remainingAccounts.FirstOrDefault();
-                        if (firstRemaining != null)
-                        {
-                            firstRemaining.IsDefault = true;
-                            await _unitOfWork.BankAccountRepository.UpdateAsync(firstRemaining);
-                        }
+                        firstRemaining.IsDefault = true;
+                        await _unitOfWork.BankAccountRepository.UpdateAsync(firstRemaining);
                     }
-
-                    await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return ApiResponse<bool>.Success(true, "Xóa tài khoản ngân hàng thành công");
                 }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                return ApiResponse<bool>.Success(true, "Xóa tài khoản ngân hàng thành công");
             }
             catch (Exception ex)
             {
@@ -296,26 +278,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<bool>.Success(true, "Tài khoản này đã là tài khoản mặc định");
                 }
 
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
-                {
-                    // Unset tất cả default cũ
-                    await _unitOfWork.BankAccountRepository.UnsetAllDefaultAsync(currentUserId);
-                    
-                    // Set account này làm default
-                    bankAccount.IsDefault = true;
-                    await _unitOfWork.BankAccountRepository.UpdateAsync(bankAccount);
-                    
-                    await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
+                // Unset tất cả default cũ
+                await _unitOfWork.BankAccountRepository.UnsetAllDefaultAsync(currentUserId);
+                
+                // Set account này làm default
+                bankAccount.IsDefault = true;
+                await _unitOfWork.BankAccountRepository.UpdateAsync(bankAccount);
+                
+                await _unitOfWork.SaveChangesAsync();
 
-                    return ApiResponse<bool>.Success(true, "Đặt tài khoản mặc định thành công");
-                }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                return ApiResponse<bool>.Success(true, "Đặt tài khoản mặc định thành công");
             }
             catch (Exception ex)
             {

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using MySqlConnector;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
@@ -42,6 +43,11 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         // Tour booking refund system repositories
         ITourBookingRefundRepository TourBookingRefundRepository { get; }
         IRefundPolicyRepository RefundPolicyRepository { get; }
+
+        /// <summary>
+        /// Exposes the DbContext for advanced operations like creating execution strategies
+        /// </summary>
+        DbContext Context { get; }
 
         Task<int> SaveChangesAsync();
         Task<int> ExecuteSqlRawAsync(string sql, params MySqlParameter[] parameters);

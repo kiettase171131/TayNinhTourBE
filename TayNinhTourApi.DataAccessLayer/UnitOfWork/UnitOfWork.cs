@@ -271,6 +271,11 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
+        /// <summary>
+        /// Exposes the DbContext for advanced operations like creating execution strategies
+        /// </summary>
+        public DbContext Context => _context;
+
         public IDbContextTransaction BeginTransaction()
         {
             return _context.Database.BeginTransaction();
