@@ -1331,7 +1331,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // lọc theo status (IsActive)
                 if (status.HasValue)
                 {
-                    predicate = predicate.And(x => x.IsActive == status.Value);
+                    predicate = predicate.And(x => x.Status == OrderStatus.Paid || x.Status == OrderStatus.Cancelled);
+
                 }
                 if (!string.IsNullOrEmpty(payOsOrderCode))
                 {
