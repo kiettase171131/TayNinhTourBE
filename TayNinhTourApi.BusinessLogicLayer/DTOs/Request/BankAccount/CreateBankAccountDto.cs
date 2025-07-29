@@ -6,6 +6,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.BankAccount
     /// <summary>
     /// DTO cho việc tạo tài khoản ngân hàng mới
     /// </summary>
+    [CustomBankNameValidation] // Custom validation attribute
     public class CreateBankAccountDto
     {
         /// <summary>
@@ -54,5 +55,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.BankAccount
         /// </summary>
         [StringLength(500, ErrorMessage = "Ghi chú không được vượt quá 500 ký tự")]
         public string? Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Custom validation attribute để kiểm tra logic nghiệp vụ của CustomBankName
+    /// </summary>
+    public class CustomBankNameValidationAttribute : ValidationAttribute
+    {
+        public override bool IsValid(object? value)
+        {
+            if (value is CreateBankAccountDto dto)
+            {
+                // Nếu chọn "Other" (999) thì bắt buộc phải có CustomBankName
+                if (dto.SupportedBankId == SupportedBank.Other)
+                {
+                    if (string.IsNullOrWhiteSpace(dto.CustomBankName))
+                    {
+                        ErrorMessage = "Tên ngân hàng tự do là bắt buộc khi chọn 'Ngân hàng khác'";
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
+        }
     }
 }
