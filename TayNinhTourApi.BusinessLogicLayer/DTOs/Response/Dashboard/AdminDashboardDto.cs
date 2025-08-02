@@ -14,8 +14,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Dashboard
         public int OrdersThisMonth { get; set; }
         public decimal TotalRevenue { get; set; }
         public decimal WithdrawRequestsTotal { get; set; }
+        public decimal WithdrawRequestsApprove { get; set; }
         public int NewTourGuidesThisMonth { get; set; }
         public int NewShopsThisMonth { get; set; }
         public int NewPostsThisMonth { get; set; }
+        // Thêm danh sách doanh thu theo từng shop
+        public List<ShopRevenueDto> RevenueByShop { get; set; } = new();
     }
 }
