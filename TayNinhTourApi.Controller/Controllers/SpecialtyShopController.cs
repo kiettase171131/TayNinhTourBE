@@ -19,11 +19,13 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         private readonly ISpecialtyShopService _specialtyShopService;
         private readonly ILogger<SpecialtyShopController> _logger;
+        private readonly IDashboardService _dashboardService;
 
-        public SpecialtyShopController(ISpecialtyShopService specialtyShopService, ILogger<SpecialtyShopController> logger)
+        public SpecialtyShopController(ISpecialtyShopService specialtyShopService, ILogger<SpecialtyShopController> logger, IDashboardService dashboardService)
         {
             _specialtyShopService = specialtyShopService;
             _logger = logger;
+            _dashboardService = dashboardService;
         }
 
         /// <summary>
@@ -256,7 +258,14 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
-
+        [HttpGet("Dashboard")]
+        [Authorize(Roles = "Specialty Shop")]
+        public async Task<IActionResult> GetStatistics()
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var statistics = await _dashboardService.GetShopStatisticsAsync(currentUser.UserId);
+            return Ok(statistics);
+        }
         // CreateShopForTimeline endpoint removed
         // SpecialtyShops are created through the shop application approval process
         // Timeline integration only needs to read existing SpecialtyShops
