@@ -35,6 +35,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var startDate = new DateTime(year, month, 1);
             var endDate = startDate.AddMonths(1);
+            // Gọi repository lấy dữ liệu
+            var revenueByShopRaw = await _dashboardRepository.GetTotalRevenueByShopAsync(startDate, endDate);
+
+            // Map sang DTO
+            var revenueByShop = revenueByShopRaw
+                .Select(r => new ShopRevenueDto
+                {
+                    ShopId = r.ShopId,
+                    TotalRevenue = r.Revenue
+                })
+                .ToList();
 
             var dto = new AdminDashboardDto
             {
@@ -44,12 +55,34 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 OrdersThisMonth = await _dashboardRepository.GetOrdersAsync(startDate, endDate),
                 TotalRevenue = await _dashboardRepository.GetTotalRevenueAsync(startDate, endDate),
                 WithdrawRequestsTotal = await _dashboardRepository.GetWithdrawRequestsTotalAsync(startDate, endDate),
+                WithdrawRequestsApprove = await _dashboardRepository.GetWithdrawRequestsAcceptAsync(startDate, endDate),
                 NewTourGuidesThisMonth = await _dashboardRepository.GetNewCVsAsync(startDate, endDate),
                 NewShopsThisMonth = await _dashboardRepository.GetNewShopsAsync(startDate, endDate),
-                NewPostsThisMonth = await _dashboardRepository.GetPostsAsync(startDate, endDate)
+                NewPostsThisMonth = await _dashboardRepository.GetPostsAsync(startDate, endDate),
+                RevenueByShop = revenueByShop
             };
 
           return dto;
+        }
+        public async Task<ShopDashboardDto> GetShopStatisticsAsync(Guid shopId)
+        {
+            var totalProducts = await _dashboardRepository.GetTotalProductsAsync(shopId);
+            var totalOrders = await _dashboardRepository.GetTotalOrdersAsync(shopId);
+            var totalRevenue = await _dashboardRepository.GetTotalRevenueAsync(shopId);
+            var wallet = await _dashboardRepository.GetWalletAsync(shopId);
+            var (averageProductRating, totalProductRatings) = await _dashboardRepository.GetProductRatingsAsync(shopId);
+            var shopAverageRating = await _dashboardRepository.GetShopRatingAsync(shopId);
+
+            return new ShopDashboardDto
+            {
+                TotalProducts = totalProducts,
+                TotalOrders = totalOrders,
+                TotalRevenue = totalRevenue,
+                Wallet = wallet,
+                AverageProductRating = averageProductRating,
+                TotalProductRatings = totalProductRatings,
+                ShopAverageRating = shopAverageRating
+            };
         }
     }
 }
