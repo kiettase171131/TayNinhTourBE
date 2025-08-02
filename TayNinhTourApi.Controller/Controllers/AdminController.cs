@@ -20,15 +20,17 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ITourDetailsService _tourDetailsService;
         private readonly ITourGuideInvitationService _invitationService;
         private readonly ILogger<AdminController> _logger;
+        private readonly IDashboardService _dashboardService;
 
         public AdminController(
             ITourDetailsService tourDetailsService,
             ITourGuideInvitationService invitationService,
-            ILogger<AdminController> logger)
+            ILogger<AdminController> logger, IDashboardService dashboardService)
         {
             _tourDetailsService = tourDetailsService;
             _invitationService = invitationService;
             _logger = logger;
+            _dashboardService = dashboardService;
         }
 
         /// <summary>
@@ -595,6 +597,15 @@ namespace TayNinhTourApi.Controller.Controllers
                     Message = "Có lỗi xảy ra khi test thông báo debug"
                 });
             }
+        }
+        [HttpGet("Dashboard")]
+        public async Task<IActionResult> GetDashboard([FromQuery] int year, [FromQuery] int month)
+        {
+            if (year <= 0 || month < 1 || month > 12)
+                return BadRequest("Năm hoặc tháng không hợp lệ.");
+
+            var result = await _dashboardService.GetDashboardAsync(year, month);
+            return Ok(result);
         }
     }
 }
