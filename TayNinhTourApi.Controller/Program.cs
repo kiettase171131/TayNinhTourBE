@@ -283,10 +283,13 @@ builder.Services.AddScoped<IAIChatMessageRepository, AIChatMessageRepository>();
 // Tour Booking Refund Repositories
 builder.Services.AddScoped<ITourBookingRefundRepository, TourBookingRefundRepository>();
 builder.Services.AddScoped<IRefundPolicyRepository, RefundPolicyRepository>();
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+
 
 // Tour Booking Refund Services
 builder.Services.AddScoped<IRefundPolicyService, RefundPolicyService>();
 builder.Services.AddScoped<ITourBookingRefundService, TourBookingRefundService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();
