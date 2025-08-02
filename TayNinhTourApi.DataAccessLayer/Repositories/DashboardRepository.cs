@@ -39,7 +39,11 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         public async Task<decimal> GetWithdrawRequestsTotalAsync(DateTime startDate, DateTime endDate)
             => await _context.WithdrawalRequests
-                .Where(w => w.RequestedAt >= startDate && w.RequestedAt < endDate)
+                .Where(w => w.RequestedAt >= startDate && w.RequestedAt < endDate )
+                .SumAsync(w => (decimal?)w.Amount) ?? 0;
+        public async Task<decimal> GetWithdrawRequestsAcceptAsync(DateTime startDate, DateTime endDate)
+            => await _context.WithdrawalRequests
+                .Where(w => w.RequestedAt >= startDate && w.RequestedAt < endDate && w.Status == WithdrawalStatus.Approved)
                 .SumAsync(w => (decimal?)w.Amount) ?? 0;
 
         public Task<int> GetNewCVsAsync(DateTime startDate, DateTime endDate)
@@ -50,7 +54,21 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         public Task<int> GetPostsAsync(DateTime startDate, DateTime endDate)
             => _context.Blogs.CountAsync(b => b.CreatedAt >= startDate && b.CreatedAt < endDate);
-       //Blogger
+        public async Task<List<(Guid ShopId, decimal Revenue)>> GetTotalRevenueByShopAsync(DateTime startDate, DateTime endDate)
+        {
+            return await _context.OrderDetails
+                .Where(od =>
+                    od.Order.Status == OrderStatus.Paid &&
+                    od.Order.CreatedAt >= startDate &&
+                    od.Order.CreatedAt < endDate)
+                .GroupBy(od => od.Product.ShopId)
+                .Select(g => new ValueTuple<Guid, decimal>(
+                    g.Key,
+                    g.Sum(x => x.Order.TotalAfterDiscount)
+                ))
+                .ToListAsync();
+        }
+        //Blogger
         private static IQueryable<T> FilterByMonth<T>(IQueryable<T> query, int month, int year)
                where T : BaseEntity
         {
@@ -77,6 +95,70 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             => FilterByMonth(_context.BlogComments
                 .Where(c => c.Blog.UserId == bloggerId), month, year)
                 .CountAsync();
+        //Shop
+        public async Task<int> GetTotalProductsAsync(Guid shopId)
+        {
+            return await _context.Products.CountAsync(p => p.ShopId == shopId);
+        }
+
+        public async Task<int> GetTotalOrdersAsync(Guid shopId)
+        {
+            var productIds = await _context.Products
+                .Where(p => p.ShopId == shopId)
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            return await _context.OrderDetails
+                .Where(od => productIds.Contains(od.ProductId))
+                .Select(od => od.OrderId)
+                .Distinct()
+                .CountAsync();
+        }
+
+        public async Task<decimal> GetTotalRevenueAsync(Guid shopId)
+        {
+            var productIds = await _context.Products
+                .Where(p => p.ShopId == shopId)
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            return await _context.OrderDetails
+                .Where(od => productIds.Contains(od.ProductId)
+                          && od.Order.Status == OrderStatus.Paid)
+                .SumAsync(od => (decimal?)od.Order.TotalAfterDiscount) ?? 0;
+        }
+
+        public async Task<decimal> GetWalletAsync(Guid shopId)
+        {
+            var shop = await _context.SpecialtyShops
+                .FirstOrDefaultAsync(s => s.UserId == shopId);
+
+            return shop?.Wallet ?? 0;
+        }
+
+        public async Task<(decimal averageRating, int totalRatings)> GetProductRatingsAsync(Guid shopId)
+        {
+            var productIds = await _context.Products
+                .Where(p => p.ShopId == shopId)
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            var ratings = await _context.ProductRatings
+                .Where(r => productIds.Contains(r.ProductId))
+                .ToListAsync();
+
+            if (!ratings.Any()) return (0, 0);
+
+            return ((decimal)ratings.Average(r => r.Rating), ratings.Count);
+        }
+
+        public async Task<decimal?> GetShopRatingAsync(Guid shopId)
+        {
+            var shop = await _context.SpecialtyShops
+                .FirstOrDefaultAsync(s => s.UserId == shopId);
+
+            return shop?.Rating;
+        }
 
     }
 }

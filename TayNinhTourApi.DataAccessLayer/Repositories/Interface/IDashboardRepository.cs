@@ -15,15 +15,23 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<int> GetOrdersAsync(DateTime startDate, DateTime endDate);
         Task<decimal> GetTotalRevenueAsync(DateTime startDate, DateTime endDate);
         Task<decimal> GetWithdrawRequestsTotalAsync(DateTime startDate, DateTime endDate);
+        Task<decimal> GetWithdrawRequestsAcceptAsync(DateTime startDate, DateTime endDate);
         Task<int> GetNewCVsAsync(DateTime startDate, DateTime endDate);
         Task<int> GetNewShopsAsync(DateTime startDate, DateTime endDate);
         Task<int> GetPostsAsync(DateTime startDate, DateTime endDate);
+        Task<List<(Guid ShopId, decimal Revenue)>> GetTotalRevenueByShopAsync(DateTime startDate, DateTime endDate);
         Task<int> GetTotalPostsAsync(Guid bloggerId,int month, int year);
         Task<int> GetApprovedPostsAsync(Guid bloggerId, int month, int year);
         Task<int> GetRejectedPostsAsync(Guid bloggerId, int month, int year);
         Task<int> GetPendingPostsAsync(Guid bloggerId, int month, int year);
         Task<int> GetTotalLikesAsync(Guid bloggerId, int month, int year);
         Task<int> GetTotalCommentsAsync(Guid bloggerId, int month, int year);
+        Task<int> GetTotalProductsAsync(Guid shopId);
+        Task<int> GetTotalOrdersAsync(Guid shopId);
+        Task<decimal> GetTotalRevenueAsync(Guid shopId);
+        Task<decimal> GetWalletAsync(Guid shopId);
+        Task<(decimal averageRating, int totalRatings)> GetProductRatingsAsync(Guid shopId);
+        Task<decimal?> GetShopRatingAsync(Guid shopId);
     }
 
 }
