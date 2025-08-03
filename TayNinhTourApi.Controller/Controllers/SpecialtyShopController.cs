@@ -260,10 +260,10 @@ namespace TayNinhTourApi.Controller.Controllers
         }
         [HttpGet("Dashboard")]
         [Authorize(Roles = "Specialty Shop")]
-        public async Task<IActionResult> GetStatistics()
+        public async Task<IActionResult> GetStatistics(int year, int month)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var statistics = await _dashboardService.GetShopStatisticsAsync(currentUser.UserId);
+            var statistics = await _dashboardService.GetShopStatisticsAsync(currentUser.UserId, year,month);
             return Ok(statistics);
         }
         // CreateShopForTimeline endpoint removed

@@ -26,11 +26,11 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<int> GetPendingPostsAsync(Guid bloggerId, int month, int year);
         Task<int> GetTotalLikesAsync(Guid bloggerId, int month, int year);
         Task<int> GetTotalCommentsAsync(Guid bloggerId, int month, int year);
-        Task<int> GetTotalProductsAsync(Guid shopId);
-        Task<int> GetTotalOrdersAsync(Guid shopId);
-        Task<decimal> GetTotalRevenueAsync(Guid shopId);
+        Task<int> GetTotalProductsAsync(Guid shopId, DateTime startDate, DateTime endDate);
+        Task<int> GetTotalOrdersAsync(Guid shopId, DateTime startDate, DateTime endDate);
+        Task<decimal> GetTotalRevenueAsync(Guid shopId, DateTime startDate, DateTime endDate);
         Task<decimal> GetWalletAsync(Guid shopId);
-        Task<(decimal averageRating, int totalRatings)> GetProductRatingsAsync(Guid shopId);
+        Task<(decimal averageRating, int totalRatings)> GetProductRatingsAsync(Guid shopId, DateTime startDate, DateTime endDate);
         Task<decimal?> GetShopRatingAsync(Guid shopId);
     }
 
