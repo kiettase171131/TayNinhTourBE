@@ -56,22 +56,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalRevenue = await _dashboardRepository.GetTotalRevenueAsync(startDate, endDate),
                 WithdrawRequestsTotal = await _dashboardRepository.GetWithdrawRequestsTotalAsync(startDate, endDate),
                 WithdrawRequestsApprove = await _dashboardRepository.GetWithdrawRequestsAcceptAsync(startDate, endDate),
-                NewTourGuidesThisMonth = await _dashboardRepository.GetNewCVsAsync(startDate, endDate),
-                NewShopsThisMonth = await _dashboardRepository.GetNewShopsAsync(startDate, endDate),
+                NewTourGuidesCVThisMonth = await _dashboardRepository.GetNewCVsAsync(startDate, endDate),
+                NewShopsCVThisMonth = await _dashboardRepository.GetNewShopsAsync(startDate, endDate),
                 NewPostsThisMonth = await _dashboardRepository.GetPostsAsync(startDate, endDate),
                 RevenueByShop = revenueByShop
             };
 
           return dto;
         }
-        public async Task<ShopDashboardDto> GetShopStatisticsAsync(Guid shopId)
+        public async Task<ShopDashboardDto> GetShopStatisticsAsync(Guid shopId, int year, int month)
         {
-            var totalProducts = await _dashboardRepository.GetTotalProductsAsync(shopId);
-            var totalOrders = await _dashboardRepository.GetTotalOrdersAsync(shopId);
-            var totalRevenue = await _dashboardRepository.GetTotalRevenueAsync(shopId);
+            var startDate = new DateTime(year, month, 1);
+            var endDate = startDate.AddMonths(1);
+
+            var totalProducts = await _dashboardRepository.GetTotalProductsAsync(shopId, startDate, endDate);
+            var totalOrders = await _dashboardRepository.GetTotalOrdersAsync(shopId, startDate, endDate);
+            var totalRevenue = await _dashboardRepository.GetTotalRevenueAsync(shopId, startDate, endDate);
             var wallet = await _dashboardRepository.GetWalletAsync(shopId);
-            var (averageProductRating, totalProductRatings) = await _dashboardRepository.GetProductRatingsAsync(shopId);
-            var shopAverageRating = await _dashboardRepository.GetShopRatingAsync(shopId);
+            var (avgProductRating, totalProductRatings) = await _dashboardRepository.GetProductRatingsAsync(shopId, startDate, endDate);
+            var shopRating = await _dashboardRepository.GetShopRatingAsync(shopId);
 
             return new ShopDashboardDto
             {
@@ -79,9 +82,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalOrders = totalOrders,
                 TotalRevenue = totalRevenue,
                 Wallet = wallet,
-                AverageProductRating = averageProductRating,
+                AverageProductRating = avgProductRating,
                 TotalProductRatings = totalProductRatings,
-                ShopAverageRating = shopAverageRating
+                ShopAverageRating = shopRating
             };
         }
     }
