@@ -60,8 +60,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                  amount: (int)amount,
                  description: $"{orderCodeDisplay}",
                  items: items,
-                 cancelUrl: $"{baseUrl}/product-payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
-                 returnUrl: $"{baseUrl}/product-payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+                 cancelUrl: $"http://localhost:5173/product-payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+                 returnUrl: $"http://localhost:5173/product-payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
                  buyerName: "Product Customer");
 
                 CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);
@@ -116,8 +116,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                  amount: (int)amount,
                  description: $"Tour {orderCodeDisplay}",
                  items: items,
-                 cancelUrl: $"{baseUrl}/tour-payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
-                 returnUrl: $"{baseUrl}/tour-payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+                 cancelUrl: $"http://localhost:5173/tour-payment-cancel?orderId={orderCode}&orderCode={payOsOrderCodeString}",
+                 returnUrl: $"http://localhost:5173/tour-payment-success?orderId={orderCode}&orderCode={payOsOrderCodeString}",
                  buyerName: "Tour Customer");
 
                 CreatePaymentResult createPayment = await payOS.createPaymentLink(paymentData);

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -12,13 +14,22 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         private readonly IUserTourBookingService _userTourBookingService;
         private readonly ILogger<TourBookingPaymentController> _logger;
+        private readonly ITourBookingRepository _tourBookingRepository;
+        private readonly ITourCompanyRepository _tourCompanyRepository;
+
+        // Commission rate for tour companies (10%)
+        private const decimal TOUR_COMPANY_COMMISSION_RATE = 0.10m;
 
         public TourBookingPaymentController(
             IUserTourBookingService userTourBookingService,
-            ILogger<TourBookingPaymentController> logger)
+            ILogger<TourBookingPaymentController> logger,
+            ITourBookingRepository tourBookingRepository,
+            ITourCompanyRepository tourCompanyRepository)
         {
             _userTourBookingService = userTourBookingService;
             _logger = logger;
+            _tourBookingRepository = tourBookingRepository;
+            _tourCompanyRepository = tourCompanyRepository;
         }
 
         /// <summary>
@@ -294,6 +305,159 @@ namespace TayNinhTourApi.Controller.Controllers
                     success = false,
                     message = "Internal server error while looking up booking",
                     error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Frontend callback API cho tour booking payment success
+        /// URL: /api/tour-booking-payment/payment-success/{orderCode}
+        /// </summary>
+        [HttpPost("payment-success/{orderCode}")]
+        public async Task<IActionResult> HandleTourBookingPaymentSuccess(string orderCode)
+        {
+            try
+            {
+                _logger.LogInformation("Frontend Tour Booking Payment Success callback received for orderCode: {OrderCode}", orderCode);
+
+                if (string.IsNullOrEmpty(orderCode))
+                {
+                    _logger.LogWarning("Invalid orderCode: null or empty");
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "OrderCode is required"
+                    });
+                }
+
+                // Sử dụng service thay vì repository trực tiếp
+                var result = await _userTourBookingService.HandlePaymentSuccessAsync(orderCode);
+
+                if (result.StatusCode != 200)
+                {
+                    _logger.LogError("Failed to process frontend tour booking payment success for order {OrderCode}: {Message}",
+                        orderCode, result.Message);
+
+                    return StatusCode(result.StatusCode, new
+                    {
+                        success = false,
+                        message = result.Message
+                    });
+                }
+
+                _logger.LogInformation("Successfully processed frontend tour booking payment success for order: {OrderCode}", orderCode);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Thanh toán tour thành công",
+                    orderCode = orderCode,
+                    result = result.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Frontend Tour Booking Payment Success callback error for orderCode: {OrderCode}", orderCode);
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi xử lý thanh toán tour thành công: " + ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Frontend callback API cho tour booking payment cancel
+        /// URL: /api/tour-booking-payment/payment-cancel/{orderCode}
+        /// </summary>
+        [HttpPost("payment-cancel/{orderCode}")]
+        public async Task<IActionResult> HandleTourBookingPaymentCancel(string orderCode)
+        {
+            try
+            {
+                Console.WriteLine($"Frontend Tour Booking Payment Cancel callback received for orderCode: {orderCode}");
+
+                if (string.IsNullOrEmpty(orderCode))
+                {
+                    Console.WriteLine("Invalid orderCode: null or empty");
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "OrderCode is required"
+                    });
+                }
+
+                // Tìm tour booking theo PayOsOrderCode hoặc TourBooking.Id
+                var tourBooking = await _tourBookingRepository.GetByPayOsOrderCodeAsync(orderCode);
+                if (tourBooking == null)
+                {
+                    // Thử tìm theo GUID nếu không tìm thấy theo PayOsOrderCode
+                    if (Guid.TryParse(orderCode, out var bookingId))
+                    {
+                        tourBooking = await _tourBookingRepository.GetByIdAsync(bookingId);
+                    }
+                }
+
+                if (tourBooking == null)
+                {
+                    Console.WriteLine($"Tour booking not found with orderCode: {orderCode}");
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Tour booking not found"
+                    });
+                }
+
+                Console.WriteLine($"Found tour booking: {tourBooking.Id}, Current Status: {tourBooking.Status}");
+
+                // Cập nhật status = Cancelled nếu chưa được xử lý
+                if (tourBooking.Status == BookingStatus.Pending)
+                {
+                    Console.WriteLine("Processing CANCELLED status via frontend callback...");
+
+                    tourBooking.Status = BookingStatus.CancelledByCustomer;
+                    await _tourBookingRepository.UpdateAsync(tourBooking);
+                    await _tourBookingRepository.SaveChangesAsync();
+                    Console.WriteLine("Tour booking status updated to CANCELLED (status = 2)");
+
+                    // KHÔNG cộng tiền vào ví khi cancel
+                }
+                else
+                {
+                    Console.WriteLine($"Tour booking already processed with status: {tourBooking.Status}");
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Đã hủy thanh toán tour",
+                    bookingId = tourBooking.Id,
+                    status = tourBooking.Status,
+                    statusValue = (int)tourBooking.Status,
+                    walletUpdated = false,
+                    bookingData = new
+                    {
+                        id = tourBooking.Id,
+                        payOsOrderCode = tourBooking.PayOsOrderCode,
+                        totalPrice = tourBooking.TotalPrice,
+                        totalGuests = tourBooking.NumberOfGuests,
+                        bookingDate = tourBooking.BookingDate,
+                        tourDetail = new
+                        {
+                            id = tourBooking.TourOperation?.TourDetails?.Id,
+                            title = tourBooking.TourOperation?.TourDetails?.Title
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Frontend Tour Booking Payment Cancel callback error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi xử lý hủy thanh toán tour: " + ex.Message
                 });
             }
         }

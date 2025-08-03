@@ -128,5 +128,12 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="guestsToRelease">Số guests cần release</param>
         /// <returns>True nếu release thành công</returns>
         Task<bool> ReleaseCapacityAsync(Guid tourOperationId, int guestsToRelease);
+
+        /// <summary>
+        /// Lấy tour booking theo PayOS order code
+        /// </summary>
+        /// <param name="payOsOrderCode">PayOS order code</param>
+        /// <returns>Tour booking nếu tìm thấy</returns>
+        Task<TourBooking?> GetByPayOsOrderCodeAsync(string payOsOrderCode);
     }
 }

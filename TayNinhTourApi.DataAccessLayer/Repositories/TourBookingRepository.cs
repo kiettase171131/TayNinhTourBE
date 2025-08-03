@@ -278,5 +278,19 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
             return await query.CountAsync();
         }
+
+        /// <summary>
+        /// Lấy tour booking theo PayOS order code
+        /// </summary>
+        public async Task<TourBooking?> GetByPayOsOrderCodeAsync(string payOsOrderCode)
+        {
+            return await _context.TourBookings
+                .Include(tb => tb.User)
+                .Include(tb => tb.TourOperation)
+                    .ThenInclude(to => to.TourDetails)
+                        .ThenInclude(td => td.CreatedBy)
+                            .ThenInclude(u => u.TourCompany)
+                .FirstOrDefaultAsync(tb => tb.PayOsOrderCode == payOsOrderCode && !tb.IsDeleted);
+        }
     }
 }
