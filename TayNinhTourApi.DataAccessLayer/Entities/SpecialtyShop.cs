@@ -108,7 +108,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         /// <summary>
         /// Giờ đóng cửa của shop (HH:mm format, ví dụ: "18:00")
-        /// </summary>
+        /// </summary>          
         [StringLength(10)]
         public string? ClosingHours { get; set; }
 
@@ -136,7 +136,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         /// <summary>
         /// User sở hữu shop này (1:1 relationship)
-        /// </summary>
+        /// </summary>  
         public virtual User User { get; set; } = null!;
 
         /// <summary>

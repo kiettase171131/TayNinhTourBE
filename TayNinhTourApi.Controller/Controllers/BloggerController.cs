@@ -28,13 +28,15 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IBlogService _blogService;
         private readonly IBlogCommentService _commentService;
         private readonly IBlogReactionService _reactionService;
+        private readonly IDashboardService _dashboardService;
 
 
-        public BloggerController(IBlogService blogService, IBlogCommentService commentService, IBlogReactionService reactionService)
+        public BloggerController(IBlogService blogService, IBlogCommentService commentService, IBlogReactionService reactionService, IDashboardService dashboardService)
         {
             _blogService = blogService;
             _commentService = commentService;
             _reactionService = reactionService;
+            _dashboardService = dashboardService;
         }
         [HttpGet("Blog-Blogger")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Blogger")]
@@ -143,6 +145,22 @@ namespace TayNinhTourApi.Controller.Controllers
             CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             var result = await _reactionService.ToggleReactionAsync(dto, currentUserObject);
             return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("Dashboard")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Blogger")]
+        public async Task<IActionResult> GetBloggerStats(int month, int year)
+        {
+            if(month < 1 || month > 12)
+            return BadRequest("Tháng phải từ 1-12.");
+            if (year < 2000 || year > DateTime.UtcNow.Year)
+                return BadRequest("Năm không hợp lệ.");
+
+            CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);  
+            if (currentUserObject == null || currentUserObject.UserId == Guid.Empty)
+                return Unauthorized("Không tìm thấy thông tin Blogger.");
+
+            var stats = await _dashboardService.GetBloggerStatsAsync(currentUserObject.UserId, month, year);
+            return Ok(stats);
         }
     }
 }

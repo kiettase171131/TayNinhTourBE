@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250727135354_Init")]
+    [Migration("20250730023026_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -2474,6 +2474,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("GuideId")
                         .HasColumnType("char(36)")
                         .HasComment("ID của TourGuide được mời");
+
+                    b.Property<string>("InvitationMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Tin nhắn từ TourCompany khi gửi lời mời");
 
                     b.Property<int>("InvitationType")
                         .HasColumnType("int")

@@ -59,49 +59,38 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 var currentBalance = walletResponse.Data.Wallet;
 
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
+                // Tạo withdrawal request
+                var withdrawalRequest = new WithdrawalRequest
                 {
-                    // Tạo withdrawal request
-                    var withdrawalRequest = new WithdrawalRequest
-                    {
-                        UserId = userId,
-                        BankAccountId = createDto.BankAccountId,
-                        Amount = createDto.Amount,
-                        Status = WithdrawalStatus.Pending,
-                        RequestedAt = DateTime.UtcNow,
-                        UserNotes = createDto.UserNotes?.Trim(),
-                        WalletBalanceAtRequest = currentBalance,
-                        WithdrawalFee = 0 // Có thể config sau
-                    };
+                    UserId = userId,
+                    BankAccountId = createDto.BankAccountId,
+                    Amount = createDto.Amount,
+                    Status = WithdrawalStatus.Pending,
+                    RequestedAt = DateTime.UtcNow,
+                    UserNotes = createDto.UserNotes?.Trim(),
+                    WalletBalanceAtRequest = currentBalance,
+                    WithdrawalFee = 0 // Có thể config sau
+                };
 
-                    await _unitOfWork.WithdrawalRequestRepository.AddAsync(withdrawalRequest);
-                    await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.WithdrawalRequestRepository.AddAsync(withdrawalRequest);
+                await _unitOfWork.SaveChangesAsync();
 
-                    // Load bank account info
-                    var bankAccount = await _unitOfWork.BankAccountRepository.GetByIdAsync(createDto.BankAccountId);
-                    withdrawalRequest.BankAccount = bankAccount!;
+                // Load bank account info
+                var bankAccount = await _unitOfWork.BankAccountRepository.GetByIdAsync(createDto.BankAccountId);
+                withdrawalRequest.BankAccount = bankAccount!;
 
-                    await transaction.CommitAsync();
-
-                    // Tạo notification cho admin
-                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
-                    if (specialtyShop != null)
-                    {
-                        await _notificationService.CreateNewWithdrawalRequestNotificationAsync(
-                            withdrawalRequest.Id,
-                            specialtyShop.ShopName,
-                            withdrawalRequest.Amount);
-                    }
-
-                    var responseDto = MapToResponseDto(withdrawalRequest);
-                    return ApiResponse<WithdrawalRequestResponseDto>.Success(responseDto, "Tạo yêu cầu rút tiền thành công");
-                }
-                catch
+                // Tạo notification cho admin
+                var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
+                if (specialtyShop != null)
                 {
-                    await transaction.RollbackAsync();
-                    throw;
+                    await _notificationService.CreateNewWithdrawalRequestNotificationAsync(
+                        withdrawalRequest.Id,
+                        specialtyShop.ShopName,
+                        withdrawalRequest.Amount);
                 }
+
+                var responseDto = MapToResponseDto(withdrawalRequest);
+                return ApiResponse<WithdrawalRequestResponseDto>.Success(responseDto, "Tạo yêu cầu rút tiền thành công");
             }
             catch (Exception ex)
             {
@@ -258,60 +247,48 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<bool>.Error("Số dư ví không đủ để thực hiện rút tiền");
                 }
 
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
+                // Sử dụng WalletService để xử lý rút tiền
+                var withdrawalResult = await _walletService.ProcessWithdrawalAsync(
+                    withdrawalRequest.UserId,
+                    withdrawalRequest.Amount,
+                    withdrawalRequestId);
+
+                if (!withdrawalResult.IsSuccess)
                 {
-                    // Sử dụng WalletService để xử lý rút tiền
-                    var withdrawalResult = await _walletService.ProcessWithdrawalAsync(
+                    return ApiResponse<bool>.Error(withdrawalResult.Message);
+                }
+
+                // Cập nhật trạng thái withdrawal request
+                var updateSuccess = await _unitOfWork.WithdrawalRequestRepository.UpdateStatusAsync(
+                    withdrawalRequestId,
+                    WithdrawalStatus.Approved,
+                    adminId,
+                    adminNotes,
+                    transactionReference);
+
+                if (!updateSuccess)
+                {
+                    // Rollback: hoàn tiền vào ví
+                    await _walletService.RefundToWalletAsync(
                         withdrawalRequest.UserId,
                         withdrawalRequest.Amount,
-                        withdrawalRequestId);
+                        "Rollback do lỗi cập nhật trạng thái withdrawal request");
 
-                    if (!withdrawalResult.IsSuccess)
-                    {
-                        await transaction.RollbackAsync();
-                        return ApiResponse<bool>.Error(withdrawalResult.Message);
-                    }
-
-                    // Cập nhật trạng thái withdrawal request
-                    var success = await _unitOfWork.WithdrawalRequestRepository.UpdateStatusAsync(
-                        withdrawalRequestId,
-                        WithdrawalStatus.Approved,
-                        adminId,
-                        adminNotes,
-                        transactionReference);
-
-                    if (!success)
-                    {
-                        // Rollback: hoàn tiền vào ví
-                        await _walletService.RefundToWalletAsync(
-                            withdrawalRequest.UserId,
-                            withdrawalRequest.Amount,
-                            "Rollback do lỗi cập nhật trạng thái withdrawal request");
-
-                        await transaction.RollbackAsync();
-                        return ApiResponse<bool>.Error("Không thể cập nhật trạng thái yêu cầu");
-                    }
-
-                    await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    // Tạo notification cho user
-                    var bankAccountInfo = $"{withdrawalRequest.BankAccount.BankName} - {MaskAccountNumber(withdrawalRequest.BankAccount.AccountNumber)}";
-                    await _notificationService.CreateWithdrawalApprovedNotificationAsync(
-                        withdrawalRequest.UserId,
-                        withdrawalRequestId,
-                        withdrawalRequest.Amount,
-                        bankAccountInfo,
-                        transactionReference);
-
-                    return ApiResponse<bool>.Success(true, "Duyệt yêu cầu rút tiền thành công");
+                    return ApiResponse<bool>.Error("Không thể cập nhật trạng thái yêu cầu");
                 }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                // Tạo notification cho user
+                var bankAccountInfo = $"{withdrawalRequest.BankAccount.BankName} - {MaskAccountNumber(withdrawalRequest.BankAccount.AccountNumber)}";
+                await _notificationService.CreateWithdrawalApprovedNotificationAsync(
+                    withdrawalRequest.UserId,
+                    withdrawalRequestId,
+                    withdrawalRequest.Amount,
+                    bankAccountInfo,
+                    transactionReference);
+
+                return ApiResponse<bool>.Success(true, "Duyệt yêu cầu rút tiền thành công");
             }
             catch (Exception ex)
             {

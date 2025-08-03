@@ -1466,6 +1466,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     ExpiresAt = table.Column<DateTime>(type: "datetime(6)", nullable: false, comment: "Thời gian hết hạn lời mời"),
                     RejectionReason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Ghi chú từ TourGuide khi từ chối lời mời")
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    InvitationMessage = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Tin nhắn từ TourCompany khi gửi lời mời")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
