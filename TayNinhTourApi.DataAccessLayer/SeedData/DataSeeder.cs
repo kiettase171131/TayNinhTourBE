@@ -3,6 +3,7 @@ using System.Linq;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.DataAccessLayer.SeedData
 {
@@ -1015,6 +1016,174 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                 await _context.SaveChangesAsync();
             }
 
+            // Seed 5 Orders, mỗi order 1 sản phẩm, mỗi sản phẩm của 1 specialty shop khác nhau, Status = 1
+            if (!await _context.Orders.AnyAsync())
+            {
+                var now = DateTime.UtcNow;
+
+                // 4 specialty shop userId thực tế đã có specialtyshop và sản phẩm
+                var shopUserIds = new[]
+                {
+        Guid.Parse("44444444-4444-4444-4444-444444444444"), // SpecialtyShop 1
+        Guid.Parse("55555555-5555-5555-5555-555555555555"), // SpecialtyShop 2
+        Guid.Parse("66666666-6666-6666-6666-666666666666"), // SpecialtyShop 3
+        Guid.Parse("a3b4c5d6-e7f8-9012-abc3-345678901234"), // Shop (User đã seed)
+    };
+                var productSeedList = new List<Product>();
+                //var now = DateTime.UtcNow;
+                for (int i = 0; i < shopUserIds.Length; i++)
+                {
+                    var shopId = shopUserIds[i];
+                    // Nếu shop chưa có sản phẩm nào thì seed thêm 1 sản phẩm
+                    if (!await _context.Products.AnyAsync(p => p.ShopId == shopId))
+                    {
+                        productSeedList.Add(new Product
+                        {
+                            Id = Guid.NewGuid(),
+                            Name = $"Sản phẩm test {i + 1}",
+                            Description = $"Đây là sản phẩm test số {i + 1} cho Shop {shopId.ToString().Substring(0, 4)}",
+                            Price = 100000 + i * 50000,
+                            QuantityInStock = 10,
+                            Category = ProductCategory.Souvenir, // Sửa lại nếu cần
+                            IsSale = false,
+                            SoldCount = 0,
+                            ShopId = shopId,
+                            CreatedAt = now,
+                            CreatedById = shopId,
+                            UpdatedAt = now,
+                            UpdatedById = shopId,
+                            IsActive = true,
+                            IsDeleted = false
+                        });
+                    }
+                }
+
+                if (productSeedList.Any())
+                {
+                    await _context.Products.AddRangeAsync(productSeedList);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Lấy mỗi shop 1 sản phẩm
+                var products = await _context.Products
+                    .Where(p => shopUserIds.Contains(p.ShopId))
+                    .GroupBy(p => p.ShopId)
+                    .Select(g => g.First())
+                    .ToListAsync();
+
+                // Lấy 4 user role 'User' làm người mua (hoặc có thể dùng user khác)
+                var buyers = await _context.Users
+                    .Where(u => u.RoleId == Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7")) // role User
+                    .Take(4)
+                    .ToListAsync();
+
+                var orders = new List<Order>();
+                var orderDetails = new List<OrderDetail>();
+
+                for (int i = 0; i < 4; i++)
+                {   
+                    var product = products[i];
+                    var buyer = buyers[i % buyers.Count];
+
+                    var orderId = Guid.NewGuid();
+                    var quantity = 1;
+                    var unitPrice = product.Price;
+                    var totalAmount = unitPrice * quantity;
+
+                    var order = new Order
+                    {
+                        Id = orderId,
+                        UserId = buyer.Id,
+                        TotalAmount = totalAmount,
+                        TotalAfterDiscount = totalAmount,
+                        DiscountAmount = 0,
+                        Status = OrderStatus.Paid, // = 1
+                        VoucherCode = null,
+                        PayOsOrderCode = $"TNDT{now.Ticks.ToString().Substring(0, 10)}{i:D3}",
+                        IsChecked = false,
+                        CheckedAt = null,   
+                        CheckedByShopId = null,
+                        CreatedAt = now.AddMinutes(-i * 5),
+                        UpdatedAt = now.AddMinutes(-i * 5),
+                        IsActive = true,
+                        IsDeleted = false,
+                    };
+                    orders.Add(order);
+
+                    orderDetails.Add(new OrderDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        OrderId = orderId,
+                        ProductId = product.Id,
+                        Quantity = quantity,
+                        UnitPrice = unitPrice,
+                        CreatedAt = now.AddMinutes(-i * 5),
+                        UpdatedAt = now.AddMinutes(-i * 5),
+                        IsActive = true,
+                        IsDeleted = false
+                    });
+                }
+
+                await _context.Orders.AddRangeAsync(orders);
+                await _context.OrderDetails.AddRangeAsync(orderDetails);
+                await _context.SaveChangesAsync();
+            }
+   
+            // Seed 10 comment và 10 like cho blog đầu tiên
+            if (!await _context.BlogComments.AnyAsync() && !await _context.BlogReactions.AnyAsync())
+            {
+                // Lấy blog đầu tiên
+                var blog = await _context.Blogs.FirstOrDefaultAsync();
+                if (blog == null) return;
+
+                // Lấy 10 user role User (nếu thiếu thì lấy tất cả)
+                var users = await _context.Users
+                    .Where(u => u.RoleId == Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"))
+                    .Take(10)
+                    .ToListAsync();
+
+                var now = DateTime.UtcNow;
+
+                // Seed 10 comment
+                var comments = new List<BlogComment>();
+                for (int i = 0; i < users.Count; i++)
+                {
+                    comments.Add(new BlogComment
+                    {
+                        Id = Guid.NewGuid(),
+                        Content = $"Bài viết rất hay, cảm ơn tác giả! ({i + 1})",
+                        BlogId = blog.Id,
+                        UserId = users[i].Id,
+                        CreatedAt = now.AddMinutes(-i * 7),
+                        UpdatedAt = now.AddMinutes(-i * 7),
+                        IsActive = true,
+                        IsDeleted = false
+                    });
+                }
+                await _context.BlogComments.AddRangeAsync(comments);
+
+                // Seed 10 like (Reaction = BlogStatusEnum.Like)
+                var likes = new List<BlogReaction>();
+                for (int i = 0; i < users.Count; i++)
+                {
+                    likes.Add(new BlogReaction
+                    {
+                        Id = Guid.NewGuid(),
+                        BlogId = blog.Id,
+                        UserId = users[i].Id,
+                        Reaction = BlogStatusEnum.Like,
+                        CreatedAt = now.AddMinutes(-i * 5),
+                        UpdatedAt = now.AddMinutes(-i * 5),
+                        IsActive = true,
+                        IsDeleted = false
+                    });
+                }
+                await _context.BlogReactions.AddRangeAsync(likes);
+
+                await _context.SaveChangesAsync();
+            }
+
+
             // Seed SupportedBanks (Vietnamese banks)
             // ĐÃ CHUYỂN SANG ENUM, KHÔNG SEED BẢNG NÀY NỮA
             // if (!await _context.SupportedBanks.AnyAsync())
@@ -1036,7 +1205,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
             //         new SupportedBank { Name = "Eximbank", Code = "EIB" },
             //         new SupportedBank { Name = "SeABank", Code = "SEAB" },
             //         new SupportedBank { Name = "OCB", Code = "OCB" },
-            //         new SupportedBank { Name = "MSB", Code = "MSB" },
+            //         new SupportedBank { Name = "MSB", Code = "MSB" },    
             //         new SupportedBank { Name = "SCB", Code = "SCB" },
             //         new SupportedBank { Name = "DongA Bank", Code = "DAB" },
             //         new SupportedBank { Name = "LienVietPostBank", Code = "LPB" },
