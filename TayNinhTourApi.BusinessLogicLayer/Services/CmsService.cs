@@ -414,9 +414,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<BaseResposeDto> UpdateUserAsync(RequestUpdateUserCmsDto request, Guid id)
         {
-            // Find user by email
-            var existingUser = await _userRepository.GetByIdAsync(id);
-
+            // Load user cùng tất cả navigation cần thiết
+            var existingUser = await _userRepository.GetUserWithAllNavigationsAsync(id);
             if (existingUser == null)
             {
                 return new BaseResposeDto
@@ -426,13 +425,68 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            // Update user
+            bool isDeactivating = existingUser.IsActive && request.IsActive == false;
+
             existingUser.Name = request.Name ?? existingUser.Name;
             existingUser.PhoneNumber = request.PhoneNumber ?? existingUser.PhoneNumber;
             existingUser.Avatar = request.Avatar ?? existingUser.Avatar;
             existingUser.IsActive = request.IsActive ?? existingUser.IsActive;
 
-            // Save changes to database
+            if (isDeactivating)
+            {
+                // Soft delete các entity 1-1
+                if (existingUser.SpecialtyShop != null)
+                    existingUser.SpecialtyShop.IsDeleted = true;
+                if (existingUser.TourGuide != null)
+                    existingUser.TourGuide.IsDeleted = true;
+                if (existingUser.TourCompany != null)
+                    existingUser.TourCompany.IsDeleted = true;
+
+                // Soft delete các collection
+                foreach (var item in existingUser.ToursCreated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.ToursUpdated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourSlotsCreated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourSlotsUpdated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.Blogs)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.BlogReactions)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.BlogComments)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TicketsCreated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TicketsAssigned)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TicketComments)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourOperationsAsGuide)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourOperationsCreated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourOperationsUpdated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.ApprovedTourGuides)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourTemplatesCreated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourTemplatesUpdated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourDetailsCreated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourDetailsUpdated)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.BankAccounts)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.WithdrawalRequests)
+                    item.IsDeleted = true;
+                foreach (var item in existingUser.TourBookingRefunds)
+                    item.IsDeleted = true;
+            }
+
             await _userRepository.SaveChangesAsync();
 
             return new BaseResposeDto
@@ -442,6 +496,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 success = true
             };
         }
+
 
         public async Task<ResponseGetSpecialtyShopsDto> GetSpecialtyShopsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? isActive)
         {

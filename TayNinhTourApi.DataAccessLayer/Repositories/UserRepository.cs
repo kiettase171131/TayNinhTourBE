@@ -54,5 +54,35 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                              .Where(u => u.Role!.Name == roleName)
                              .ToListAsync();
         }
+        public async Task<User?> GetUserWithAllNavigationsAsync(Guid id)
+        {
+            return await _context.Users
+                .Include(u => u.ToursCreated)
+                .Include(u => u.ToursUpdated)
+                .Include(u => u.TourSlotsCreated)
+                .Include(u => u.TourSlotsUpdated)
+                .Include(u => u.Blogs)
+                .Include(u => u.BlogReactions)
+                .Include(u => u.BlogComments)
+                .Include(u => u.TicketsCreated)
+                .Include(u => u.TicketsAssigned)
+                .Include(u => u.TicketComments)
+                .Include(u => u.TourOperationsAsGuide)
+                .Include(u => u.TourOperationsCreated)
+                .Include(u => u.TourOperationsUpdated)
+                .Include(u => u.SpecialtyShop)
+                .Include(u => u.TourGuide)
+                .Include(u => u.TourCompany)
+                .Include(u => u.ApprovedTourGuides)
+                .Include(u => u.TourTemplatesCreated)
+                .Include(u => u.TourTemplatesUpdated)
+                .Include(u => u.TourDetailsCreated)
+                .Include(u => u.TourDetailsUpdated)
+                .Include(u => u.BankAccounts)
+                .Include(u => u.WithdrawalRequests)
+                .Include(u => u.TourBookingRefunds)
+                .FirstOrDefaultAsync(u => u.Id == id);
+        }
+
     }
 }

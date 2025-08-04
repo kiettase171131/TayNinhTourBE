@@ -1361,6 +1361,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Cập nhật TourDetails status sau khi guide accept lời mời
+        /// FIXED: Xử lý đúng cho cả automatic và manual invitations
         /// </summary>
         /// <param name="tourDetailsId">ID của TourDetails</param>
         /// <param name="acceptedInvitationId">ID của invitation được accept</param>
@@ -1370,7 +1371,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogInformation("Updating TourDetails {TourDetailsId} status after guide acceptance", tourDetailsId);
 
-                // 1. Get TourDetails
+                // 1. Get TourDetails and the accepted invitation
                 var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
                 if (tourDetails == null)
                 {
@@ -1378,33 +1379,106 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return;
                 }
 
-                // 2. Only update if currently AwaitingGuideAssignment
-                if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                var acceptedInvitation = await _unitOfWork.TourGuideInvitationRepository.GetByIdAsync(acceptedInvitationId);
+                if (acceptedInvitation == null)
                 {
-                    // Update TourDetails status to WaitToPublic (guide assignment completed, waiting for tour company to activate public)
-                    tourDetails.Status = TourDetailsStatus.WaitToPublic;
+                    _logger.LogWarning("Accepted invitation {InvitationId} not found", acceptedInvitationId);
+                    return;
+                }
+
+                _logger.LogInformation("TourDetails current status: {Status}, Invitation type: {InvitationType}", 
+                    tourDetails.Status, acceptedInvitation.InvitationType);
+
+                // 2. ✅ FIXED LOGIC: Handle status updates based on invitation type and current status
+                bool shouldUpdateStatus = false;
+                TourDetailsStatus newStatus = tourDetails.Status;
+
+                if (acceptedInvitation.InvitationType == InvitationType.Automatic)
+                {
+                    // For automatic invitations: Only update if currently AwaitingGuideAssignment
+                    if (tourDetails.Status == TourDetailsStatus.AwaitingGuideAssignment)
+                    {
+                        newStatus = TourDetailsStatus.WaitToPublic;
+                        shouldUpdateStatus = true;
+                        _logger.LogInformation("Automatic invitation: TourDetails will transition from AwaitingGuideAssignment to WaitToPublic");
+                    }
+                }
+                else if (acceptedInvitation.InvitationType == InvitationType.Manual)
+                {
+                    // ✅ FOR MANUAL INVITATIONS: Update status based on current status
+                    switch (tourDetails.Status)
+                    {
+                        case TourDetailsStatus.Pending:
+                        case TourDetailsStatus.Approved:
+                        case TourDetailsStatus.AwaitingGuideAssignment:
+                        case TourDetailsStatus.Public:
+                            // Manual invitation on any of these statuses should go to WaitToPublic
+                            // This allows tour company to control when to make it public
+                            newStatus = TourDetailsStatus.WaitToPublic;
+                            shouldUpdateStatus = true;
+                            _logger.LogInformation("Manual invitation: TourDetails will transition from {CurrentStatus} to WaitToPublic", tourDetails.Status);
+                            break;
+                        
+                        case TourDetailsStatus.WaitToPublic:
+                            // Already at the correct status for manual invitations
+                            _logger.LogInformation("Manual invitation: TourDetails already at WaitToPublic, no update needed");
+                            break;
+                        
+                        case TourDetailsStatus.Rejected:
+                        case TourDetailsStatus.Suspended:
+                        case TourDetailsStatus.Cancelled:
+                            // Don't update if tour is in final/negative states
+                            _logger.LogInformation("Manual invitation: TourDetails is in final state {Status}, no update needed", tourDetails.Status);
+                            break;
+                        
+                        default:
+                            _logger.LogWarning("Manual invitation: Unknown TourDetails status {Status}, no update performed", tourDetails.Status);
+                            break;
+                    }
+                }
+
+                // 3. Update status if needed
+                if (shouldUpdateStatus)
+                {
+                    tourDetails.Status = newStatus;
                     tourDetails.UpdatedAt = DateTime.UtcNow;
                     await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
 
-                    _logger.LogInformation("Updated TourDetails {TourDetailsId} status from AwaitingGuideAssignment to WaitToPublic", tourDetailsId);
+                    _logger.LogInformation("Updated TourDetails {TourDetailsId} status from {OldStatus} to {NewStatus}", 
+                        tourDetailsId, tourDetails.Status, newStatus);
 
-                    // 3. Update TourOperation with accepted guide information
+                    // 4. Update TourOperation with accepted guide information
                     await UpdateTourOperationWithGuideAsync(tourDetailsId, acceptedInvitationId);
 
-                    // 4. Expire other pending invitations for this TourDetails
+                    // 5. Expire other pending invitations for this TourDetails
                     var expiredCount = await _unitOfWork.TourGuideInvitationRepository
                         .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitationId);
 
                     _logger.LogInformation("Expired {Count} pending invitations for TourDetails {TourDetailsId}", expiredCount, tourDetailsId);
 
-                    // 5. Save all changes
+                    // 6. Save all changes
                     await _unitOfWork.SaveChangesAsync();
 
                     _logger.LogInformation("Successfully updated TourDetails {TourDetailsId} status and expired pending invitations", tourDetailsId);
                 }
                 else
                 {
-                    _logger.LogInformation("TourDetails {TourDetailsId} status is {Status}, no update needed", tourDetailsId, tourDetails.Status);
+                    // Even if status doesn't change, still need to update TourOperation and expire invitations
+                    _logger.LogInformation("TourDetails status not changed, but still updating TourOperation and expiring invitations");
+                    
+                    // Update TourOperation with accepted guide information
+                    await UpdateTourOperationWithGuideAsync(tourDetailsId, acceptedInvitationId);
+
+                    // Expire other pending invitations for this TourDetails
+                    var expiredCount = await _unitOfWork.TourGuideInvitationRepository
+                        .ExpireInvitationsForTourDetailsAsync(tourDetailsId, acceptedInvitationId);
+
+                    _logger.LogInformation("Expired {Count} pending invitations for TourDetails {TourDetailsId}", expiredCount, tourDetailsId);
+                    
+                    // Save changes for TourOperation and expired invitations
+                    await _unitOfWork.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Successfully updated TourOperation and expired pending invitations for TourDetails {TourDetailsId}", tourDetailsId);
                 }
             }
             catch (Exception ex)
