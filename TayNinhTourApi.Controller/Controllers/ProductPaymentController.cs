@@ -16,7 +16,7 @@ namespace TayNinhTourApi.Controller.Controllers
     /// Tách riêng từ PaymentController để handle product payment logic riêng biệt
     /// </summary>
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/product-payment")]
     public class ProductPaymentController : ControllerBase
     {
         private readonly ILogger<ProductPaymentController> _logger;
