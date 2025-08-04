@@ -10,6 +10,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<bool> CheckEmailExistAsync(string email);
         Task<IEnumerable<User>> ListAdminsAsync();
         Task<IEnumerable<User>> GetUsersByRoleAsync(string roleName);
+        Task<User?> GetUserWithAllNavigationsAsync(Guid id);
 
     }
 }
