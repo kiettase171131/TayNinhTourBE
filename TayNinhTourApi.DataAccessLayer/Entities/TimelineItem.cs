@@ -43,6 +43,24 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [Range(1, int.MaxValue, ErrorMessage = "SortOrder phải lớn hơn 0")]
         public int SortOrder { get; set; }
 
+        /// <summary>
+        /// Trạng thái hoàn thành của timeline item (để HDV tick khi đã hoàn thành)
+        /// </summary>
+        public bool IsCompleted { get; set; } = false;
+
+        /// <summary>
+        /// Thời gian hoàn thành thực tế của timeline item
+        /// Được set khi HDV tick "Đã hoàn thành"
+        /// </summary>
+        public DateTime? CompletedAt { get; set; }
+
+        /// <summary>
+        /// Ghi chú bổ sung khi hoàn thành timeline item (optional)
+        /// Ví dụ: ghi chú về tình hình thực tế, thay đổi so với kế hoạch
+        /// </summary>
+        [StringLength(500)]
+        public string? CompletionNotes { get; set; }
+
         // Navigation Properties
 
         /// <summary>

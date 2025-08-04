@@ -23,6 +23,7 @@ using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.Utilities;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -746,10 +747,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (totalAfterDiscount <= 0)
                 throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
                 
-            // Tạo PayOsOrderCode với format TNDT + 10 số
-            var timestamp = VietnamTimeZoneUtility.GetVietnamNow().Ticks.ToString();
-            var random = new Random().Next(100, 999).ToString(); // 3 số random
-            var payOsOrderCodeString = $"TNDT{timestamp.Substring(Math.Max(0, timestamp.Length - 7))}{random}";
+            // Tạo PayOsOrderCode với format TNDT + 10 số sử dụng utility
+            var payOsOrderCodeString = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
             
             // Lưu vào DB dưới dạng string thay vì long
             var order = new Order

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.Controller.Controllers
@@ -436,10 +437,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 
                 // Test generating codes
                 var bookingCode = $"TB{VietnamTimeZoneUtility.GetVietnamNow():yyyyMMdd}{new Random().Next(100000, 999999)}";
-                var timestamp = VietnamTimeZoneUtility.GetVietnamNow().Ticks.ToString();
-                var timestampLast7 = timestamp.Substring(Math.Max(0, timestamp.Length - 7));
-                var random = new Random().Next(100, 999);
-                var payOsOrderCode = $"TNDT{timestampLast7}{random}";
+                var payOsOrderCode = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
                 
                 debugInfo.Add($"Step 2: Booking Code = {bookingCode}");
                 debugInfo.Add($"Step 3: PayOS Order Code = {payOsOrderCode}");

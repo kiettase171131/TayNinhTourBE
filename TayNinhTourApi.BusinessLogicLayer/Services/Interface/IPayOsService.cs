@@ -13,11 +13,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
     public interface IPayOsService
     {
         // === LEGACY METHODS (Deprecated - Use Enhanced methods instead) ===
-        [Obsolete("Use CreatePaymentLinkAsync instead. This method will be removed in future versions.")]
-        Task<string?> CreatePaymentUrlAsync(decimal amount, string orderCode, string baseUrl);
+        // [Obsolete("Use CreatePaymentLinkAsync instead. This method will be removed in future versions.")]
+        // Task<string?> CreatePaymentUrlAsync(decimal amount, string orderCode, string baseUrl);
 
-        [Obsolete("Use CreatePaymentLinkAsync instead. This method will be removed in future versions.")]
-        Task<string?> CreateTourBookingPaymentUrlAsync(decimal amount, string orderCode, string baseUrl);
+        // [Obsolete("Use CreatePaymentLinkAsync instead. This method will be removed in future versions.")]
+        // Task<string?> CreateTourBookingPaymentUrlAsync(decimal amount, string orderCode, string baseUrl);
 
         Task<OrderStatus> GetOrderPaymentStatusAsync(string orderCode);
 

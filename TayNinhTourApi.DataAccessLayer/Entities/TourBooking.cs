@@ -131,6 +131,24 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public DateTime? ReservedUntil { get; set; }
 
         /// <summary>
+        /// Trạng thái check-in của khách hàng (để HDV quét QR khi tour bắt đầu)
+        /// </summary>
+        public bool IsCheckedIn { get; set; } = false;
+
+        /// <summary>
+        /// Thời gian check-in thực tế của khách hàng
+        /// Được set khi HDV quét QR code thành công
+        /// </summary>
+        public DateTime? CheckInTime { get; set; }
+
+        /// <summary>
+        /// Ghi chú bổ sung khi check-in (optional)
+        /// Ví dụ: số người thực tế, ghi chú đặc biệt
+        /// </summary>
+        [StringLength(500)]
+        public string? CheckInNotes { get; set; }
+
+        /// <summary>
         /// Row version cho optimistic concurrency control
         /// </summary>
         [Timestamp]

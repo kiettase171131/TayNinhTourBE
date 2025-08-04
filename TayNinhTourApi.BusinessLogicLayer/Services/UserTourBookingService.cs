@@ -485,36 +485,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     bookingCode, request.NumberOfGuests);
 
                 // 10. === ENHANCED PAYOS: Create PayOS payment URL with transaction tracking ===
-                string paymentUrl = $"{baseUrl}/tour-payment-cancel?orderId={booking.Id}&orderCode={payOsOrderCode}"; // Default fallback URL
-                try
+                if (_payOsService == null)
                 {
-                    if (_payOsService != null)
-                    {
-                        // Use Enhanced PayOS system with PaymentTransaction tracking
-                        var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
-                        {
-                            OrderId = null, // NULL for tour booking payments
-                            TourBookingId = booking.Id, // Link to TourBooking (Tour Payment)
-                            Amount = totalPrice,
-                            Description = $"Tour {payOsOrderCode}" // Shortened to fit 25 char limit
-                        };
-
-                        var paymentTransaction = await _payOsService.CreatePaymentLinkAsync(paymentRequest);
-                        paymentUrl = paymentTransaction.CheckoutUrl ?? paymentUrl;
-
-                        _logger.LogInformation("Enhanced PayOS tour booking payment created successfully for booking {BookingCode}: TransactionId={TransactionId}, PaymentUrl={PaymentUrl}",
-                            bookingCode, paymentTransaction.Id, paymentUrl);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("PayOsService is null, using fallback URL");
-                    }
+                    throw new InvalidOperationException("PayOsService is not available. Cannot create payment link.");
                 }
-                catch (Exception ex)
+
+                // Use Enhanced PayOS system with PaymentTransaction tracking
+                var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
                 {
-                    _logger.LogError(ex, "Error creating Enhanced PayOS tour booking URL for booking {BookingCode}, using fallback", bookingCode);
-                    // Keep the fallback URL
-                }
+                    OrderId = null, // NULL for tour booking payments
+                    TourBookingId = booking.Id, // Link to TourBooking (Tour Payment)
+                    Amount = totalPrice,
+                    Description = $"Tour {payOsOrderCode}" // Shortened to fit 25 char limit
+                };
+
+                var paymentTransaction = await _payOsService.CreatePaymentLinkAsync(paymentRequest);
+                string paymentUrl = paymentTransaction.CheckoutUrl ?? throw new InvalidOperationException("Failed to create PayOS checkout URL");
+
+                _logger.LogInformation("Enhanced PayOS tour booking payment created successfully for booking {BookingCode}: TransactionId={TransactionId}, PaymentUrl={PaymentUrl}",
+                    bookingCode, paymentTransaction.Id, paymentUrl);
 
                 await _unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -574,16 +563,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Generate PayOS order code
+        /// Generate PayOS order code using utility
         /// Format: TNDT + 10 digits (7 from timestamp + 3 random)
         /// </summary>
         private string GeneratePayOsOrderCode()
         {
-            // Tạo timestamp với milliseconds để tăng tính unique
-            var timestamp = VietnamTimeZoneUtility.GetVietnamNow().Ticks.ToString();
-            var timestampLast7 = timestamp.Substring(Math.Max(0, timestamp.Length - 7));
-            var random = new Random().Next(100, 999);
-            return $"TNDT{timestampLast7}{random}";
+            return PayOsOrderCodeUtility.GeneratePayOsOrderCode();
         }
 
         /// <summary>
