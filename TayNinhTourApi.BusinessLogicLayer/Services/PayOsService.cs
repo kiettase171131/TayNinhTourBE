@@ -245,32 +245,54 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.PaymentTransactionRepository.AddAsync(transaction);
 
-                // === SYNC PAYOS ORDER CODE TO ORDER/TOURBOOKING FOR LOOKUP COMPATIBILITY ===
-                if (request.OrderId.HasValue)
-                {
-                    // Update Order with PayOS order code for lookup compatibility
-                    var order = await _unitOfWork.OrderRepository.GetByIdAsync(request.OrderId.Value);
-                    if (order != null)
-                    {
-                        order.PayOsOrderCode = orderCode.ToString();
-                        _unitOfWork.OrderRepository.Update(order);
-                        _logger.LogInformation("Updated Order {OrderId} with PayOS order code {OrderCode}", order.Id, orderCode);
-                    }
-                }
-
-                if (request.TourBookingId.HasValue)
-                {
-                    // Update TourBooking with PayOS order code for lookup compatibility
-                    var tourBooking = await _unitOfWork.TourBookingRepository.GetByIdAsync(request.TourBookingId.Value);
-                    if (tourBooking != null)
-                    {
-                        tourBooking.PayOsOrderCode = orderCode.ToString();
-                        _unitOfWork.TourBookingRepository.Update(tourBooking);
-                        _logger.LogInformation("Updated TourBooking {BookingId} with PayOS order code {OrderCode}", tourBooking.Id, orderCode);
-                    }
-                }
-
+                // Save PaymentTransaction first to ensure it's persisted
                 await _unitOfWork.SaveChangesAsync();
+                _logger.LogInformation("PaymentTransaction saved with PayOS order code {OrderCode}", orderCode);
+
+                // === SYNC PAYOS ORDER CODE TO ORDER/TOURBOOKING FOR LOOKUP COMPATIBILITY ===
+                // Use separate try-catch to prevent rollback of PaymentTransaction if sync fails
+                try
+                {
+                    if (request.OrderId.HasValue)
+                    {
+                        // Update Order with PayOS order code for lookup compatibility
+                        var order = await _unitOfWork.OrderRepository.GetByIdAsync(request.OrderId.Value);
+                        if (order != null)
+                        {
+                            order.PayOsOrderCode = orderCode.ToString();
+                            _unitOfWork.OrderRepository.Update(order);
+                            _logger.LogInformation("Updated Order {OrderId} with PayOS order code {OrderCode}", order.Id, orderCode);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Order {OrderId} not found for PayOS sync", request.OrderId.Value);
+                        }
+                    }
+
+                    if (request.TourBookingId.HasValue)
+                    {
+                        // Update TourBooking with PayOS order code for lookup compatibility
+                        var tourBooking = await _unitOfWork.TourBookingRepository.GetByIdAsync(request.TourBookingId.Value);
+                        if (tourBooking != null)
+                        {
+                            tourBooking.PayOsOrderCode = orderCode.ToString();
+                            _unitOfWork.TourBookingRepository.Update(tourBooking);
+                            _logger.LogInformation("Updated TourBooking {BookingId} with PayOS order code {OrderCode}", tourBooking.Id, orderCode);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("TourBooking {BookingId} not found for PayOS sync", request.TourBookingId.Value);
+                        }
+                    }
+
+                    await _unitOfWork.SaveChangesAsync();
+                    _logger.LogInformation("PayOS order code sync completed successfully");
+                }
+                catch (Exception syncEx)
+                {
+                    _logger.LogError(syncEx, "Failed to sync PayOS order code {OrderCode} to Order/TourBooking, but PaymentTransaction was saved", orderCode);
+                    // Don't throw - PaymentTransaction is already saved and payment can still work
+                }
 
                 _logger.LogInformation("Created PayOS payment link for transaction {TransactionId}", transaction.Id);
 
