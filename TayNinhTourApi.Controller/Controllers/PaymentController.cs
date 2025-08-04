@@ -17,23 +17,30 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IProductService _productService;
         private readonly IProductRepository _productRepository;
         private readonly ISpecialtyShopRepository _specialtyShopRepository;
+        private readonly IPaymentTransactionRepository _paymentTransactionRepository;
 
         // Commission rate for specialty shops (10%)
         private const decimal SHOP_COMMISSION_RATE = 0.10m;
 
-        public PaymentController(IOrderRepository orderRepository, IProductService productService, IProductRepository productRepository, ISpecialtyShopRepository specialtyShopRepository)
+        public PaymentController(
+            IOrderRepository orderRepository, 
+            IProductService productService, 
+            IProductRepository productRepository, 
+            ISpecialtyShopRepository specialtyShopRepository,
+            IPaymentTransactionRepository paymentTransactionRepository)
         {
             _orderRepository = orderRepository;
             _productService = productService;
             _productRepository = productRepository;
             _specialtyShopRepository = specialtyShopRepository;
+            _paymentTransactionRepository = paymentTransactionRepository;
         }
 
         /// <summary>
         /// PayOS webhook callback khi thanh toán thành công cho product orders
         /// URL: /api/payment-callback/paid/{orderCode}
         /// Supports both string PayOsOrderCode (TNDT format) and GUID Order.Id
-        /// Status = 1 (Paid) + Trừ stock + Xóa cart + Cộng tiền vào ví shop (sau khi trừ 10% commission)
+        /// Status = 1 (Paid) + Trừ stock + Xóa cart + Cộng tiền vào ví shop (sau khi trừ 10% commission) + Update PaymentTransaction status
         /// Follows PayOS best practices for webhook handling
         /// </summary>
         [HttpPost("paid/{orderCode}")]
@@ -76,10 +83,25 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     Console.WriteLine("Processing PAID status...");
 
+                    // Update Order status to Paid
                     order.Status = OrderStatus.Paid;
                     await _orderRepository.UpdateAsync(order);
                     await _orderRepository.SaveChangesAsync();
                     Console.WriteLine("Order status updated to PAID (status = 1)");
+
+                    // Update PaymentTransaction status to Paid
+                    var paymentTransaction = await _paymentTransactionRepository.GetByOrderIdAsync(order.Id);
+                    if (paymentTransaction != null)
+                    {
+                        paymentTransaction.Status = PaymentStatus.Paid;
+                        await _paymentTransactionRepository.UpdateAsync(paymentTransaction);
+                        await _paymentTransactionRepository.SaveChangesAsync();
+                        Console.WriteLine("PaymentTransaction status updated to PAID (status = 1)");
+                    }
+                    else
+                    {
+                        Console.WriteLine("PaymentTransaction not found for this order");
+                    }
 
                     Console.WriteLine("Calling ClearCartAndUpdateInventoryAsync...");
                     await _productService.ClearCartAndUpdateInventoryAsync(order.Id);
@@ -131,13 +153,14 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new
                 {
-                    message = "Thanh toán thành công - Đã cập nhật trạng thái, trừ stock và cộng tiền vào ví shop (sau khi trừ 10% hoa hồng)",
+                    message = "Thanh toán thành công - Đã cập nhật trạng thái order và payment transaction, trừ stock và cộng tiền vào ví shop (sau khi trừ 10% hoa hồng)",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status, // = 1
                     stockUpdated = true,
                     cartCleared = true,
                     walletUpdated = true,
+                    paymentTransactionUpdated = true,
                     commissionApplied = "10% commission deducted from shop revenue"
                 });
             }
@@ -157,7 +180,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// PayOS callback khi thanh toán bị hủy
         /// URL: /api/payment-callback/cancelled/{orderCode}
         /// Supports both string PayOsOrderCode (TNDT format) and GUID Order.Id
-        /// Status = 2 (Cancelled) + KHÔNG trừ stock + KHÔNG xóa cart
+        /// Status = 2 (Cancelled) + KHÔNG trừ stock + KHÔNG xóa cart + Update PaymentTransaction status
         /// </summary>
         [HttpPost("cancelled/{orderCode}")]
         public async Task<IActionResult> PaymentCancelledCallback(string orderCode)
@@ -200,14 +223,29 @@ namespace TayNinhTourApi.Controller.Controllers
                 await _orderRepository.SaveChangesAsync();
                 Console.WriteLine("Order status updated to CANCELLED (status = 2) - Stock UNCHANGED");
 
+                // Update PaymentTransaction status to Cancelled
+                var paymentTransaction = await _paymentTransactionRepository.GetByOrderIdAsync(order.Id);
+                if (paymentTransaction != null)
+                {
+                    paymentTransaction.Status = PaymentStatus.Cancelled;
+                    await _paymentTransactionRepository.UpdateAsync(paymentTransaction);
+                    await _paymentTransactionRepository.SaveChangesAsync();
+                    Console.WriteLine("PaymentTransaction status updated to CANCELLED (status = 2)");
+                }
+                else
+                {
+                    Console.WriteLine("PaymentTransaction not found for this order");
+                }
+
                 return Ok(new
                 {
-                    message = "Thanh toán đã bị hủy - Chỉ cập nhật trạng thái, KHÔNG trừ stock",
+                    message = "Thanh toán đã bị hủy - Chỉ cập nhật trạng thái order và payment transaction, KHÔNG trừ stock",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status, // = 2
                     stockUpdated = false,
                     cartCleared = false,
+                    paymentTransactionUpdated = true,
                     note = "Stock và cart được giữ nguyên"
                 });
             }
@@ -272,10 +310,21 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     Console.WriteLine("Processing PAID status via frontend callback...");
 
+                    // Update Order status to Paid
                     order.Status = OrderStatus.Paid;
                     await _orderRepository.UpdateAsync(order);
                     await _orderRepository.SaveChangesAsync();
                     Console.WriteLine("Order status updated to PAID (status = 1)");
+
+                    // Update PaymentTransaction status to Paid
+                    var paymentTransaction = await _paymentTransactionRepository.GetByOrderIdAsync(order.Id);
+                    if (paymentTransaction != null)
+                    {
+                        paymentTransaction.Status = PaymentStatus.Paid;
+                        await _paymentTransactionRepository.UpdateAsync(paymentTransaction);
+                        await _paymentTransactionRepository.SaveChangesAsync();
+                        Console.WriteLine("PaymentTransaction status updated to PAID (status = 1)");
+                    }
 
                     Console.WriteLine("Calling ClearCartAndUpdateInventoryAsync...");
                     await _productService.ClearCartAndUpdateInventoryAsync(order.Id);
@@ -326,6 +375,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     stockUpdated = true,
                     cartCleared = true,
                     walletUpdated = true,
+                    paymentTransactionUpdated = true,
                     orderData = new
                     {
                         id = order.Id,
@@ -403,6 +453,16 @@ namespace TayNinhTourApi.Controller.Controllers
                     await _orderRepository.SaveChangesAsync();
                     Console.WriteLine("Order status updated to CANCELLED (status = 2)");
 
+                    // Update PaymentTransaction status to Cancelled
+                    var paymentTransaction = await _paymentTransactionRepository.GetByOrderIdAsync(order.Id);
+                    if (paymentTransaction != null)
+                    {
+                        paymentTransaction.Status = PaymentStatus.Cancelled;
+                        await _paymentTransactionRepository.UpdateAsync(paymentTransaction);
+                        await _paymentTransactionRepository.SaveChangesAsync();
+                        Console.WriteLine("PaymentTransaction status updated to CANCELLED (status = 2)");
+                    }
+
                     // KHÔNG trừ stock, KHÔNG xóa cart khi cancel
                 }
                 else
@@ -420,6 +480,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     stockUpdated = false,
                     cartCleared = false,
                     walletUpdated = false,
+                    paymentTransactionUpdated = true,
                     orderData = new
                     {
                         id = order.Id,

@@ -13,7 +13,7 @@ namespace TayNinhTourApi.Controller.Controllers
 {
     /// <summary>
     /// Controller xử lý payment callbacks từ frontend cho product orders
-    /// Tách riêng từ PaymentController để handle product payment logic riêng biệt
+    /// Enhanced với PaymentTransaction tracking và specialty shop wallet management
     /// </summary>
     [ApiController]
     [Route("api/product-payment")]
@@ -22,23 +22,36 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ILogger<ProductPaymentController> _logger;
         private readonly IOrderRepository _orderRepository;
         private readonly IProductService _productService;
+        private readonly IProductRepository _productRepository;
+        private readonly ISpecialtyShopRepository _specialtyShopRepository;
+        private readonly IPaymentTransactionRepository _paymentTransactionRepository;
         private readonly IUnitOfWork _unitOfWork;
+
+        // Commission rate for specialty shops (10%)
+        private const decimal SHOP_COMMISSION_RATE = 0.10m;
 
         public ProductPaymentController(
             ILogger<ProductPaymentController> logger,
             IOrderRepository orderRepository,
             IProductService productService,
+            IProductRepository productRepository,
+            ISpecialtyShopRepository specialtyShopRepository,
+            IPaymentTransactionRepository paymentTransactionRepository,
             IUnitOfWork unitOfWork)
         {
             _logger = logger;
             _orderRepository = orderRepository;
-            _unitOfWork = unitOfWork;
             _productService = productService;
+            _productRepository = productRepository;
+            _specialtyShopRepository = specialtyShopRepository;
+            _paymentTransactionRepository = paymentTransactionRepository;
+            _unitOfWork = unitOfWork;
         }
 
         /// <summary>
-        /// Frontend callback khi user được redirect về từ PayOS sau khi thanh toán thành công
+        /// Enhanced payment success callback
         /// URL: /api/product-payment/payment-success
+        /// Logic: Order status = 1 (Paid), PaymentTransaction status = 1 (Paid), trừ stock, xóa cart, cộng tiền vào ví shop (trừ 10% hoa hồng)
         /// </summary>
         /// <param name="request">Thông tin callback từ frontend</param>
         /// <returns>Kết quả xử lý payment success</returns>
@@ -47,11 +60,11 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("Received product payment success callback for order: {OrderCode}", request.OrderCode);
+                _logger.LogInformation("Enhanced payment success callback for order: {OrderCode}", request.OrderCode);
 
                 if (string.IsNullOrWhiteSpace(request.OrderCode))
                 {
-                    _logger.LogWarning("Product payment success callback received with empty order code");
+                    _logger.LogWarning("Payment success callback received with empty order code");
                     return BadRequest(new
                     {
                         success = false,
@@ -59,21 +72,20 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                // Tìm order bằng PayOsOrderCode hoặc Order.Id
+                // Tìm order bằng PayOsOrderCode hoặc Order.Id với OrderDetails
                 Order? order = null;
+                order = await _orderRepository.GetFirstOrDefaultAsync(
+                    x => x.PayOsOrderCode == request.OrderCode, 
+                    includes: new[] { "OrderDetails" });
 
-                // Thử tìm bằng PayOsOrderCode trước
-                order = await _orderRepository.GetByPayOsOrderCodeAsync(request.OrderCode);
-
-                // Nếu không tìm thấy, thử parse làm GUID và tìm bằng Order.Id
                 if (order == null && Guid.TryParse(request.OrderCode, out var orderId))
                 {
-                    order = await _orderRepository.GetByIdAsync(orderId);
+                    order = await _orderRepository.GetByIdAsync(orderId, new[] { "OrderDetails" });
                 }
 
                 if (order == null)
                 {
-                    _logger.LogWarning("Product order not found for orderCode: {OrderCode}", request.OrderCode);
+                    _logger.LogWarning("Order not found for orderCode: {OrderCode}", request.OrderCode);
                     return NotFound(new
                     {
                         success = false,
@@ -81,12 +93,12 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                _logger.LogInformation("Found product order: {OrderId}, Current Status: {Status}", order.Id, order.Status);
+                _logger.LogInformation("Found order: {OrderId}, Current Status: {Status}", order.Id, order.Status);
 
                 // Kiểm tra xem order đã được thanh toán chưa
                 if (order.Status == OrderStatus.Paid)
                 {
-                    _logger.LogInformation("Product order {OrderId} already paid, returning success", order.Id);
+                    _logger.LogInformation("Order {OrderId} already paid, returning success", order.Id);
                     return Ok(new
                     {
                         success = true,
@@ -96,30 +108,98 @@ namespace TayNinhTourApi.Controller.Controllers
                         statusValue = (int)order.Status,
                         isAlreadyProcessed = true,
                         stockUpdated = true,
-                        cartCleared = true
+                        cartCleared = true,
+                        walletUpdated = true,
+                        paymentTransactionUpdated = true
                     });
                 }
 
-                // Xử lý thanh toán thành công
+                // ENHANCED PAYMENT LOGIC
+                _logger.LogInformation("Processing enhanced payment success for order: {OrderId}", order.Id);
+
+                // 1. Update Order status to Paid (1)
                 order.Status = OrderStatus.Paid;
                 await _orderRepository.UpdateAsync(order);
                 await _orderRepository.SaveChangesAsync();
+                _logger.LogInformation("✅ Order status updated to PAID (status = 1)");
 
-                _logger.LogInformation("Updated product order {OrderId} status to PAID", order.Id);
+                // 2. Update PaymentTransaction status to Paid (1)
+                var paymentTransaction = await _paymentTransactionRepository.GetByOrderIdAsync(order.Id);
+                if (paymentTransaction != null)
+                {
+                    paymentTransaction.Status = PaymentStatus.Paid;
+                    await _paymentTransactionRepository.UpdateAsync(paymentTransaction);
+                    await _paymentTransactionRepository.SaveChangesAsync();
+                    _logger.LogInformation("✅ PaymentTransaction status updated to PAID (status = 1)");
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ PaymentTransaction not found for order: {OrderId}", order.Id);
+                }
 
-                // Gọi service để clear cart và update inventory
+                // 3. Clear cart and update inventory (reduce stock)
                 await _productService.ClearCartAndUpdateInventoryAsync(order.Id);
-                _logger.LogInformation("Cleared cart and updated inventory for order {OrderId}", order.Id);
+                _logger.LogInformation("✅ Stock reduced and cart cleared");
+
+                // 4. Add money to specialty shop wallets (minus 10% commission)
+                var orderDetails = order.OrderDetails.ToList();
+                decimal totalWalletAdded = 0;
+                decimal totalCommissionDeducted = 0;
+
+                foreach (var item in orderDetails)
+                {
+                    var product = await _productRepository.GetByIdAsync(item.ProductId);
+                    if (product != null)
+                    {
+                        // Update sold count
+                        product.SoldCount += item.Quantity;
+                        await _productRepository.UpdateAsync(product);
+
+                        // Calculate commission and shop amount
+                        var itemTotalAmount = item.UnitPrice * item.Quantity;
+                        var commissionAmount = itemTotalAmount * SHOP_COMMISSION_RATE; // 10% commission
+                        var shopWalletAmount = itemTotalAmount - commissionAmount; // Shop gets 90%
+
+                        var specialtyShop = await _specialtyShopRepository.GetByUserIdAsync(product.ShopId);
+                        if (specialtyShop != null)
+                        {
+                            // Add 90% to shop wallet (after 10% commission deduction)
+                            specialtyShop.Wallet += shopWalletAmount;
+                            await _specialtyShopRepository.UpdateAsync(specialtyShop);
+
+                            totalWalletAdded += shopWalletAmount;
+                            totalCommissionDeducted += commissionAmount;
+
+                            _logger.LogInformation("💰 Added {Amount:N0} VNĐ to shop '{ShopName}' wallet (commission: -{Commission:N0} VNĐ)", 
+                                shopWalletAmount, specialtyShop.ShopName, commissionAmount);
+                        }
+                    }
+                }
+
+                await _productRepository.SaveChangesAsync();
+                await _specialtyShopRepository.SaveChangesAsync();
+
+                _logger.LogInformation("✅ Enhanced payment processing completed:");
+                _logger.LogInformation("   💰 Total wallet amount added: {TotalAdded:N0} VNĐ", totalWalletAdded);
+                _logger.LogInformation("   💸 Total commission deducted: {TotalCommission:N0} VNĐ", totalCommissionDeducted);
 
                 return Ok(new
                 {
                     success = true,
-                    message = "Thanh toán sản phẩm thành công",
+                    message = "Thanh toán sản phẩm thành công - Enhanced processing completed",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status,
                     stockUpdated = true,
                     cartCleared = true,
+                    walletUpdated = true,
+                    paymentTransactionUpdated = true,
+                    walletSummary = new
+                    {
+                        totalWalletAdded = totalWalletAdded,
+                        totalCommissionDeducted = totalCommissionDeducted,
+                        commissionRate = "10%"
+                    },
                     orderData = new
                     {
                         id = order.Id,
@@ -133,7 +213,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing product payment success for order: {OrderCode}", request.OrderCode);
+                _logger.LogError(ex, "❌ Error processing enhanced payment success for order: {OrderCode}", request.OrderCode);
                 return StatusCode(500, new
                 {
                     success = false,
@@ -143,8 +223,9 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Frontend callback khi user được redirect về từ PayOS sau khi hủy thanh toán
+        /// Enhanced payment cancel callback
         /// URL: /api/product-payment/payment-cancel
+        /// Logic: Order status = 2 (Cancelled), PaymentTransaction status = 2 (Cancelled), KHÔNG trừ stock, KHÔNG xóa cart, KHÔNG cộng tiền vào ví
         /// </summary>
         /// <param name="request">Thông tin callback từ frontend</param>
         /// <returns>Kết quả xử lý payment cancel</returns>
@@ -153,11 +234,11 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("Received product payment cancel callback for order: {OrderCode}", request.OrderCode);
+                _logger.LogInformation("Enhanced payment cancel callback for order: {OrderCode}", request.OrderCode);
 
                 if (string.IsNullOrWhiteSpace(request.OrderCode))
                 {
-                    _logger.LogWarning("Product payment cancel callback received with empty order code");
+                    _logger.LogWarning("Payment cancel callback received with empty order code");
                     return BadRequest(new
                     {
                         success = false,
@@ -167,11 +248,8 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // Tìm order bằng PayOsOrderCode hoặc Order.Id
                 Order? order = null;
-
-                // Thử tìm bằng PayOsOrderCode trước
                 order = await _orderRepository.GetByPayOsOrderCodeAsync(request.OrderCode);
 
-                // Nếu không tìm thấy, thử parse làm GUID và tìm bằng Order.Id
                 if (order == null && Guid.TryParse(request.OrderCode, out var orderId))
                 {
                     order = await _orderRepository.GetByIdAsync(orderId);
@@ -179,7 +257,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (order == null)
                 {
-                    _logger.LogWarning("Product order not found for orderCode: {OrderCode}", request.OrderCode);
+                    _logger.LogWarning("Order not found for orderCode: {OrderCode}", request.OrderCode);
                     return NotFound(new
                     {
                         success = false,
@@ -187,7 +265,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                _logger.LogInformation("Found product order: {OrderId}, Current Status: {Status}", order.Id, order.Status);
+                _logger.LogInformation("Found order: {OrderId}, Current Status: {Status}", order.Id, order.Status);
 
                 // Sử dụng execution strategy để tránh conflict với MySQL retry strategy
                 var strategy = _unitOfWork.GetExecutionStrategy();
@@ -196,10 +274,26 @@ namespace TayNinhTourApi.Controller.Controllers
                     using var transaction = await _unitOfWork.BeginTransactionAsync();
                     try
                     {
-                        // Cập nhật status thành Cancelled (không trừ stock, không xóa cart)
+                        // 1. Update Order status to Cancelled (2)
                         order.Status = OrderStatus.Cancelled;
                         await _orderRepository.UpdateAsync(order);
                         await _unitOfWork.SaveChangesAsync();
+                        _logger.LogInformation("✅ Order status updated to CANCELLED (status = 2)");
+
+                        // 2. Update PaymentTransaction status to Cancelled (2)
+                        var paymentTransaction = await _paymentTransactionRepository.GetByOrderIdAsync(order.Id);
+                        if (paymentTransaction != null)
+                        {
+                            paymentTransaction.Status = PaymentStatus.Cancelled;
+                            await _paymentTransactionRepository.UpdateAsync(paymentTransaction);
+                            await _paymentTransactionRepository.SaveChangesAsync();
+                            _logger.LogInformation("✅ PaymentTransaction status updated to CANCELLED (status = 2)");
+                        }
+                        else
+                        {
+                            _logger.LogWarning("⚠️ PaymentTransaction not found for order: {OrderId}", order.Id);
+                        }
+
                         await transaction.CommitAsync();
                     }
                     catch
@@ -209,17 +303,20 @@ namespace TayNinhTourApi.Controller.Controllers
                     }
                 });
 
-                _logger.LogInformation("Updated product order {OrderId} status to CANCELLED", order.Id);
+                _logger.LogInformation("✅ Enhanced payment cancellation completed - NO stock reduction, NO cart clearing, NO wallet updates");
 
                 return Ok(new
                 {
                     success = true,
-                    message = "Đã hủy thanh toán sản phẩm",
+                    message = "Đã hủy thanh toán sản phẩm - Enhanced processing completed",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status,
                     stockUpdated = false,
                     cartCleared = false,
+                    walletUpdated = false,
+                    paymentTransactionUpdated = true,
+                    note = "Stock và cart được giữ nguyên, không cộng tiền vào ví shop",
                     orderData = new
                     {
                         id = order.Id,
@@ -233,7 +330,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing product payment cancel for order: {OrderCode}", request.OrderCode);
+                _logger.LogError(ex, "❌ Error processing enhanced payment cancel for order: {OrderCode}", request.OrderCode);
                 return StatusCode(500, new
                 {
                     success = false,
@@ -253,7 +350,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("Looking up product order by PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                _logger.LogInformation("Looking up order by PayOS order code: {PayOsOrderCode}", payOsOrderCode);
 
                 if (string.IsNullOrWhiteSpace(payOsOrderCode))
                 {
@@ -268,7 +365,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (order == null)
                 {
-                    _logger.LogWarning("Product order not found for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                    _logger.LogWarning("Order not found for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
                     return NotFound(new
                     {
                         success = false,
@@ -295,7 +392,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error looking up product order by PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                _logger.LogError(ex, "Error looking up order by PayOS order code: {PayOsOrderCode}", payOsOrderCode);
                 return StatusCode(500, new
                 {
                     success = false,
