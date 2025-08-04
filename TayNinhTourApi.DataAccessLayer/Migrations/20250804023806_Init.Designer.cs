@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250730023026_Init")]
+    [Migration("20250804023806_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -716,6 +716,138 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("OrderDetails");
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.PaymentTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasComment("Số tiền giao dịch");
+
+                    b.Property<string>("CheckoutUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasComment("URL checkout PayOS");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Mô tả giao dịch");
+
+                    b.Property<DateTime?>("ExpiredAt")
+                        .HasColumnType("datetime(6)")
+                        .HasComment("Thời gian hết hạn giao dịch");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Lý do thất bại (nếu có)");
+
+                    b.Property<int>("Gateway")
+                        .HasColumnType("int")
+                        .HasComment("Cổng thanh toán sử dụng");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của Order (cho product payment)");
+
+                    b.Property<Guid?>("ParentTransactionId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của transaction cha (cho retry chain)");
+
+                    b.Property<long?>("PayOsOrderCode")
+                        .HasColumnType("bigint")
+                        .HasComment("PayOS Order Code (số)");
+
+                    b.Property<string>("PayOsTransactionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasComment("PayOS Transaction ID");
+
+                    b.Property<string>("QrCode")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasComment("QR Code data từ PayOS");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasComment("Trạng thái giao dịch");
+
+                    b.Property<Guid?>("TourBookingId")
+                        .HasColumnType("char(36)")
+                        .HasComment("ID của TourBooking (cho tour booking payment)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("WebhookPayload")
+                        .HasColumnType("longtext")
+                        .HasComment("Webhook payload từ PayOS (JSON)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiredAt")
+                        .HasDatabaseName("IX_PaymentTransactions_ExpiredAt");
+
+                    b.HasIndex("Gateway")
+                        .HasDatabaseName("IX_PaymentTransactions_Gateway");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_PaymentTransactions_OrderId");
+
+                    b.HasIndex("ParentTransactionId")
+                        .HasDatabaseName("IX_PaymentTransactions_ParentTransactionId");
+
+                    b.HasIndex("PayOsOrderCode")
+                        .HasDatabaseName("IX_PaymentTransactions_PayOsOrderCode");
+
+                    b.HasIndex("PayOsTransactionId")
+                        .HasDatabaseName("IX_PaymentTransactions_PayOsTransactionId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_PaymentTransactions_Status");
+
+                    b.HasIndex("TourBookingId")
+                        .HasDatabaseName("IX_PaymentTransactions_TourBookingId");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("IX_PaymentTransactions_Status_CreatedAt");
+
+                    b.HasIndex("OrderId", "Gateway", "Status")
+                        .HasDatabaseName("IX_PaymentTransactions_Order_Gateway_Status");
+
+                    b.HasIndex("TourBookingId", "Gateway", "Status")
+                        .HasDatabaseName("IX_PaymentTransactions_TourBooking_Gateway_Status");
+
+                    b.ToTable("PaymentTransactions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PaymentTransactions_Amount_Positive", "Amount > 0");
+
+                            t.HasCheckConstraint("CK_PaymentTransactions_OrderOrBooking", "(OrderId IS NOT NULL AND TourBookingId IS NULL) OR (OrderId IS NULL AND TourBookingId IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Product", b =>
@@ -3327,6 +3459,30 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.PaymentTransaction", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.PaymentTransaction", "ParentTransaction")
+                        .WithMany("ChildTransactions")
+                        .HasForeignKey("ParentTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourBooking", "TourBooking")
+                        .WithMany()
+                        .HasForeignKey("TourBookingId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Order");
+
+                    b.Navigation("ParentTransaction");
+
+                    b.Navigation("TourBooking");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Product", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Shop")
@@ -3892,6 +4048,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Order", b =>
                 {
                     b.Navigation("OrderDetails");
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.PaymentTransaction", b =>
+                {
+                    b.Navigation("ChildTransactions");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Product", b =>

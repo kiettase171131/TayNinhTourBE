@@ -219,8 +219,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     amount: (int)request.Amount,
                     description: description,
                     items: items,
-                    cancelUrl: _config["PayOS:CancelUrl"] ?? "http://localhost:5173/payment-cancel",
-                    returnUrl: _config["PayOS:ReturnUrl"] ?? "http://localhost:5173/payment-success"
+                    cancelUrl: _config["PayOS:CancelUrl"] ?? "https://tndt.netlify.app/payment-cancel",
+                    returnUrl: _config["PayOS:ReturnUrl"] ?? "https://tndt.netlify.app/payment-success"
                 );
 
                 var payOS = new PayOS(clientId, apiKey, checksumKey);
