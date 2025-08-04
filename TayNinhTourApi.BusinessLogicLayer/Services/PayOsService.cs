@@ -96,8 +96,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Tạo PayOS payment URL cho tour booking với webhook URLs
         /// Follows PayOS best practices with proper error handling and logging
+        /// DEPRECATED: Use CreatePaymentLinkAsync instead
         /// </summary>
-        public async Task<string?> CreateTourBookingPaymentUrlAsync(decimal amount, string orderCode, string baseUrl)
+        // public async Task<string?> CreateTourBookingPaymentUrlAsync(decimal amount, string orderCode, string baseUrl)
+        /*
         {
             try
             {
@@ -148,6 +150,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 throw; // Re-throw to let caller handle the error appropriately
             }
         }
+        */
         public async Task<OrderStatus> GetOrderPaymentStatusAsync(string orderCode)
         {
             var clientId = _config["PayOS:ClientId"];

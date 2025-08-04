@@ -575,8 +575,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-
+                // ✅ Không tạo transaction mới - sử dụng transaction hiện tại nếu có
                 var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
                     .FirstOrDefaultAsync(s => s.Id == slotId);
 
@@ -597,10 +596,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
-                await _unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
+                // ✅ Không gọi SaveChanges ở đây - để caller quyết định khi nào save
 
-                _logger.LogInformation("Released {Guests} guests for slot {SlotId}. New capacity: {Current}/{Max}", 
+                _logger.LogInformation("Released {Guests} guests for slot {SlotId}. New capacity: {Current}/{Max}",
                     guestsToRelease, slotId, slot.CurrentBookings, slot.MaxGuests);
 
                 return true;
@@ -608,6 +606,41 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error releasing slot capacity: {SlotId}", slotId);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Release slot capacity với transaction riêng (dùng khi không có transaction hiện tại)
+        /// </summary>
+        public async Task<bool> ReleaseSlotCapacityWithTransactionAsync(Guid slotId, int guestsToRelease)
+        {
+            try
+            {
+                // ✅ Sử dụng execution strategy để handle retry logic với transactions
+                var executionStrategy = _unitOfWork.GetExecutionStrategy();
+
+                return await executionStrategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+
+                    var result = await ReleaseSlotCapacityAsync(slotId, guestsToRelease);
+                    if (result)
+                    {
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                    }
+                    else
+                    {
+                        await transaction.RollbackAsync();
+                    }
+
+                    return result;
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error releasing slot capacity with transaction: {SlotId}", slotId);
                 return false;
             }
         }

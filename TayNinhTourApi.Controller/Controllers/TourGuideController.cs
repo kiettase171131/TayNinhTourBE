@@ -4,10 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Notification;
+using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace TayNinhTourApi.Controller.Controllers
@@ -74,6 +78,8 @@ namespace TayNinhTourApi.Controller.Controllers
                 var activeTours = await _context.TourOperations
                     .Include(to => to.TourDetails)
                         .ThenInclude(td => td.TourTemplate)
+                    .Include(to => to.TourDetails)
+                        .ThenInclude(td => td.AssignedSlots)
                     .Include(to => to.TourBookings)
                     .Where(to => to.TourGuideId == tourGuide.Id && 
                                 to.IsActive && 
@@ -83,8 +89,9 @@ namespace TayNinhTourApi.Controller.Controllers
                         to.Id,
                         to.TourDetails.Title,
                         to.TourDetails.Description,
-                        to.TourDetails.StartDate,
-                        to.TourDetails.EndDate,
+                        TourDate = to.TourDetails.AssignedSlots.FirstOrDefault() != null ?
+                                  to.TourDetails.AssignedSlots.FirstOrDefault()!.TourDate :
+                                  DateOnly.FromDateTime(DateTime.Today),
                         to.Price,
                         to.MaxGuests,
                         to.CurrentBookings,
@@ -98,14 +105,15 @@ namespace TayNinhTourApi.Controller.Controllers
                         BookingsCount = to.TourBookings.Count(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed),
                         CheckedInCount = to.TourBookings.Count(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed && tb.IsCheckedIn)
                     })
-                    .OrderBy(to => to.StartDate)
+                    .OrderBy(to => to.TourDate)
                     .ToListAsync();
 
-                return Ok(new BaseResposeDto
+                return Ok(new ApiResponse<object>
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách tours thành công",
-                    Data = activeTours
+                    Data = activeTours,
+                    success = true
                 });
             }
             catch (Exception ex)
@@ -173,23 +181,22 @@ namespace TayNinhTourApi.Controller.Controllers
                         tb.ContactPhone,
                         tb.ContactEmail,
                         tb.NumberOfGuests,
-                        tb.AdultCount,
-                        tb.ChildCount,
                         tb.TotalPrice,
                         tb.IsCheckedIn,
                         tb.CheckInTime,
                         tb.CheckInNotes,
                         tb.QRCodeData,
-                        CustomerName = tb.User.FullName
+                        CustomerName = tb.User.Name
                     })
                     .OrderBy(tb => tb.ContactName)
                     .ToListAsync();
 
-                return Ok(new BaseResposeDto
+                return Ok(new ApiResponse<object>
                 {
                     StatusCode = 200,
                     Message = "Lấy danh sách bookings thành công",
-                    Data = bookings
+                    Data = bookings,
+                    success = true
                 });
             }
             catch (Exception ex)
@@ -268,11 +275,12 @@ namespace TayNinhTourApi.Controller.Controllers
                     })
                     .ToListAsync();
 
-                return Ok(new BaseResposeDto
+                return Ok(new ApiResponse<object>
                 {
                     StatusCode = 200,
                     Message = "Lấy timeline thành công",
-                    Data = timelineItems
+                    Data = timelineItems,
+                    success = true
                 });
             }
             catch (Exception ex)
@@ -367,7 +375,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 await _context.SaveChangesAsync();
 
-                return Ok(new BaseResposeDto
+                return Ok(new ApiResponse<object>
                 {
                     StatusCode = 200,
                     Message = "Check-in thành công",
@@ -379,7 +387,8 @@ namespace TayNinhTourApi.Controller.Controllers
                         booking.IsCheckedIn,
                         booking.CheckInTime,
                         booking.CheckInNotes
-                    }
+                    },
+                    success = true
                 });
             }
             catch (Exception ex)
@@ -392,7 +401,6 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
-    }
 
         /// <summary>
         /// Hoàn thành timeline item và gửi notification cho guests
@@ -453,19 +461,47 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                // Update completion status
-                timelineItem.IsCompleted = true;
-                timelineItem.CompletedAt = DateTime.UtcNow;
-                timelineItem.CompletionNotes = request.Notes;
-                timelineItem.UpdatedAt = DateTime.UtcNow;
-                timelineItem.UpdatedById = currentUserObject.UserId;
+                // Kiểm tra timeline order - phải complete theo thứ tự
+                var previousIncompleteItems = await _context.TimelineItems
+                    .Where(ti => ti.TourDetailsId == timelineItem.TourDetailsId &&
+                                ti.SortOrder < timelineItem.SortOrder &&
+                                !ti.IsCompleted)
+                    .CountAsync();
 
-                await _context.SaveChangesAsync();
+                if (previousIncompleteItems > 0)
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Phải hoàn thành các mục timeline trước đó theo thứ tự"
+                    });
+                }
 
-                // Gửi notification cho tất cả guests trong tour
-                await NotifyGuestsAboutTimelineProgress(timelineItem.TourDetails.TourOperation.Id, timelineItem.Activity);
+                // Use transaction to ensure data consistency
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    // Update completion status
+                    timelineItem.IsCompleted = true;
+                    timelineItem.CompletedAt = DateTime.UtcNow;
+                    timelineItem.CompletionNotes = request.Notes;
+                    timelineItem.UpdatedAt = DateTime.UtcNow;
+                    timelineItem.UpdatedById = currentUserObject.UserId;
 
-                return Ok(new BaseResposeDto
+                    await _context.SaveChangesAsync();
+
+                    // Gửi notification cho tất cả guests trong tour
+                    await NotifyGuestsAboutTimelineProgress(timelineItem.TourDetails.TourOperation.Id, timelineItem.Activity);
+
+                    await transaction.CommitAsync();
+                }
+                catch (Exception)
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+
+                return Ok(new ApiResponse<object>
                 {
                     StatusCode = 200,
                     Message = "Hoàn thành timeline item thành công",
@@ -476,7 +512,8 @@ namespace TayNinhTourApi.Controller.Controllers
                         timelineItem.IsCompleted,
                         timelineItem.CompletedAt,
                         timelineItem.CompletionNotes
-                    }
+                    },
+                    success = true
                 });
             }
             catch (Exception ex)
@@ -506,12 +543,12 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 foreach (var userId in guestUserIds)
                 {
-                    await _notificationService.CreateNotificationAsync(new BusinessLogicLayer.DTOs.Request.CreateNotificationDto
+                    await _notificationService.CreateNotificationAsync(new CreateNotificationDto
                     {
                         UserId = userId,
                         Title = "🎯 Cập nhật lịch trình tour",
                         Message = $"Đoàn đã hoàn thành: {activity}",
-                        Type = DataAccessLayer.Enums.NotificationType.TourUpdate,
+                        Type = DataAccessLayer.Enums.NotificationType.Tour,
                         Priority = DataAccessLayer.Enums.NotificationPriority.Normal,
                         Icon = "🎯"
                     });
@@ -522,16 +559,6 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error sending timeline progress notifications for tour {TourOperationId}", tourOperationId);
             }
         }
-    }
-
-    /// <summary>
-    /// Request model cho check-in guest
-    /// </summary>
-    public class CheckInGuestRequest
-    {
-        public string? QRCodeData { get; set; }
-        public string? Notes { get; set; }
-    }
 
         /// <summary>
         /// Báo cáo sự cố trong tour
@@ -602,7 +629,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     await NotifyAdminAboutIncident(incident);
                 }
 
-                return Ok(new BaseResposeDto
+                return Ok(new ApiResponse<object>
                 {
                     StatusCode = 200,
                     Message = "Báo cáo sự cố thành công",
@@ -613,7 +640,8 @@ namespace TayNinhTourApi.Controller.Controllers
                         incident.Severity,
                         incident.Status,
                         incident.ReportedAt
-                    }
+                    },
+                    success = true
                 });
             }
             catch (Exception ex)
@@ -643,7 +671,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 foreach (var adminId in adminUserIds)
                 {
-                    await _notificationService.CreateNotificationAsync(new BusinessLogicLayer.DTOs.Request.CreateNotificationDto
+                    await _notificationService.CreateNotificationAsync(new CreateNotificationDto
                     {
                         UserId = adminId,
                         Title = $"🚨 Sự cố {incident.Severity} trong tour",
@@ -659,24 +687,6 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error sending incident notification to admins for incident {IncidentId}", incident.Id);
             }
         }
-    }
-
-    /// <summary>
-    /// Request model cho check-in guest
-    /// </summary>
-    public class CheckInGuestRequest
-    {
-        public string? QRCodeData { get; set; }
-        public string? Notes { get; set; }
-    }
-
-    /// <summary>
-    /// Request model cho complete timeline
-    /// </summary>
-    public class CompleteTimelineRequest
-    {
-        public string? Notes { get; set; }
-    }
 
         /// <summary>
         /// Gửi thông báo cho tất cả guests trong tour
@@ -743,12 +753,12 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     try
                     {
-                        await _notificationService.CreateNotificationAsync(new BusinessLogicLayer.DTOs.Request.CreateNotificationDto
+                        await _notificationService.CreateNotificationAsync(new CreateNotificationDto
                         {
                             UserId = userId,
                             Title = "📢 Thông báo từ HDV",
                             Message = request.Message,
-                            Type = DataAccessLayer.Enums.NotificationType.TourUpdate,
+                            Type = DataAccessLayer.Enums.NotificationType.Tour,
                             Priority = request.IsUrgent ? DataAccessLayer.Enums.NotificationPriority.High : DataAccessLayer.Enums.NotificationPriority.Normal,
                             Icon = "📢"
                         });
@@ -760,7 +770,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     }
                 }
 
-                return Ok(new BaseResposeDto
+                return Ok(new ApiResponse<object>
                 {
                     StatusCode = 200,
                     Message = $"Đã gửi thông báo cho {successCount}/{guestUserIds.Count} khách",
@@ -769,7 +779,8 @@ namespace TayNinhTourApi.Controller.Controllers
                         TotalGuests = guestUserIds.Count,
                         SuccessCount = successCount,
                         Message = request.Message
-                    }
+                    },
+                    success = true
                 });
             }
             catch (Exception ex)

@@ -1,3 +1,4 @@
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -10,20 +11,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Add check-in fields to TourBookings table
-            migrationBuilder.AddColumn<bool>(
-                name: "IsCheckedIn",
-                table: "TourBookings",
-                type: "tinyint(1)",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "CheckInTime",
-                table: "TourBookings",
-                type: "datetime(6)",
-                nullable: true);
-
             migrationBuilder.AddColumn<string>(
                 name: "CheckInNotes",
                 table: "TourBookings",
@@ -32,29 +19,40 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 nullable: true)
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            // Add completion fields to TimelineItems table
+            migrationBuilder.AddColumn<DateTime>(
+                name: "CheckInTime",
+                table: "TourBookings",
+                type: "datetime(6)",
+                nullable: true);
+
             migrationBuilder.AddColumn<bool>(
-                name: "IsCompleted",
-                table: "TimelineItems",
+                name: "IsCheckedIn",
+                table: "TourBookings",
                 type: "tinyint(1)",
                 nullable: false,
                 defaultValue: false);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "CompletedAt",
-                table: "TimelineItems",
+                table: "TimelineItem",
                 type: "datetime(6)",
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "CompletionNotes",
-                table: "TimelineItems",
+                table: "TimelineItem",
                 type: "varchar(500)",
                 maxLength: 500,
                 nullable: true)
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            // Create TourIncidents table
+            migrationBuilder.AddColumn<bool>(
+                name: "IsCompleted",
+                table: "TimelineItem",
+                type: "tinyint(1)",
+                nullable: false,
+                defaultValue: false);
+
             migrationBuilder.CreateTable(
                 name: "TourIncidents",
                 columns: table => new
@@ -77,11 +75,13 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     ResolvedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true)
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -91,33 +91,31 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         column: x => x.ReportedByGuideId,
                         principalTable: "TourGuides",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_TourIncidents_TourOperations_TourOperationId",
                         column: x => x.TourOperationId,
                         principalTable: "TourOperations",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_TourIncidents_Users_CreatedById",
                         column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_TourIncidents_Users_UpdatedById",
                         column: x => x.UpdatedById,
                         principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        principalColumn: "Id");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            // Create indexes for TourIncidents
             migrationBuilder.CreateIndex(
-                name: "IX_TourIncidents_TourOperationId",
+                name: "IX_TourIncidents_CreatedById",
                 table: "TourIncidents",
-                column: "TourOperationId");
+                column: "CreatedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TourIncidents_ReportedByGuideId",
@@ -125,9 +123,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 column: "ReportedByGuideId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TourIncidents_CreatedById",
+                name: "IX_TourIncidents_TourOperationId",
                 table: "TourIncidents",
-                column: "CreatedById");
+                column: "TourOperationId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TourIncidents_UpdatedById",
@@ -138,26 +136,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Drop TourIncidents table
             migrationBuilder.DropTable(
                 name: "TourIncidents");
 
-            // Remove completion fields from TimelineItems table
             migrationBuilder.DropColumn(
-                name: "IsCompleted",
-                table: "TimelineItems");
-
-            migrationBuilder.DropColumn(
-                name: "CompletedAt",
-                table: "TimelineItems");
-
-            migrationBuilder.DropColumn(
-                name: "CompletionNotes",
-                table: "TimelineItems");
-
-            // Remove check-in fields from TourBookings table
-            migrationBuilder.DropColumn(
-                name: "IsCheckedIn",
+                name: "CheckInNotes",
                 table: "TourBookings");
 
             migrationBuilder.DropColumn(
@@ -165,8 +148,20 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 table: "TourBookings");
 
             migrationBuilder.DropColumn(
-                name: "CheckInNotes",
+                name: "IsCheckedIn",
                 table: "TourBookings");
+
+            migrationBuilder.DropColumn(
+                name: "CompletedAt",
+                table: "TimelineItem");
+
+            migrationBuilder.DropColumn(
+                name: "CompletionNotes",
+                table: "TimelineItem");
+
+            migrationBuilder.DropColumn(
+                name: "IsCompleted",
+                table: "TimelineItem");
         }
     }
 }

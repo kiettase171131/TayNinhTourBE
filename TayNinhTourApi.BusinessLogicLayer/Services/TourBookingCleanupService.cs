@@ -76,49 +76,55 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 _logger.LogInformation("Found {Count} expired bookings to cleanup", expiredBookings.Count);
 
-                using var transaction = await unitOfWork.BeginTransactionAsync();
-                
-                foreach (var booking in expiredBookings)
+                // ✅ Sử dụng execution strategy để handle retry logic với transactions
+                var executionStrategy = unitOfWork.GetExecutionStrategy();
+
+                await executionStrategy.ExecuteAsync(async () =>
                 {
-                    try
+                    using var transaction = await unitOfWork.BeginTransactionAsync();
+
+                    foreach (var booking in expiredBookings)
                     {
-                        // Cancel booking
-                        booking.Status = BookingStatus.CancelledByCustomer;
-                        booking.CancelledDate = DateTime.UtcNow;
-                        booking.CancellationReason = "Tự động hủy do hết thời gian thanh toán";
-                        booking.UpdatedAt = DateTime.UtcNow;
-                        booking.ReservedUntil = null;
-
-                        await unitOfWork.TourBookingRepository.UpdateAsync(booking);
-
-                        // ❌ KHÔNG trừ TourOperation.CurrentBookings vì chưa từng được cộng
-                        // Chỉ release TourSlot capacity
-                        // Release capacity
-                        // if (booking.TourOperation != null)
-                        // {
-                        //     booking.TourOperation.CurrentBookings = Math.Max(0, 
-                        //         booking.TourOperation.CurrentBookings - booking.NumberOfGuests);
-                        //     await unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
-                        // }
-
-                        // ✅ CHỈ release TourSlot capacity
-                        if (booking.TourSlotId.HasValue)
+                        try
                         {
-                            var tourSlotService = scope.ServiceProvider.GetRequiredService<ITourSlotService>();
-                            await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
+                            // Cancel booking
+                            booking.Status = BookingStatus.CancelledByCustomer;
+                            booking.CancelledDate = DateTime.UtcNow;
+                            booking.CancellationReason = "Tự động hủy do hết thời gian thanh toán";
+                            booking.UpdatedAt = DateTime.UtcNow;
+                            booking.ReservedUntil = null;
+
+                            await unitOfWork.TourBookingRepository.UpdateAsync(booking);
+
+                            // ❌ KHÔNG trừ TourOperation.CurrentBookings vì chưa từng được cộng
+                            // Chỉ release TourSlot capacity
+                            // Release capacity
+                            // if (booking.TourOperation != null)
+                            // {
+                            //     booking.TourOperation.CurrentBookings = Math.Max(0,
+                            //         booking.TourOperation.CurrentBookings - booking.NumberOfGuests);
+                            //     await unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
+                            // }
+
+                            // ✅ CHỈ release TourSlot capacity
+                            if (booking.TourSlotId.HasValue)
+                            {
+                                var tourSlotService = scope.ServiceProvider.GetRequiredService<ITourSlotService>();
+                                await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
+                            }
+
+                            _logger.LogInformation("Cancelled expired booking {BookingCode} for {Guests} guests",
+                                booking.BookingCode, booking.NumberOfGuests);
                         }
-
-                        _logger.LogInformation("Cancelled expired booking {BookingCode} for {Guests} guests", 
-                            booking.BookingCode, booking.NumberOfGuests);
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error cancelling expired booking {BookingId}", booking.Id);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error cancelling expired booking {BookingId}", booking.Id);
-                    }
-                }
 
-                await unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
+                    await unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                });
 
                 _logger.LogInformation("Successfully cleaned up {Count} expired bookings", expiredBookings.Count);
             }

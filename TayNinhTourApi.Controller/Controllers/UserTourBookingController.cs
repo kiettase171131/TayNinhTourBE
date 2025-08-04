@@ -453,27 +453,37 @@ namespace TayNinhTourApi.Controller.Controllers
                     if (payOsService != null)
                     {
                         debugInfo.Add($"Step 5: PayOsService found - {payOsService.GetType().Name}");
-                        
-                        // FIXED: Use correct method for tour booking debug
-                        var paymentUrl = await payOsService.CreateTourBookingPaymentUrlAsync(
-                            testAmount,
-                            payOsOrderCode,
-                            "https://tndt.netlify.app");
-                        
-                        debugInfo.Add($"Step 6: Payment URL created successfully");
+
+                        // Use Enhanced PayOS system for debug
+                        var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
+                        {
+                            OrderId = null, // NULL for tour booking payments
+                            TourBookingId = Guid.NewGuid(), // Mock TourBooking ID for debug
+                            Amount = testAmount,
+                            Description = $"Debug Tour {payOsOrderCode}"
+                        };
+
+                        var paymentTransaction = await payOsService.CreatePaymentLinkAsync(paymentRequest);
+                        var paymentUrl = paymentTransaction.CheckoutUrl;
+
+                        debugInfo.Add($"Step 6: Enhanced Payment URL created successfully");
                         debugInfo.Add($"Step 7: Payment URL = {paymentUrl}");
+                        debugInfo.Add($"Step 8: Transaction ID = {paymentTransaction.Id}");
+                        debugInfo.Add($"Step 9: PayOS Order Code = {paymentTransaction.PayOsOrderCode}");
 
                         return Ok(new
                         {
                             success = true,
-                            message = "PayOS payment URL generation test completed",
+                            message = "Enhanced PayOS payment URL generation test completed",
                             debugInfo = debugInfo,
                             paymentData = new
                             {
                                 bookingCode,
                                 payOsOrderCode,
                                 testAmount,
-                                paymentUrl
+                                paymentUrl,
+                                transactionId = paymentTransaction.Id,
+                                payOsOrderCodeGenerated = paymentTransaction.PayOsOrderCode
                             }
                         });
                     }

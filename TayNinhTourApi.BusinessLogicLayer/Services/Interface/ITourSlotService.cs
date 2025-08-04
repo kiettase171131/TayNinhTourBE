@@ -117,6 +117,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<bool> ReleaseSlotCapacityAsync(Guid slotId, int guestsToRelease);
 
         /// <summary>
+        /// Release slot capacity với transaction riêng (dùng khi không có transaction hiện tại)
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <param name="guestsToRelease">Số lượng khách cần release</param>
+        /// <returns>True nếu release thành công</returns>
+        Task<bool> ReleaseSlotCapacityWithTransactionAsync(Guid slotId, int guestsToRelease);
+
+        /// <summary>
         /// Cập nhật capacity cho slot từ TourOperation khi được assign
         /// </summary>
         /// <param name="slotId">ID của TourSlot</param>

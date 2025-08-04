@@ -654,9 +654,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         public async Task<BaseResposeDto> CancelBookingAsync(Guid bookingId, Guid userId, string? reason = null)
         {
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-            try
+            // ✅ Sử dụng execution strategy để handle retry logic với transactions
+            var strategy = _unitOfWork.GetExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
                 var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
                     .Where(b => b.Id == bookingId && b.UserId == userId && !b.IsDeleted)
                     .Include(b => b.TourOperation)
@@ -734,16 +738,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = "Hủy booking thành công",
                     success = true
                 };
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return new BaseResposeDto
+                }
+                catch (Exception ex)
                 {
-                    StatusCode = 500,
-                    Message = $"Lỗi khi hủy booking: {ex.Message}"
-                };
-            }
+                    await transaction.RollbackAsync();
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 500,
+                        Message = $"Lỗi khi hủy booking: {ex.Message}"
+                    };
+                }
+            });
         }
 
         /// <summary>

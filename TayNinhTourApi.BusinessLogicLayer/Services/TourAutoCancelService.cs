@@ -170,14 +170,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// Hủy tour và hoàn tiền cho khách hàng
         /// </summary>
         private async Task CancelTourAndRefundAsync(
-            DataAccessLayer.Entities.TourOperation tourOperation, 
+            DataAccessLayer.Entities.TourOperation tourOperation,
             IServiceProvider serviceProvider,
             CancellationToken cancellationToken = default)
         {
-            using var transaction = await serviceProvider.GetRequiredService<IUnitOfWork>().BeginTransactionAsync();
-            try
+            var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+
+            // ✅ Sử dụng execution strategy để handle retry logic với transactions
+            var executionStrategy = unitOfWork.GetExecutionStrategy();
+
+            await executionStrategy.ExecuteAsync(async () =>
             {
-                var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+                using var transaction = await unitOfWork.BeginTransactionAsync();
+                try
+                {
                 var revenueService = serviceProvider.GetRequiredService<ITourRevenueService>();
                 var notificationService = serviceProvider.GetRequiredService<ITourCompanyNotificationService>();
 
@@ -275,14 +281,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                _logger.LogInformation("Successfully cancelled tour: {TourTitle} with {BookingCount} bookings, deducted {DeductedAmount} from revenue hold (after 10% commission)", 
+                _logger.LogInformation("Successfully cancelled tour: {TourTitle} with {BookingCount} bookings, deducted {DeductedAmount} from revenue hold (after 10% commission)",
                     tourOperation.TourDetails?.Title, bookings.Count, amountInRevenueHold);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error cancelling tour: {TourTitle}", tourOperation.TourDetails?.Title);
-            }
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Error cancelling tour: {TourTitle}", tourOperation.TourDetails?.Title);
+                    throw;
+                }
+            });
         }
 
         /// <summary>
