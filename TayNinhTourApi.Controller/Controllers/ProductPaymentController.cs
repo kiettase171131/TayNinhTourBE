@@ -4,6 +4,7 @@ using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using System;
 using System.Threading.Tasks;
 
@@ -20,14 +21,17 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ILogger<ProductPaymentController> _logger;
         private readonly IOrderRepository _orderRepository;
         private readonly IProductService _productService;
+        private readonly IUnitOfWork _unitOfWork;
 
         public ProductPaymentController(
             ILogger<ProductPaymentController> logger,
             IOrderRepository orderRepository,
-            IProductService productService)
+            IProductService productService,
+            IUnitOfWork unitOfWork)
         {
             _logger = logger;
             _orderRepository = orderRepository;
+            _unitOfWork = unitOfWork;
             _productService = productService;
         }
 
@@ -184,10 +188,25 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 _logger.LogInformation("Found product order: {OrderId}, Current Status: {Status}", order.Id, order.Status);
 
-                // Cập nhật status thành Cancelled (không trừ stock, không xóa cart)
-                order.Status = OrderStatus.Cancelled;
-                await _orderRepository.UpdateAsync(order);
-                await _orderRepository.SaveChangesAsync();
+                // Sử dụng execution strategy để tránh conflict với MySQL retry strategy
+                var strategy = _unitOfWork.GetExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        // Cập nhật status thành Cancelled (không trừ stock, không xóa cart)
+                        order.Status = OrderStatus.Cancelled;
+                        await _orderRepository.UpdateAsync(order);
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                    }
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
 
                 _logger.LogInformation("Updated product order {OrderId} status to CANCELLED", order.Id);
 
