@@ -7,6 +7,7 @@ using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using System;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
