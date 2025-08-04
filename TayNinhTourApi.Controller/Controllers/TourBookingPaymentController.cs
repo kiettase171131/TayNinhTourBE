@@ -278,6 +278,8 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
+                _logger.LogInformation("Looking up tour booking by PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+
                 if (string.IsNullOrWhiteSpace(payOsOrderCode))
                 {
                     return BadRequest(new
@@ -287,13 +289,39 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                // This would need to be implemented in the service
-                // For now, return a placeholder response
+                // Tìm tour booking bằng PayOsOrderCode
+                var tourBooking = await _tourBookingRepository.GetByPayOsOrderCodeAsync(payOsOrderCode);
+
+                // Nếu không tìm thấy, thử parse làm GUID và tìm bằng TourBooking.Id
+                if (tourBooking == null && Guid.TryParse(payOsOrderCode, out var bookingId))
+                {
+                    tourBooking = await _tourBookingRepository.GetByIdAsync(bookingId);
+                }
+
+                if (tourBooking == null)
+                {
+                    _logger.LogWarning("Tour booking not found for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy booking"
+                    });
+                }
+
                 return Ok(new
                 {
                     success = true,
-                    message = "Lookup functionality to be implemented",
-                    payOsOrderCode = payOsOrderCode
+                    data = new
+                    {
+                        bookingId = tourBooking.Id,
+                        bookingCode = tourBooking.BookingCode,
+                        payOsOrderCode = tourBooking.PayOsOrderCode,
+                        totalPrice = tourBooking.TotalPrice,
+                        status = tourBooking.Status.ToString(),
+                        statusValue = (int)tourBooking.Status,
+                        createdAt = tourBooking.CreatedAt,
+                        userId = tourBooking.UserId
+                    }
                 });
             }
             catch (Exception ex)

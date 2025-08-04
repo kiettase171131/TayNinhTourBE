@@ -244,6 +244,32 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
 
                 await _unitOfWork.PaymentTransactionRepository.AddAsync(transaction);
+
+                // === SYNC PAYOS ORDER CODE TO ORDER/TOURBOOKING FOR LOOKUP COMPATIBILITY ===
+                if (request.OrderId.HasValue)
+                {
+                    // Update Order with PayOS order code for lookup compatibility
+                    var order = await _unitOfWork.OrderRepository.GetByIdAsync(request.OrderId.Value);
+                    if (order != null)
+                    {
+                        order.PayOsOrderCode = orderCode.ToString();
+                        _unitOfWork.OrderRepository.Update(order);
+                        _logger.LogInformation("Updated Order {OrderId} with PayOS order code {OrderCode}", order.Id, orderCode);
+                    }
+                }
+
+                if (request.TourBookingId.HasValue)
+                {
+                    // Update TourBooking with PayOS order code for lookup compatibility
+                    var tourBooking = await _unitOfWork.TourBookingRepository.GetByIdAsync(request.TourBookingId.Value);
+                    if (tourBooking != null)
+                    {
+                        tourBooking.PayOsOrderCode = orderCode.ToString();
+                        _unitOfWork.TourBookingRepository.Update(tourBooking);
+                        _logger.LogInformation("Updated TourBooking {BookingId} with PayOS order code {OrderCode}", tourBooking.Id, orderCode);
+                    }
+                }
+
                 await _unitOfWork.SaveChangesAsync();
 
                 _logger.LogInformation("Created PayOS payment link for transaction {TransactionId}", transaction.Id);
