@@ -951,9 +951,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         public async Task<BaseResposeDto> HandlePaymentCancelAsync(string payOsOrderCode)
         {
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-            try
+            // Sử dụng execution strategy thay vì manual transaction để tránh conflict với retry strategy
+            var strategy = _unitOfWork.GetExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
                 var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
                     .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
                     .Include(b => b.TourOperation)
@@ -1010,16 +1014,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = "Đã hủy booking do không thanh toán",
                     success = true
                 };
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return new BaseResposeDto
+                }
+                catch (Exception ex)
                 {
-                    StatusCode = 500,
-                    Message = $"Lỗi khi xử lý hủy thanh toán: {ex.Message}"
-                };
-            }
+                    await transaction.RollbackAsync();
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 500,
+                        Message = $"Lỗi khi xử lý hủy thanh toán: {ex.Message}"
+                    };
+                }
+            });
         }
 
         /// <summary>
