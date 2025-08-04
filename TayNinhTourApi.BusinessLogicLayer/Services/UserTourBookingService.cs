@@ -271,9 +271,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         public async Task<CreateBookingResultDto> CreateBookingAsync(CreateTourBookingRequest request, Guid userId)
         {
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-            try
+            // Sử dụng execution strategy để tránh conflict với retry strategy
+            var strategy = _unitOfWork.GetExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
                 _logger.LogInformation("Starting tour booking process. UserId: {UserId}, TourSlotId: {TourSlotId}, Guests: {Guests}", 
                     userId, request.TourSlotId, request.NumberOfGuests);
 
@@ -323,15 +327,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // 3. Check if the tour operation matches the request (if provided)
-                if (request.TourOperationId != tourOperation.Id)
+                if (request.TourOperationId.HasValue && request.TourOperationId != tourOperation.Id)
                 {
-                    _logger.LogWarning("Tour operation mismatch. Expected: {Expected}, Provided: {Provided}", 
+                    _logger.LogWarning("Tour operation mismatch. Expected: {Expected}, Provided: {Provided}",
                         tourOperation.Id, request.TourOperationId);
                     return new CreateBookingResultDto
                     {
                         Success = false,
                         Message = "Tour slot không thuộc về tour operation được chọn"
                     };
+                }
+
+                // Auto-assign TourOperationId from TourSlot if not provided
+                if (!request.TourOperationId.HasValue)
+                {
+                    _logger.LogInformation("Auto-assigning TourOperationId {TourOperationId} from TourSlot {TourSlotId}",
+                        tourOperation.Id, request.TourSlotId);
                 }
 
                 // 4. Check slot-specific availability
@@ -346,14 +357,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                if (tourSlot.AvailableSpots < request.NumberOfGuests)
+                // Calculate available spots correctly using TourOperation.MaxGuests
+                var actualMaxGuests = tourSlot.TourDetails?.TourOperation?.MaxGuests ?? tourSlot.MaxGuests;
+                var actualAvailableSpots = actualMaxGuests - tourSlot.CurrentBookings;
+
+                if (actualAvailableSpots < request.NumberOfGuests)
                 {
-                    _logger.LogWarning("Insufficient capacity in slot. TourSlotId: {TourSlotId}, Available: {Available}, Requested: {Requested}", 
-                        request.TourSlotId, tourSlot.AvailableSpots, request.NumberOfGuests);
+                    _logger.LogWarning("Insufficient capacity in slot. TourSlotId: {TourSlotId}, Available: {Available}, Requested: {Requested}, ActualMaxGuests: {ActualMaxGuests}, SlotMaxGuests: {SlotMaxGuests}",
+                        request.TourSlotId, actualAvailableSpots, request.NumberOfGuests, actualMaxGuests, tourSlot.MaxGuests);
                     return new CreateBookingResultDto
                     {
                         Success = false,
-                        Message = $"Slot này chỉ còn {tourSlot.AvailableSpots} chỗ trống, không đủ cho {request.NumberOfGuests} khách"
+                        Message = $"Slot này chỉ còn {actualAvailableSpots} chỗ trống, không đủ cho {request.NumberOfGuests} khách"
                     };
                 }
 
@@ -469,20 +484,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogInformation("Tour booking created (PENDING payment). BookingCode: {BookingCode}, TourSlot reserved: {Guests} guests", 
                     bookingCode, request.NumberOfGuests);
 
-                // 10. Create PayOS payment URL for tour booking (with proper error handling)
+                // 10. === ENHANCED PAYOS: Create PayOS payment URL with transaction tracking ===
                 string paymentUrl = $"{baseUrl}/tour-payment-cancel?orderId={booking.Id}&orderCode={payOsOrderCode}"; // Default fallback URL
                 try
                 {
                     if (_payOsService != null)
                     {
-                        // FIXED: Use correct method for tour booking payment URLs
-                        paymentUrl = await _payOsService.CreateTourBookingPaymentUrlAsync(
-                            totalPrice,
-                            payOsOrderCode,
-                            "https://tndt.netlify.app") ?? paymentUrl;
+                        // Use Enhanced PayOS system with PaymentTransaction tracking
+                        var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
+                        {
+                            OrderId = null, // NULL for tour booking payments
+                            TourBookingId = booking.Id, // Link to TourBooking (Tour Payment)
+                            Amount = totalPrice,
+                            Description = $"Tour {payOsOrderCode}" // Shortened to fit 25 char limit
+                        };
 
-                        _logger.LogInformation("PayOS tour booking payment URL created successfully for booking {BookingCode}: {PaymentUrl}",
-                            bookingCode, paymentUrl);
+                        var paymentTransaction = await _payOsService.CreatePaymentLinkAsync(paymentRequest);
+                        paymentUrl = paymentTransaction.CheckoutUrl ?? paymentUrl;
+
+                        _logger.LogInformation("Enhanced PayOS tour booking payment created successfully for booking {BookingCode}: TransactionId={TransactionId}, PaymentUrl={PaymentUrl}",
+                            bookingCode, paymentTransaction.Id, paymentUrl);
                     }
                     else
                     {
@@ -491,7 +512,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error creating PayOS tour booking URL for booking {BookingCode}, using fallback", bookingCode);
+                    _logger.LogError(ex, "Error creating Enhanced PayOS tour booking URL for booking {BookingCode}, using fallback", bookingCode);
                     // Keep the fallback URL
                 }
 
@@ -501,43 +522,44 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogInformation("Tour booking created successfully. BookingId: {BookingId}, BookingCode: {BookingCode}, UserId: {UserId}", 
                     booking.Id, bookingCode, userId);
 
-                return new CreateBookingResultDto
+                    return new CreateBookingResultDto
+                    {
+                        Success = true,
+                        Message = "Tạo booking thành công",
+                        BookingId = booking.Id,
+                        BookingCode = bookingCode,
+                        PaymentUrl = paymentUrl,
+                        OriginalPrice = tourOperation.Price * request.NumberOfGuests,
+                        DiscountPercent = discountPercent,
+                        FinalPrice = totalPrice,
+                        PricingType = pricingType,
+                        BookingDate = bookingDate,
+                        TourStartDate = tourStartDate
+                    };
+                }
+                catch (DbUpdateConcurrencyException ex)
                 {
-                    Success = true,
-                    Message = "Tạo booking thành công",
-                    BookingId = booking.Id,
-                    BookingCode = bookingCode,
-                    PaymentUrl = paymentUrl,
-                    OriginalPrice = tourOperation.Price * request.NumberOfGuests,
-                    DiscountPercent = discountPercent,
-                    FinalPrice = totalPrice,
-                    PricingType = pricingType,
-                    BookingDate = bookingDate,
-                    TourStartDate = tourStartDate
-                };
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogWarning(ex, "Concurrency conflict during booking creation. UserId: {UserId}, TourSlotId: {TourSlotId}", 
-                    userId, request.TourSlotId);
-                return new CreateBookingResultDto
+                    await transaction.RollbackAsync();
+                    _logger.LogWarning(ex, "Concurrency conflict during booking creation. UserId: {UserId}, TourSlotId: {TourSlotId}",
+                        userId, request.TourSlotId);
+                    return new CreateBookingResultDto
+                    {
+                        Success = false,
+                        Message = "Tour slot đã được booking bởi người khác, vui lòng thử lại"
+                    };
+                }
+                catch (Exception ex)
                 {
-                    Success = false,
-                    Message = "Tour slot đã được booking bởi người khác, vui lòng thử lại"
-                };
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error creating tour booking. UserId: {UserId}, TourSlotId: {TourSlotId}", 
-                    userId, request.TourSlotId);
-                return new CreateBookingResultDto
-                {
-                    Success = false,
-                    Message = $"Lỗi khi tạo booking: {ex.Message}"
-                };
-            }
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Error creating tour booking. UserId: {UserId}, TourSlotId: {TourSlotId}",
+                        userId, request.TourSlotId);
+                    return new CreateBookingResultDto
+                    {
+                        Success = false,
+                        Message = $"Lỗi khi tạo booking: {ex.Message}"
+                    };
+                }
+            });
         }
 
         /// <summary>
@@ -811,9 +833,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         public async Task<BaseResposeDto> HandlePaymentSuccessAsync(string payOsOrderCode)
         {
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-            try
+            // Sử dụng execution strategy thay vì manual transaction để tránh conflict với retry strategy
+            var strategy = _unitOfWork.GetExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
                 var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
                     .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
                     .Include(b => b.TourOperation)
@@ -901,22 +927,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 });
 
-                return new BaseResposeDto
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 200,
+                        Message = "Thanh toán thành công - Booking đã được xác nhận",
+                        success = true
+                    };
+                }
+                catch (Exception ex)
                 {
-                    StatusCode = 200,
-                    Message = "Thanh toán thành công - Booking đã được xác nhận",
-                    success = true
-                };
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return new BaseResposeDto
-                {
-                    StatusCode = 500,
-                    Message = $"Lỗi khi xử lý thanh toán thành công: {ex.Message}"
-                };
-            }
+                    await transaction.RollbackAsync();
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 500,
+                        Message = $"Lỗi khi xử lý thanh toán thành công: {ex.Message}"
+                    };
+                }
+            });
         }
 
         /// <summary>

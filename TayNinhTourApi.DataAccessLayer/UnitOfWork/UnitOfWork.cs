@@ -51,6 +51,12 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private ITourBookingRefundRepository _tourBookingRefundRepository = null!;
         private IRefundPolicyRepository _refundPolicyRepository = null!;
 
+        // Payment system repositories
+        private IPaymentTransactionRepository _paymentTransactionRepository = null!;
+
+        // Order system repositories
+        private IOrderRepository _orderRepository = null!;
+
         public UnitOfWork(TayNinhTouApiDbContext context)
         {
             _context = context;
@@ -271,6 +277,22 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             }
         }
 
+        public IPaymentTransactionRepository PaymentTransactionRepository
+        {
+            get
+            {
+                return _paymentTransactionRepository ??= new PaymentTransactionRepository(_context);
+            }
+        }
+
+        public IOrderRepository OrderRepository
+        {
+            get
+            {
+                return _orderRepository ??= new OrderRepository(_context);
+            }
+        }
+
         /// <summary>
         /// Exposes the DbContext for advanced operations like creating execution strategies
         /// </summary>
@@ -294,6 +316,14 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         public async Task<int> ExecuteSqlRawAsync(string sql, params MySqlParameter[] parameters)
         {
             return await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+        }
+
+        /// <summary>
+        /// Gets the execution strategy for handling retry logic with transactions
+        /// </summary>
+        public IExecutionStrategy GetExecutionStrategy()
+        {
+            return _context.Database.CreateExecutionStrategy();
         }
 
         public void Dispose()

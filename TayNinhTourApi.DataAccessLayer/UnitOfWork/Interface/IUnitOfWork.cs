@@ -44,6 +44,12 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         ITourBookingRefundRepository TourBookingRefundRepository { get; }
         IRefundPolicyRepository RefundPolicyRepository { get; }
 
+        // Payment system repositories
+        IPaymentTransactionRepository PaymentTransactionRepository { get; }
+
+        // Order system repositories
+        IOrderRepository OrderRepository { get; }
+
         /// <summary>
         /// Exposes the DbContext for advanced operations like creating execution strategies
         /// </summary>
@@ -53,5 +59,10 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         Task<int> ExecuteSqlRawAsync(string sql, params MySqlParameter[] parameters);
         IDbContextTransaction BeginTransaction();
         Task<IDbContextTransaction> BeginTransactionAsync();
+
+        /// <summary>
+        /// Gets the execution strategy for handling retry logic with transactions
+        /// </summary>
+        IExecutionStrategy GetExecutionStrategy();
     }
 }

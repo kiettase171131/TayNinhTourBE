@@ -70,7 +70,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // 3. Check và reserve capacity với concurrency control
-                using var transaction = _unitOfWork.BeginTransaction();
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
                     // Sử dụng optimistic concurrency control để reserve capacity

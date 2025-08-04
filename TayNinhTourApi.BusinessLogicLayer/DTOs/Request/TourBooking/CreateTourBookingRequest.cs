@@ -8,10 +8,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking
     public class CreateTourBookingRequest
     {
         /// <summary>
-        /// ID của TourOperation cần booking
+        /// ID của TourOperation cần booking (Optional - sẽ được tự động tìm từ TourSlot)
         /// </summary>
-        [Required(ErrorMessage = "TourOperation ID là bắt buộc")]
-        public Guid TourOperationId { get; set; }
+        public Guid? TourOperationId { get; set; }
 
         /// <summary>
         /// ID của TourSlot cụ thể mà khách hàng muốn booking (REQUIRED)

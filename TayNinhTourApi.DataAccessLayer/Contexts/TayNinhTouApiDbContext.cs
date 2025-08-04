@@ -61,6 +61,9 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<TourBookingRefund> TourBookingRefunds { get; set; } = null!;
         public DbSet<RefundPolicy> RefundPolicies { get; set; } = null!;
 
+        // Payment system entities
+        public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // modelBuilder.ApplyConfiguration(new UserConfiguration());

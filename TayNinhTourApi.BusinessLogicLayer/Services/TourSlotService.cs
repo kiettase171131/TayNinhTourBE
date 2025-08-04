@@ -665,33 +665,39 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return true;
                 }
 
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                // Use execution strategy to handle transaction properly
+                var executionStrategy = _unitOfWork.GetExecutionStrategy();
 
-                foreach (var slot in slots)
+                return await executionStrategy.ExecuteAsync(async () =>
                 {
-                    slot.MaxGuests = maxGuests;
-                    slot.UpdatedAt = DateTime.UtcNow;
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
 
-                    // Update status based on new capacity
-                    if (slot.CurrentBookings >= maxGuests)
+                    foreach (var slot in slots)
                     {
-                        slot.Status = TourSlotStatus.FullyBooked;
+                        slot.MaxGuests = maxGuests;
+                        slot.UpdatedAt = DateTime.UtcNow;
+
+                        // Update status based on new capacity
+                        if (slot.CurrentBookings >= maxGuests)
+                        {
+                            slot.Status = TourSlotStatus.FullyBooked;
+                        }
+                        else if (slot.Status == TourSlotStatus.FullyBooked)
+                        {
+                            slot.Status = TourSlotStatus.Available;
+                        }
+
+                        await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
                     }
-                    else if (slot.Status == TourSlotStatus.FullyBooked)
-                    {
-                        slot.Status = TourSlotStatus.Available;
-                    }
 
-                    await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
-                }
+                    await _unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
 
-                await _unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
+                    _logger.LogInformation("Synced capacity for {Count} slots in TourDetails {TourDetailsId} to {MaxGuests}",
+                        slots.Count, tourDetailsId, maxGuests);
 
-                _logger.LogInformation("Synced capacity for {Count} slots in TourDetails {TourDetailsId} to {MaxGuests}", 
-                    slots.Count, tourDetailsId, maxGuests);
-
-                return true;
+                    return true;
+                });
             }
             catch (Exception ex)
             {

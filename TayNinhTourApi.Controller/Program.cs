@@ -285,6 +285,9 @@ builder.Services.AddScoped<ITourBookingRefundRepository, TourBookingRefundReposi
 builder.Services.AddScoped<IRefundPolicyRepository, RefundPolicyRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 
+// Payment System Repositories
+builder.Services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
+
 
 // Tour Booking Refund Services
 builder.Services.AddScoped<IRefundPolicyService, RefundPolicyService>();

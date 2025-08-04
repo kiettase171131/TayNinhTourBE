@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourSlot;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourSlot;
+using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -18,13 +20,16 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         private readonly ITourSlotService _tourSlotService;
         private readonly ILogger<TourSlotController> _logger;
+        private readonly IUnitOfWork _unitOfWork;
 
         public TourSlotController(
             ITourSlotService tourSlotService,
-            ILogger<TourSlotController> logger)
+            ILogger<TourSlotController> logger,
+            IUnitOfWork unitOfWork)
         {
             _tourSlotService = tourSlotService;
             _logger = logger;
+            _unitOfWork = unitOfWork;
         }
 
         /// <summary>
@@ -447,6 +452,57 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     success = false,
                     message = "Có lỗi xảy ra khi hủy tour",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint - Sync slots capacity với TourOperation MaxGuests
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <returns>Kết quả sync</returns>
+        [HttpPost("sync-capacity/{tourDetailsId}")]
+        public async Task<IActionResult> SyncSlotsCapacity(Guid tourDetailsId)
+        {
+            try
+            {
+                // Get TourOperation MaxGuests
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetQueryable()
+                    .FirstOrDefaultAsync(to => to.TourDetailsId == tourDetailsId);
+
+                if (tourOperation == null)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy TourOperation cho TourDetails này"
+                    });
+                }
+
+                // Sync slots capacity
+                var result = await _tourSlotService.SyncSlotsCapacityAsync(tourDetailsId, tourOperation.MaxGuests);
+
+                return Ok(new
+                {
+                    success = result,
+                    message = result ? "Sync slots capacity thành công" : "Sync slots capacity thất bại",
+                    data = new
+                    {
+                        tourDetailsId,
+                        maxGuests = tourOperation.MaxGuests,
+                        timestamp = DateTime.UtcNow
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error syncing slots capacity for TourDetails {TourDetailsId}", tourDetailsId);
+
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi sync slots capacity",
                     error = ex.Message
                 });
             }

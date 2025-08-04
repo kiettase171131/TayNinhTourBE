@@ -776,16 +776,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             await _orderRepository.AddAsync(order);
             await _orderRepository.SaveChangesAsync();
 
-            // Truyền PayOsOrderCode thay vì order.Id để URL callback hiển thị đúng mã đơn hàng
-            var checkoutUrl = await _payOsService.CreatePaymentUrlAsync(
-                totalAfterDiscount,
-                payOsOrderCodeString, // Sử dụng PayOsOrderCode thay vì order.Id.ToString()
-                "https://tndt.netlify.app"
-            );
+            // === ENHANCED PAYOS: Use new PaymentTransaction system ===
+            var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
+            {
+                OrderId = order.Id, // Link to Order (Product Payment)
+                TourBookingId = null, // NULL for product payments
+                Amount = totalAfterDiscount,
+                Description = $"Product Order {payOsOrderCodeString}"
+            };
+
+            var paymentTransaction = await _payOsService.CreatePaymentLinkAsync(paymentRequest);
 
             return new CheckoutResultDto
             {
-                CheckoutUrl = checkoutUrl,
+                CheckoutUrl = paymentTransaction.CheckoutUrl ?? "",
                 OrderId = order.Id,
                 TotalOriginal = total,
                 DiscountAmount = discountAmount,

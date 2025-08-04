@@ -5,6 +5,9 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Contexts;
+using Microsoft.EntityFrameworkCore;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -21,16 +24,20 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ITourGuideInvitationService _invitationService;
         private readonly ILogger<AdminController> _logger;
         private readonly IDashboardService _dashboardService;
+        private readonly TayNinhTouApiDbContext _context;
 
         public AdminController(
             ITourDetailsService tourDetailsService,
             ITourGuideInvitationService invitationService,
-            ILogger<AdminController> logger, IDashboardService dashboardService)
+            ILogger<AdminController> logger,
+            IDashboardService dashboardService,
+            TayNinhTouApiDbContext context)
         {
             _tourDetailsService = tourDetailsService;
             _invitationService = invitationService;
             _logger = logger;
             _dashboardService = dashboardService;
+            _context = context;
         }
 
         /// <summary>
@@ -606,6 +613,155 @@ namespace TayNinhTourApi.Controller.Controllers
 
             var result = await _dashboardService.GetDashboardAsync(year, month);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// DEBUG: Tạo table PaymentTransactions
+        /// </summary>
+        [HttpPost("debug/create-payment-transactions-table")]
+        [AllowAnonymous] // Cho phép access không cần auth để debug
+        public async Task<IActionResult> CreatePaymentTransactionsTable()
+        {
+            try
+            {
+                var sql = @"
+                    CREATE TABLE `PaymentTransactions` (
+                        `Id` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
+                        `OrderId` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                        `TourBookingId` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                        `Amount` decimal(18,2) NOT NULL,
+                        `Description` longtext CHARACTER SET utf8mb4 NULL,
+                        `PayOsOrderCode` bigint NOT NULL,
+                        `PayOsTransactionDateTime` datetime(6) NULL,
+                        `PayOsReference` longtext CHARACTER SET utf8mb4 NULL,
+                        `Status` int NOT NULL,
+                        `CreatedAt` datetime(6) NOT NULL,
+                        `UpdatedAt` datetime(6) NOT NULL,
+                        CONSTRAINT `PK_PaymentTransactions` PRIMARY KEY (`Id`),
+                        CONSTRAINT `FK_PaymentTransactions_Orders_OrderId` FOREIGN KEY (`OrderId`) REFERENCES `Orders` (`Id`),
+                        CONSTRAINT `FK_PaymentTransactions_TourBookings_TourBookingId` FOREIGN KEY (`TourBookingId`) REFERENCES `TourBookings` (`Id`)
+                    ) CHARACTER SET=utf8mb4;";
+
+                await _context.Database.ExecuteSqlRawAsync(sql);
+
+                return Ok(new { success = true, message = "PaymentTransactions table created successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating PaymentTransactions table");
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Kiểm tra TourSlot và TourOperation relationship
+        /// </summary>
+        [HttpGet("debug/tourslot-operation/{tourSlotId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CheckTourSlotOperation(Guid tourSlotId)
+        {
+            try
+            {
+                var tourSlot = await _context.TourSlots
+                    .Include(ts => ts.TourDetails)
+                        .ThenInclude(td => td.TourOperation)
+                    .FirstOrDefaultAsync(ts => ts.Id == tourSlotId);
+
+                if (tourSlot == null)
+                {
+                    return NotFound(new { success = false, message = "TourSlot not found" });
+                }
+
+                var result = new
+                {
+                    success = true,
+                    data = new
+                    {
+                        tourSlotId = tourSlot.Id,
+                        tourDetailsId = tourSlot.TourDetailsId,
+                        tourSlotIsActive = tourSlot.IsActive,
+                        tourDetails = tourSlot.TourDetails != null ? new
+                        {
+                            id = tourSlot.TourDetails.Id,
+                            title = tourSlot.TourDetails.Title,
+                            status = tourSlot.TourDetails.Status
+                        } : null,
+                        tourOperation = tourSlot.TourDetails?.TourOperation != null ? new
+                        {
+                            id = tourSlot.TourDetails.TourOperation.Id,
+                            price = tourSlot.TourDetails.TourOperation.Price,
+                            maxGuests = tourSlot.TourDetails.TourOperation.MaxGuests,
+                            isActive = tourSlot.TourDetails.TourOperation.IsActive
+                        } : null
+                    }
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking TourSlot operation");
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Thêm columns còn thiếu cho PaymentTransactions table
+        /// </summary>
+        [HttpPost("debug/fix-payment-transactions-table")]
+        [AllowAnonymous]
+        public async Task<IActionResult> FixPaymentTransactionsTable()
+        {
+            try
+            {
+                var sql = @"
+                    ALTER TABLE `PaymentTransactions`
+                    ADD COLUMN `CheckoutUrl` longtext CHARACTER SET utf8mb4 NULL,
+                    ADD COLUMN `ExpiredAt` datetime(6) NULL,
+                    ADD COLUMN `FailureReason` longtext CHARACTER SET utf8mb4 NULL,
+                    ADD COLUMN `Gateway` longtext CHARACTER SET utf8mb4 NULL,
+                    ADD COLUMN `ParentTransactionId` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                    ADD COLUMN `PayOsTransactionId` longtext CHARACTER SET utf8mb4 NULL,
+                    ADD COLUMN `QrCode` longtext CHARACTER SET utf8mb4 NULL,
+                    ADD COLUMN `WebhookPayload` longtext CHARACTER SET utf8mb4 NULL;";
+
+                await _context.Database.ExecuteSqlRawAsync(sql);
+
+                return Ok(new { success = true, message = "PaymentTransactions table columns added successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding PaymentTransactions table columns");
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Thêm CreatedById và UpdatedById cho PaymentTransactions table
+        /// </summary>
+        [HttpPost("debug/add-audit-columns-payment-transactions")]
+        [AllowAnonymous]
+        public async Task<IActionResult> AddAuditColumnsPaymentTransactions()
+        {
+            try
+            {
+                var sql = @"
+                    ALTER TABLE `PaymentTransactions`
+                    ADD COLUMN `CreatedById` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                    ADD COLUMN `UpdatedById` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
+                    ADD COLUMN `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+                    ADD COLUMN `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
+                    ADD COLUMN `DeletedAt` datetime(6) NULL;";
+
+                await _context.Database.ExecuteSqlRawAsync(sql);
+
+                return Ok(new { success = true, message = "PaymentTransactions audit columns added successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding PaymentTransactions audit columns");
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
     }
 }
