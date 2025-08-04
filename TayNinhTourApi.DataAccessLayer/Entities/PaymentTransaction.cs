@@ -48,9 +48,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public PaymentGateway Gateway { get; set; } = PaymentGateway.PayOS;
 
         /// <summary>
-        /// PayOS Order Code (số)
+        /// PayOS Order Code with TNDT prefix (e.g., "TNDT1754325287517")
         /// </summary>
-        public long? PayOsOrderCode { get; set; }
+        [StringLength(20)]
+        public string? PayOsOrderCode { get; set; }
 
         /// <summary>
         /// PayOS Transaction ID

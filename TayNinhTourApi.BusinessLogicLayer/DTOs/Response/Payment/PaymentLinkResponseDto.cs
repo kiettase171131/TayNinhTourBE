@@ -14,9 +14,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment
         public Guid TransactionId { get; set; }
 
         /// <summary>
-        /// PayOS Order Code
+        /// PayOS Order Code with TNDT prefix (e.g., "TNDT1754325287517")
         /// </summary>
-        public long PayOsOrderCode { get; set; }
+        public string PayOsOrderCode { get; set; } = string.Empty;
 
         /// <summary>
         /// URL checkout PayOS

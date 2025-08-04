@@ -121,7 +121,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 var response = new PaymentLinkResponseDto
                 {
                     TransactionId = transaction.Id,
-                    PayOsOrderCode = transaction.PayOsOrderCode ?? 0,
+                    PayOsOrderCode = transaction.PayOsOrderCode ?? "",
                     CheckoutUrl = transaction.CheckoutUrl ?? "",
                     QrCode = transaction.QrCode,
                     Amount = transaction.Amount,
@@ -173,7 +173,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 var response = new PaymentLinkResponseDto
                 {
                     TransactionId = transaction.Id,
-                    PayOsOrderCode = transaction.PayOsOrderCode ?? 0,
+                    PayOsOrderCode = transaction.PayOsOrderCode ?? "",
                     CheckoutUrl = transaction.CheckoutUrl ?? "",
                     QrCode = transaction.QrCode,
                     Amount = transaction.Amount,

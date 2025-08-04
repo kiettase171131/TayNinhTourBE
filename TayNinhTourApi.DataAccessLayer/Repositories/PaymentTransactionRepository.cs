@@ -71,12 +71,30 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .AnyAsync(t => t.TourBookingId == tourBookingId && t.Gateway == gateway && t.Status == status);
         }
 
-        public async Task<List<PaymentTransaction>> FindByPayOsOrderCodeAsync(long payOsOrderCode)
+        public async Task<List<PaymentTransaction>> FindByPayOsOrderCodeAsync(string payOsOrderCode)
         {
-            return await _context.PaymentTransactions
+            if (string.IsNullOrWhiteSpace(payOsOrderCode))
+                return new List<PaymentTransaction>();
+
+            // Try direct string comparison first
+            var transactions = await _context.PaymentTransactions
                 .Where(t => t.PayOsOrderCode == payOsOrderCode)
                 .OrderBy(t => t.CreatedAt)
                 .ToListAsync();
+
+            if (transactions.Any())
+                return transactions;
+
+            // Fallback: try numeric comparison for legacy data
+            if (long.TryParse(payOsOrderCode, out long orderCodeLong))
+            {
+                return await _context.PaymentTransactions
+                    .Where(t => t.PayOsOrderCode == orderCodeLong.ToString())
+                    .OrderBy(t => t.CreatedAt)
+                    .ToListAsync();
+            }
+
+            return new List<PaymentTransaction>();
         }
 
         public async Task<string> GetPaymentTypeAsync(Guid transactionId)
@@ -122,15 +140,29 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         public async Task<PaymentTransaction?> GetByPayOsOrderCodeAsync(string payOsOrderCode)
         {
-            // Convert string to long for comparison
+            if (string.IsNullOrWhiteSpace(payOsOrderCode))
+                return null;
+
+            // First try direct string comparison (for TNDT format)
+            var transaction = await _context.PaymentTransactions
+                .Where(t => t.PayOsOrderCode == payOsOrderCode)
+                .Include(t => t.Order)
+                .Include(t => t.TourBooking)
+                .FirstOrDefaultAsync();
+
+            if (transaction != null)
+                return transaction;
+
+            // Fallback: try numeric comparison for legacy data
             if (long.TryParse(payOsOrderCode, out long orderCodeLong))
             {
                 return await _context.PaymentTransactions
-                    .Where(t => t.PayOsOrderCode == orderCodeLong)
+                    .Where(t => t.PayOsOrderCode == orderCodeLong.ToString())
                     .Include(t => t.Order)
                     .Include(t => t.TourBooking)
                     .FirstOrDefaultAsync();
             }
+
             return null;
         }
 

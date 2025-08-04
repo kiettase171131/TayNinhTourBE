@@ -55,8 +55,9 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .HasComment("Cổng thanh toán sử dụng");
 
             builder.Property(pt => pt.PayOsOrderCode)
+                .HasMaxLength(20)
                 .IsRequired(false)
-                .HasComment("PayOS Order Code (số)");
+                .HasComment("PayOS Order Code with TNDT prefix");
 
             builder.Property(pt => pt.PayOsTransactionId)
                 .HasMaxLength(100)

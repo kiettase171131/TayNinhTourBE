@@ -15,6 +15,7 @@ using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using static System.Net.WebRequestMethods;
@@ -202,7 +203,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     throw new InvalidOperationException("PayOS configuration is incomplete.");
                 }
 
-                long orderCode = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                // Generate TNDT format order code
+                var tndtOrderCode = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
+                var numericOrderCode = PayOsOrderCodeUtility.ExtractNumericPart(tndtOrderCode);
 
                 var item = new ItemData("Thanh toán đơn hàng", 1, (int)request.Amount);
                 var items = new List<ItemData> { item };
@@ -215,12 +218,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 var paymentData = new PaymentData(
-                    orderCode: orderCode,
+                    orderCode: numericOrderCode, // PayOS API requires numeric
                     amount: (int)request.Amount,
                     description: description,
                     items: items,
-                    cancelUrl: _config["PayOS:CancelUrl"] ?? "https://tndt.netlify.app/payment-cancel",
-                    returnUrl: _config["PayOS:ReturnUrl"] ?? "https://tndt.netlify.app/payment-success"
+                    cancelUrl: $"{_config["PayOS:CancelUrl"]}?orderCode={numericOrderCode}",
+                    returnUrl: $"{_config["PayOS:ReturnUrl"]}?orderCode={numericOrderCode}"
                 );
 
                 var payOS = new PayOS(clientId, apiKey, checksumKey);
@@ -237,7 +240,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Description = request.Description,
                     ExpiredAt = DateTime.UtcNow.AddMinutes(15),
                     Gateway = PaymentGateway.PayOS,
-                    PayOsOrderCode = orderCode,
+                    PayOsOrderCode = tndtOrderCode, // Store TNDT format
                     PayOsTransactionId = response.paymentLinkId,
                     CheckoutUrl = response.checkoutUrl,
                     QrCode = response.qrCode
@@ -247,7 +250,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Save PaymentTransaction first to ensure it's persisted
                 await _unitOfWork.SaveChangesAsync();
-                _logger.LogInformation("PaymentTransaction saved with PayOS order code {OrderCode}", orderCode);
+                _logger.LogInformation("PaymentTransaction saved with PayOS order code {OrderCode}", tndtOrderCode);
 
                 // === SYNC PAYOS ORDER CODE TO ORDER/TOURBOOKING FOR LOOKUP COMPATIBILITY ===
                 // Use separate try-catch to prevent rollback of PaymentTransaction if sync fails
@@ -259,9 +262,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         var order = await _unitOfWork.OrderRepository.GetByIdAsync(request.OrderId.Value);
                         if (order != null)
                         {
-                            order.PayOsOrderCode = orderCode.ToString();
+                            order.PayOsOrderCode = tndtOrderCode; // Store TNDT format
                             _unitOfWork.OrderRepository.Update(order);
-                            _logger.LogInformation("Updated Order {OrderId} with PayOS order code {OrderCode}", order.Id, orderCode);
+                            _logger.LogInformation("Updated Order {OrderId} with PayOS order code {OrderCode}", order.Id, tndtOrderCode);
                         }
                         else
                         {
@@ -275,9 +278,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         var tourBooking = await _unitOfWork.TourBookingRepository.GetByIdAsync(request.TourBookingId.Value);
                         if (tourBooking != null)
                         {
-                            tourBooking.PayOsOrderCode = orderCode.ToString();
+                            tourBooking.PayOsOrderCode = tndtOrderCode; // Store TNDT format
                             _unitOfWork.TourBookingRepository.Update(tourBooking);
-                            _logger.LogInformation("Updated TourBooking {BookingId} with PayOS order code {OrderCode}", tourBooking.Id, orderCode);
+                            _logger.LogInformation("Updated TourBooking {BookingId} with PayOS order code {OrderCode}", tourBooking.Id, tndtOrderCode);
                         }
                         else
                         {
@@ -290,7 +293,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
                 catch (Exception syncEx)
                 {
-                    _logger.LogError(syncEx, "Failed to sync PayOS order code {OrderCode} to Order/TourBooking, but PaymentTransaction was saved", orderCode);
+                    _logger.LogError(syncEx, "Failed to sync PayOS order code {OrderCode} to Order/TourBooking, but PaymentTransaction was saved", tndtOrderCode);
                     // Don't throw - PaymentTransaction is already saved and payment can still work
                 }
 
@@ -591,15 +594,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     try
                     {
                         // Cancel trên PayOS nếu có PayOS Order Code
-                        if (transaction.PayOsOrderCode.HasValue)
+                        if (!string.IsNullOrWhiteSpace(transaction.PayOsOrderCode))
                         {
                             var clientId = _config["PayOS:ClientId"];
                             var apiKey = _config["PayOS:ApiKey"];
                             var checksumKey = _config["PayOS:ChecksumKey"];
 
                             var payOS = new PayOS(clientId!, apiKey!, checksumKey!);
+                            var numericOrderCode = PayOsOrderCodeUtility.ExtractNumericPart(transaction.PayOsOrderCode);
                             await payOS.cancelPaymentLink(
-                                transaction.PayOsOrderCode.Value,
+                                numericOrderCode,
                                 request.CancellationReason ?? "Huỷ đơn hàng"
                             );
                         }

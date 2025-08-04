@@ -51,7 +51,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <summary>
         /// Lấy transactions theo PayOS Order Code
         /// </summary>
-        Task<List<PaymentTransaction>> FindByPayOsOrderCodeAsync(long payOsOrderCode);
+        Task<List<PaymentTransaction>> FindByPayOsOrderCodeAsync(string payOsOrderCode);
 
         /// <summary>
         /// Kiểm tra transaction là product payment hay tour booking payment

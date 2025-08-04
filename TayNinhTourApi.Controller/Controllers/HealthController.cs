@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.DataAccessLayer.Contexts;
+using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -125,6 +128,94 @@ namespace TayNinhTourApi.Controller.Controllers
                 };
 
                 return StatusCode(503, errorResult);
+            }
+        }
+
+        /// <summary>
+        /// Test TNDT prefix implementation
+        /// </summary>
+        [HttpPost("test-tndt")]
+        public async Task<IActionResult> TestTndtPrefix()
+        {
+            try
+            {
+                // Generate TNDT order code
+                var tndtOrderCode = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
+
+                // Create test PaymentTransaction
+                var transaction = new PaymentTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    Amount = 100000,
+                    Status = PaymentStatus.Pending,
+                    Description = "Test TNDT prefix",
+                    Gateway = PaymentGateway.PayOS,
+                    PayOsOrderCode = tndtOrderCode,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.PaymentTransactions.Add(transaction);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    Status = "SUCCESS",
+                    Message = "TNDT prefix test completed",
+                    TransactionId = transaction.Id,
+                    PayOsOrderCode = transaction.PayOsOrderCode,
+                    NumericPart = PayOsOrderCodeUtility.ExtractNumericPart(tndtOrderCode),
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Status = "ERROR",
+                    Message = ex.Message,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+        }
+
+        /// <summary>
+        /// Get recent PaymentTransactions to verify TNDT format
+        /// </summary>
+        [HttpGet("payment-transactions")]
+        public async Task<IActionResult> GetRecentPaymentTransactions()
+        {
+            try
+            {
+                var transactions = await _context.PaymentTransactions
+                    .OrderByDescending(t => t.CreatedAt)
+                    .Take(5)
+                    .Select(t => new
+                    {
+                        t.Id,
+                        t.PayOsOrderCode,
+                        t.Amount,
+                        t.Status,
+                        t.Description,
+                        t.CreatedAt
+                    })
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    Status = "SUCCESS",
+                    Message = "Recent PaymentTransactions retrieved",
+                    Transactions = transactions,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Status = "ERROR",
+                    Message = ex.Message,
+                    Timestamp = DateTime.UtcNow
+                });
             }
         }
     }
