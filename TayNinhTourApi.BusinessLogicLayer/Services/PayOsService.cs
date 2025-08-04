@@ -222,8 +222,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     amount: (int)request.Amount,
                     description: description,
                     items: items,
-                    cancelUrl: $"{_config["PayOS:CancelUrl"]}?orderCode={numericOrderCode}",
-                    returnUrl: $"{_config["PayOS:ReturnUrl"]}?orderCode={numericOrderCode}"
+                    cancelUrl: $"{_config["PayOS:CancelUrl"]}?orderCode={tndtOrderCode}",
+                    returnUrl: $"{_config["PayOS:ReturnUrl"]}?orderCode={tndtOrderCode}"
                 );
 
                 var payOS = new PayOS(clientId, apiKey, checksumKey);
