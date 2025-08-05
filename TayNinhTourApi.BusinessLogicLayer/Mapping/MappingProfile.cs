@@ -276,6 +276,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
 
             #endregion
+            #region Tourguide Mapping
+            CreateMap<TourGuide, TourGuideCmsDto>()
+     .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
+     .ForMember(dest => dest.ApprovedByName, opt => opt.MapFrom(src => src.ApprovedBy.Name)); // hoặc FullName nếu cần
+
+
+            // All Shop mappings removed - using SpecialtyShop only
+            #endregion
         }
 
         /// <summary>
