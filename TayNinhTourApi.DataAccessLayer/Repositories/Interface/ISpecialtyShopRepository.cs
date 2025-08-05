@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
@@ -19,7 +20,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// Lấy danh sách tất cả SpecialtyShops đang hoạt động
         /// </summary>
         /// <returns>Danh sách SpecialtyShops có IsShopActive = true và IsActive = true</returns>
-        Task<IEnumerable<SpecialtyShop>> GetActiveShopsAsync();
+        Task<IEnumerable<SpecialtyShop>> GetActiveShopsAsync(string? name = null);
 
         /// <summary>
         /// Lấy danh sách SpecialtyShops theo loại shop
@@ -42,7 +43,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="pageSize">Số lượng items per page</param>
         /// <param name="isActiveOnly">Chỉ lấy shops đang hoạt động</param>
         /// <returns>Danh sách SpecialtyShops với phân trang</returns>
-        Task<(IEnumerable<SpecialtyShop> Items, int TotalCount)> GetPagedAsync(int pageIndex, int pageSize, bool isActiveOnly = true);
+        Task<(IEnumerable<SpecialtyShop> Items, int TotalCount)> GetPagedAsync(int pageIndex, int pageSize, bool isActiveOnly = true,string ? name = null);
 
         /// <summary>
         /// Tìm kiếm SpecialtyShops theo tên hoặc địa điểm

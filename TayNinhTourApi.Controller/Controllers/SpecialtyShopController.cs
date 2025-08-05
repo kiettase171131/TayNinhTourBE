@@ -41,7 +41,8 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<IActionResult> GetAllShops(
             [FromQuery] int pageIndex = 0,
             [FromQuery] int pageSize = 10,
-            [FromQuery] bool includeInactive = false)
+            [FromQuery] bool includeInactive = false,
+            [FromQuery] string? name = null)
         {
             try
             {
@@ -51,7 +52,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 // Nếu includeInactive = false, sử dụng active shops
                 if (!includeInactive)
                 {
-                    var activeResult = await _specialtyShopService.GetAllActiveShopsAsync();
+                    var activeResult = await _specialtyShopService.GetAllActiveShopsAsync(name);
                     return StatusCode(activeResult.StatusCode, activeResult);
                 }
                 else
