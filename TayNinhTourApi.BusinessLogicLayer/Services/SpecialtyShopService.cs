@@ -116,11 +116,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy danh sách tất cả shops đang hoạt động
         /// </summary>
-        public async Task<ApiResponse<List<SpecialtyShopResponseDto>>> GetAllActiveShopsAsync()
+        public async Task<ApiResponse<List<SpecialtyShopResponseDto>>> GetAllActiveShopsAsync(string? name = null)
         {
             try
-            {
-                var shops = await _unitOfWork.SpecialtyShopRepository.GetActiveShopsAsync();
+            {       
+                var shops = await _unitOfWork.SpecialtyShopRepository.GetActiveShopsAsync(name);
                 var responseDtos = _mapper.Map<List<SpecialtyShopResponseDto>>(shops);
 
                 return ApiResponse<List<SpecialtyShopResponseDto>>.Success(responseDtos, $"Retrieved {responseDtos.Count} active shops successfully");
@@ -207,14 +207,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy danh sách shops với phân trang
         /// </summary>
-        public async Task<ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>> GetPagedShopsAsync(int pageIndex, int pageSize)
+        public async Task<ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>> GetPagedShopsAsync(int pageIndex, int pageSize, string? name = null)
         {
             try
             {
                 if (pageIndex < 0) pageIndex = 0;
                 if (pageSize < 1 || pageSize > 100) pageSize = 10;
 
-                var (shops, totalCount) = await _unitOfWork.SpecialtyShopRepository.GetPagedAsync(pageIndex, pageSize, true);
+                var (shops, totalCount) = await _unitOfWork.SpecialtyShopRepository.GetPagedAsync(pageIndex, pageSize, true, name);
                 var responseDtos = _mapper.Map<List<SpecialtyShopResponseDto>>(shops);
 
                 var pagedResult = new Common.PagedResult<SpecialtyShopResponseDto>

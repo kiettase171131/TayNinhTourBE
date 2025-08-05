@@ -38,7 +38,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// Public endpoint, không cần authentication
         /// </summary>
         /// <returns>Danh sách SpecialtyShops đang hoạt động</returns>
-        Task<ApiResponse<List<SpecialtyShopResponseDto>>> GetAllActiveShopsAsync();
+        Task<ApiResponse<List<SpecialtyShopResponseDto>>> GetAllActiveShopsAsync(string? name = null);
 
         /// <summary>
         /// Lấy danh sách shops theo loại
@@ -71,7 +71,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="pageIndex">Trang hiện tại (bắt đầu từ 1)</param>
         /// <param name="pageSize">Số lượng items per page</param>
         /// <returns>Danh sách SpecialtyShops với thông tin phân trang</returns>
-        Task<ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>> GetPagedShopsAsync(int pageIndex, int pageSize);
+        Task<ApiResponse<Common.PagedResult<SpecialtyShopResponseDto>>> GetPagedShopsAsync(int pageIndex, int pageSize, string? name = null);
 
         /// <summary>
         /// Lấy danh sách shops theo rating tối thiểu
