@@ -213,6 +213,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var tndtOrderCode = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
                 var numericOrderCode = PayOsOrderCodeUtility.ExtractNumericPart(tndtOrderCode);
 
+                // Log the payment amount being processed
+                _logger.LogInformation("Creating PayOS payment link - TourBookingId: {TourBookingId}, Amount: {Amount} VND", 
+                    request.TourBookingId, request.Amount);
+
                 var item = new ItemData("Thanh toán đơn hàng", 1, (int)request.Amount);
                 var items = new List<ItemData> { item };
 
@@ -258,15 +262,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 var paymentData = new PaymentData(
                     orderCode: numericOrderCode, // PayOS API requires numeric
-                    amount: (int)request.Amount,
+                    amount: (int)request.Amount, // ✅ This should be the discounted amount passed from booking service
                     description: payOsDescription, // Sử dụng description đã được xử lý
                     items: items,
                     cancelUrl: $"{_config["PayOS:CancelUrl"]}?orderCode={tndtOrderCode}",
                     returnUrl: $"{_config["PayOS:ReturnUrl"]}?orderCode={tndtOrderCode}"
                 );
 
+                _logger.LogInformation("PayOS PaymentData created - OrderCode: {NumericOrderCode}, Amount: {Amount}, Description: {Description}", 
+                    numericOrderCode, (int)request.Amount, payOsDescription);
+
                 var payOS = new PayOS(clientId, apiKey, checksumKey);
                 var response = await payOS.createPaymentLink(paymentData);
+
+                _logger.LogInformation("PayOS payment link created successfully - PaymentLinkId: {PaymentLinkId}, CheckoutUrl: {CheckoutUrl}", 
+                    response.paymentLinkId, response.checkoutUrl);
 
                 // Create PaymentTransaction record
                 var transaction = new PaymentTransaction
@@ -274,7 +284,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Id = Guid.NewGuid(),
                     OrderId = request.OrderId,
                     TourBookingId = request.TourBookingId,
-                    Amount = request.Amount,
+                    Amount = request.Amount, // ✅ Store the exact amount requested (should be discounted amount)
                     Status = PaymentStatus.Pending,
                     Description = databaseDescription, // Sử dụng cùng description với PayOS
                     ExpiredAt = DateTime.UtcNow.AddMinutes(15),
@@ -289,8 +299,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Save PaymentTransaction first to ensure it's persisted
                 await _unitOfWork.SaveChangesAsync();
-                _logger.LogInformation("PaymentTransaction saved with PayOS order code {OrderCode} and description {Description}", 
-                    tndtOrderCode, databaseDescription);
+                _logger.LogInformation("PaymentTransaction saved with PayOS order code {OrderCode}, Amount: {Amount} and description {Description}", 
+                    tndtOrderCode, request.Amount, databaseDescription);
 
                 // === SYNC PAYOS ORDER CODE TO ORDER/TOURBOOKING FOR LOOKUP COMPATIBILITY ===
                 // Use separate try-catch to prevent rollback of PaymentTransaction if sync fails

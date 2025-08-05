@@ -387,6 +387,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     // 5. Calculate pricing based on TourOperation (with null check for pricing service)
                     var bookingDate = DateTime.UtcNow;
                     decimal totalPrice;
+                    decimal originalTotalPrice = tourOperation.Price * request.NumberOfGuests; // Store original total for comparison
                     decimal discountPercent = 0;
                     string pricingType = "Standard";
 
@@ -403,17 +404,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             totalPrice = pricingInfo.FinalPrice * request.NumberOfGuests;
                             discountPercent = pricingInfo.DiscountPercent;
                             pricingType = pricingInfo.PricingType;
+
+                            _logger.LogInformation("Pricing calculated for booking - Original: {OriginalPrice}, Final: {FinalPrice}, Discount: {DiscountPercent}%, Type: {PricingType}", 
+                                originalTotalPrice, totalPrice, discountPercent, pricingType);
                         }
                         else
                         {
                             _logger.LogWarning("PricingService is null, using standard pricing");
-                            totalPrice = tourOperation.Price * request.NumberOfGuests;
+                            totalPrice = originalTotalPrice;
                         }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error calculating pricing, falling back to standard price");
-                        totalPrice = tourOperation.Price * request.NumberOfGuests;
+                        totalPrice = originalTotalPrice;
+                    }
+
+                    // Validate pricing logic - ensure discounted customers pay less
+                    if (discountPercent > 0 && totalPrice >= originalTotalPrice)
+                    {
+                        _logger.LogError("PRICING ERROR: Discounted price ({DiscountedPrice}) is not less than original price ({OriginalPrice}) for discount {DiscountPercent}%", 
+                            totalPrice, originalTotalPrice, discountPercent);
+                        
+                        // Force recalculation with manual discount application as fallback
+                        totalPrice = originalTotalPrice * (1 - discountPercent / 100);
+                        _logger.LogWarning("Applied manual discount calculation - Final price: {FinalPrice}", totalPrice);
                     }
 
                     // 5.5. Pre-check capacity before attempting to reserve
@@ -457,9 +472,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         TourSlotId = request.TourSlotId,
                         UserId = userId,
                         NumberOfGuests = request.NumberOfGuests,
-                        OriginalPrice = tourOperation.Price * request.NumberOfGuests,
+                        OriginalPrice = originalTotalPrice, // Store original price before discount
                         DiscountPercent = discountPercent,
-                        TotalPrice = totalPrice,
+                        TotalPrice = totalPrice, // Store final price after discount
                         RevenueHold = 0, // ✅ Will be set when payment is confirmed
                         Status = BookingStatus.Pending,
                         BookingCode = bookingCode,
@@ -501,9 +516,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         OrderId = null, // NULL for tour booking payments
                         TourBookingId = booking.Id, // ✅ Now booking.Id exists in database
-                        Amount = totalPrice,
+                        Amount = totalPrice, // ✅ Use discounted price - customers pay what they should pay
                         Description = $"Tour {payOsOrderCode}" // Shortened to fit 25 char limit
                     };
+
+                    _logger.LogInformation("Creating PayOS payment for booking {BookingCode} - Amount: {Amount} (Original: {OriginalPrice}, Discount: {DiscountPercent}%)", 
+                        bookingCode, totalPrice, originalTotalPrice, discountPercent);
 
                     PaymentTransaction paymentTransaction;
                     try
@@ -918,8 +936,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         };
                     }
 
-                    _logger.LogInformation("Processing payment success for booking {BookingCode}, TotalPrice: {TotalPrice}", 
-                        booking.BookingCode, booking.TotalPrice);
+                    _logger.LogInformation("Processing payment success for booking {BookingCode}, TotalPrice: {TotalPrice}, OriginalPrice: {OriginalPrice}, DiscountPercent: {DiscountPercent}%", 
+                        booking.BookingCode, booking.TotalPrice, booking.OriginalPrice, booking.DiscountPercent);
 
                     // 1. Update booking status và generate QR code
                     booking.Status = BookingStatus.Confirmed;
@@ -927,8 +945,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     booking.UpdatedAt = DateTime.UtcNow;
                     booking.ReservedUntil = null; // Clear reservation timeout since payment is confirmed
 
-                    // Generate QR code for customer
-                    booking.QRCodeData = GenerateQRCodeData(booking);
+                    // Generate QR code for customer using QRCodeService (not the local duplicate method)
+                    booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
+
+                    _logger.LogInformation("Generated QR code for booking {BookingCode} with pricing data - OriginalPrice: {OriginalPrice}, TotalPrice: {TotalPrice}, DiscountPercent: {DiscountPercent}%", 
+                        booking.BookingCode, booking.OriginalPrice, booking.TotalPrice, booking.DiscountPercent);
 
                     // 2. Calculate và set revenue hold (100% của total price, không trừ commission)
                     // UPDATED: Giữ đủ 100% số tiền khách thanh toán, chỉ trừ commission khi chuyển tiền cho TourCompany
@@ -1360,37 +1381,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PhoneNumber = booking.User.PhoneNumber
                 } : null!
             };
-        }
-
-        /// <summary>
-        /// Generate QR code data for customer
-        /// ENHANCED: Include both original and final pricing information
-        /// </summary>
-        private string GenerateQRCodeData(TourBooking booking)
-        {
-            var qrData = new
-            {
-                BookingId = booking.Id,
-                BookingCode = booking.BookingCode,
-                UserId = booking.UserId,
-                TourOperationId = booking.TourOperationId,
-                NumberOfGuests = booking.NumberOfGuests,
-                
-                // PRICING INFORMATION - Enhanced to show both original and final prices
-                OriginalPrice = booking.OriginalPrice, // Giá gốc (trước discount)
-                DiscountPercent = booking.DiscountPercent, // % giảm giá
-                TotalPrice = booking.TotalPrice, // Giá cuối cùng (sau discount)
-                PriceType = booking.DiscountPercent > 0 ? "Early Bird" : "Standard",
-                
-                BookingDate = booking.BookingDate,
-                Status = booking.Status.ToString(),
-                
-                // Add verification info
-                GeneratedAt = DateTime.UtcNow,
-                Version = "2.0" // Updated version to reflect enhanced pricing info
-            };
-
-            return System.Text.Json.JsonSerializer.Serialize(qrData);
         }
     }
 }
