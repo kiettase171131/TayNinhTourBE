@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
@@ -47,7 +47,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("? TESTING: Skipping time to tour start for slot {SlotId}", tourSlotId);
+                _logger.LogInformation("🔎 TESTING: Skipping time to tour start for slot {SlotId}", tourSlotId);
 
                 // Get tour slot with full details
                 var tourSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
@@ -62,7 +62,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return NotFound(new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y tour slot"
+                        Message = "Không tìm thấy tour slot"
                     });
                 }
 
@@ -71,7 +71,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "Tour slot ch?a c� tour operation"
+                        Message = "Tour slot chưa có tour operation"
                     });
                 }
 
@@ -83,7 +83,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = $"Tour ?� b?t ??u ho?c ?� qua. Tour date: {tourStartDate:dd/MM/yyyy}, Hi?n t?i: {currentTime:dd/MM/yyyy}"
+                        Message = $"Tour đã bắt đầu hoặc đã qua. Ngày tour: {tourStartDate:dd/MM/yyyy}, Hiện tại: {currentTime:dd/MM/yyyy}"
                     });
                 }
 
@@ -96,7 +96,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // Use execution strategy to handle MySQL retry policy with transactions
                 var executionStrategy = _unitOfWork.GetExecutionStrategy();
-                
+
                 await executionStrategy.ExecuteAsync(async () =>
                 {
                     using var transaction = await _unitOfWork.BeginTransactionAsync();
@@ -107,7 +107,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         {
                             pendingBooking.Status = BookingStatus.CancelledByCompany;
                             pendingBooking.CancelledDate = DateTime.UtcNow;
-                            pendingBooking.CancellationReason = "Tour b?t ??u, booking ch?a thanh to�n b? t? ??ng h?y";
+                            pendingBooking.CancellationReason = "Tour bắt đầu, booking chưa thanh toán bị tự động huỷ";
                             pendingBooking.UpdatedAt = DateTime.UtcNow;
                             await _unitOfWork.TourBookingRepository.UpdateAsync(pendingBooking);
                         }
@@ -120,7 +120,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         await _unitOfWork.SaveChangesAsync();
                         await transaction.CommitAsync();
 
-                        _logger.LogInformation("? Time skip completed for slot {SlotId} - Tour is now InProgress", tourSlotId);
+                        _logger.LogInformation("⏩ Time skip completed for slot {SlotId} - Tour is now InProgress", tourSlotId);
                     }
                     catch (Exception ex)
                     {
@@ -134,7 +134,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 var result = new
                 {
                     success = true,
-                    message = "? Time skip th�nh c�ng! Tour gi? ?� ? tr?ng th�i '?ang th?c hi?n'",
+                    message = "⏩ Time skip thành công! Tour giờ đã ở trạng thái 'Đang thực hiện'",
                     tourInfo = new
                     {
                         slotId = tourSlot.Id,
@@ -157,31 +157,31 @@ namespace TayNinhTourApi.Controller.Controllers
                         qrCodeScanning = new
                         {
                             available = true,
-                            description = "HDV gi? c� th? qu�t QR code c?a kh�ch ?? check-in",
+                            description = "HDV giờ có thể quét QR code của khách để check-in",
                             endpoint = "/api/TourGuide/scan-qr",
                             bookingsWithQR = confirmedBookings.Where(b => !string.IsNullOrEmpty(b.QRCodeData)).Count()
                         },
                         tourProgressUpdate = new
                         {
                             available = true,
-                            description = "C� th? c?p nh?t ti?n ?? tour v� ho�n th�nh tour",
+                            description = "Có thể cập nhật tiến độ tour và hoàn thành tour",
                             completeEndpoint = "/api/Testing/complete-tour/" + tourSlotId
                         },
                         autoCancelCheck = new
                         {
                             wasEligible = totalConfirmedGuests < 2, // Assuming minimum 2 guests
-                            description = totalConfirmedGuests < 2 
-                                ? "Tour n�y c� th? ?� b? auto-cancel do kh�ng ?? kh�ch (< 50% capacity)"
-                                : "Tour c� ?? kh�ch ?? ti?n h�nh"
+                            description = totalConfirmedGuests < 2
+                                ? "Tour này có thể đã bị auto-cancel do không đủ khách (< 50% sức chứa)"
+                                : "Tour có đủ khách để tiến hành"
                         }
                     },
                     nextSteps = new[]
                     {
-                        "?? HDV c� th? scan QR code c?a kh�ch ?? check-in",
-                        "?? C� th? c?p nh?t ti?n ?? tour",
-                        "?? Sau khi ho�n th�nh tour, revenue s? ???c transfer",
-                        $"?? D? ki?n revenue: {confirmedBookings.Sum(b => b.TotalPrice):N0} VN?"
-                    }
+                "🔎 HDV có thể scan QR code của khách để check-in",
+                "📝 Có thể cập nhật tiến độ tour",
+                "💵 Sau khi hoàn thành tour, revenue sẽ được transfer",
+                $"📊 Dự kiến revenue: {confirmedBookings.Sum(b => b.TotalPrice):N0} VNĐ"
+            }
                 };
 
                 return Ok(result);
@@ -192,15 +192,16 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi th?c hi?n time skip: {ex.Message}"
+                    Message = $"Lỗi khi thực hiện time skip: {ex.Message}"
                 });
             }
         }
 
+
         /// <summary>
         /// Complete a tour for testing revenue transfer
         /// </summary>
-        /// <param name="tourSlotId">ID c?a tour slot c?n ho�n th�nh</param>
+        /// <param name="tourSlotId">ID c?a tour slot c?n hoàn thành</param>
         /// <returns>Information about completed tour</returns>
         [HttpPost("complete-tour/{tourSlotId}")]
         [ProducesResponseType(typeof(object), 200)]
@@ -211,7 +212,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("?? TESTING: Completing tour for slot {SlotId}", tourSlotId);
+                _logger.LogInformation("✅ TESTING: Completing tour for slot {SlotId}", tourSlotId);
 
                 var tourSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
                     .Include(ts => ts.TourDetails)
@@ -224,7 +225,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return NotFound(new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y tour slot"
+                        Message = "Không tìm thấy tour slot"
                     });
                 }
 
@@ -233,7 +234,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = $"Tour ph?i ? tr?ng th�i '?ang th?c hi?n' ?? c� th? ho�n th�nh. Tr?ng th�i hi?n t?i: {tourSlot.Status}"
+                        Message = $"Tour phải ở trạng thái 'Đang thực hiện' để có thể hoàn thành. Trạng thái hiện tại: {tourSlot.Status}"
                     });
                 }
 
@@ -241,7 +242,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // Use execution strategy to handle MySQL retry policy with transactions
                 var executionStrategy = _unitOfWork.GetExecutionStrategy();
-                
+
                 await executionStrategy.ExecuteAsync(async () =>
                 {
                     using var transaction = await _unitOfWork.BeginTransactionAsync();
@@ -261,7 +262,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         await _unitOfWork.SaveChangesAsync();
                         await transaction.CommitAsync();
 
-                        _logger.LogInformation("?? Tour completed for slot {SlotId}", tourSlotId);
+                        _logger.LogInformation("✅ Tour completed for slot {SlotId}", tourSlotId);
                     }
                     catch (Exception ex)
                     {
@@ -276,7 +277,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 var result = new
                 {
                     success = true,
-                    message = "?? Tour ?� ho�n th�nh th�nh c�ng!",
+                    message = "✅ Tour đã hoàn thành thành công!",
                     tourInfo = new
                     {
                         slotId = tourSlot.Id,
@@ -289,24 +290,24 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         totalRevenue = totalRevenue,
                         totalRevenueHold = totalRevenueHold,
-                        revenueTransferEligibleIn = "3 ng�y",
-                        description = "Revenue s? ???c t? ??ng transfer cho tour company sau 3 ng�y"
+                        revenueTransferEligibleIn = "3 ngày",
+                        description = "Revenue sẽ được tự động chuyển cho tour company sau 3 ngày"
                     },
                     testingFeatures = new
                     {
                         revenueTransfer = new
                         {
                             available = true,
-                            description = "Background service s? t? ??ng transfer revenue sau 3 ng�y, ho?c c� th? test manually",
-                            manualTestNote = "C� th? t?o API test ?? trigger revenue transfer ngay l?p t?c"
+                            description = "Background service sẽ tự động chuyển revenue sau 3 ngày, hoặc có thể test manually",
+                            manualTestNote = "Có thể tạo API test để trigger chuyển revenue ngay lập tức"
                         }
                     },
                     nextSteps = new[]
                     {
-                        "?? Revenue ?ang ???c hold, s? transfer sau 3 ng�y",
-                        "?? Tour company s? nh?n th�ng b�o khi revenue ???c transfer",
-                        "?? C� th? check revenue status trong dashboard"
-                    }
+                "💵 Revenue đang được giữ, sẽ chuyển sau 3 ngày",
+                "🏢 Tour company sẽ nhận thông báo khi revenue được chuyển",
+                "📊 Có thể kiểm tra trạng thái revenue trong dashboard"
+            }
                 };
 
                 return Ok(result);
@@ -317,10 +318,11 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi ho�n th�nh tour: {ex.Message}"
+                    Message = $"Lỗi khi hoàn thành tour: {ex.Message}"
                 });
             }
         }
+
 
         /// <summary>
         /// Get tour slot information for testing
@@ -347,7 +349,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return NotFound(new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y tour slot"
+                        Message = "Không tìm thấy tour slot"
                     });
                 }
 
@@ -409,7 +411,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi l?y th�ng tin tour: {ex.Message}"
+                    Message = $"Lỗi khi lấy thông tin tour: {ex.Message}"
                 });
             }
         }
@@ -430,7 +432,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("?? TESTING: Manual trigger auto-cancel for specific slot {SlotId}", tourSlotId);
+                _logger.LogInformation("🚨 TESTING: Manual trigger auto-cancel for specific slot {SlotId}", tourSlotId);
 
                 // Get tour slot with full details
                 var tourSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
@@ -445,7 +447,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return NotFound(new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y tour slot"
+                        Message = "Không tìm thấy tour slot"
                     });
                 }
 
@@ -454,7 +456,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "Tour slot ch?a c� tour operation"
+                        Message = "Tour slot chưa có tour operation"
                     });
                 }
 
@@ -463,7 +465,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "Ch? c� th? auto-cancel tour ? tr?ng th�i Public"
+                        Message = "Chỉ có thể auto-cancel tour ở trạng thái Public"
                     });
                 }
 
@@ -471,11 +473,11 @@ namespace TayNinhTourApi.Controller.Controllers
                 var confirmedBookings = allBookings.Where(b => b.Status == BookingStatus.Confirmed).ToList();
                 var totalConfirmedGuests = confirmedBookings.Sum(b => b.NumberOfGuests);
                 var maxGuests = tourSlot.TourDetails.TourOperation.MaxGuests;
-                
+
                 // Calculate booking rate
                 var guestBookingRate = maxGuests > 0 ? (double)totalConfirmedGuests / maxGuests : 0;
 
-                _logger.LogInformation("Tour slot {SlotId} analysis: {ConfirmedGuests}/{MaxGuests} guests ({BookingRate:P})", 
+                _logger.LogInformation("Tour slot {SlotId} analysis: {ConfirmedGuests}/{MaxGuests} guests ({BookingRate:P})",
                     tourSlotId, totalConfirmedGuests, maxGuests, guestBookingRate);
 
                 // Check if eligible for auto-cancel (< 50% capacity)
@@ -484,7 +486,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = $"Tour slot c� ?? kh�ch ({guestBookingRate:P} >= 50% capacity). Kh�ng th? auto-cancel."
+                        Message = $"Tour slot có đủ khách ({guestBookingRate:P} >= 50% sức chứa). Không thể auto-cancel."
                     });
                 }
 
@@ -493,7 +495,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "Tour slot kh�ng c� booking confirmed n�o ?? cancel"
+                        Message = "Tour slot không có booking confirmed nào để cancel"
                     });
                 }
 
@@ -511,7 +513,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         {
                             booking.Status = BookingStatus.CancelledByCompany;
                             booking.CancelledDate = DateTime.UtcNow;
-                            booking.CancellationReason = $"Tour b? h?y t? ??ng do kh�ng ?? kh�ch ({guestBookingRate:P} < 50% capacity) - MANUAL TRIGGER";
+                            booking.CancellationReason = $"Tour bị huỷ tự động do không đủ khách ({guestBookingRate:P} < 50% sức chứa) - MANUAL TRIGGER";
                             booking.UpdatedAt = DateTime.UtcNow;
                             await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
                         }
@@ -546,13 +548,13 @@ namespace TayNinhTourApi.Controller.Controllers
                 emailsCount = await SendCancellationEmailsToCustomersAsync(
                     confirmedBookings,
                     tourSlot.TourDetails.Title,
-                    $"Tour b? h?y t? ??ng do kh�ng ?? kh�ch ({guestBookingRate:P} < 50% capacity)"
+                    $"Tour bị huỷ tự động do không đủ khách ({guestBookingRate:P} < 50% sức chứa)"
                 );
 
                 var result = new
                 {
                     success = true,
-                    message = "?? Auto-cancel th�nh c�ng cho tour slot c? th?!",
+                    message = "🚨 Auto-cancel thành công cho tour slot cụ thể!",
                     tourSlotInfo = new
                     {
                         slotId = tourSlot.Id,
@@ -567,7 +569,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         totalBookingsCancelled = confirmedBookings.Count,
                         totalGuestsCancelled = totalConfirmedGuests,
                         totalEmailsSent = emailsCount,
-                        reason = $"Kh�ng ?? kh�ch ({guestBookingRate:P} < 50% capacity)"
+                        reason = $"Không đủ khách ({guestBookingRate:P} < 50% sức chứa)"
                     },
                     affectedBookings = confirmedBookings.Select(b => new
                     {
@@ -581,11 +583,11 @@ namespace TayNinhTourApi.Controller.Controllers
                     }).ToList(),
                     nextSteps = new[]
                     {
-                        "?? Kh�ch h�ng ?� nh?n email th�ng b�o h?y tour",
-                        "?? Ti?n s? ???c ho�n tr? t? ??ng trong 3-5 ng�y",
-                        "?? Tour slot ?� chuy?n sang tr?ng th�i Cancelled",
-                        "?? Capacity ?� ???c gi?i ph�ng kh?i tour operation"
-                    }
+                "📧 Khách hàng đã nhận email thông báo huỷ tour",
+                "💵 Tiền sẽ được hoàn trả tự động trong 3-5 ngày",
+                "❌ Tour slot đã chuyển sang trạng thái Cancelled",
+                "🔄 Sức chứa đã được giải phóng khỏi tour operation"
+            }
                 };
 
                 return Ok(result);
@@ -596,10 +598,11 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi th?c hi?n auto-cancel: {ex.Message}"
+                    Message = $"Lỗi khi thực hiện auto-cancel: {ex.Message}"
                 });
             }
         }
+
 
         /// <summary>
         /// Check if a tour slot is eligible for auto-cancel
@@ -625,7 +628,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return NotFound(new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y tour slot"
+                        Message = "Không tìm thấy tour slot"
                     });
                 }
 
@@ -634,8 +637,8 @@ namespace TayNinhTourApi.Controller.Controllers
                 var maxGuests = tourSlot.TourDetails?.TourOperation?.MaxGuests ?? tourSlot.MaxGuests;
                 var guestBookingRate = maxGuests > 0 ? (double)totalConfirmedGuests / maxGuests : 0;
 
-                var isEligible = guestBookingRate < 0.5 && 
-                                confirmedBookings.Any() && 
+                var isEligible = guestBookingRate < 0.5 &&
+                                confirmedBookings.Any() &&
                                 tourSlot.TourDetails?.Status == TourDetailsStatus.Public &&
                                 tourSlot.IsActive;
 
@@ -668,9 +671,9 @@ namespace TayNinhTourApi.Controller.Controllers
                             slotIsActive = tourSlot.IsActive
                         }
                     },
-                    recommendation = isEligible 
-                        ? "? Tour slot n�y c� th? ???c auto-cancel v� c� < 50% capacity" 
-                        : "? Tour slot n�y kh�ng th? auto-cancel"
+                    recommendation = isEligible
+                        ? "✅ Tour slot này có thể được auto-cancel vì có < 50% sức chứa"
+                        : "ℹ️ Tour slot này không thể auto-cancel"
                 };
 
                 return Ok(result);
@@ -681,18 +684,19 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi ki?m tra ?i?u ki?n auto-cancel: {ex.Message}"
+                    Message = $"Lỗi khi kiểm tra điều kiện auto-cancel: {ex.Message}"
                 });
             }
         }
+
 
         /// <summary>
         /// Send cancellation emails to customers (similar to TourSlotService implementation)
         /// </summary>
         private async Task<int> SendCancellationEmailsToCustomersAsync(
-            List<DataAccessLayer.Entities.TourBooking> bookings,
-            string tourTitle,
-            string reason)
+    List<DataAccessLayer.Entities.TourBooking> bookings,
+    string tourTitle,
+    string reason)
         {
             var emailSender = HttpContext.RequestServices.GetRequiredService<EmailSender>();
             int successCount = 0;
@@ -702,12 +706,12 @@ namespace TayNinhTourApi.Controller.Controllers
                 try
                 {
                     // Determine customer info - prioritize ContactEmail from booking
-                    var customerName = !string.IsNullOrEmpty(booking.ContactName) 
-                        ? booking.ContactName 
-                        : booking.User?.Name ?? "Kh�ch h�ng";
-                    
-                    var customerEmail = !string.IsNullOrEmpty(booking.ContactEmail) 
-                        ? booking.ContactEmail 
+                    var customerName = !string.IsNullOrEmpty(booking.ContactName)
+                        ? booking.ContactName
+                        : booking.User?.Name ?? "Khách hàng";
+
+                    var customerEmail = !string.IsNullOrEmpty(booking.ContactEmail)
+                        ? booking.ContactEmail
                         : booking.User?.Email ?? "";
 
                     // Validate email
@@ -717,72 +721,72 @@ namespace TayNinhTourApi.Controller.Controllers
                         continue;
                     }
 
-                    var subject = $"?? Th�ng b�o h?y tour: {tourTitle}";
+                    var subject = $"⛔ Thông báo hủy tour: {tourTitle}";
                     var htmlBody = $@"
-                        <h2>K�nh ch�o {customerName},</h2>
-                        
-                        <div style='background-color: #f8d7da; padding: 20px; border-left: 4px solid #dc3545; margin: 15px 0;'>
-                            <h3 style='margin-top: 0; color: #721c24;'>?? TH�NG B�O H?Y TOUR</h3>
-                            <p style='font-size: 16px; margin-bottom: 0;'>
-                                Ch�ng t�i r?t ti?c ph?i th�ng b�o r?ng tour <strong>'{tourTitle}'</strong> ?� b? h?y.
-                            </p>
-                        </div>
-                        
-                        <h3>?? Th�ng tin booking c?a b?n:</h3>
-                        <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #6c757d; margin: 10px 0;'>
-                            <ul style='margin: 0; list-style: none; padding: 0;'>
-                                <li><strong>?? M� booking:</strong> {booking.BookingCode}</li>
-                                <li><strong>?? S? l??ng kh�ch:</strong> {booking.NumberOfGuests}</li>
-                                <li><strong>?? S? ti?n:</strong> {booking.TotalPrice:N0} VN?</li>
-                            </ul>
-                        </div>
-                        
-                        <h3>?? L� do h?y tour:</h3>
-                        <div style='background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 10px 0;'>
-                            <p style='font-style: italic; margin: 0;'>{reason}</p>
-                        </div>
-                        
-                        <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0;'>
-                            <h3 style='margin-top: 0; color: #155724;'>?? HO�N TI?N T? ??NG</h3>
-                            <p style='font-size: 16px; margin-bottom: 10px;'>
-                                <strong>S? ti?n {booking.TotalPrice:N0} VN? s? ???c ho�n tr? ??y ??</strong>
-                            </p>
-                            <ul style='margin-bottom: 0;'>
-                                <li>? <strong>Th?i gian:</strong> 3-5 ng�y l�m vi?c</li>
-                                <li>?? <strong>Ph??ng th?c:</strong> Ho�n v? t�i kho?n thanh to�n g?c</li>
-                                <li>?? <strong>X�c nh?n:</strong> B?n s? nh?n email x�c nh?n khi ti?n ???c ho�n</li>
-                                <li>?? <strong>H? tr?:</strong> Nh�n vi�n s? li�n h? ?? h? tr? th? t?c ho�n ti?n</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                            <h4 style='margin-top: 0; color: #004085;'>?? G?i � cho b?n:</h4>
-                            <ul style='margin-bottom: 0;'>
-                                <li><strong>Kh�m ph� tour kh�c:</strong> Xem danh s�ch tour t??ng t? tr�n website</li>
-                                <li><strong>??t l?i sau:</strong> Tour c� th? ???c m? l?i v?i l?ch tr�nh m?i</li>
-                                <li><strong>Nh�n ?u ?�i:</strong> Theo d�i ?? nh?n th�ng b�o khuy?n m�i ??c bi?t</li>
-                                <li><strong>Voucher b� ??p:</strong> Ch�ng t�i s? g?i voucher gi?m gi� cho l?n ??t tour ti?p theo</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                            <h4 style='margin-top: 0; color: #721c24;'>?? L?i xin l?i ch�n th�nh</h4>
-                            <p style='margin-bottom: 0;'>
-                                Ch�ng t�i th�nh th?t xin l?i v� s? b?t ti?n n�y. ?�y l� quy?t ??nh kh� kh?n nh?ng c?n thi?t ?? ??m b?o ch?t l??ng d?ch v? cho qu� kh�ch. 
-                                <strong>Nh�n vi�n c?a ch�ng t�i s? li�n h? tr?c ti?p ?? h? tr? qu� tr�nh ho�n ti?n trong th?i gian s?m nh?t.</strong>
-                            </p>
-                        </div>
-                        
-                        <p><strong>?? C?n h? tr? kh?n c?p?</strong> Li�n h? hotline: <a href='tel:1900-xxx-xxx'>1900-xxx-xxx</a> ho?c email: support@tayninhour.com</p>
-                        
-                        <br/>
-                        <p>C?m ?n s? th�ng c?m c?a qu� kh�ch,</p>
-                        <p><strong>??i ng? Tay Ninh Tour</strong></p>";
+                <h2>Kính chào {customerName},</h2>
+                
+                <div style='background-color: #f8d7da; padding: 20px; border-left: 4px solid #dc3545; margin: 15px 0;'>
+                    <h3 style='margin-top: 0; color: #721c24;'>⛔ THÔNG BÁO HỦY TOUR</h3>
+                    <p style='font-size: 16px; margin-bottom: 0;'>
+                        Chúng tôi rất tiếc phải thông báo rằng tour <strong>'{tourTitle}'</strong> đã bị hủy.
+                    </p>
+                </div>
+                
+                <h3>📝 Thông tin booking của bạn:</h3>
+                <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #6c757d; margin: 10px 0;'>
+                    <ul style='margin: 0; list-style: none; padding: 0;'>
+                        <li><strong>🔖 Mã booking:</strong> {booking.BookingCode}</li>
+                        <li><strong>👥 Số lượng khách:</strong> {booking.NumberOfGuests}</li>
+                        <li><strong>💰 Số tiền:</strong> {booking.TotalPrice:N0} VNĐ</li>
+                    </ul>
+                </div>
+                
+                <h3>❗ Lý do hủy tour:</h3>
+                <div style='background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 10px 0;'>
+                    <p style='font-style: italic; margin: 0;'>{reason}</p>
+                </div>
+                
+                <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0;'>
+                    <h3 style='margin-top: 0; color: #155724;'>💵 HOÀN TIỀN TỰ ĐỘNG</h3>
+                    <p style='font-size: 16px; margin-bottom: 10px;'>
+                        <strong>Số tiền {booking.TotalPrice:N0} VNĐ sẽ được hoàn trả đầy đủ</strong>
+                    </p>
+                    <ul style='margin-bottom: 0;'>
+                        <li>• <strong>Thời gian:</strong> 3-5 ngày làm việc</li>
+                        <li>• <strong>Phương thức:</strong> Hoàn về tài khoản thanh toán gốc</li>
+                        <li>• <strong>Xác nhận:</strong> Bạn sẽ nhận email xác nhận khi tiền được hoàn</li>
+                        <li>• <strong>Hỗ trợ:</strong> Nhân viên sẽ liên hệ để hỗ trợ thủ tục hoàn tiền</li>
+                    </ul>
+                </div>
+                
+                <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                    <h4 style='margin-top: 0; color: #004085;'>✨ Gợi ý cho bạn:</h4>
+                    <ul style='margin-bottom: 0;'>
+                        <li><strong>Khám phá tour khác:</strong> Xem danh sách tour tương tự trên website</li>
+                        <li><strong>Đặt lại sau:</strong> Tour có thể được mở lại với lịch trình mới</li>
+                        <li><strong>Nhận ưu đãi:</strong> Theo dõi để nhận thông báo khuyến mãi đặc biệt</li>
+                        <li><strong>Voucher bù đắp:</strong> Chúng tôi sẽ gửi voucher giảm giá cho lần đặt tour tiếp theo</li>
+                    </ul>
+                </div>
+                
+                <div style='background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                    <h4 style='margin-top: 0; color: #721c24;'>🙏 Lời xin lỗi chân thành</h4>
+                    <p style='margin-bottom: 0;'>
+                        Chúng tôi thành thật xin lỗi vì sự bất tiện này. Đây là quyết định khó khăn nhưng cần thiết để đảm bảo chất lượng dịch vụ cho quý khách. 
+                        <strong>Nhân viên của chúng tôi sẽ liên hệ trực tiếp để hỗ trợ quá trình hoàn tiền trong thời gian sớm nhất.</strong>
+                    </p>
+                </div>
+                
+                <p><strong>❓ Cần hỗ trợ khẩn cấp?</strong> Liên hệ hotline: <a href='tel:1900-xxx-xxx'>1900-xxx-xxx</a> hoặc email: support@tayninhour.com</p>
+                
+                <br/>
+                <p>Cảm ơn sự thông cảm của quý khách,</p>
+                <p><strong>Đội ngũ Tay Ninh Tour</strong></p>";
 
                     await emailSender.SendEmailAsync(customerEmail, customerName, subject, htmlBody);
                     successCount++;
-                    
-                    _logger.LogInformation("Cancellation email sent successfully to {CustomerEmail} for booking {BookingCode}", 
+
+                    _logger.LogInformation("Cancellation email sent successfully to {CustomerEmail} for booking {BookingCode}",
                         customerEmail, booking.BookingCode);
                 }
                 catch (Exception ex)
@@ -793,6 +797,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
             return successCount;
         }
+
 
         /// <summary>
         /// Validate email address format
@@ -825,7 +830,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("?? TESTING: Skipping to reminder time (2 days before) for slot {SlotId}", tourSlotId);
+                _logger.LogInformation("⏰ TESTING: Skipping to reminder time (2 days before) for slot {SlotId}", tourSlotId);
 
                 // Get tour slot with full details
                 var tourSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
@@ -840,7 +845,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return NotFound(new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y tour slot"
+                        Message = "Không tìm thấy tour slot"
                     });
                 }
 
@@ -849,7 +854,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "Tour slot ch?a c� tour operation"
+                        Message = "Tour slot chưa có tour operation"
                     });
                 }
 
@@ -862,7 +867,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = $"Tour ?� qua th?i ?i?m nh?c nh? (2 ng�y tr??c). Tour date: {tourDate:dd/MM/yyyy}, Reminder time: {twoDaysBeforeTour:dd/MM/yyyy}"
+                        Message = $"Tour đã qua thời điểm nhắc nhở (2 ngày trước). Ngày tour: {tourDate:dd/MM/yyyy}, Thời điểm nhắc: {twoDaysBeforeTour:dd/MM/yyyy}"
                     });
                 }
 
@@ -875,7 +880,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "Tour slot kh�ng c� booking confirmed n�o ?? g?i reminder"
+                        Message = "Tour slot không có booking confirmed nào để gửi reminder"
                     });
                 }
 
@@ -890,7 +895,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 var result = new
                 {
                     success = true,
-                    message = "?? Test reminder emails th�nh c�ng!",
+                    message = "✅ Test reminder emails thành công!",
                     tourSlotInfo = new
                     {
                         slotId = tourSlot.Id,
@@ -924,11 +929,11 @@ namespace TayNinhTourApi.Controller.Controllers
                     }).ToList(),
                     nextSteps = new[]
                     {
-                        "?? Kh�ch h�ng ?� nh?n email nh?c nh? chu?n b? tour",
-                        "?? Email ch?a danh s�ch ?? c?n chu?n b? chi ti?t",
-                        "?? Kh�ch h�ng c� th? li�n h? hotline n?u c?n h? tr?",
-                        "? Tour s? di?n ra trong 2 ng�y n?a"
-                    }
+                "📧 Khách hàng đã nhận email nhắc nhở chuẩn bị tour",
+                "📋 Email chứa danh sách đồ cần chuẩn bị chi tiết",
+                "📞 Khách hàng có thể liên hệ hotline nếu cần hỗ trợ",
+                "🗓️ Tour sẽ diễn ra trong 2 ngày nữa"
+            }
                 };
 
                 return Ok(result);
@@ -939,19 +944,20 @@ namespace TayNinhTourApi.Controller.Controllers
                 return StatusCode(500, new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi test reminder emails: {ex.Message}"
+                    Message = $"Lỗi khi test reminder emails: {ex.Message}"
                 });
             }
         }
+
 
         /// <summary>
         /// Send reminder emails to customers for their upcoming tour (Testing method)
         /// </summary>
         private async Task<int> SendReminderEmailsToCustomersAsync(
-            EmailSender emailSender,
-            List<DataAccessLayer.Entities.TourBooking> bookings,
-            string tourTitle,
-            DateOnly tourDate)
+     EmailSender emailSender,
+     List<DataAccessLayer.Entities.TourBooking> bookings,
+     string tourTitle,
+     DateOnly tourDate)
         {
             int successCount = 0;
 
@@ -960,12 +966,12 @@ namespace TayNinhTourApi.Controller.Controllers
                 try
                 {
                     // Determine customer info - prioritize ContactEmail from booking
-                    var customerName = !string.IsNullOrEmpty(booking.ContactName) 
-                        ? booking.ContactName 
-                        : booking.User?.Name ?? "Kh�ch h�ng";
-                    
-                    var customerEmail = !string.IsNullOrEmpty(booking.ContactEmail) 
-                        ? booking.ContactEmail 
+                    var customerName = !string.IsNullOrEmpty(booking.ContactName)
+                        ? booking.ContactName
+                        : booking.User?.Name ?? "Khách hàng";
+
+                    var customerEmail = !string.IsNullOrEmpty(booking.ContactEmail)
+                        ? booking.ContactEmail
                         : booking.User?.Email ?? "";
 
                     // Validate email
@@ -975,97 +981,97 @@ namespace TayNinhTourApi.Controller.Controllers
                         continue;
                     }
 
-                    var subject = $"?? Nh?c nh? tour: {tourTitle} - Chu?n b? cho chuy?n ?i!";
+                    var subject = $"📢 Nhắc nhở tour: {tourTitle} - Chuẩn bị cho chuyến đi!";
                     var htmlBody = $@"
-                        <h2>K�nh ch�o {customerName},</h2>
-                        
-                        <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 15px 0;'>
-                            <h3 style='margin-top: 0; color: #155724;'>?? NH?C NH? TOUR S?P DI?N RA</h3>
-                            <p style='font-size: 16px; margin-bottom: 0;'>
-                                Tour <strong>'{tourTitle}'</strong> c?a b?n s? di?n ra v�o <strong>{tourDate:dd/MM/yyyy}</strong> (c�n 2 ng�y n?a)!
-                            </p>
-                        </div>
-                        
-                        <h3>?? Th�ng tin booking c?a b?n:</h3>
-                        <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0;'>
-                            <ul style='margin: 0; list-style: none; padding: 0;'>
-                                <li><strong>?? M� booking:</strong> {booking.BookingCode}</li>
-                                <li><strong>?? S? l??ng kh�ch:</strong> {booking.NumberOfGuests}</li>
-                                <li><strong>?? Ng�y tour:</strong> {tourDate:dd/MM/yyyy}</li>
-                                <li><strong>?? T?ng ti?n:</strong> {booking.TotalPrice:N0} VN?</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
-                            <h3 style='margin-top: 0; color: #856404;'>?? DANH S�CH CHU?N B?</h3>
-                            <h4>?? Gi?y t? c?n thi?t:</h4>
-                            <ul>
-                                <li>? <strong>CMND/CCCD ho?c Passport</strong> (b?t bu?c)</li>
-                                <li>? <strong>V� x�c nh?n</strong> (in ra ho?c l?u tr�n ?i?n tho?i)</li>
-                                <li>? <strong>Th? BHYT</strong> (n?u c�)</li>
-                            </ul>
-                            
-                            <h4>?? ?? d�ng c� nh�n:</h4>
-                            <ul>
-                                <li>?? Qu?n �o tho?i m�i, ph� h?p th?i ti?t</li>
-                                <li>?? Gi�y th? thao ch?ng tr??t</li>
-                                <li>?? M?/n�n ch?ng n?ng</li>
-                                <li>??? K�nh r�m</li>
-                                <li>?? Kem ch?ng n?ng</li>
-                                <li>?? Thu?c c� nh�n (n?u c�)</li>
-                            </ul>
-                            
-                            <h4>?? Kh�c:</h4>
-                            <ul>
-                                <li>?? Pin d? ph�ng cho ?i?n tho?i</li>
-                                <li>?? Ti?n m?t cho chi ph� c� nh�n</li>
-                                <li>?? M�y ?nh (t�y ch?n)</li>
-                                <li>?? ?? ?n v?t (t�y th�ch)</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                            <h4 style='margin-top: 0; color: #004085;'>? L?u � quan tr?ng:</h4>
-                            <ul style='margin-bottom: 0;'>
-                                <li><strong>Th?i gian t?p trung:</strong> Vui l�ng c� m?t ?�ng gi? theo th�ng b�o</li>
-                                <li><strong>Th?i ti?t:</strong> Ki?m tra d? b�o th?i ti?t v� chu?n b? ph� h?p</li>
-                                <li><strong>Li�n h? kh?n c?p:</strong> L?u s? hotline ?? li�n h? khi c?n thi?t</li>
-                                <li><strong>H?y tour:</strong> N?u c� thay ??i, vui l�ng th�ng b�o s?m</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                            <h4 style='margin-top: 0; color: #0c5460;'>?? M?o ?? c� chuy?n ?i tuy?t v?i:</h4>
-                            <ul style='margin-bottom: 0;'>
-                                <li>?? <strong>Ngh? ng?i ??y ??</strong> tr??c ng�y tour</li>
-                                <li>??? <strong>?n s�ng ??y ??</strong> tr??c khi kh?i h�nh</li>
-                                <li>?? <strong>Mang theo n??c u?ng</strong> ?? gi? ?m</li>
-                                <li>?? <strong>S?c ??y pin</strong> ?i?n tho?i</li>
-                                <li>?? <strong>L�m quen</strong> v?i c�c th�nh vi�n kh�c trong tour</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='text-align: center; margin: 30px 0;'>
-                            <div style='background-color: #28a745; color: white; padding: 15px; border-radius: 5px; margin-bottom: 10px;'>
-                                <h4 style='margin: 0; font-size: 18px;'>?? HOTLINE H? TR? 24/7</h4>
-                                <p style='margin: 5px 0; font-size: 20px; font-weight: bold;'>1900-xxx-xxx</p>
-                            </div>
-                        </div>
-                        
-                        <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;'>
-                            <p style='margin: 0; font-style: italic; color: #6c757d;'>
-                                Ch�ng t�i r?t mong ???c ??ng h�nh c�ng b?n trong chuy?n ?i tuy?t v?i n�y! ??
-                            </p>
-                        </div>
-                        
-                        <br/>
-                        <p>Ch�c b?n c� m?t chuy?n ?i an to�n v� ??y � ngh?a!</p>
-                        <p><strong>??i ng? Tay Ninh Tour</strong></p>";
+                <h2>Kính chào {customerName},</h2>
+                
+                <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 15px 0;'>
+                    <h3 style='margin-top: 0; color: #155724;'>📢 NHẮC NHỞ TOUR SẮP DIỄN RA</h3>
+                    <p style='font-size: 16px; margin-bottom: 0;'>
+                        Tour <strong>'{tourTitle}'</strong> của bạn sẽ diễn ra vào <strong>{tourDate:dd/MM/yyyy}</strong> (còn 2 ngày nữa)!
+                    </p>
+                </div>
+                
+                <h3>📝 Thông tin booking của bạn:</h3>
+                <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0;'>
+                    <ul style='margin: 0; list-style: none; padding: 0;'>
+                        <li><strong>🔖 Mã booking:</strong> {booking.BookingCode}</li>
+                        <li><strong>👥 Số lượng khách:</strong> {booking.NumberOfGuests}</li>
+                        <li><strong>📅 Ngày tour:</strong> {tourDate:dd/MM/yyyy}</li>
+                        <li><strong>💰 Tổng tiền:</strong> {booking.TotalPrice:N0} VNĐ</li>
+                    </ul>
+                </div>
+                
+                <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
+                    <h3 style='margin-top: 0; color: #856404;'>📋 DANH SÁCH CHUẨN BỊ</h3>
+                    <h4>🪪 Giấy tờ cần thiết:</h4>
+                    <ul>
+                        <li>• <strong>CMND/CCCD hoặc Passport</strong> (bắt buộc)</li>
+                        <li>• <strong>Vé xác nhận</strong> (in ra hoặc lưu trên điện thoại)</li>
+                        <li>• <strong>Thẻ BHYT</strong> (nếu có)</li>
+                    </ul>
+                    
+                    <h4>🎒 Đồ dùng cá nhân:</h4>
+                    <ul>
+                        <li>• Quần áo thoải mái, phù hợp thời tiết</li>
+                        <li>• Giày thể thao chống trượt</li>
+                        <li>• Mũ/nón chống nắng</li>
+                        <li>• Kính râm</li>
+                        <li>• Kem chống nắng</li>
+                        <li>• Thuốc cá nhân (nếu có)</li>
+                    </ul>
+                    
+                    <h4>📦 Khác:</h4>
+                    <ul>
+                        <li>• Pin dự phòng cho điện thoại</li>
+                        <li>• Tiền mặt cho chi phí cá nhân</li>
+                        <li>• Máy ảnh (tùy chọn)</li>
+                        <li>• Đồ ăn vặt (tùy thích)</li>
+                    </ul>
+                </div>
+                
+                <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                    <h4 style='margin-top: 0; color: #004085;'>⚠️ Lưu ý quan trọng:</h4>
+                    <ul style='margin-bottom: 0;'>
+                        <li><strong>Thời gian tập trung:</strong> Vui lòng có mặt đúng giờ theo thông báo</li>
+                        <li><strong>Thời tiết:</strong> Kiểm tra dự báo thời tiết và chuẩn bị phù hợp</li>
+                        <li><strong>Liên hệ khẩn cấp:</strong> Lưu số hotline để liên hệ khi cần thiết</li>
+                        <li><strong>Hủy tour:</strong> Nếu có thay đổi, vui lòng thông báo sớm</li>
+                    </ul>
+                </div>
+                
+                <div style='background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                    <h4 style='margin-top: 0; color: #0c5460;'>🌟 Mẹo để có chuyến đi tuyệt vời:</h4>
+                    <ul style='margin-bottom: 0;'>
+                        <li>• <strong>Nghỉ ngơi đầy đủ</strong> trước ngày tour</li>
+                        <li>• <strong>Ăn sáng đầy đủ</strong> trước khi khởi hành</li>
+                        <li>• <strong>Mang theo nước uống</strong> để giữ ẩm</li>
+                        <li>• <strong>Sạc đầy pin</strong> điện thoại</li>
+                        <li>• <strong>Làm quen</strong> với các thành viên khác trong tour</li>
+                    </ul>
+                </div>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <div style='background-color: #28a745; color: white; padding: 15px; border-radius: 5px; margin-bottom: 10px;'>
+                        <h4 style='margin: 0; font-size: 18px;'>📞 HOTLINE HỖ TRỢ 24/7</h4>
+                        <p style='margin: 5px 0; font-size: 20px; font-weight: bold;'>1900-xxx-xxx</p>
+                    </div>
+                </div>
+                
+                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;'>
+                    <p style='margin: 0; font-style: italic; color: #6c757d;'>
+                        Chúng tôi rất mong được đồng hành cùng bạn trong chuyến đi tuyệt vời này! 😊
+                    </p>
+                </div>
+                
+                <br/>
+                <p>Chúc bạn có một chuyến đi an toàn và đầy ý nghĩa!</p>
+                <p><strong>Đội ngũ Tay Ninh Tour</strong></p>";
 
                     await emailSender.SendEmailAsync(customerEmail, customerName, subject, htmlBody);
                     successCount++;
-                    
-                    _logger.LogInformation("Tour reminder email sent successfully to {CustomerEmail} for booking {BookingCode}", 
+
+                    _logger.LogInformation("Tour reminder email sent successfully to {CustomerEmail} for booking {BookingCode}",
                         customerEmail, booking.BookingCode);
                 }
                 catch (Exception ex)
@@ -1076,5 +1082,6 @@ namespace TayNinhTourApi.Controller.Controllers
 
             return successCount;
         }
+
     }
 }
