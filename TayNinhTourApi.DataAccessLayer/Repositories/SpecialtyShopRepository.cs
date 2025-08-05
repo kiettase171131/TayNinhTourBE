@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Xml.Linq;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
@@ -29,14 +30,19 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         /// <summary>
         /// Lấy danh sách tất cả SpecialtyShops đang hoạt động
         /// </summary>
-        public async Task<IEnumerable<SpecialtyShop>> GetActiveShopsAsync()
+        public async Task<IEnumerable<SpecialtyShop>> GetActiveShopsAsync(string? name = null)
         {
-            return await _context.SpecialtyShops
-                .Where(s => s.IsShopActive && s.IsActive)
+            var query = _context.SpecialtyShops
+                .Where(s => s.IsShopActive && s.IsActive
+                    && (string.IsNullOrEmpty(name) || s.ShopName.Contains(name)))
                 .Include(s => s.User)
-                .OrderBy(s => s.ShopName)
-                .ToListAsync();
+                .OrderBy(s => s.ShopName);
+
+            return await query.ToListAsync();
         }
+
+
+
 
         /// <summary>
         /// Lấy danh sách SpecialtyShops theo loại shop
@@ -62,7 +68,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         /// <summary>
         /// Lấy danh sách SpecialtyShops với phân trang
         /// </summary>
-        public async Task<(IEnumerable<SpecialtyShop> Items, int TotalCount)> GetPagedAsync(int pageIndex, int pageSize, bool isActiveOnly = true)
+        public async Task<(IEnumerable<SpecialtyShop> Items, int TotalCount)> GetPagedAsync(int pageIndex, int pageSize, bool isActiveOnly = true,string ? name = null)
         {
             var query = _context.SpecialtyShops.AsQueryable();
 
@@ -71,10 +77,14 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 query = query.Where(s => s.IsShopActive && s.IsActive);
             }
             else
-            {
+            {   
                 query = query.Where(s => s.IsActive);
             }
-
+            // Bổ sung điều kiện search theo tên
+            if (!string.IsNullOrEmpty(name))
+            {
+                query = query.Where(s => s.ShopName.Contains(name));
+            }
             var totalCount = await query.CountAsync();
 
             var items = await query
