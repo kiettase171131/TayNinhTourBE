@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Order;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
@@ -43,7 +43,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new CheckOrderResponseDto
                     {
                         StatusCode = 403,
-                        Message = "Shop kh�ng h?p l? ho?c kh�ng ho?t ??ng",
+                        Message = "Shop không hợp lí hoặc không hoạt động",
                         success = false,
                         IsProcessed = false
                     };
@@ -58,7 +58,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new CheckOrderResponseDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y ??n h�ng v?i m� PayOS n�y",
+                        Message = "Không tìm thấy đơn hàng với mã PayOS này",
                         success = false,
                         IsProcessed = false
                     };
@@ -70,11 +70,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new CheckOrderResponseDto
                     {
                         StatusCode = 400,
-                        Message = "??n h�ng ch?a ???c thanh to�n",
+                        Message = "Đơn hàng chưa được thanh toán",
                         success = false,
                         IsProcessed = false
                     };
                 }
+
 
                 // CRITICAL VALIDATION: Check if this shop owns any products in the order
                 var shopUserId = shop.UserId; // Get the User ID associated with this shop
@@ -95,7 +96,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new CheckOrderResponseDto
                     {
                         StatusCode = 403,
-                        Message = $"Shop '{shop.ShopName}' kh�ng c� quy?n check ??n h�ng n�y v� kh�ng b�n c�c s?n ph?m trong ??n h�ng",
+                        Message = $"Shop '{shop.ShopName}' không có quyền kiểm tra đơn hàng này vì không bán các sản phẩm trong đơn hàng",
                         success = false,
                         IsProcessed = false,
                         Products = productNames.Select(name => new OrderDetailDto { ProductName = name }).ToList()
@@ -123,25 +124,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (wasAlreadyChecked)
                 {
                     // Get information about who checked this order
-                    var checkedByShop = order.CheckedByShopId.HasValue ? 
+                    var checkedByShop = order.CheckedByShopId.HasValue ?
                         await _specialtyShopRepository.GetByIdAsync(order.CheckedByShopId.Value) : null;
-                    
-                    var checkedByShopName = checkedByShop?.ShopName ?? "Kh�ng x�c ??nh";
-                    var checkedAtTime = order.CheckedAt?.ToString("dd/MM/yyyy HH:mm") ?? "Kh�ng x�c ??nh";
-                    
+
+                    var checkedByShopName = checkedByShop?.ShopName ?? "Không xác định";
+                    var checkedAtTime = order.CheckedAt?.ToString("dd/MM/yyyy HH:mm") ?? "Không xác định";
+
                     // Check if it's the same shop trying to check again or a different shop
                     if (order.CheckedByShopId == shopId)
                     {
-                        message = $"B?n ?� check ??n h�ng n�y r?i l�c {checkedAtTime}! Kh�ng th? check l?i l?n n?a.";
+                        message = $"Bạn đã check đơn hàng này rồi lúc {checkedAtTime}! Không thể check lại lần nữa.";
                     }
                     else
                     {
-                        message = $"??n h�ng n�y ?� ???c check b?i shop '{checkedByShopName}' l�c {checkedAtTime}. Kh�ng th? check l?i.";
+                        message = $"Đơn hàng này đã được check bởi shop '{checkedByShopName}' lúc {checkedAtTime}. Không thể check lại.";
                     }
-                    
+
                     statusCode = 409; // Conflict status code for already processed
                     checkedAt = order.CheckedAt;
                 }
+
                 else
                 {
                     // Order is valid and not checked - mark as checked
@@ -153,7 +155,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     await _orderRepository.UpdateAsync(order);
                     await _orderRepository.SaveChangesAsync();
 
-                    message = "Check ??n h�ng th�nh c�ng - ?� giao h�ng cho kh�ch";
+                    message = "Check đơn hàng thành công - đã giao hàng cho khách";
                     isProcessed = true;
                     checkedAt = order.CheckedAt;
                 }
@@ -177,7 +179,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new CheckOrderResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi check ??n h�ng: {ex.Message}",
+                    Message = $"Lỗi khi check đơn hàng: {ex.Message}",
                     success = false,
                     IsProcessed = false
                 };
@@ -196,7 +198,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new OrderDetailsResponseDto
                     {
                         StatusCode = 404,
-                        Message = "Kh�ng t�m th?y ??n h�ng v?i m� PayOS n�y",
+                        Message = "Không tìm thấy đơn hàng với mã PayOS này",
                         success = false
                     };
                 }
@@ -211,7 +213,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new OrderDetailsResponseDto
                 {
                     StatusCode = 200,
-                    Message = "L?y th�ng tin ??n h�ng th�nh c�ng",
+                    Message = "Lấy thông tin đơn hàng thành công",
                     success = true,
                     OrderId = order.Id,
                     PayOsOrderCode = order.PayOsOrderCode,
@@ -226,10 +228,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new OrderDetailsResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi l?y th�ng tin ??n h�ng: {ex.Message}",
+                    Message = $"Lỗi khi lấy thông tin đơn hàng: {ex.Message}",
                     success = false
                 };
             }
+
         }
 
         public async Task<OrderListResponseDto> GetCheckableOrdersAsync(Guid shopId)
@@ -243,7 +246,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new OrderListResponseDto
                     {
                         StatusCode = 403,
-                        Message = "Shop kh�ng h?p l? ho?c kh�ng ho?t ??ng",
+                        Message = "Shop không hợp lệ hoặc không hoạt động",
+
                         success = false
                     };
                 }
@@ -264,7 +268,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new OrderListResponseDto
                 {
                     StatusCode = 200,
-                    Message = "L?y danh s�ch ??n h�ng th�nh c�ng",
+                    Message = "Lấy danh sách đơn hàng thành công",
+
                     success = true,
                     Orders = _mapper.Map<List<OrderDto>>(checkableOrders),
                     TotalCount = checkableOrders.Count
@@ -275,7 +280,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new OrderListResponseDto
                 {
                     StatusCode = 500,
-                    Message = $"L?i khi l?y danh s�ch ??n h�ng: {ex.Message}",
+                    Message = $"Lỗi khi lấy danh sách đơn hàng: {ex.Message}",
+
                     success = false
                 };
             }
