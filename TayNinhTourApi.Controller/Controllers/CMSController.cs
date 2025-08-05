@@ -293,6 +293,17 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _cmsService.GetSpecialtyShopsAsync(pageIndex,pageSize,textSearch,isActive);
             return StatusCode(result.StatusCode, result);
         }
+        [HttpGet("Tourguide")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTourGuideCms([FromQuery] int? pageIndex,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? textSearch,
+        [FromQuery] bool? isAvailable,
+        [FromQuery] bool? Active)
+        {
+            var result = await _cmsService.GetTourGuidesAsync(pageIndex, pageSize, textSearch, Active, isAvailable);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
 

@@ -30,8 +30,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IBlogCommentRepository _blogCommentRepository;
         private readonly IBlogReactionRepository _blogReactionRepository;
         private readonly ISpecialtyShopRepository _shopRepository;
-
-        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository  )
+        private readonly ITourGuideRepository _tourGuideRepository;
+        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository,ITourGuideRepository tourGuideRepository  )
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
@@ -42,6 +42,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _roleRepository = roleRepository;
             _bcryptUtility = bcryptUtility;
             _shopRepository = shopRepository;
+            _tourGuideRepository = tourGuideRepository;
         }
 
         public async Task<BaseResposeDto> DeleteUserAsync(Guid id)
@@ -539,5 +540,52 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalPages = totalPages
             };
         }
+        public async Task<ResponseGetTourGuidesDto> GetTourGuidesAsync(int? pageIndex,int? pageSize,string? textSearch,bool? isAvailable, bool? isActive)
+        {
+            // Bao gồm navigation property User (nếu cần)
+            var include = new string[] { nameof(TourGuide.User) };
+
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+            // Khởi tạo predicate mặc định: không lấy tour guide đã bị xoá (nếu có IsDeleted)
+            var predicate = PredicateBuilder.New<TourGuide>(x => true);
+
+            // Search theo FullName (nếu có textSearch)
+            if (!string.IsNullOrEmpty(textSearch))
+            {
+                var search = textSearch.ToLower();
+                predicate = predicate.And(x => x.FullName.ToLower().Contains(search));
+            }
+            if (isActive.HasValue)
+            {
+                predicate = predicate.And(x => x.IsActive == isActive.Value);
+            }
+            // Lọc trạng thái IsAvailable nếu có
+            if (isAvailable.HasValue)
+            {
+                predicate = predicate.And(x => x.IsAvailable == isAvailable.Value);
+            }
+
+            // Lấy danh sách TourGuide phân trang
+            var tourGuides = await _tourGuideRepository.GenericGetPaginationAsync(
+                pageIndexValue,
+                pageSizeValue,
+                predicate,
+                include
+            );
+
+            var totalGuides = tourGuides.Count();
+            var totalPages = (int)Math.Ceiling((double)totalGuides / pageSizeValue);
+
+            return new ResponseGetTourGuidesDto
+            {
+                StatusCode = 200,
+                Data = _mapper.Map<List<TourGuideCmsDto>>(tourGuides),
+                TotalRecord = totalGuides,
+                TotalPages = totalPages
+            };
+        }
+
     }
 }

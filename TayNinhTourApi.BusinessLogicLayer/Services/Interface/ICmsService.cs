@@ -21,5 +21,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> UpdateUserAsync(RequestUpdateUserCmsDto request, Guid id);
         Task<BaseResposeDto> CreateUserAsync(RequestCreateUserDto request);
         Task<ResponseGetSpecialtyShopsDto> GetSpecialtyShopsAsync(int? pageIndex,int? pageSize,string? textSearch,bool? isActive);
+        Task<ResponseGetTourGuidesDto> GetTourGuidesAsync(int? pageIndex,int? pageSize,string? textSearch,bool? isAvailable,bool? isActive);
     }
 }
