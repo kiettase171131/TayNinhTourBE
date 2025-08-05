@@ -12,8 +12,8 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250804165650_UpdatePayOsOrderCodeToString")]
-    partial class UpdatePayOsOrderCodeToString
+    [Migration("20250805021455_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1633,6 +1633,13 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<TimeSpan>("CheckInTime")
                         .HasColumnType("TIME");
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CompletionNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("DATETIME");
 
@@ -1646,6 +1653,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true);
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
@@ -1770,6 +1780,13 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("datetime(6)")
                         .HasComment("Ngày hủy booking");
 
+                    b.Property<string>("CheckInNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime?>("CheckInTime")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime?>("ConfirmedDate")
                         .HasColumnType("datetime(6)")
                         .HasComment("Ngày xác nhận booking");
@@ -1811,6 +1828,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasComment("Phần trăm giảm giá được áp dụng");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsCheckedIn")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsDeleted")
@@ -2678,6 +2698,88 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasDatabaseName("IX_TourGuideInvitations_TourDetailsId_GuideId");
 
                     b.ToTable("TourGuideInvitations", (string)null);
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourIncident", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AdminNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("ImageUrls")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("ReportedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("ReportedByGuideId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<Guid>("TourOperationId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("ReportedByGuideId");
+
+                    b.HasIndex("TourOperationId");
+
+                    b.HasIndex("UpdatedById");
+
+                    b.ToTable("TourIncidents");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", b =>
@@ -3870,6 +3972,39 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("TourDetails");
 
                     b.Navigation("TourGuide");
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourIncident", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourGuide", "ReportedByGuide")
+                        .WithMany()
+                        .HasForeignKey("ReportedByGuideId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourOperation", "TourOperation")
+                        .WithMany()
+                        .HasForeignKey("TourOperationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedById");
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("ReportedByGuide");
+
+                    b.Navigation("TourOperation");
 
                     b.Navigation("UpdatedBy");
                 });

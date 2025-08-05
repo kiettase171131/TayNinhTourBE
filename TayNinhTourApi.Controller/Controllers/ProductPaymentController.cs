@@ -60,7 +60,8 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                _logger.LogInformation("Enhanced payment success callback for order: {OrderCode}", request.OrderCode);
+                _logger.LogInformation("Enhanced payment success callback for order: {OrderCode}, Code: {Code}, Status: {Status}", 
+                    request.OrderCode, request.Code, request.Status);
 
                 if (string.IsNullOrWhiteSpace(request.OrderCode))
                 {
@@ -69,6 +70,17 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         success = false,
                         message = "Order code is required"
+                    });
+                }
+
+                // Optional: Validate PayOS success code
+                if (!string.IsNullOrWhiteSpace(request.Code) && request.Code != "00")
+                {
+                    _logger.LogWarning("Payment success callback received with non-success code: {Code}", request.Code);
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"Invalid success code: {request.Code}. Expected '00' for successful payment."
                     });
                 }
 

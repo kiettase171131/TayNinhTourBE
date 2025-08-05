@@ -32,7 +32,9 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
 
         /// <summary>
-        /// Mô tả giao dịch
+        /// Mô tả giao dịch (đồng bộ với PayOS description)
+        /// Đối với Product Payment: "Product " + PayOS Order Code (VD: "Product TNDT1754325287517")
+        /// Đối với Tour Booking Payment: "Tour " + PayOS Order Code (VD: "Tour TNDT1754325287517")
         /// </summary>
         [StringLength(500)]
         public string? Description { get; set; }

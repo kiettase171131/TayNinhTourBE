@@ -96,7 +96,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Tạo PayOS payment URL cho tour booking với webhook URLs
         /// Follows PayOS best practices with proper error handling and logging
-        /// DEPRECATED: Use CreatePaymentLinkAsync instead
+        /// DEPRECATED: Use CreatePaymentLinkAsync 대신
         /// </summary>
         // public async Task<string?> CreateTourBookingPaymentUrlAsync(decimal amount, string orderCode, string baseUrl)
         /*
@@ -216,17 +216,50 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var item = new ItemData("Thanh toán đơn hàng", 1, (int)request.Amount);
                 var items = new List<ItemData> { item };
 
+                // === IMPROVED DESCRIPTION LOGIC FOR PRODUCT PAYMENT ===
                 // PayOS requires description to be max 25 characters
-                var description = request.Description ?? "Thanh toán";
-                if (description.Length > 25)
+                string payOsDescription;
+                string databaseDescription;
+                
+                // If this is a product payment (OrderId is present), use "Product " prefix with TNDT order code
+                if (request.OrderId.HasValue)
                 {
-                    description = description.Substring(0, 25);
+                    // For product payments, show "Product " + PayOS order code with TNDT prefix
+                    payOsDescription = $"Product {tndtOrderCode}"; // e.g., "Product TNDT1754325287517"
+                    // If too long, truncate to fit PayOS 25-character limit
+                    if (payOsDescription.Length > 25)
+                    {
+                        payOsDescription = payOsDescription.Substring(0, 25);
+                    }
+                    databaseDescription = payOsDescription; // Đồng bộ với PayOS description
+                }
+                else if (request.TourBookingId.HasValue)
+                {
+                    // For tour booking payments, use "Tour" prefix with TNDT code
+                    payOsDescription = $"Tour {tndtOrderCode}";
+                    // If too long, truncate to fit PayOS 25-character limit
+                    if (payOsDescription.Length > 25)
+                    {
+                        payOsDescription = payOsDescription.Substring(0, 25);
+                    }
+                    databaseDescription = payOsDescription; // Đồng bộ với PayOS description
+                }
+                else
+                {
+                    // Fallback for other payment types
+                    var fallbackDescription = request.Description ?? "Thanh toán";
+                    if (fallbackDescription.Length > 25)
+                    {
+                        fallbackDescription = fallbackDescription.Substring(0, 25);
+                    }
+                    payOsDescription = fallbackDescription;
+                    databaseDescription = fallbackDescription;
                 }
 
                 var paymentData = new PaymentData(
                     orderCode: numericOrderCode, // PayOS API requires numeric
                     amount: (int)request.Amount,
-                    description: description,
+                    description: payOsDescription, // Sử dụng description đã được xử lý
                     items: items,
                     cancelUrl: $"{_config["PayOS:CancelUrl"]}?orderCode={tndtOrderCode}",
                     returnUrl: $"{_config["PayOS:ReturnUrl"]}?orderCode={tndtOrderCode}"
@@ -243,7 +276,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TourBookingId = request.TourBookingId,
                     Amount = request.Amount,
                     Status = PaymentStatus.Pending,
-                    Description = request.Description,
+                    Description = databaseDescription, // Sử dụng cùng description với PayOS
                     ExpiredAt = DateTime.UtcNow.AddMinutes(15),
                     Gateway = PaymentGateway.PayOS,
                     PayOsOrderCode = tndtOrderCode, // Store TNDT format
@@ -256,7 +289,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Save PaymentTransaction first to ensure it's persisted
                 await _unitOfWork.SaveChangesAsync();
-                _logger.LogInformation("PaymentTransaction saved with PayOS order code {OrderCode}", tndtOrderCode);
+                _logger.LogInformation("PaymentTransaction saved with PayOS order code {OrderCode} and description {Description}", 
+                    tndtOrderCode, databaseDescription);
 
                 // === SYNC PAYOS ORDER CODE TO ORDER/TOURBOOKING FOR LOOKUP COMPATIBILITY ===
                 // Use separate try-catch to prevent rollback of PaymentTransaction if sync fails
@@ -352,13 +386,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     throw new InvalidOperationException("Không thể retry khi giao dịch cuối cùng đang PENDING hoặc PAID hoặc đã RETRY.");
                 }
 
-                // 4. Tạo payment link mới
+                // 4. Tạo payment link mới - sử dụng logic tương tự CreatePaymentLinkAsync
+                // Để đảm bảo description đồng bộ với PayOsOrderCode
                 var newRequest = new CreatePaymentRequestDto
                 {
                     OrderId = request.OrderId,
                     TourBookingId = request.TourBookingId,
                     Amount = rootTransaction.Amount,
-                    Description = "Thanh toán thử lại"
+                    Description = null // Để CreatePaymentLinkAsync tự tạo description phù hợp
                 };
 
                 var newTransaction = await CreatePaymentLinkAsync(newRequest);
@@ -370,7 +405,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.PaymentTransactionRepository.UpdateAsync(newTransaction);
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Created retry payment for transaction {ParentId} -> {NewId}",
+                _logger.LogInformation("Created retry payment for transaction {ParentId} -> {NewId} with synchronized description",
                     latestTransaction.Id, newTransaction.Id);
 
                 return newTransaction;

@@ -1360,6 +1360,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     SpecialtyShopId = table.Column<Guid>(type: "CHAR(36)", nullable: true, collation: "ascii_general_ci"),
                     SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsCompleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CompletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    CompletionNotes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     CreatedById = table.Column<Guid>(type: "CHAR(36)", nullable: false, collation: "ascii_general_ci"),
@@ -1622,6 +1626,65 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "TourIncidents",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    TourOperationId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    ReportedByGuideId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Title = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Severity = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ImageUrls = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ReportedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    AdminNotes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProcessedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ResolvedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TourIncidents", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TourIncidents_TourGuides_ReportedByGuideId",
+                        column: x => x.ReportedByGuideId,
+                        principalTable: "TourGuides",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TourIncidents_TourOperations_TourOperationId",
+                        column: x => x.TourOperationId,
+                        principalTable: "TourOperations",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TourIncidents_Users_CreatedById",
+                        column: x => x.CreatedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TourIncidents_Users_UpdatedById",
+                        column: x => x.UpdatedById,
+                        principalTable: "Users",
+                        principalColumn: "Id");
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "TourBookings",
                 columns: table => new
                 {
@@ -1654,6 +1717,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     QRCodeData = table.Column<string>(type: "longtext", nullable: true, comment: "QR code data cho khách hàng")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ReservedUntil = table.Column<DateTime>(type: "datetime(6)", nullable: true, comment: "Thời gian hết hạn reservation để tự động release slot nếu không thanh toán"),
+                    IsCheckedIn = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CheckInTime = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    CheckInNotes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     RowVersion = table.Column<DateTime>(type: "timestamp(6)", rowVersion: true, nullable: false, comment: "Row version cho optimistic concurrency control"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
@@ -1702,7 +1769,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ExpiredAt = table.Column<DateTime>(type: "datetime(6)", nullable: true, comment: "Thời gian hết hạn giao dịch"),
                     Gateway = table.Column<int>(type: "int", nullable: false, comment: "Cổng thanh toán sử dụng"),
-                    PayOsOrderCode = table.Column<long>(type: "bigint", nullable: true, comment: "PayOS Order Code (số)"),
+                    PayOsOrderCode = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true, comment: "PayOS Order Code with TNDT prefix")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     PayOsTransactionId = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true, comment: "PayOS Transaction ID")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CheckoutUrl = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true, comment: "URL checkout PayOS")
@@ -2495,6 +2563,26 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_TourIncidents_CreatedById",
+                table: "TourIncidents",
+                column: "CreatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourIncidents_ReportedByGuideId",
+                table: "TourIncidents",
+                column: "ReportedByGuideId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourIncidents_TourOperationId",
+                table: "TourIncidents",
+                column: "TourOperationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TourIncidents_UpdatedById",
+                table: "TourIncidents",
+                column: "UpdatedById");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TourOperations_CreatedById",
                 table: "TourOperations",
                 column: "CreatedById");
@@ -2780,6 +2868,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             migrationBuilder.DropTable(
                 name: "TourGuideInvitations");
+
+            migrationBuilder.DropTable(
+                name: "TourIncidents");
 
             migrationBuilder.DropTable(
                 name: "VoucherCodes");
