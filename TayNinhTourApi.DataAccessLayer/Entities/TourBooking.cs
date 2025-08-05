@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
@@ -51,6 +52,20 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [Required]
         [Range(0, double.MaxValue, ErrorMessage = "Tổng giá phải >= 0")]
         public decimal TotalPrice { get; set; }
+
+        /// <summary>
+        /// Số tiền giữ lại (revenue hold) của booking này
+        /// Được cộng khi khách thanh toán thành công (90% của TotalPrice sau khi trừ 10% commission)
+        /// Sẽ được chuyển vào ví của TourCompany sau 3 ngày từ khi tour hoàn thành
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal RevenueHold { get; set; } = 0;
+
+        /// <summary>
+        /// Ngày chuyển tiền từ revenue hold sang wallet của TourCompany
+        /// Null nếu chưa chuyển tiền
+        /// </summary>
+        public DateTime? RevenueTransferredDate { get; set; }
 
         /// <summary>
         /// Trạng thái của booking

@@ -1,9 +1,11 @@
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
+using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     /// <summary>
     /// Service quản lý doanh thu và ví tiền của TourCompany
+    /// Updated to work with booking-level revenue hold
     /// </summary>
     public interface ITourRevenueService
     {
@@ -18,11 +20,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Chuyển tiền từ revenue hold sang wallet (sau 3 ngày từ ngày tour kết thúc)
+        /// NEW: Works with booking-level revenue hold
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="amount">Số tiền cần chuyển</param>
         /// <returns>Kết quả thực hiện</returns>
         Task<BaseResposeDto> TransferFromHoldToWalletAsync(Guid tourCompanyUserId, decimal amount);
+
+        /// <summary>
+        /// Chuyển tiền từ booking revenue hold sang TourCompany wallet
+        /// NEW: Transfer revenue from specific booking to tour company wallet
+        /// </summary>
+        /// <param name="bookingId">ID của booking cần chuyển tiền</param>
+        /// <returns>Kết quả thực hiện</returns>
+        Task<BaseResposeDto> TransferBookingRevenueToWalletAsync(Guid bookingId);
 
         /// <summary>
         /// Trừ tiền từ revenue hold để chuẩn bị hoàn tiền (khi hủy tour)
@@ -38,7 +49,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <returns>Thông tin tài chính</returns>
-        Task<TourCompanyFinancialInfo?> GetFinancialInfoAsync(Guid tourCompanyUserId);
+        Task<DTOs.Response.TourCompany.TourCompanyFinancialInfo?> GetFinancialInfoAsync(Guid tourCompanyUserId);
 
         /// <summary>
         /// Tạo TourCompany record cho User mới có role Tour Company
@@ -54,5 +65,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="userId">ID của User</param>
         /// <returns>True nếu là Tour Company</returns>
         Task<bool> IsTourCompanyAsync(Guid userId);
+
+        /// <summary>
+        /// Get all bookings with revenue hold that are eligible for transfer (after 3 days)
+        /// NEW: Helper method for automated revenue transfer process
+        /// </summary>
+        /// <returns>List of bookings eligible for revenue transfer</returns>
+        Task<List<TourBooking>> GetBookingsEligibleForRevenueTransferAsync();
     }
 }

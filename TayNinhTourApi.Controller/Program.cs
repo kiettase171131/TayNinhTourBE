@@ -20,7 +20,6 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.SeedData;
-using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
@@ -257,7 +256,6 @@ builder.Services.AddScoped<IBlogImageRepository, BlogImageRepository>();
 builder.Services.AddScoped<IBlogReactionRepository, BlogReactionRepository>();
 builder.Services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
 
-
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductImageRepository, ProductImageRepository>();
 builder.Services.AddScoped<IProductRatingRepository, ProductRatingRepository>();
@@ -306,6 +304,7 @@ builder.Services.AddScoped<EmailSender>();
 builder.Services.AddHostedService<BackgroundJobService>();
 builder.Services.AddHostedService<TourAutoCancelService>();
 builder.Services.AddHostedService<TourBookingCleanupService>();
+builder.Services.AddHostedService<TourRevenueTransferService>(); // NEW: Automated revenue transfer service
 
 // Register UnitOfWork
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

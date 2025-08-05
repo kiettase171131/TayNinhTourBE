@@ -149,17 +149,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     if (!hasEligibleSlots) continue;
 
-                    var bookingRate = (double)tourOperation.CurrentBookings / tourOperation.MaxGuests;
+                    // UPDATED: Calculate guest booking rate instead of booking count rate
+                    // Compare number of guests booked vs. maximum capacity
+                    var guestBookingRate = (double)tourOperation.CurrentBookings / tourOperation.MaxGuests;
                     
-                    if (bookingRate < 0.5) // < 50% capacity
+                    if (guestBookingRate < 0.5) // < 50% capacity by guest count
                     {
-                        _logger.LogInformation("Cancelling under-booked tour: {TourTitle} (Booking rate: {BookingRate:P})", 
-                            tourOperation.TourDetails?.Title, bookingRate);
+                        _logger.LogInformation("Cancelling under-booked tour: {TourTitle} (Guest booking rate: {BookingRate:P}, {CurrentGuests}/{MaxGuests} guests)", 
+                            tourOperation.TourDetails?.Title, guestBookingRate, tourOperation.CurrentBookings, tourOperation.MaxGuests);
 
                         await CancelTourAndRefundAsync(tourOperation, serviceProvider, cancellationToken);
                     }
-                }
-                catch (Exception ex)
+                }                catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error processing tour {TourId} for cancellation", tourOperation.Id);
                 }
@@ -230,14 +231,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var commissionRate = 0.10m;
                 var amountInRevenueHold = totalBookingAmount * (1 - commissionRate); // 90% in revenue hold
 
-                // 6. Deduct from TourCompany revenue hold (only the 90% that's actually there)
-                await revenueService.RefundFromRevenueHoldAsync(
-                    tourOperation.CreatedById, 
-                    amountInRevenueHold, 
-                    tourOperation.Id);
+                // 6. Deduct from booking revenue holds (100% that's actually there)
+                foreach (var booking in bookings)
+                {
+                    if (booking.RevenueHold > 0)
+                    {
+                        await revenueService.RefundFromRevenueHoldAsync(
+                            tourOperation.CreatedById, 
+                            booking.RevenueHold, // Full amount (100%)
+                            booking.Id);
+                    }
+                }
 
-                // Note: The system will handle full customer refund (100%) from other sources
-                // while only deducting the 90% from tour company's revenue hold
+                // Note: The system will handle full customer refund (100%) from the revenue hold
+                // since we now keep 100% of customer payments in revenue hold
 
                 // 7. Send notifications
                 var bookingDtos = bookings.Select(b => new TourBookingDto
@@ -273,7 +280,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     bookingDtos,
                     tourOperation.TourDetails?.Title ?? "Unknown Tour",
                     tourStartDate,
-                    "Không đủ khách (< 50% capacity)");
+                    $"Không đủ khách (chỉ có {tourOperation.CurrentBookings}/{tourOperation.MaxGuests} khách, < 50% capacity)");
 
                 // 8. Send cancellation emails to customers
                 // This would be implemented separately or integrated with existing email service
@@ -281,8 +288,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                _logger.LogInformation("Successfully cancelled tour: {TourTitle} with {BookingCount} bookings, deducted {DeductedAmount} from revenue hold (after 10% commission)",
-                    tourOperation.TourDetails?.Title, bookings.Count, amountInRevenueHold);
+                var totalRefundAmount = bookings.Sum(b => b.TotalPrice);
+                _logger.LogInformation("Successfully cancelled tour: {TourTitle} with {BookingCount} bookings, total refund amount: {RefundAmount} VNĐ (100% to customers)",
+                    tourOperation.TourDetails?.Title, bookings.Count, totalRefundAmount);
                 }
                 catch (Exception ex)
                 {
@@ -295,36 +303,35 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Chuyển tiền từ revenue hold sang wallet cho các tours đã hoàn thành 3 ngày
+        /// UPDATED: Now works with booking-level revenue hold
         /// </summary>
         private async Task TransferMaturedRevenueAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
         {
             try
             {
-                var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
                 var revenueService = serviceProvider.GetRequiredService<ITourRevenueService>();
                 var notificationService = serviceProvider.GetRequiredService<ITourCompanyNotificationService>();
 
-                var threeDaysAgo = DateTime.UtcNow.AddDays(-3);
+                // Get eligible booking IDs for revenue transfer
+                var eligibleBookings = await revenueService.GetBookingsEligibleForRevenueTransferAsync();
 
-                // Get completed tour IDs first (more efficient)
-                var completedTourIds = await unitOfWork.TourOperationRepository.GetQueryable()
-                    .Where(to => to.Status == TourOperationStatus.Completed && !to.IsDeleted)
-                    .Select(to => new { to.Id, to.TourDetailsId, to.CreatedById })
-                    .ToListAsync(cancellationToken);
-
-                if (!completedTourIds.Any())
+                if (!eligibleBookings.Any())
                 {
-                    _logger.LogInformation("No completed tours found for revenue transfer");
+                    _logger.LogInformation("No eligible bookings found for revenue transfer");
                     return;
                 }
 
-                // Process tours in batches
-                for (int i = 0; i < completedTourIds.Count; i += BatchSize)
+                _logger.LogInformation("Found {Count} bookings eligible for revenue transfer", eligibleBookings.Count);
+
+                // Process bookings in batches - extract IDs from booking entities
+                var eligibleBookingIds = eligibleBookings.Select(b => b.Id).ToList();
+                
+                for (int i = 0; i < eligibleBookingIds.Count; i += BatchSize)
                 {
                     if (cancellationToken.IsCancellationRequested) break;
 
-                    var batch = completedTourIds.Skip(i).Take(BatchSize);
-                    await ProcessTourBatchForRevenueTransferAsync(batch, threeDaysAgo, serviceProvider, cancellationToken);
+                    var batch = eligibleBookingIds.Skip(i).Take(BatchSize);
+                    await ProcessBookingBatchForRevenueTransferAsync(batch, serviceProvider, cancellationToken);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -337,9 +344,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        private async Task ProcessTourBatchForRevenueTransferAsync(
-            IEnumerable<object> tourBatch,
-            DateTime threeDaysAgo,
+        /// <summary>
+        /// Process booking batch for revenue transfer
+        /// NEW: Process individual bookings instead of tour operations
+        /// </summary>
+        private async Task ProcessBookingBatchForRevenueTransferAsync(
+            IEnumerable<Guid> bookingBatch,
             IServiceProvider serviceProvider,
             CancellationToken cancellationToken)
         {
@@ -347,85 +357,51 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var revenueService = serviceProvider.GetRequiredService<ITourRevenueService>();
             var notificationService = serviceProvider.GetRequiredService<ITourCompanyNotificationService>();
 
-            foreach (var tourObj in tourBatch)
+            foreach (var bookingId in bookingBatch)
             {
                 if (cancellationToken.IsCancellationRequested) break;
 
                 try
                 {
-                    dynamic tour = tourObj;
-                    var tourDetailsId = (Guid)tour.TourDetailsId;
-                    var tourId = (Guid)tour.Id;
-                    var createdById = (Guid)tour.CreatedById;
-
-                    // Check if tour has slots completed 3 days ago
-                    var hasEligibleSlots = await unitOfWork.TourSlotRepository.GetQueryable()
-                        .Where(s => s.TourDetailsId == tourDetailsId)
-                        .Where(s => s.TourDate.ToDateTime(TimeOnly.MinValue) <= threeDaysAgo)
-                        .AnyAsync(cancellationToken);
-
-                    if (!hasEligibleSlots) continue;
-
-                    // Get tour details separately
-                    var tourDetails = await unitOfWork.TourDetailsRepository.GetQueryable()
-                        .Where(td => td.Id == tourDetailsId)
-                        .FirstOrDefaultAsync(cancellationToken);
-
-                    // Tính tổng tiền từ các bookings confirmed của tour này
-                    var confirmedBookings = await unitOfWork.TourBookingRepository.GetQueryable()
-                        .Where(b => b.TourOperationId == tourId &&
-                                   b.Status == BookingStatus.Confirmed &&
-                                   !b.IsDeleted)
-                        .Select(b => b.TotalPrice)
-                        .ToListAsync(cancellationToken);
-
-                    if (!confirmedBookings.Any()) continue;
-
-                    var totalBookingAmount = confirmedBookings.Sum();
-
-                    // Get tour completion date separately
-                    var tourCompletedDate = await unitOfWork.TourSlotRepository.GetQueryable()
-                        .Where(s => s.TourDetailsId == tourDetailsId)
-                        .Select(s => s.TourDate.ToDateTime(TimeOnly.MinValue))
-                        .OrderByDescending(d => d)
-                        .FirstOrDefaultAsync(cancellationToken);
-
-                    if (tourCompletedDate == default(DateTime))
-                    {
-                        tourCompletedDate = DateTime.UtcNow;
-                    }
-
-                    // Calculate the amount in revenue hold (90% of total booking amount due to 10% commission)
-                    var commissionRate = 0.10m;
-                    var availableAmountInHold = totalBookingAmount * (1 - commissionRate);
-
-                    // Transfer from revenue hold to wallet (only the 90% that's actually in the hold)
-                    var transferResult = await revenueService.TransferFromHoldToWalletAsync(
-                        createdById,
-                        availableAmountInHold);
+                    // Transfer revenue for this specific booking
+                    var transferResult = await revenueService.TransferBookingRevenueToWalletAsync(bookingId);
 
                     if (transferResult.success)
                     {
-                        // Send notification with the amount actually transferred (90% of booking)
-                        await notificationService.NotifyRevenueTransferAsync(
-                            createdById,
-                            availableAmountInHold,
-                            tourDetails?.Title ?? "Unknown Tour",
-                            tourCompletedDate);
+                        // Get booking details for notification
+                        var booking = await unitOfWork.TourBookingRepository.GetQueryable()
+                            .Where(b => b.Id == bookingId)
+                            .Include(b => b.TourOperation)
+                                .ThenInclude(to => to.TourDetails)
+                            .Include(b => b.TourSlot)
+                            .FirstOrDefaultAsync(cancellationToken);
 
-                        _logger.LogInformation("Transferred revenue for tour: {TourTitle}, amount: {Amount} (after 10% commission deduction)", 
-                            tourDetails?.Title, availableAmountInHold);
+                        if (booking != null)
+                        {
+                            var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Unknown Tour";
+                            var tourCompletedDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.UtcNow;
+                            var transferredAmount = booking.RevenueHold; // Amount that was transferred
+
+                            // Send notification to tour company
+                            await notificationService.NotifyRevenueTransferAsync(
+                                booking.TourOperation.CreatedById,
+                                transferredAmount,
+                                tourTitle,
+                                tourCompletedDate);
+
+                            _logger.LogInformation("Transferred revenue for booking: {BookingCode}, amount: {Amount}, tour: {TourTitle}", 
+                                booking.BookingCode, transferredAmount, tourTitle);
+                        }
                     }
                     else
                     {
-                        _logger.LogWarning("Failed to transfer revenue for tour: {TourTitle}, reason: {Reason}", 
-                            tourDetails?.Title, transferResult.Message);
+                        _logger.LogWarning("Failed to transfer revenue for booking {BookingId}: {Reason}", 
+                            bookingId, transferResult.Message);
                     }
                 }
                 catch (Exception ex)
                 {
-                    dynamic tour = tourObj;
-                    _logger.LogError(ex, "Error processing tour {TourId} for revenue transfer", (Guid)tour.Id);
+                    _logger.LogError(ex, "Error processing booking {BookingId} for revenue transfer", bookingId);
                 }
             }
         }

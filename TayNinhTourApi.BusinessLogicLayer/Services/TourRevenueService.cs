@@ -1,19 +1,24 @@
 using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
     /// Service quản lý doanh thu và ví tiền của TourCompany
+    /// ENHANCED: Now works with booking-level revenue hold system
+    /// Revenue is now stored in TourBooking.RevenueHold instead of TourCompany.RevenueHold
     /// </summary>
     public class TourRevenueService : ITourRevenueService
     {
         private readonly IUnitOfWork _unitOfWork;
 
-        // Commission rate for tour companies (10%)
+        // Commission rate for tour companies (10% - platform fee)
         private const decimal TOUR_COMMISSION_RATE = 0.10m;
 
         public TourRevenueService(IUnitOfWork unitOfWork)
@@ -23,7 +28,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Thêm tiền vào revenue hold sau khi booking thành công
-        /// Áp dụng phí hoa hồng 10% cho tour company
+        /// UPDATED: Keep 100% of payment amount in revenue hold, commission deducted only at transfer time
         /// </summary>
         public async Task<BaseResposeDto> AddToRevenueHoldAsync(Guid tourCompanyUserId, decimal amount, Guid bookingId)
         {
@@ -40,34 +45,43 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
 
-                var tourCompany = await _unitOfWork.TourCompanyRepository
-                    .GetFirstOrDefaultAsync(tc => tc.UserId == tourCompanyUserId && !tc.IsDeleted);
+                // Find the specific booking
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Include(b => b.TourOperation)
+                        .ThenInclude(to => to.TourDetails)
+                    .FirstOrDefaultAsync(b => b.Id == bookingId && !b.IsDeleted);
 
-                if (tourCompany == null)
+                if (booking == null)
                 {
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy thông tin công ty tour"
+                        Message = "Không tìm thấy booking"
                     };
                 }
 
-                // Calculate commission and final amount for tour company
-                decimal commissionAmount = amount * TOUR_COMMISSION_RATE;
-                decimal tourCompanyAmount = amount - commissionAmount;
+                // Verify tour company ownership
+                if (booking.TourOperation?.TourDetails?.CreatedById != tourCompanyUserId)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "Không có quyền truy cập booking này"
+                    };
+                }
 
-                // Add only 90% to tour company's revenue hold (after 10% commission deduction)
-                tourCompany.RevenueHold += tourCompanyAmount;
-                tourCompany.UpdatedAt = DateTime.UtcNow;
+                // UPDATED: Set full amount in revenue hold (100%), commission will be deducted later at transfer time
+                booking.RevenueHold = amount; // Keep 100% of payment
+                booking.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow();
 
-                await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
+                await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
                 await _unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = $"Đã thêm {tourCompanyAmount:N0} VNĐ vào revenue hold (sau khi trừ phí hoa hồng {commissionAmount:N0} VNĐ)",
+                    Message = $"Đã set revenue hold {amount:N0} VNĐ cho booking (100% số tiền thanh toán, phí hoa hồng sẽ trừ khi chuyển tiền)",
                     success = true
                 };
             }
@@ -76,31 +90,107 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"Lỗi khi thêm tiền vào revenue hold: {ex.Message}"
+                    Message = $"Lỗi khi thêm revenue hold: {ex.Message}"
                 };
             }
         }
 
         /// <summary>
-        /// Chuyển tiền từ revenue hold sang wallet
+        /// Chuyển tiền từ revenue hold sang wallet (sau 3 ngày từ ngày tour kết thúc)
+        /// DEPRECATED: Use TransferBookingRevenueToWalletAsync instead
         /// </summary>
         public async Task<BaseResposeDto> TransferFromHoldToWalletAsync(Guid tourCompanyUserId, decimal amount)
         {
-            if (amount <= 0)
+            return new BaseResposeDto
             {
-                return new BaseResposeDto
-                {
-                    StatusCode = 400,
-                    Message = "Số tiền phải lớn hơn 0"
-                };
-            }
+                StatusCode = 400,
+                Message = "Method deprecated. Use TransferBookingRevenueToWalletAsync for individual booking transfers."
+            };
+        }
 
+        /// <summary>
+        /// Chuyển tiền từ booking revenue hold sang TourCompany wallet
+        /// UPDATED: Transfer revenue from booking to tour company wallet, deducting 10% commission at transfer time
+        /// </summary>
+        public async Task<BaseResposeDto> TransferBookingRevenueToWalletAsync(Guid bookingId)
+        {
             try
             {
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
 
+                // Get booking with all required data
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Include(b => b.TourOperation)
+                        .ThenInclude(to => to.TourDetails)
+                    .Include(b => b.TourSlot)
+                    .FirstOrDefaultAsync(b => b.Id == bookingId && !b.IsDeleted);
+
+                if (booking == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy booking"
+                    };
+                }
+
+                // Check if already transferred
+                if (booking.RevenueTransferredDate.HasValue)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Revenue từ booking này đã được chuyển trước đó",
+                        success = true
+                    };
+                }
+
+                // Check if booking is confirmed and has revenue hold
+                if (booking.Status != BookingStatus.Confirmed && booking.Status != BookingStatus.Completed)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Chỉ có thể chuyển tiền từ booking đã xác nhận hoặc hoàn thành"
+                    };
+                }
+
+                if (booking.RevenueHold <= 0)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Booking này không có revenue hold để chuyển"
+                    };
+                }
+
+                // Check if tour is completed and 3 days have passed
+                var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
+                var transferEligibleDate = tourDate.AddDays(3);
+                var currentTime = VietnamTimeZoneUtility.GetVietnamNow();
+
+                if (currentTime < transferEligibleDate)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = $"Chỉ có thể chuyển tiền sau 3 ngày từ ngày tour kết thúc ({transferEligibleDate:dd/MM/yyyy})"
+                    };
+                }
+
+                // Get tour company
+                var tourCompanyUserId = booking.TourOperation?.TourDetails?.CreatedById;
+                if (!tourCompanyUserId.HasValue)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Không tìm thấy thông tin tour company"
+                    };
+                }
+
                 var tourCompany = await _unitOfWork.TourCompanyRepository
-                    .GetFirstOrDefaultAsync(tc => tc.UserId == tourCompanyUserId && !tc.IsDeleted);
+                    .GetFirstOrDefaultAsync(tc => tc.UserId == tourCompanyUserId.Value && !tc.IsDeleted);
 
                 if (tourCompany == null)
                 {
@@ -111,27 +201,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                if (tourCompany.RevenueHold < amount)
-                {
-                    return new BaseResposeDto
-                    {
-                        StatusCode = 400,
-                        Message = "Số tiền trong revenue hold không đủ"
-                    };
-                }
+                // UPDATED: Calculate transfer amount by deducting 10% commission from the full revenue hold
+                var fullAmount = booking.RevenueHold; // 100% of customer payment
+                var commissionAmount = fullAmount * TOUR_COMMISSION_RATE; // 10% platform fee
+                var transferAmount = fullAmount - commissionAmount; // 90% goes to tour company
 
-                tourCompany.RevenueHold -= amount;
-                tourCompany.Wallet += amount;
-                tourCompany.UpdatedAt = DateTime.UtcNow;
+                // Transfer net amount (after commission) to tour company wallet
+                tourCompany.Wallet += transferAmount;
+                tourCompany.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow();
+
+                // Mark booking as revenue transferred
+                booking.RevenueHold = 0; // Clear revenue hold since it's transferred
+                booking.RevenueTransferredDate = VietnamTimeZoneUtility.GetVietnamNow();
+                booking.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow();
 
                 await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
+                await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
                 await _unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "Đã chuyển tiền từ revenue hold sang wallet thành công",
+                    Message = $"Đã chuyển {transferAmount:N0} VNĐ từ booking {booking.BookingCode} vào ví công ty tour (sau khi trừ {commissionAmount:N0} VNĐ phí hoa hồng)",
                     success = true
                 };
             }
@@ -140,13 +232,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"Lỗi khi chuyển tiền: {ex.Message}"
+                    Message = $"Lỗi khi chuyển revenue từ booking: {ex.Message}"
                 };
             }
         }
 
         /// <summary>
-        /// Trừ tiền từ revenue hold để chuẩn bị hoàn tiền
+        /// Trừ tiền từ revenue hold để chuẩn bị hoàn tiền (khi hủy tour)
+        /// UPDATED: Now works with booking-level revenue hold
         /// </summary>
         public async Task<BaseResposeDto> RefundFromRevenueHoldAsync(Guid tourCompanyUserId, decimal amount, Guid bookingId)
         {
@@ -163,38 +256,53 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
 
-                var tourCompany = await _unitOfWork.TourCompanyRepository
-                    .GetFirstOrDefaultAsync(tc => tc.UserId == tourCompanyUserId && !tc.IsDeleted);
+                // Find the specific booking
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Include(b => b.TourOperation)
+                        .ThenInclude(to => to.TourDetails)
+                    .FirstOrDefaultAsync(b => b.Id == bookingId && !b.IsDeleted);
 
-                if (tourCompany == null)
+                if (booking == null)
                 {
                     return new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy thông tin công ty tour"
+                        Message = "Không tìm thấy booking"
                     };
                 }
 
-                if (tourCompany.RevenueHold < amount)
+                // Verify tour company ownership
+                if (booking.TourOperation?.TourDetails?.CreatedById != tourCompanyUserId)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "Không có quyền truy cập booking này"
+                    };
+                }
+
+                // Check if booking has enough revenue hold
+                if (booking.RevenueHold < amount)
                 {
                     return new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "Số tiền trong revenue hold không đủ để hoàn tiền"
+                        Message = $"Booking chỉ có {booking.RevenueHold:N0} VNĐ revenue hold, không đủ để refund {amount:N0} VNĐ"
                     };
                 }
 
-                tourCompany.RevenueHold -= amount;
-                tourCompany.UpdatedAt = DateTime.UtcNow;
+                // Reduce revenue hold for refund
+                booking.RevenueHold -= amount;
+                booking.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow();
 
-                await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
+                await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
                 await _unitOfWork.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "Đã trừ tiền từ revenue hold để hoàn tiền thành công",
+                    Message = $"Đã trừ {amount:N0} VNĐ từ revenue hold của booking để chuẩn bị hoàn tiền",
                     success = true
                 };
             }
@@ -203,33 +311,92 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"Lỗi khi trừ tiền từ revenue hold: {ex.Message}"
+                    Message = $"Lỗi khi trừ revenue hold: {ex.Message}"
                 };
             }
         }
 
         /// <summary>
         /// Lấy thông tin tài chính của TourCompany
+        /// UPDATED: Now includes revenue hold from individual bookings
         /// </summary>
-        public async Task<TourCompanyFinancialInfo?> GetFinancialInfoAsync(Guid tourCompanyUserId)
+        public async Task<DTOs.Response.TourCompany.TourCompanyFinancialInfo?> GetFinancialInfoAsync(Guid tourCompanyUserId)
         {
-            var tourCompany = await _unitOfWork.TourCompanyRepository
-                .GetFirstOrDefaultAsync(tc => tc.UserId == tourCompanyUserId && !tc.IsDeleted);
-
-            if (tourCompany == null)
-                return null;
-
-            return new TourCompanyFinancialInfo
+            try
             {
-                Id = tourCompany.Id,
-                UserId = tourCompany.UserId,
-                CompanyName = tourCompany.CompanyName,
-                Wallet = tourCompany.Wallet,
-                RevenueHold = tourCompany.RevenueHold,
-                IsActive = tourCompany.IsActive,
-                CreatedAt = tourCompany.CreatedAt,
-                UpdatedAt = tourCompany.UpdatedAt ?? tourCompany.CreatedAt
-            };
+                var tourCompany = await _unitOfWork.TourCompanyRepository
+                    .GetFirstOrDefaultAsync(tc => tc.UserId == tourCompanyUserId && !tc.IsDeleted);
+
+                if (tourCompany == null)
+                    return null;
+
+                // Calculate total revenue hold from all confirmed bookings of this tour company
+                var totalRevenueHold = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(b => b.TourOperation.TourDetails.CreatedById == tourCompanyUserId 
+                        && !b.IsDeleted 
+                        && b.Status == BookingStatus.Confirmed 
+                        && b.RevenueHold > 0
+                        && !b.RevenueTransferredDate.HasValue) // Only bookings that haven't been transferred yet
+                    .SumAsync(b => b.RevenueHold);
+
+                // Get count of pending transfer bookings (eligible for transfer after 3 days)
+                var currentTime = VietnamTimeZoneUtility.GetVietnamNow();
+                var eligibleTransferBookings = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(b => b.TourOperation.TourDetails.CreatedById == tourCompanyUserId 
+                        && !b.IsDeleted 
+                        && b.Status == BookingStatus.Confirmed 
+                        && b.RevenueHold > 0
+                        && !b.RevenueTransferredDate.HasValue
+                        && b.TourSlot != null
+                        && b.TourSlot.TourDate.ToDateTime(TimeOnly.MinValue).AddDays(3) <= currentTime)
+                    .CountAsync();
+
+                return new DTOs.Response.TourCompany.TourCompanyFinancialInfo
+                {
+                    TourCompanyId = tourCompany.Id,
+                    UserId = tourCompany.UserId,
+                    CompanyName = tourCompany.CompanyName,
+                    Wallet = tourCompany.Wallet,
+                    RevenueHold = totalRevenueHold, // Sum from all bookings
+                    TotalRevenue = tourCompany.Wallet + totalRevenueHold,
+                    EligibleTransferBookings = eligibleTransferBookings,
+                    LastUpdated = tourCompany.UpdatedAt ?? tourCompany.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting financial info: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get all bookings with revenue hold that are eligible for transfer (after 3 days)
+        /// NEW: Helper method for automated revenue transfer process
+        /// </summary>
+        public async Task<List<TourBooking>> GetBookingsEligibleForRevenueTransferAsync()
+        {
+            try
+            {
+                var currentTime = VietnamTimeZoneUtility.GetVietnamNow();
+                
+                return await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Include(b => b.TourOperation)
+                        .ThenInclude(to => to.TourDetails)
+                    .Include(b => b.TourSlot)
+                    .Where(b => !b.IsDeleted 
+                        && b.Status == BookingStatus.Confirmed 
+                        && b.RevenueHold > 0
+                        && !b.RevenueTransferredDate.HasValue
+                        && b.TourSlot != null
+                        && b.TourSlot.TourDate.ToDateTime(TimeOnly.MinValue).AddDays(3) <= currentTime)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting bookings eligible for revenue transfer: {ex.Message}");
+                return new List<TourBooking>();
+            }
         }
 
         /// <summary>
@@ -237,39 +404,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         public async Task<BaseResposeDto> CreateTourCompanyAsync(Guid userId, string companyName)
         {
-            if (string.IsNullOrWhiteSpace(companyName))
-            {
-                return new BaseResposeDto
-                {
-                    StatusCode = 400,
-                    Message = "Tên công ty không được để trống"
-                };
-            }
-
             try
             {
-                // Kiểm tra xem User đã có TourCompany chưa
-                var existingCompany = await _unitOfWork.TourCompanyRepository
+                // Check if TourCompany already exists
+                var existingTourCompany = await _unitOfWork.TourCompanyRepository
                     .GetFirstOrDefaultAsync(tc => tc.UserId == userId && !tc.IsDeleted);
 
-                if (existingCompany != null)
+                if (existingTourCompany != null)
                 {
                     return new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "User đã có thông tin công ty tour"
+                        Message = "User đã có TourCompany record"
                     };
                 }
 
+                // Create new TourCompany
                 var tourCompany = new TourCompany
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    CompanyName = companyName.Trim(),
+                    CompanyName = companyName,
                     Wallet = 0,
                     RevenueHold = 0,
                     IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = VietnamTimeZoneUtility.GetVietnamNow(),
                     CreatedById = userId
                 };
 
@@ -279,7 +438,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "Tạo thông tin công ty tour thành công",
+                    Message = "Tạo TourCompany thành công",
                     success = true
                 };
             }
@@ -288,7 +447,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 500,
-                    Message = $"Lỗi khi tạo thông tin công ty tour: {ex.Message}"
+                    Message = $"Lỗi khi tạo TourCompany: {ex.Message}"
                 };
             }
         }
@@ -298,10 +457,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         public async Task<bool> IsTourCompanyAsync(Guid userId)
         {
-            var tourCompany = await _unitOfWork.TourCompanyRepository
-                .GetFirstOrDefaultAsync(tc => tc.UserId == userId && !tc.IsDeleted);
-
-            return tourCompany != null && tourCompany.IsActive;
+            try
+            {
+                var tourCompany = await _unitOfWork.TourCompanyRepository
+                    .GetFirstOrDefaultAsync(tc => tc.UserId == userId && !tc.IsDeleted);
+                
+                return tourCompany != null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking if user is tour company: {ex.Message}");
+                return false;
+            }
         }
     }
 }
