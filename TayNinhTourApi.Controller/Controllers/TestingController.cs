@@ -6,6 +6,8 @@ using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
+using TayNinhTourApi.BusinessLogicLayer.Tests;
+using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -18,15 +20,342 @@ namespace TayNinhTourApi.Controller.Controllers
     public class TestingController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ITourPricingService _pricingService;
         private readonly ILogger<TestingController> _logger;
 
         public TestingController(
             IUnitOfWork unitOfWork,
+            ITourPricingService pricingService,
             ILogger<TestingController> logger)
         {
             _unitOfWork = unitOfWork;
+            _pricingService = pricingService;
             _logger = logger;
         }
+
+        /// <summary>
+        /// Run Early Bird Pricing Tests - Test tính giá early bird discount
+        /// </summary>
+        /// <returns>Kết quả của tất cả early bird tests</returns>
+        [HttpGet("early-bird-pricing-tests")]
+        [ProducesResponseType(typeof(object), 200)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult> RunEarlyBirdPricingTests()
+        {
+            try
+            {
+                _logger.LogInformation("🧪 Running Early Bird Pricing Tests via API");
+
+                var testResults = TestRunner.RunAllTests();
+
+                var result = new
+                {
+                    success = testResults.FailedTests == 0,
+                    message = testResults.FailedTests == 0 
+                        ? "🎉 Tất cả Early Bird tests đều PASSED!" 
+                        : $"⚠️ {testResults.FailedTests} test(s) FAILED",
+                    
+                    summary = new
+                    {
+                        totalTests = testResults.TotalTests,
+                        passedTests = testResults.PassedTests,
+                        failedTests = testResults.FailedTests,
+                        successRate = $"{testResults.SuccessRate:P2}",
+                        executionTime = $"{testResults.TotalExecutionTime.TotalMilliseconds:F2}ms"
+                    },
+                    
+                    testDetails = testResults.AllResults.Select(test => new
+                    {
+                        testName = test.TestName,
+                        status = test.Passed ? "✅ PASSED" : "❌ FAILED",
+                        executionTime = $"{test.ExecutionTime.TotalMilliseconds:F2}ms",
+                        errorMessage = test.ErrorMessage
+                    }).ToList(),
+                    
+                    earlyBirdRules = new
+                    {
+                        discountPercent = "25%",
+                        timeWindow = "15 ngày đầu sau khi tạo tour",
+                        minimumNotice = "Tour phải khởi hành sau ít nhất 30 ngày từ ngày đặt",
+                        logic = "daysSinceCreated <= 15 AND daysUntilTour >= 30"
+                    },
+                    
+                    passedTests = testResults.PassedTestResults.Select(test => new
+                    {
+                        name = test.TestName,
+                        executionTime = $"{test.ExecutionTime.TotalMilliseconds:F2}ms"
+                    }).ToList(),
+                    
+                    failedTests = testResults.FailedTestResults.Select(test => new
+                    {
+                        name = test.TestName,
+                        error = test.ErrorMessage,
+                        executionTime = $"{test.ExecutionTime.TotalMilliseconds:F2}ms"
+                    }).ToList()
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error running Early Bird pricing tests");
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi khi chạy Early Bird tests: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Test Early Bird pricing với thông số tùy chỉnh
+        /// </summary>
+        /// <param name="originalPrice">Giá gốc tour</param>
+        /// <param name="daysSinceCreated">Số ngày kể từ khi tạo tour</param>
+        /// <param name="daysUntilTour">Số ngày từ bây giờ đến khi tour khởi hành</param>
+        /// <returns>Kết quả tính giá với early bird</returns>
+        [HttpGet("test-early-bird-pricing")]
+        [ProducesResponseType(typeof(object), 200)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult> TestEarlyBirdPricing(
+            [FromQuery] decimal originalPrice = 1000000,
+            [FromQuery] int daysSinceCreated = 10,
+            [FromQuery] int daysUntilTour = 45)
+        {
+            try
+            {
+                _logger.LogInformation("🧮 Testing Early Bird pricing with custom parameters: Price={Price}, DaysSinceCreated={DaysSinceCreated}, DaysUntilTour={DaysUntilTour}",
+                    originalPrice, daysSinceCreated, daysUntilTour);
+
+                var currentDate = DateTime.UtcNow;
+                var tourCreatedDate = currentDate.AddDays(-daysSinceCreated);
+                var tourStartDate = currentDate.AddDays(daysUntilTour);
+
+                // Get pricing info
+                var pricingInfo = _pricingService.GetPricingInfo(
+                    originalPrice,
+                    tourStartDate,
+                    tourCreatedDate,
+                    currentDate);
+
+                // Calculate for multiple guests
+                var guestCounts = new[] { 1, 2, 4, 6 };
+                var pricingForGuests = guestCounts.Select(guests => new
+                {
+                    numberOfGuests = guests,
+                    originalTotal = originalPrice * guests,
+                    finalTotal = pricingInfo.FinalPrice * guests,
+                    savings = (originalPrice - pricingInfo.FinalPrice) * guests
+                }).ToList();
+
+                var result = new
+                {
+                    success = true,
+                    message = "Early Bird pricing calculation completed",
+                    
+                    inputParameters = new
+                    {
+                        originalPrice = $"{originalPrice:N0} VND",
+                        daysSinceCreated,
+                        daysUntilTour,
+                        tourCreatedDate = tourCreatedDate.ToString("dd/MM/yyyy"),
+                        tourStartDate = tourStartDate.ToString("dd/MM/yyyy"),
+                        currentDate = currentDate.ToString("dd/MM/yyyy")
+                    },
+                    
+                    pricingResults = new
+                    {
+                        isEarlyBird = pricingInfo.IsEarlyBird,
+                        pricingType = pricingInfo.PricingType,
+                        discountPercent = pricingInfo.DiscountPercent,
+                        originalPrice = $"{pricingInfo.OriginalPrice:N0} VND",
+                        finalPrice = $"{pricingInfo.FinalPrice:N0} VND",
+                        discountAmount = $"{pricingInfo.DiscountAmount:N0} VND",
+                        daysSinceCreated = pricingInfo.DaysSinceCreated,
+                        daysUntilTour = pricingInfo.DaysUntilTour
+                    },
+                    
+                    eligibilityCheck = new
+                    {
+                        withinEarlyBirdWindow = daysSinceCreated <= 15,
+                        sufficientNotice = daysUntilTour >= 30,
+                        meetsAllConditions = pricingInfo.IsEarlyBird,
+                        explanation = pricingInfo.IsEarlyBird
+                            ? "✅ Đủ điều kiện Early Bird - Đặt trong 15 ngày đầu và tour sau ít nhất 30 ngày"
+                            : daysSinceCreated > 15
+                                ? "❌ Không đủ điều kiện - Đã quá 15 ngày kể từ khi mở bán"
+                                : "❌ Không đủ điều kiện - Tour khởi hành quá gần (< 30 ngày)"
+                    },
+                    
+                    pricingForDifferentGuests = pricingForGuests,
+                    
+                    earlyBirdRules = new
+                    {
+                        windowDays = 15,
+                        minimumNoticeDays = 30,
+                        discountPercent = 25,
+                        calculation = "finalPrice = originalPrice * (1 - 0.25) if eligible"
+                    },
+                    
+                    recommendation = pricingInfo.IsEarlyBird
+                        ? $"🎉 Khuyến nghị: Quảng bá Early Bird discount {pricingInfo.DiscountPercent}%!"
+                        : "ℹ️ Tour này không áp dụng Early Bird discount"
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error testing Early Bird pricing");
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi khi test Early Bird pricing: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Performance test cho Early Bird pricing service
+        /// </summary>
+        /// <param name="iterations">Số lần chạy test (default: 1000)</param>
+        /// <returns>Kết quả performance test</returns>
+        [HttpGet("early-bird-performance-test")]
+        [ProducesResponseType(typeof(object), 200)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult> RunEarlyBirdPerformanceTest([FromQuery] int iterations = 1000)
+        {
+            try
+            {
+                _logger.LogInformation("⚡ Running Early Bird Performance Test with {Iterations} iterations", iterations);
+
+                var startTime = DateTime.UtcNow;
+                var successCount = 0;
+                var failCount = 0;
+                var executionTimes = new List<double>();
+
+                // Test data
+                var testCases = new[]
+                {
+                    new { Price = 500000m, DaysCreated = 5, DaysUntil = 45 },
+                    new { Price = 1000000m, DaysCreated = 10, DaysUntil = 35 },
+                    new { Price = 1500000m, DaysCreated = 20, DaysUntil = 25 },
+                    new { Price = 2000000m, DaysCreated = 8, DaysUntil = 60 }
+                };
+
+                for (int i = 0; i < iterations; i++)
+                {
+                    var testCase = testCases[i % testCases.Length];
+                    var iterationStart = DateTime.UtcNow;
+
+                    try
+                    {
+                        var currentDate = DateTime.UtcNow;
+                        var createdDate = currentDate.AddDays(-testCase.DaysCreated);
+                        var startDate = currentDate.AddDays(testCase.DaysUntil);
+
+                        var pricingInfo = _pricingService.GetPricingInfo(
+                            testCase.Price,
+                            startDate,
+                            createdDate,
+                            currentDate);
+
+                        // Verify result is reasonable
+                        if (pricingInfo.OriginalPrice == testCase.Price &&
+                            pricingInfo.FinalPrice > 0 &&
+                            pricingInfo.FinalPrice <= testCase.Price)
+                        {
+                            successCount++;
+                        }
+                        else
+                        {
+                            failCount++;
+                        }
+                    }
+                    catch
+                    {
+                        failCount++;
+                    }
+                    finally
+                    {
+                        var iterationTime = (DateTime.UtcNow - iterationStart).TotalMilliseconds;
+                        executionTimes.Add(iterationTime);
+                    }
+                }
+
+                var totalTime = DateTime.UtcNow - startTime;
+                var avgTime = executionTimes.Average();
+                var minTime = executionTimes.Min();
+                var maxTime = executionTimes.Max();
+
+                var result = new
+                {
+                    success = true,
+                    message = "Early Bird Performance Test completed",
+                    
+                    testParameters = new
+                    {
+                        iterations,
+                        testCasesUsed = testCases.Length,
+                        testDuration = $"{totalTime.TotalSeconds:F2} seconds"
+                    },
+                    
+                    performanceMetrics = new
+                    {
+                        totalIterations = iterations,
+                        successfulIterations = successCount,
+                        failedIterations = failCount,
+                        successRate = $"{(double)successCount / iterations:P2}",
+                        
+                        timing = new
+                        {
+                            totalTime = $"{totalTime.TotalMilliseconds:F2}ms",
+                            averageTimePerIteration = $"{avgTime:F4}ms",
+                            minTimePerIteration = $"{minTime:F4}ms",
+                            maxTimePerIteration = $"{maxTime:F4}ms",
+                            operationsPerSecond = $"{iterations / totalTime.TotalSeconds:F0}"
+                        }
+                    },
+                    
+                    benchmarkResults = new
+                    {
+                        isPerformant = avgTime < 1.0, // Should be under 1ms per operation
+                        performance = avgTime switch
+                        {
+                            < 0.1 => "🚀 Excellent (< 0.1ms)",
+                            < 0.5 => "✅ Very Good (< 0.5ms)",
+                            < 1.0 => "👍 Good (< 1.0ms)",  
+                            < 5.0 => "⚠️ Acceptable (< 5.0ms)",
+                            _ => "❌ Needs Optimization (> 5.0ms)"
+                        },
+                        recommendation = avgTime > 1.0 
+                            ? "Consider caching or optimization for pricing calculations"
+                            : "Performance is excellent for production use"
+                    },
+                    
+                    testCases = testCases.Select((tc, idx) => new
+                    {
+                        caseIndex = idx + 1,
+                        price = $"{tc.Price:N0} VND",
+                        daysSinceCreated = tc.DaysCreated,
+                        daysUntilTour = tc.DaysUntil,
+                        expectedEarlyBird = tc.DaysCreated <= 15 && tc.DaysUntil >= 30
+                    })
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error running Early Bird performance test");
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi khi chạy performance test: {ex.Message}"
+                });
+            }
+        }
+
 
         /// <summary>
         /// Skip time to tour start date to enable testing of tour features

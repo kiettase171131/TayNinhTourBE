@@ -100,7 +100,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
     }
 
     /// <summary>
-    /// DTO cho tour có thể booking
+    /// DTO cho tour có thể booking với thông tin early bird chi tiết
     /// </summary>
     public class AvailableTourDto
     {
@@ -119,13 +119,30 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public string? GuideName { get; set; }
         public string StartLocation { get; set; } = string.Empty;
         public string EndLocation { get; set; } = string.Empty;
-        public bool IsEarlyBirdEligible { get; set; }
-        public decimal EarlyBirdPrice { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        // Early Bird Information
+        public bool IsEarlyBirdActive { get; set; }
+        public decimal EarlyBirdPrice { get; set; }
+        public decimal EarlyBirdDiscountPercent { get; set; }
+        public decimal EarlyBirdDiscountAmount { get; set; }
+        public DateTime? EarlyBirdEndDate { get; set; }
+        public int DaysRemainingForEarlyBird { get; set; }
+        public string PricingType { get; set; } = "Standard"; // "Early Bird" hoặc "Standard"
+        
+        // Computed properties for FE convenience
+        public decimal FinalPrice => IsEarlyBirdActive ? EarlyBirdPrice : Price;
+        public bool HasEarlyBirdDiscount => IsEarlyBirdActive && EarlyBirdDiscountPercent > 0;
+        
+        /// <summary>
+        /// Đã bỏ IsEarlyBirdEligible để tránh confusion - dùng IsEarlyBirdActive thay thế
+        /// </summary>
+        [Obsolete("Use IsEarlyBirdActive instead")]
+        public bool IsEarlyBirdEligible => IsEarlyBirdActive;
     }
 
     /// <summary>
-    /// DTO chi tiết tour để booking
+    /// DTO chi tiết tour để booking với thông tin early bird
     /// </summary>
     public class TourDetailsForBookingDto
     {
@@ -149,12 +166,40 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         // Template info
         public string StartLocation { get; set; } = string.Empty;
         public string EndLocation { get; set; } = string.Empty;
+
+        // Early Bird Information for this tour
+        public EarlyBirdInfoDto EarlyBirdInfo { get; set; } = new();
     }
 
-
+    /// <summary>
+    /// DTO thông tin early bird chi tiết
+    /// </summary>
+    public class EarlyBirdInfoDto
+    {
+        public bool IsActive { get; set; }
+        public decimal DiscountPercent { get; set; }
+        public DateTime? EndDate { get; set; }
+        public int DaysRemaining { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public decimal OriginalPrice { get; set; }
+        public decimal DiscountedPrice { get; set; }
+        public decimal SavingsAmount { get; set; }
+        
+        /// <summary>
+        /// Kiểm tra early bird có sắp hết hạn không (còn <= 3 ngày)
+        /// </summary>
+        public bool IsExpiringSoon => IsActive && DaysRemaining <= 3 && DaysRemaining > 0;
+        
+        /// <summary>
+        /// Message hiển thị cho user
+        /// </summary>
+        public string DisplayMessage => IsActive 
+            ? $"Giảm {DiscountPercent}% - Còn {DaysRemaining} ngày!" 
+            : "Không có giảm giá";
+    }
 
     /// <summary>
-    /// DTO cho ngày tour với thông tin slot
+    /// DTO cho ngày tour với thông tin slot và early bird
     /// </summary>
     public class TourDateDto
     {
@@ -167,7 +212,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public int AvailableSpots { get; set; }
         public bool IsBookable { get; set; }
         public string StatusName { get; set; } = string.Empty;
+
+        // Pricing information cho từng slot cụ thể
+        public decimal OriginalPrice { get; set; }
+        public decimal FinalPrice { get; set; }
+        public bool IsEarlyBirdApplicable { get; set; }
+        public decimal EarlyBirdDiscountPercent { get; set; }
     }
-
-
 }

@@ -89,36 +89,59 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             var totalCount = await query.CountAsync();
 
-            var tours = await query
+            var tourDetailsData = await query
                 .OrderByDescending(td => td.CreatedAt)
                 .Skip((pageIndex - 1) * pageSize)
                 .Take(pageSize)
-                .Select(td => new AvailableTourDto
+                .ToListAsync();
+
+            var tours = new List<AvailableTourDto>();
+            var currentDate = VietnamTimeZoneUtility.GetVietnamNow();
+
+            foreach (var td in tourDetailsData)
+            {
+                var tourStartDate = td.AssignedSlots.Any() ? 
+                    td.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : 
+                    DateTime.MaxValue;
+
+                // Get pricing information for this tour
+                var pricingInfo = _pricingService.GetPricingInfo(
+                    td.TourOperation!.Price,
+                    tourStartDate,
+                    td.CreatedAt,
+                    currentDate);
+
+                // Calculate early bird end date (15 days after creation)
+                var earlyBirdEndDate = td.CreatedAt.AddDays(15);
+                var daysRemainingForEarlyBird = pricingInfo.IsEarlyBird 
+                    ? Math.Max(0, (earlyBirdEndDate - currentDate).Days)
+                    : 0;
+
+                tours.Add(new AvailableTourDto
                 {
                     TourDetailsId = td.Id,
-                    TourOperationId = td.TourOperation!.Id,
+                    TourOperationId = td.TourOperation.Id,
                     Title = td.Title,
                     Description = td.Description,
                     ImageUrls = td.ImageUrls,
                     Price = td.TourOperation.Price,
                     MaxGuests = td.TourOperation.MaxGuests,
                     CurrentBookings = td.TourOperation.CurrentBookings,
-                    TourStartDate = td.AssignedSlots.Any() ? 
-                        td.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null,
+                    TourStartDate = tourStartDate != DateTime.MaxValue ? tourStartDate : null,
                     StartLocation = td.TourTemplate.StartLocation,
                     EndLocation = td.TourTemplate.EndLocation,
-                    IsEarlyBirdEligible = _pricingService.IsEarlyBirdEligible(
-                        td.AssignedSlots.Any() ? td.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : DateTime.MaxValue,
-                        td.CreatedAt,
-                        VietnamTimeZoneUtility.GetVietnamNow()),
-                    EarlyBirdPrice = _pricingService.CalculatePrice(
-                        td.TourOperation.Price,
-                        td.AssignedSlots.Any() ? td.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : DateTime.MaxValue,
-                        td.CreatedAt,
-                        VietnamTimeZoneUtility.GetVietnamNow()).finalPrice,
-                    CreatedAt = td.CreatedAt
-                })
-                .ToListAsync();
+                    CreatedAt = td.CreatedAt,
+
+                    // Enhanced Early Bird Information
+                    IsEarlyBirdActive = pricingInfo.IsEarlyBird,
+                    EarlyBirdPrice = pricingInfo.FinalPrice,
+                    EarlyBirdDiscountPercent = pricingInfo.DiscountPercent,
+                    EarlyBirdDiscountAmount = pricingInfo.DiscountAmount,
+                    EarlyBirdEndDate = pricingInfo.IsEarlyBird ? earlyBirdEndDate : null,
+                    DaysRemainingForEarlyBird = daysRemainingForEarlyBird,
+                    PricingType = pricingInfo.PricingType
+                });
+            }
 
             return new Common.PagedResult<AvailableTourDto>
             {
@@ -151,6 +174,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
             var slotsData = await tourSlotService.GetSlotsByTourDetailsAsync(tourDetailsId);
 
+            var currentDate = VietnamTimeZoneUtility.GetVietnamNow();
+            var tourStartDate = slotsData.Any() ? 
+                slotsData.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : 
+                DateTime.MaxValue;
+
+            // Get early bird information for this tour
+            var pricingInfo = _pricingService.GetPricingInfo(
+                tourDetails.TourOperation.Price,
+                tourStartDate,
+                tourDetails.CreatedAt,
+                currentDate);
+
+            var earlyBirdEndDate = tourDetails.CreatedAt.AddDays(15);
+            var daysRemainingForEarlyBird = pricingInfo.IsEarlyBird 
+                ? Math.Max(0, (earlyBirdEndDate - currentDate).Days)
+                : 0;
+
             return new TourDetailsForBookingDto
             {
                 Id = tourDetails.Id,
@@ -169,8 +209,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Price = tourDetails.TourOperation.Price,
                     MaxGuests = tourDetails.TourOperation.MaxGuests,
                     CurrentBookings = tourDetails.TourOperation.CurrentBookings,
-                    TourStartDate = slotsData.Any() ? 
-                        slotsData.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null,
+                    TourStartDate = tourStartDate != DateTime.MaxValue ? tourStartDate : null,
                     GuideId = tourDetails.TourOperation.TourGuide?.Id.ToString(),
                     GuideName = tourDetails.TourOperation.TourGuide?.FullName,
                     GuidePhone = tourDetails.TourOperation.TourGuide?.PhoneNumber
@@ -195,18 +234,50 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     CreatedAt = t.CreatedAt,
                     UpdatedAt = t.UpdatedAt
                 }).ToList(),
-                TourDates = slotsData.Select(slot => new TourDateDto
+                TourDates = slotsData.Select(slot => 
                 {
-                    TourSlotId = slot.Id,
-                    TourDate = slot.TourDate.ToDateTime(TimeOnly.MinValue),
-                    ScheduleDay = slot.ScheduleDayName,
-                    MaxGuests = slot.MaxGuests,
-                    CurrentBookings = slot.CurrentBookings,
-                    AvailableSpots = slot.AvailableSpots,
-                    IsAvailable = slot.IsActive && slot.Status == TourSlotStatus.Available,
-                    IsBookable = slot.IsBookable,
-                    StatusName = slot.StatusName
-                }).OrderBy(d => d.TourDate).ToList()
+                    // Calculate pricing for each specific slot date
+                    var slotTourDate = slot.TourDate.ToDateTime(TimeOnly.MinValue);
+                    var slotPricingInfo = _pricingService.GetPricingInfo(
+                        tourDetails.TourOperation.Price,
+                        slotTourDate,
+                        tourDetails.CreatedAt,
+                        currentDate);
+
+                    return new TourDateDto
+                    {
+                        TourSlotId = slot.Id,
+                        TourDate = slotTourDate,
+                        ScheduleDay = slot.ScheduleDayName,
+                        MaxGuests = slot.MaxGuests,
+                        CurrentBookings = slot.CurrentBookings,
+                        AvailableSpots = slot.AvailableSpots,
+                        IsAvailable = slot.IsActive && slot.Status == TourSlotStatus.Available,
+                        IsBookable = slot.IsBookable,
+                        StatusName = slot.StatusName,
+                        
+                        // Pricing information for this specific slot
+                        OriginalPrice = slotPricingInfo.OriginalPrice,
+                        FinalPrice = slotPricingInfo.FinalPrice,
+                        IsEarlyBirdApplicable = slotPricingInfo.IsEarlyBird,
+                        EarlyBirdDiscountPercent = slotPricingInfo.DiscountPercent
+                    };
+                }).OrderBy(d => d.TourDate).ToList(),
+
+                // Early Bird Information for the tour
+                EarlyBirdInfo = new EarlyBirdInfoDto
+                {
+                    IsActive = pricingInfo.IsEarlyBird,
+                    DiscountPercent = pricingInfo.DiscountPercent,
+                    EndDate = pricingInfo.IsEarlyBird ? earlyBirdEndDate : null,
+                    DaysRemaining = daysRemainingForEarlyBird,
+                    Description = pricingInfo.IsEarlyBird 
+                        ? $"Đặt sớm tiết kiệm {pricingInfo.DiscountPercent}% trong {daysRemainingForEarlyBird} ngày còn lại!"
+                        : "Không có ưu đại Early Bird",
+                    OriginalPrice = pricingInfo.OriginalPrice,
+                    DiscountedPrice = pricingInfo.FinalPrice,
+                    SavingsAmount = pricingInfo.DiscountAmount
+                }
             };
         }
 
