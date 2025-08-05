@@ -2,6 +2,7 @@ using AutoMapper;
 using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using TayNinhTourApi.DataAccessLayer.Utilities;
@@ -129,13 +130,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             }
 
-            // Business rule: Cannot schedule for past months
-            var currentDate = DateTime.UtcNow;
-            if (year < currentDate.Year || (year == currentDate.Year && month < currentDate.Month))
+            // Business rule: Cannot schedule for past months or current month
+            var currentDate = VietnamTimeZoneUtility.GetVietnamNow();
+            var currentMonthFirstDay = new DateTime(currentDate.Year, currentDate.Month, 1);
+            var requestedMonthFirstDay = new DateTime(year, month, 1);
+            
+            if (requestedMonthFirstDay <= currentMonthFirstDay)
             {
                 result.IsValid = false;
                 result.StatusCode = 400;
-                result.ValidationErrors.Add("Không thể tạo lịch cho tháng đã qua");
+                result.ValidationErrors.Add("Không thể tạo lịch cho tháng hiện tại hoặc tháng đã qua. Chỉ có thể tạo lịch cho tháng tương lai.");
             }
 
             if (!result.IsValid)
@@ -150,6 +154,41 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Validate schedule input with template creation date to ensure first slot date compliance
+        /// </summary>
+        /// <param name="year">Year for scheduling</param>
+        /// <param name="month">Month for scheduling</param>
+        /// <param name="templateCreatedAt">Template creation date</param>
+        /// <param name="scheduleDays">Schedule days (optional)</param>
+        /// <returns>Validation result</returns>
+        public ResponseValidationDto ValidateScheduleInputWithTemplate(int year, int month, DateTime templateCreatedAt, ScheduleDay? scheduleDays = null)
+        {
+            _logger.LogInformation("Validating schedule input with template date: Year={Year}, Month={Month}, CreatedAt={CreatedAt}, ScheduleDays={ScheduleDays}",
+                year, month, templateCreatedAt, scheduleDays);
+
+            // First, validate basic schedule input
+            var basicValidation = ValidateScheduleInput(year, month, scheduleDays);
+            if (!basicValidation.IsValid)
+            {
+                return basicValidation;
+            }
+
+            // Then validate first slot date rules
+            var firstSlotValidation = TourTemplateValidator.ValidateFirstSlotDate(templateCreatedAt, month, year);
+            if (!firstSlotValidation.IsValid)
+            {
+                basicValidation.IsValid = false;
+                basicValidation.StatusCode = 400;
+                basicValidation.ValidationErrors.Add(firstSlotValidation.ErrorMessage);
+                basicValidation.Message = "Vi phạm quy tắc slot đầu tiên";
+                
+                _logger.LogWarning("First slot date validation failed: {Error}", firstSlotValidation.ErrorMessage);
+            }
+
+            return basicValidation;
         }
 
         /// <summary>

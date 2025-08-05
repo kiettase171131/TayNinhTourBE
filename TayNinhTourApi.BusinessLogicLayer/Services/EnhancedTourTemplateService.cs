@@ -37,6 +37,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = validationResult.StatusCode,
                     Message = validationResult.Message,
+                    success = false,
+                    ValidationErrors = validationResult.ValidationErrors,
+                    FieldErrors = validationResult.FieldErrors,
                     Data = null
                 };
             }
@@ -51,6 +54,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = imageValidation.StatusCode,
                         Message = imageValidation.Message,
+                        success = false,
+                        ValidationErrors = imageValidation.ValidationErrors,
+                        FieldErrors = imageValidation.FieldErrors,
                         Data = null
                     };
                 }
@@ -81,6 +87,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = businessValidation.StatusCode,
                         Message = businessValidation.Message,
+                        success = false,
+                        ValidationErrors = businessValidation.ValidationErrors,
+                        FieldErrors = businessValidation.FieldErrors,
                         Data = null
                     };
                 }
@@ -96,6 +105,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 201,
                     Message = "Tạo tour template thành công",
+                    success = true,
                     Data = responseDto
                 };
             }
@@ -105,6 +115,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = "Lỗi khi tạo tour template",
+                    success = false,
+                    ValidationErrors = new List<string> { ex.Message },
                     Data = null
                 };
             }
@@ -122,6 +134,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy tour template",
+                        success = false,
                         Data = null
                     };
                 }
@@ -134,6 +147,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = permissionCheck.StatusCode,
                         Message = permissionCheck.Message,
+                        success = false,
+                        ValidationErrors = permissionCheck.ValidationErrors,
+                        FieldErrors = permissionCheck.FieldErrors,
                         Data = null
                     };
                 }
@@ -146,6 +162,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = validationResult.StatusCode,
                         Message = validationResult.Message,
+                        success = false,
+                        ValidationErrors = validationResult.ValidationErrors,
+                        FieldErrors = validationResult.FieldErrors,
                         Data = null
                     };
                 }
@@ -160,6 +179,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             StatusCode = imageUpdateResult.StatusCode,
                             Message = imageUpdateResult.Message,
+                            success = false,
+                            ValidationErrors = imageUpdateResult.ValidationErrors,
+                            FieldErrors = imageUpdateResult.FieldErrors,
                             Data = null
                         };
                     }
@@ -180,6 +202,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         StatusCode = businessValidation.StatusCode,
                         Message = businessValidation.Message,
+                        success = false,
+                        ValidationErrors = businessValidation.ValidationErrors,
+                        FieldErrors = businessValidation.FieldErrors,
                         Data = null
                     };
                 }
@@ -194,6 +219,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Cập nhật tour template thành công",
+                    success = true,
                     Data = responseDto
                 };
             }
@@ -203,6 +229,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = "Lỗi khi cập nhật tour template",
+                    success = false,
+                    ValidationErrors = new List<string> { ex.Message },
                     Data = null
                 };
             }
@@ -715,6 +743,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (!templateValidation.IsValid)
                 {
                     return (false, $"Template có ngày không hợp lệ: {templateValidation.ErrorMessage}", 0);
+                }
+
+                // Validate first slot date according to business rules
+                var firstSlotValidation = TourTemplateValidator.ValidateFirstSlotDate(tourTemplate.CreatedAt, month, year);
+                if (!firstSlotValidation.IsValid)
+                {
+                    return (false, firstSlotValidation.ErrorMessage, 0);
                 }
 
                 // Get scheduling service from DI (we need to inject it)

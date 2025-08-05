@@ -101,8 +101,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     public class ResponseValidationDto : BaseResposeDto
     {
         public bool IsValid { get; set; }
-        public new List<string> ValidationErrors { get; set; } = new List<string>();
-        public Dictionary<string, List<string>> FieldErrors { get; set; } = new Dictionary<string, List<string>>();
+        // Inherit ValidationErrors and FieldErrors from BaseResposeDto
     }
 
     /// <summary>

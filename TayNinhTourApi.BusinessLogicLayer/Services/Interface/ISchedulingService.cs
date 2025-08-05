@@ -42,6 +42,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         ResponseValidationDto ValidateScheduleInput(int year, int month, ScheduleDay? scheduleDays = null);
 
         /// <summary>
+        /// Validate schedule input with template creation date to ensure first slot date compliance
+        /// Kiểm tra tính hợp lệ của scheduling request theo quy tắc slot đầu tiên
+        /// </summary>
+        /// <param name="year">Năm cần validate</param>
+        /// <param name="month">Tháng cần validate</param>
+        /// <param name="templateCreatedAt">Ngày tạo template</param>
+        /// <param name="scheduleDays">Ngày trong tuần cần validate (optional)</param>
+        /// <returns>Kết quả validation bao gồm cả quy tắc slot đầu tiên</returns>
+        ResponseValidationDto ValidateScheduleInputWithTemplate(int year, int month, DateTime templateCreatedAt, ScheduleDay? scheduleDays = null);
+
+        /// <summary>
         /// Lấy danh sách các slot dates có thể booking trong tương lai
         /// Dựa trên tour template và số lượng yêu cầu
         /// </summary>
