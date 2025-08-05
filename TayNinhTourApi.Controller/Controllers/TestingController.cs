@@ -760,7 +760,7 @@ namespace TayNinhTourApi.Controller.Controllers
                             <ul style='margin-bottom: 0;'>
                                 <li><strong>Khám phá tour khác:</strong> Xem danh sách tour t??ng t? trên website</li>
                                 <li><strong>??t l?i sau:</strong> Tour có th? ???c m? l?i v?i l?ch trình m?i</li>
-                                <li><strong>Nh?n ?u ?ãi:</strong> Theo dõi ?? nh?n thông báo khuy?n mãi ??c bi?t</li>
+                                <li><strong>Nhân ?u ?ãi:</strong> Theo dõi ?? nh?n thông báo khuy?n mãi ??c bi?t</li>
                                 <li><strong>Voucher bù ??p:</strong> Chúng tôi s? g?i voucher gi?m giá cho l?n ??t tour ti?p theo</li>
                             </ul>
                         </div>
@@ -808,6 +808,273 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Skip time to 2 days before tour to trigger reminder emails (TESTING ONLY)
+        /// This will simulate time passing so reminder emails are sent
+        /// </summary>
+        /// <param name="tourSlotId">ID c?a tour slot c?n test reminder</param>
+        /// <returns>Information about the reminder email test</returns>
+        [HttpPost("skip-to-reminder/{tourSlotId}")]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(typeof(BaseResposeDto), 400)]
+        [ProducesResponseType(typeof(BaseResposeDto), 404)]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult> SkipToReminderTime([FromRoute] Guid tourSlotId)
+        {
+            try
+            {
+                _logger.LogInformation("?? TESTING: Skipping to reminder time (2 days before) for slot {SlotId}", tourSlotId);
+
+                // Get tour slot with full details
+                var tourSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Include(ts => ts.TourDetails)
+                        .ThenInclude(td => td!.TourOperation)
+                    .Include(ts => ts.Bookings.Where(b => !b.IsDeleted && b.Status == BookingStatus.Confirmed))
+                        .ThenInclude(b => b.User)
+                    .FirstOrDefaultAsync(ts => ts.Id == tourSlotId && !ts.IsDeleted);
+
+                if (tourSlot == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm th?y tour slot"
+                    });
+                }
+
+                if (tourSlot.TourDetails?.TourOperation == null)
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Tour slot ch?a có tour operation"
+                    });
+                }
+
+                var tourDate = tourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+                var twoDaysBeforeTour = tourDate.AddDays(-2);
+                var currentTime = DateTime.UtcNow;
+
+                if (twoDaysBeforeTour <= currentTime)
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = $"Tour ?ã qua th?i ?i?m nh?c nh? (2 ngày tr??c). Tour date: {tourDate:dd/MM/yyyy}, Reminder time: {twoDaysBeforeTour:dd/MM/yyyy}"
+                    });
+                }
+
+                var confirmedBookings = tourSlot.Bookings
+                    .Where(b => b.Status == BookingStatus.Confirmed && !b.IsDeleted)
+                    .ToList();
+
+                if (!confirmedBookings.Any())
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Tour slot không có booking confirmed nào ?? g?i reminder"
+                    });
+                }
+
+                // Send reminder emails manually (simulating the background service)
+                var emailSender = HttpContext.RequestServices.GetRequiredService<EmailSender>();
+                var emailsCount = await SendReminderEmailsToCustomersAsync(
+                    emailSender,
+                    confirmedBookings,
+                    tourSlot.TourDetails.Title,
+                    tourSlot.TourDate);
+
+                var result = new
+                {
+                    success = true,
+                    message = "?? Test reminder emails thành công!",
+                    tourSlotInfo = new
+                    {
+                        slotId = tourSlot.Id,
+                        tourTitle = tourSlot.TourDetails.Title,
+                        tourDate = tourSlot.TourDate,
+                        status = tourSlot.Status.ToString(),
+                        maxGuests = tourSlot.TourDetails.TourOperation.MaxGuests
+                    },
+                    timeInfo = new
+                    {
+                        currentTime = currentTime,
+                        tourDate = tourDate,
+                        reminderTime = twoDaysBeforeTour,
+                        daysUntilTour = (tourDate.Date - currentTime.Date).Days,
+                        daysUntilReminder = (twoDaysBeforeTour.Date - currentTime.Date).Days
+                    },
+                    reminderResults = new
+                    {
+                        totalBookingsWithReminders = confirmedBookings.Count,
+                        totalEmailsSent = emailsCount,
+                        emailSuccessRate = confirmedBookings.Count > 0 ? (double)emailsCount / confirmedBookings.Count * 100 : 0
+                    },
+                    affectedBookings = confirmedBookings.Select(b => new
+                    {
+                        bookingId = b.Id,
+                        bookingCode = b.BookingCode,
+                        customerName = !string.IsNullOrEmpty(b.ContactName) ? b.ContactName : b.User?.Name ?? "Unknown",
+                        customerEmail = !string.IsNullOrEmpty(b.ContactEmail) ? b.ContactEmail : b.User?.Email ?? "",
+                        numberOfGuests = b.NumberOfGuests,
+                        totalPrice = b.TotalPrice
+                    }).ToList(),
+                    nextSteps = new[]
+                    {
+                        "?? Khách hàng ?ã nh?n email nh?c nh? chu?n b? tour",
+                        "?? Email ch?a danh sách ?? c?n chu?n b? chi ti?t",
+                        "?? Khách hàng có th? liên h? hotline n?u c?n h? tr?",
+                        "? Tour s? di?n ra trong 2 ngày n?a"
+                    }
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during reminder email test for slot {SlotId}", tourSlotId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"L?i khi test reminder emails: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Send reminder emails to customers for their upcoming tour (Testing method)
+        /// </summary>
+        private async Task<int> SendReminderEmailsToCustomersAsync(
+            EmailSender emailSender,
+            List<DataAccessLayer.Entities.TourBooking> bookings,
+            string tourTitle,
+            DateOnly tourDate)
+        {
+            int successCount = 0;
+
+            foreach (var booking in bookings)
+            {
+                try
+                {
+                    // Determine customer info - prioritize ContactEmail from booking
+                    var customerName = !string.IsNullOrEmpty(booking.ContactName) 
+                        ? booking.ContactName 
+                        : booking.User?.Name ?? "Khách hàng";
+                    
+                    var customerEmail = !string.IsNullOrEmpty(booking.ContactEmail) 
+                        ? booking.ContactEmail 
+                        : booking.User?.Email ?? "";
+
+                    // Validate email
+                    if (string.IsNullOrEmpty(customerEmail) || !IsValidEmail(customerEmail))
+                    {
+                        _logger.LogWarning("Invalid email for booking {BookingCode}: {Email}", booking.BookingCode, customerEmail);
+                        continue;
+                    }
+
+                    var subject = $"?? Nh?c nh? tour: {tourTitle} - Chu?n b? cho chuy?n ?i!";
+                    var htmlBody = $@"
+                        <h2>Kính chào {customerName},</h2>
+                        
+                        <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 15px 0;'>
+                            <h3 style='margin-top: 0; color: #155724;'>?? NH?C NH? TOUR S?P DI?N RA</h3>
+                            <p style='font-size: 16px; margin-bottom: 0;'>
+                                Tour <strong>'{tourTitle}'</strong> c?a b?n s? di?n ra vào <strong>{tourDate:dd/MM/yyyy}</strong> (còn 2 ngày n?a)!
+                            </p>
+                        </div>
+                        
+                        <h3>?? Thông tin booking c?a b?n:</h3>
+                        <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0;'>
+                            <ul style='margin: 0; list-style: none; padding: 0;'>
+                                <li><strong>?? Mã booking:</strong> {booking.BookingCode}</li>
+                                <li><strong>?? S? l??ng khách:</strong> {booking.NumberOfGuests}</li>
+                                <li><strong>?? Ngày tour:</strong> {tourDate:dd/MM/yyyy}</li>
+                                <li><strong>?? T?ng ti?n:</strong> {booking.TotalPrice:N0} VN?</li>
+                            </ul>
+                        </div>
+                        
+                        <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
+                            <h3 style='margin-top: 0; color: #856404;'>?? DANH SÁCH CHU?N B?</h3>
+                            <h4>?? Gi?y t? c?n thi?t:</h4>
+                            <ul>
+                                <li>? <strong>CMND/CCCD ho?c Passport</strong> (b?t bu?c)</li>
+                                <li>? <strong>Vé xác nh?n</strong> (in ra ho?c l?u trên ?i?n tho?i)</li>
+                                <li>? <strong>Th? BHYT</strong> (n?u có)</li>
+                            </ul>
+                            
+                            <h4>?? ?? dùng cá nhân:</h4>
+                            <ul>
+                                <li>?? Qu?n áo tho?i mái, phù h?p th?i ti?t</li>
+                                <li>?? Giày th? thao ch?ng tr??t</li>
+                                <li>?? M?/nón ch?ng n?ng</li>
+                                <li>??? Kính râm</li>
+                                <li>?? Kem ch?ng n?ng</li>
+                                <li>?? Thu?c cá nhân (n?u có)</li>
+                            </ul>
+                            
+                            <h4>?? Khác:</h4>
+                            <ul>
+                                <li>?? Pin d? phòng cho ?i?n tho?i</li>
+                                <li>?? Ti?n m?t cho chi phí cá nhân</li>
+                                <li>?? Máy ?nh (tùy ch?n)</li>
+                                <li>?? ?? ?n v?t (tùy thích)</li>
+                            </ul>
+                        </div>
+                        
+                        <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                            <h4 style='margin-top: 0; color: #004085;'>? L?u ý quan tr?ng:</h4>
+                            <ul style='margin-bottom: 0;'>
+                                <li><strong>Th?i gian t?p trung:</strong> Vui lòng có m?t ?úng gi? theo thông báo</li>
+                                <li><strong>Th?i ti?t:</strong> Ki?m tra d? báo th?i ti?t và chu?n b? phù h?p</li>
+                                <li><strong>Liên h? kh?n c?p:</strong> L?u s? hotline ?? liên h? khi c?n thi?t</li>
+                                <li><strong>H?y tour:</strong> N?u có thay ??i, vui lòng thông báo s?m</li>
+                            </ul>
+                        </div>
+                        
+                        <div style='background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                            <h4 style='margin-top: 0; color: #0c5460;'>?? M?o ?? có chuy?n ?i tuy?t v?i:</h4>
+                            <ul style='margin-bottom: 0;'>
+                                <li>?? <strong>Ngh? ng?i ??y ??</strong> tr??c ngày tour</li>
+                                <li>??? <strong>?n sáng ??y ??</strong> tr??c khi kh?i hành</li>
+                                <li>?? <strong>Mang theo n??c u?ng</strong> ?? gi? ?m</li>
+                                <li>?? <strong>S?c ??y pin</strong> ?i?n tho?i</li>
+                                <li>?? <strong>Làm quen</strong> v?i các thành viên khác trong tour</li>
+                            </ul>
+                        </div>
+                        
+                        <div style='text-align: center; margin: 30px 0;'>
+                            <div style='background-color: #28a745; color: white; padding: 15px; border-radius: 5px; margin-bottom: 10px;'>
+                                <h4 style='margin: 0; font-size: 18px;'>?? HOTLINE H? TR? 24/7</h4>
+                                <p style='margin: 5px 0; font-size: 20px; font-weight: bold;'>1900-xxx-xxx</p>
+                            </div>
+                        </div>
+                        
+                        <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;'>
+                            <p style='margin: 0; font-style: italic; color: #6c757d;'>
+                                Chúng tôi r?t mong ???c ??ng hành cùng b?n trong chuy?n ?i tuy?t v?i này! ??
+                            </p>
+                        </div>
+                        
+                        <br/>
+                        <p>Chúc b?n có m?t chuy?n ?i an toàn và ??y ý ngh?a!</p>
+                        <p><strong>??i ng? Tay Ninh Tour</strong></p>";
+
+                    await emailSender.SendEmailAsync(customerEmail, customerName, subject, htmlBody);
+                    successCount++;
+                    
+                    _logger.LogInformation("Tour reminder email sent successfully to {CustomerEmail} for booking {BookingCode}", 
+                        customerEmail, booking.BookingCode);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send tour reminder email to booking {BookingCode}", booking.BookingCode);
+                }
+            }
+
+            return successCount;
         }
     }
 }

@@ -160,7 +160,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                         await CancelTourAndRefundAsync(tourOperation, serviceProvider, cancellationToken);
                     }
-                }                catch (Exception ex)
+                }
+                catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error processing tour {TourId} for cancellation", tourOperation.Id);
                 }

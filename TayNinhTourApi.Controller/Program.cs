@@ -305,6 +305,7 @@ builder.Services.AddHostedService<BackgroundJobService>();
 builder.Services.AddHostedService<TourAutoCancelService>();
 builder.Services.AddHostedService<TourBookingCleanupService>();
 builder.Services.AddHostedService<TourRevenueTransferService>(); // NEW: Automated revenue transfer service
+builder.Services.AddHostedService<TourReminderService>(); // NEW: Tour reminder email service
 
 // Register UnitOfWork
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
