@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -166,10 +166,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// Send reminder emails to customers for their upcoming tour
         /// </summary>
         private async Task<int> SendReminderEmailsToCustomersAsync(
-            EmailSender emailSender,
-            List<DataAccessLayer.Entities.TourBooking> bookings,
-            string tourTitle,
-            DateOnly tourDate)
+     EmailSender emailSender,
+     List<DataAccessLayer.Entities.TourBooking> bookings,
+     string tourTitle,
+     DateOnly tourDate)
         {
             int successCount = 0;
 
@@ -178,12 +178,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 try
                 {
                     // Determine customer info - prioritize ContactEmail from booking
-                    var customerName = !string.IsNullOrEmpty(booking.ContactName) 
-                        ? booking.ContactName 
-                        : booking.User?.Name ?? "Kh�ch h�ng";
-                    
-                    var customerEmail = !string.IsNullOrEmpty(booking.ContactEmail) 
-                        ? booking.ContactEmail 
+                    var customerName = !string.IsNullOrEmpty(booking.ContactName)
+                        ? booking.ContactName
+                        : booking.User?.Name ?? "Khách hàng";
+
+                    var customerEmail = !string.IsNullOrEmpty(booking.ContactEmail)
+                        ? booking.ContactEmail
                         : booking.User?.Email ?? "";
 
                     // Validate email
@@ -193,97 +193,97 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         continue;
                     }
 
-                    var subject = $"?? Nh?c nh? tour: {tourTitle} - Chu?n b? cho chuy?n ?i!";
+                    var subject = $"📢 Nhắc nhở tour: {tourTitle} - Chuẩn bị cho chuyến đi!";
                     var htmlBody = $@"
-                        <h2>K�nh ch�o {customerName},</h2>
-                        
-                        <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 15px 0;'>
-                            <h3 style='margin-top: 0; color: #155724;'>?? NH?C NH? TOUR S?P DI?N RA</h3>
-                            <p style='font-size: 16px; margin-bottom: 0;'>
-                                Tour <strong>'{tourTitle}'</strong> c?a b?n s? di?n ra v�o <strong>{tourDate:dd/MM/yyyy}</strong> (c�n 2 ng�y n?a)!
-                            </p>
-                        </div>
-                        
-                        <h3>?? Th�ng tin booking c?a b?n:</h3>
-                        <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0;'>
-                            <ul style='margin: 0; list-style: none; padding: 0;'>
-                                <li><strong>?? M� booking:</strong> {booking.BookingCode}</li>
-                                <li><strong>?? S? l??ng kh�ch:</strong> {booking.NumberOfGuests}</li>
-                                <li><strong>?? Ng�y tour:</strong> {tourDate:dd/MM/yyyy}</li>
-                                <li><strong>?? T?ng ti?n:</strong> {booking.TotalPrice:N0} VN?</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
-                            <h3 style='margin-top: 0; color: #856404;'>?? DANH S�CH CHU?N B?</h3>
-                            <h4>?? Gi?y t? c?n thi?t:</h4>
-                            <ul>
-                                <li>? <strong>CMND/CCCD ho?c Passport</strong> (b?t bu?c)</li>
-                                <li>? <strong>V� x�c nh?n</strong> (in ra ho?c l?u tr�n ?i?n tho?i)</li>
-                                <li>? <strong>Th? BHYT</strong> (n?u c�)</li>
-                            </ul>
-                            
-                            <h4>?? ?? d�ng c� nh�n:</h4>
-                            <ul>
-                                <li>?? Qu?n �o tho?i m�i, ph� h?p th?i ti?t</li>
-                                <li>?? Gi�y th? thao ch?ng tr??t</li>
-                                <li>?? M?/n�n ch?ng n?ng</li>
-                                <li>??? K�nh r�m</li>
-                                <li>?? Kem ch?ng n?ng</li>
-                                <li>?? Thu?c c� nh�n (n?u c�)</li>
-                            </ul>
-                            
-                            <h4>?? Kh�c:</h4>
-                            <ul>
-                                <li>?? Pin d? ph�ng cho ?i?n tho?i</li>
-                                <li>?? Ti?n m?t cho chi ph� c� nh�n</li>
-                                <li>?? M�y ?nh (t�y ch?n)</li>
-                                <li>?? ?? ?n v?t (t�y th�ch)</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                            <h4 style='margin-top: 0; color: #004085;'>? L?u � quan tr?ng:</h4>
-                            <ul style='margin-bottom: 0;'>
-                                <li><strong>Th?i gian t?p trung:</strong> Vui l�ng c� m?t ?�ng gi? theo th�ng b�o</li>
-                                <li><strong>Th?i ti?t:</strong> Ki?m tra d? b�o th?i ti?t v� chu?n b? ph� h?p</li>
-                                <li><strong>Li�n h? kh?n c?p:</strong> L?u s? hotline ?? li�n h? khi c?n thi?t</li>
-                                <li><strong>H?y tour:</strong> N?u c� thay ??i, vui l�ng th�ng b�o s?m</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                            <h4 style='margin-top: 0; color: #0c5460;'>?? M?o ?? c� chuy?n ?i tuy?t v?i:</h4>
-                            <ul style='margin-bottom: 0;'>
-                                <li>?? <strong>Ngh? ng?i ??y ??</strong> tr??c ng�y tour</li>
-                                <li>??? <strong>?n s�ng ??y ??</strong> tr??c khi kh?i h�nh</li>
-                                <li>?? <strong>Mang theo n??c u?ng</strong> ?? gi? ?m</li>
-                                <li>?? <strong>S?c ??y pin</strong> ?i?n tho?i</li>
-                                <li>?? <strong>L�m quen</strong> v?i c�c th�nh vi�n kh�c trong tour</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='text-align: center; margin: 30px 0;'>
-                            <div style='background-color: #28a745; color: white; padding: 15px; border-radius: 5px; margin-bottom: 10px;'>
-                                <h4 style='margin: 0; font-size: 18px;'>?? HOTLINE H? TR? 24/7</h4>
-                                <p style='margin: 5px 0; font-size: 20px; font-weight: bold;'>1900-xxx-xxx</p>
-                            </div>
-                        </div>
-                        
-                        <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;'>
-                            <p style='margin: 0; font-style: italic; color: #6c757d;'>
-                                Ch�ng t�i r?t mong ???c ??ng h�nh c�ng b?n trong chuy?n ?i tuy?t v?i n�y! ??
-                            </p>
-                        </div>
-                        
-                        <br/>
-                        <p>Ch�c b?n c� m?t chuy?n ?i an to�n v� ??y � ngh?a!</p>
-                        <p><strong>??i ng? Tay Ninh Tour</strong></p>";
+                <h2>Kính chào {customerName},</h2>
+                
+                <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 15px 0;'>
+                    <h3 style='margin-top: 0; color: #155724;'>📢 NHẮC NHỞ TOUR SẮP DIỄN RA</h3>
+                    <p style='font-size: 16px; margin-bottom: 0;'>
+                        Tour <strong>'{tourTitle}'</strong> của bạn sẽ diễn ra vào <strong>{tourDate:dd/MM/yyyy}</strong> (còn 2 ngày nữa)!
+                    </p>
+                </div>
+                
+                <h3>📝 Thông tin booking của bạn:</h3>
+                <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0;'>
+                    <ul style='margin: 0; list-style: none; padding: 0;'>
+                        <li><strong>🔖 Mã booking:</strong> {booking.BookingCode}</li>
+                        <li><strong>👥 Số lượng khách:</strong> {booking.NumberOfGuests}</li>
+                        <li><strong>📅 Ngày tour:</strong> {tourDate:dd/MM/yyyy}</li>
+                        <li><strong>💰 Tổng tiền:</strong> {booking.TotalPrice:N0} VNĐ</li>
+                    </ul>
+                </div>
+                
+                <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
+                    <h3 style='margin-top: 0; color: #856404;'>📋 DANH SÁCH CHUẨN BỊ</h3>
+                    <h4>🪪 Giấy tờ cần thiết:</h4>
+                    <ul>
+                        <li>• <strong>CMND/CCCD hoặc Passport</strong> (bắt buộc)</li>
+                        <li>• <strong>Vé xác nhận</strong> (in ra hoặc lưu trên điện thoại)</li>
+                        <li>• <strong>Thẻ BHYT</strong> (nếu có)</li>
+                    </ul>
+                    
+                    <h4>🎒 Đồ dùng cá nhân:</h4>
+                    <ul>
+                        <li>• Quần áo thoải mái, phù hợp thời tiết</li>
+                        <li>• Giày thể thao chống trượt</li>
+                        <li>• Mũ/nón chống nắng</li>
+                        <li>• Kính râm</li>
+                        <li>• Kem chống nắng</li>
+                        <li>• Thuốc cá nhân (nếu có)</li>
+                    </ul>
+                    
+                    <h4>📦 Khác:</h4>
+                    <ul>
+                        <li>• Pin dự phòng cho điện thoại</li>
+                        <li>• Tiền mặt cho chi phí cá nhân</li>
+                        <li>• Máy ảnh (tùy chọn)</li>
+                        <li>• Đồ ăn vặt (tùy thích)</li>
+                    </ul>
+                </div>
+                
+                <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                    <h4 style='margin-top: 0; color: #004085;'>⚠️ Lưu ý quan trọng:</h4>
+                    <ul style='margin-bottom: 0;'>
+                        <li><strong>Thời gian tập trung:</strong> Vui lòng có mặt đúng giờ theo thông báo</li>
+                        <li><strong>Thời tiết:</strong> Kiểm tra dự báo thời tiết và chuẩn bị phù hợp</li>
+                        <li><strong>Liên hệ khẩn cấp:</strong> Lưu số hotline để liên hệ khi cần thiết</li>
+                        <li><strong>Hủy tour:</strong> Nếu có thay đổi, vui lòng thông báo sớm</li>
+                    </ul>
+                </div>
+                
+                <div style='background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                    <h4 style='margin-top: 0; color: #0c5460;'>🌟 Mẹo để có chuyến đi tuyệt vời:</h4>
+                    <ul style='margin-bottom: 0;'>
+                        <li>• <strong>Nghỉ ngơi đầy đủ</strong> trước ngày tour</li>
+                        <li>• <strong>Ăn sáng đầy đủ</strong> trước khi khởi hành</li>
+                        <li>• <strong>Mang theo nước uống</strong> để giữ ẩm</li>
+                        <li>• <strong>Sạc đầy pin</strong> điện thoại</li>
+                        <li>• <strong>Làm quen</strong> với các thành viên khác trong tour</li>
+                    </ul>
+                </div>
+                
+                <div style='text-align: center; margin: 30px 0;'>
+                    <div style='background-color: #28a745; color: white; padding: 15px; border-radius: 5px; margin-bottom: 10px;'>
+                        <h4 style='margin: 0; font-size: 18px;'>📞 HOTLINE HỖ TRỢ 24/7</h4>
+                        <p style='margin: 5px 0; font-size: 20px; font-weight: bold;'>1900-xxx-xxx</p>
+                    </div>
+                </div>
+                
+                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;'>
+                    <p style='margin: 0; font-style: italic; color: #6c757d;'>
+                        Chúng tôi rất mong được đồng hành cùng bạn trong chuyến đi tuyệt vời này! 😊
+                    </p>
+                </div>
+                
+                <br/>
+                <p>Chúc bạn có một chuyến đi an toàn và đầy ý nghĩa!</p>
+                <p><strong>Đội ngũ Tay Ninh Tour</strong></p>";
 
                     await emailSender.SendEmailAsync(customerEmail, customerName, subject, htmlBody);
                     successCount++;
-                    
-                    _logger.LogInformation("Tour reminder email sent successfully to {CustomerEmail} for booking {BookingCode}", 
+
+                    _logger.LogInformation("Tour reminder email sent successfully to {CustomerEmail} for booking {BookingCode}",
                         customerEmail, booking.BookingCode);
                 }
                 catch (Exception ex)
