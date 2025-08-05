@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250805021455_Init")]
+    [Migration("20250805051744_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -1857,6 +1857,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<DateTime?>("ReservedUntil")
                         .HasColumnType("datetime(6)")
                         .HasComment("Thời gian hết hạn reservation để tự động release slot nếu không thanh toán");
+
+                    b.Property<decimal>("RevenueHold")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("RevenueTransferredDate")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("RowVersion")
                         .IsConcurrencyToken()

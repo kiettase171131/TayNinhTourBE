@@ -88,6 +88,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="payOsOrderCode">PayOS order code</param>
         /// <returns>Kết quả xử lý</returns>
         Task<BaseResposeDto> HandlePaymentCancelAsync(string payOsOrderCode);
+
+        /// <summary>
+        /// Manually resend QR ticket email for confirmed booking
+        /// This can be called if the original email failed to send
+        /// </summary>
+        /// <param name="bookingId">ID của booking</param>
+        /// <param name="userId">ID của user (để kiểm tra quyền)</param>
+        /// <returns>Kết quả gửi lại email</returns>
+        Task<BaseResposeDto> ResendQRTicketEmailAsync(Guid bookingId, Guid userId);
     }
 
     /// <summary>

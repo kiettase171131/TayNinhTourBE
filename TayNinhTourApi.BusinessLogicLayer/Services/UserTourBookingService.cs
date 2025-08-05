@@ -278,238 +278,298 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                _logger.LogInformation("Starting tour booking process. UserId: {UserId}, TourSlotId: {TourSlotId}, Guests: {Guests}", 
-                    userId, request.TourSlotId, request.NumberOfGuests);
+                    _logger.LogInformation("Starting tour booking process. UserId: {UserId}, TourSlotId: {TourSlotId}, Guests: {Guests}", 
+                        userId, request.TourSlotId, request.NumberOfGuests);
 
-                // 1. Get and validate TourSlot first
-                var tourSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
-                    .Where(ts => ts.Id == request.TourSlotId && ts.IsActive && !ts.IsDeleted)
-                    .Include(ts => ts.TourDetails)
-                        .ThenInclude(td => td.TourOperation)
-                            .ThenInclude(to => to.CreatedBy)
-                    .FirstOrDefaultAsync();
+                    // 1. Get and validate TourSlot first
+                    var tourSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                        .Where(ts => ts.Id == request.TourSlotId && ts.IsActive && !ts.IsDeleted)
+                        .Include(ts => ts.TourDetails)
+                            .ThenInclude(td => td.TourOperation)
+                                .ThenInclude(to => to.CreatedBy)
+                        .FirstOrDefaultAsync();
 
-                if (tourSlot?.TourDetails?.TourOperation == null)
-                {
-                    _logger.LogWarning("Tour slot not found or invalid. TourSlotId: {TourSlotId}", request.TourSlotId);
-                    return new CreateBookingResultDto
+                    if (tourSlot?.TourDetails?.TourOperation == null)
                     {
-                        Success = false,
-                        Message = "Tour slot không tồn tại hoặc không khả dụng"
-                    };
-                }
-
-                var tourOperation = tourSlot.TourDetails.TourOperation;
-                _logger.LogDebug("Found tour operation. Id: {TourOperationId}, MaxGuests: {MaxGuests}, CurrentBookings: {CurrentBookings}", 
-                    tourOperation.Id, tourOperation.MaxGuests, tourOperation.CurrentBookings);
-
-                // 2. Validate TourOperation and TourDetails
-                if (!tourOperation.IsActive || tourOperation.IsDeleted)
-                {
-                    _logger.LogWarning("Tour operation not active. TourOperationId: {TourOperationId}, IsActive: {IsActive}, IsDeleted: {IsDeleted}", 
-                        tourOperation.Id, tourOperation.IsActive, tourOperation.IsDeleted);
-                    return new CreateBookingResultDto
-                    {
-                        Success = false,
-                        Message = "Tour operation không khả dụng"
-                    };
-                }
-
-                if (tourSlot.TourDetails.Status != TourDetailsStatus.Public)
-                {
-                    _logger.LogWarning("Tour not public. TourDetailsId: {TourDetailsId}, Status: {Status}", 
-                        tourSlot.TourDetails.Id, tourSlot.TourDetails.Status);
-                    return new CreateBookingResultDto
-                    {
-                        Success = false,
-                        Message = "Tour chưa được công khai"
-                    };
-                }
-
-                // 3. Check if the tour operation matches the request (if provided)
-                if (request.TourOperationId.HasValue && request.TourOperationId != tourOperation.Id)
-                {
-                    _logger.LogWarning("Tour operation mismatch. Expected: {Expected}, Provided: {Provided}",
-                        tourOperation.Id, request.TourOperationId);
-                    return new CreateBookingResultDto
-                    {
-                        Success = false,
-                        Message = "Tour slot không thuộc về tour operation được chọn"
-                    };
-                }
-
-                // Auto-assign TourOperationId from TourSlot if not provided
-                if (!request.TourOperationId.HasValue)
-                {
-                    _logger.LogInformation("Auto-assigning TourOperationId {TourOperationId} from TourSlot {TourSlotId}",
-                        tourOperation.Id, request.TourSlotId);
-                }
-
-                // 4. Check slot-specific availability
-                if (tourSlot.Status != TourSlotStatus.Available)
-                {
-                    _logger.LogWarning("Tour slot not available. TourSlotId: {TourSlotId}, Status: {Status}", 
-                        request.TourSlotId, tourSlot.Status);
-                    return new CreateBookingResultDto
-                    {
-                        Success = false,
-                        Message = "Tour slot không khả dụng để booking"
-                    };
-                }
-
-                // Calculate available spots correctly using TourOperation.MaxGuests
-                var actualMaxGuests = tourSlot.TourDetails?.TourOperation?.MaxGuests ?? tourSlot.MaxGuests;
-                var actualAvailableSpots = actualMaxGuests - tourSlot.CurrentBookings;
-
-                if (actualAvailableSpots < request.NumberOfGuests)
-                {
-                    _logger.LogWarning("Insufficient capacity in slot. TourSlotId: {TourSlotId}, Available: {Available}, Requested: {Requested}, ActualMaxGuests: {ActualMaxGuests}, SlotMaxGuests: {SlotMaxGuests}",
-                        request.TourSlotId, actualAvailableSpots, request.NumberOfGuests, actualMaxGuests, tourSlot.MaxGuests);
-                    return new CreateBookingResultDto
-                    {
-                        Success = false,
-                        Message = $"Slot này chỉ còn {actualAvailableSpots} chỗ trống, không đủ cho {request.NumberOfGuests} khách"
-                    };
-                }
-
-                var tourStartDate = tourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
-                if (tourStartDate <= VietnamTimeZoneUtility.GetVietnamNow())
-                {
-                    _logger.LogWarning("Tour already started. TourSlotId: {TourSlotId}, TourDate: {TourDate}", 
-                        request.TourSlotId, tourStartDate);
-                    return new CreateBookingResultDto
-                    {
-                        Success = false,
-                        Message = "Tour đã khởi hành"
-                    };
-                }
-
-                // 5. Calculate pricing based on TourOperation (with null check for pricing service)
-                var bookingDate = DateTime.UtcNow;
-                var baseUrl = "https://tndt.netlify.app"; // Base URL for payment callbacks
-                decimal totalPrice;
-                decimal discountPercent = 0;
-                string pricingType = "Standard";
-
-                try
-                {
-                    if (_pricingService != null)
-                    {
-                        var pricingInfo = _pricingService.GetPricingInfo(
-                            tourOperation.Price,
-                            tourStartDate,
-                            tourSlot.TourDetails.CreatedAt,
-                            bookingDate);
-
-                        totalPrice = pricingInfo.FinalPrice * request.NumberOfGuests;
-                        discountPercent = pricingInfo.DiscountPercent;
-                        pricingType = pricingInfo.PricingType;
+                        _logger.LogWarning("Tour slot not found or invalid. TourSlotId: {TourSlotId}", request.TourSlotId);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "Tour slot không tồn tại hoặc không khả dụng"
+                        };
                     }
-                    else
+
+                    var tourOperation = tourSlot.TourDetails.TourOperation;
+                    _logger.LogDebug("Found tour operation. Id: {TourOperationId}, MaxGuests: {MaxGuests}, CurrentBookings: {CurrentBookings}", 
+                        tourOperation.Id, tourOperation.MaxGuests, tourOperation.CurrentBookings);
+
+                    // 2. Validate TourOperation and TourDetails
+                    if (!tourOperation.IsActive || tourOperation.IsDeleted)
                     {
-                        _logger.LogWarning("PricingService is null, using standard pricing");
+                        _logger.LogWarning("Tour operation not active. TourOperationId: {TourOperationId}, IsActive: {IsActive}, IsDeleted: {IsDeleted}", 
+                            tourOperation.Id, tourOperation.IsActive, tourOperation.IsDeleted);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "Tour operation không khả dụng"
+                        };
+                    }
+
+                    if (tourSlot.TourDetails.Status != TourDetailsStatus.Public)
+                    {
+                        _logger.LogWarning("Tour not public. TourDetailsId: {TourDetailsId}, Status: {Status}", 
+                            tourSlot.TourDetails.Id, tourSlot.TourDetails.Status);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "Tour chưa được công khai"
+                        };
+                    }
+
+                    // 3. Check if the tour operation matches the request (if provided)
+                    if (request.TourOperationId.HasValue && request.TourOperationId != tourOperation.Id)
+                    {
+                        _logger.LogWarning("Tour operation mismatch. Expected: {Expected}, Provided: {Provided}",
+                            tourOperation.Id, request.TourOperationId);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "Tour slot không thuộc về tour operation được chọn"
+                        };
+                    }
+
+                    // Auto-assign TourOperationId from TourSlot if not provided
+                    if (!request.TourOperationId.HasValue)
+                    {
+                        _logger.LogInformation("Auto-assigning TourOperationId {TourOperationId} from TourSlot {TourSlotId}",
+                            tourOperation.Id, request.TourSlotId);
+                    }
+
+                    // 4. Check slot-specific availability
+                    if (tourSlot.Status != TourSlotStatus.Available)
+                    {
+                        _logger.LogWarning("Tour slot not available. TourSlotId: {TourSlotId}, Status: {Status}", 
+                            request.TourSlotId, tourSlot.Status);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "Tour slot không khả dụng để booking"
+                        };
+                    }
+
+                    // Calculate available spots correctly using TourOperation.MaxGuests
+                    var actualMaxGuests = tourSlot.TourDetails?.TourOperation?.MaxGuests ?? tourSlot.MaxGuests;
+                    var actualAvailableSpots = actualMaxGuests - tourSlot.CurrentBookings;
+
+                    if (actualAvailableSpots < request.NumberOfGuests)
+                    {
+                        _logger.LogWarning("Insufficient capacity in slot. TourSlotId: {TourSlotId}, Available: {Available}, Requested: {Requested}, ActualMaxGuests: {ActualMaxGuests}, SlotMaxGuests: {SlotMaxGuests}",
+                            request.TourSlotId, actualAvailableSpots, request.NumberOfGuests, actualMaxGuests, tourSlot.MaxGuests);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = $"Slot này chỉ còn {actualAvailableSpots} chỗ trống, không đủ cho {request.NumberOfGuests} khách"
+                        };
+                    }
+
+                    var tourStartDate = tourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+                    if (tourStartDate <= VietnamTimeZoneUtility.GetVietnamNow())
+                    {
+                        _logger.LogWarning("Tour already started. TourSlotId: {TourSlotId}, TourDate: {TourDate}", 
+                            request.TourSlotId, tourStartDate);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "Tour đã khởi hành"
+                        };
+                    }
+
+                    // 5. Calculate pricing based on TourOperation (with null check for pricing service)
+                    var bookingDate = DateTime.UtcNow;
+                    decimal totalPrice;
+                    decimal discountPercent = 0;
+                    string pricingType = "Standard";
+
+                    try
+                    {
+                        if (_pricingService != null)
+                        {
+                            var pricingInfo = _pricingService.GetPricingInfo(
+                                tourOperation.Price,
+                                tourStartDate,
+                                tourSlot.TourDetails.CreatedAt,
+                                bookingDate);
+
+                            totalPrice = pricingInfo.FinalPrice * request.NumberOfGuests;
+                            discountPercent = pricingInfo.DiscountPercent;
+                            pricingType = pricingInfo.PricingType;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("PricingService is null, using standard pricing");
+                            totalPrice = tourOperation.Price * request.NumberOfGuests;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error calculating pricing, falling back to standard price");
                         totalPrice = tourOperation.Price * request.NumberOfGuests;
                     }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error calculating pricing, falling back to standard price");
-                    totalPrice = tourOperation.Price * request.NumberOfGuests;
-                }
 
-                // 5.5. Pre-check capacity before attempting to reserve
-                var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
-                var canBook = await tourSlotService.CanBookSlotAsync(request.TourSlotId, request.NumberOfGuests);
-                
-                if (!canBook)
-                {
-                    _logger.LogWarning("Pre-check failed for booking. TourSlotId: {TourSlotId}, Guests: {Guests}", 
-                        request.TourSlotId, request.NumberOfGuests);
-                    return new CreateBookingResultDto
+                    // 5.5. Pre-check capacity before attempting to reserve
+                    var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                    var canBook = await tourSlotService.CanBookSlotAsync(request.TourSlotId, request.NumberOfGuests);
+                    
+                    if (!canBook)
                     {
-                        Success = false,
-                        Message = "Slot này hiện không có đủ chỗ trống hoặc không khả dụng. Vui lòng chọn slot khác."
-                    };
-                }
+                        _logger.LogWarning("Pre-check failed for booking. TourSlotId: {TourSlotId}, Guests: {Guests}", 
+                            request.TourSlotId, request.NumberOfGuests);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "Slot này hiện không có đủ chỗ trống hoặc không khả dụng. Vui lòng chọn slot khác."
+                        };
+                    }
 
-                // 6. Reserve slot capacity first (optimistic concurrency control)
-                var reserveSuccess = await tourSlotService.ReserveSlotCapacityAsync(request.TourSlotId, request.NumberOfGuests);
-                
-                if (!reserveSuccess)
-                {
-                    _logger.LogWarning("Failed to reserve slot capacity. TourSlotId: {TourSlotId}, Guests: {Guests}", 
-                        request.TourSlotId, request.NumberOfGuests);
-                    return new CreateBookingResultDto
+                    // 6. Reserve slot capacity first (optimistic concurrency control)
+                    var reserveSuccess = await tourSlotService.ReserveSlotCapacityAsync(request.TourSlotId, request.NumberOfGuests);
+                    
+                    if (!reserveSuccess)
                     {
-                        Success = false,
-                        Message = "Không thể đặt chỗ cho slot này. Slot có thể đã được đặt bởi khách hàng khác hoặc không đủ chỗ trống."
+                        _logger.LogWarning("Failed to reserve slot capacity. TourSlotId: {TourSlotId}, Guests: {Guests}", 
+                            request.TourSlotId, request.NumberOfGuests);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "Không thể đặt chỗ cho slot này. Slot có thể đã được đặt bởi khách hàng khác hoặc không đủ chỗ trống."
+                        };
+                    }
+
+                    // 7. Generate booking code and PayOS order code
+                    var bookingCode = GenerateBookingCode();
+                    var payOsOrderCode = GeneratePayOsOrderCode();
+
+                    // 8. Create booking entity
+                    var booking = new TourBooking
+                    {
+                        Id = Guid.NewGuid(),
+                        TourOperationId = tourOperation.Id,
+                        TourSlotId = request.TourSlotId,
+                        UserId = userId,
+                        NumberOfGuests = request.NumberOfGuests,
+                        OriginalPrice = tourOperation.Price * request.NumberOfGuests,
+                        DiscountPercent = discountPercent,
+                        TotalPrice = totalPrice,
+                        RevenueHold = 0, // ✅ Will be set when payment is confirmed
+                        Status = BookingStatus.Pending,
+                        BookingCode = bookingCode,
+                        PayOsOrderCode = payOsOrderCode,
+                        BookingDate = bookingDate,
+                        ContactName = request.ContactName,
+                        ContactPhone = request.ContactPhone,
+                        ContactEmail = request.ContactEmail,
+                        CustomerNotes = request.SpecialRequests,
+                        IsCheckedIn = false, // ✅ Default check-in status
+                        ReservedUntil = VietnamTimeZoneUtility.GetVietnamNow().AddMinutes(30), // Reserve slot for 30 minutes
+                        IsActive = true,
+                        IsDeleted = false, // ✅ Explicitly set BaseEntity fields
+                        CreatedAt = bookingDate,
+                        CreatedById = userId
+                        // ✅ RowVersion will be auto-generated by database
                     };
-                }
 
-                // 7. Generate booking code and PayOS order code
-                var bookingCode = GenerateBookingCode();
-                var payOsOrderCode = GeneratePayOsOrderCode();
+                    // 9. Save booking to database FIRST to ensure FK exists for PaymentTransaction
+                    await _unitOfWork.TourBookingRepository.AddAsync(booking);
+                    await _unitOfWork.SaveChangesAsync();
 
-                // 8. Create booking
-                var booking = new TourBooking
-                {
-                    Id = Guid.NewGuid(),
-                    TourOperationId = tourOperation.Id,
-                    TourSlotId = request.TourSlotId,
-                    UserId = userId,
-                    NumberOfGuests = request.NumberOfGuests,
-                    OriginalPrice = tourOperation.Price * request.NumberOfGuests,
-                    DiscountPercent = discountPercent,
-                    TotalPrice = totalPrice,
-                    Status = BookingStatus.Pending,
-                    BookingCode = bookingCode,
-                    PayOsOrderCode = payOsOrderCode,
-                    BookingDate = bookingDate,
-                    ContactName = request.ContactName,
-                    ContactPhone = request.ContactPhone,
-                    ContactEmail = request.ContactEmail,
-                    CustomerNotes = request.SpecialRequests,
-                    CreatedAt = bookingDate,
-                    CreatedById = userId,
-                    ReservedUntil = VietnamTimeZoneUtility.GetVietnamNow().AddMinutes(30) // Reserve slot for 30 minutes
-                };
+                    _logger.LogInformation("Tour booking saved to database. BookingCode: {BookingCode}, BookingId: {BookingId}", 
+                        bookingCode, booking.Id);
 
-                await _unitOfWork.TourBookingRepository.AddAsync(booking);
+                    // 10. Create PayOS payment link (now that booking exists in DB)
+                    if (_payOsService == null)
+                    {
+                        _logger.LogError("PayOsService is null - service not injected properly");
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = "PayOS service không khả dụng. Vui lòng thử lại sau."
+                        };
+                    }
 
-                // 9. KHÔNG cộng TourOperation.CurrentBookings ngay lập tức 
-                // Chỉ cộng khi thanh toán thành công trong HandlePaymentSuccessAsync
-                // tourOperation.CurrentBookings += request.NumberOfGuests; // ❌ Remove this line
-                // await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation); // ❌ Remove this line
+                    // Use Enhanced PayOS system with PaymentTransaction tracking
+                    var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
+                    {
+                        OrderId = null, // NULL for tour booking payments
+                        TourBookingId = booking.Id, // ✅ Now booking.Id exists in database
+                        Amount = totalPrice,
+                        Description = $"Tour {payOsOrderCode}" // Shortened to fit 25 char limit
+                    };
 
-                _logger.LogInformation("Tour booking created (PENDING payment). BookingCode: {BookingCode}, TourSlot reserved: {Guests} guests", 
-                    bookingCode, request.NumberOfGuests);
+                    PaymentTransaction paymentTransaction;
+                    try
+                    {
+                        _logger.LogInformation("Creating PayOS payment link for booking {BookingCode}, Amount: {Amount}", 
+                            bookingCode, totalPrice);
+                        
+                        paymentTransaction = await _payOsService.CreatePaymentLinkAsync(paymentRequest);
+                        
+                        if (paymentTransaction == null)
+                        {
+                            _logger.LogError("PayOS service returned null payment transaction for booking {BookingCode}", bookingCode);
+                            return new CreateBookingResultDto
+                            {
+                                Success = false,
+                                Message = "Không thể tạo link thanh toán. Vui lòng thử lại."
+                            };
+                        }
+                        
+                        if (string.IsNullOrEmpty(paymentTransaction.CheckoutUrl))
+                        {
+                            _logger.LogError("PayOS service returned empty checkout URL for booking {BookingCode}", bookingCode);
+                            return new CreateBookingResultDto
+                            {
+                                Success = false,
+                                Message = "Link thanh toán không hợp lệ. Vui lòng thử lại."
+                            };
+                        }
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        _logger.LogError(ex, "PayOS operation error for booking {BookingCode}: {Error}", bookingCode, ex.Message);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = $"Lỗi thanh toán: {ex.Message}"
+                        };
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        _logger.LogError(ex, "PayOS argument error for booking {BookingCode}: {Error}", bookingCode, ex.Message);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = $"Thông tin thanh toán không hợp lệ: {ex.Message}"
+                        };
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Unexpected PayOS error for booking {BookingCode}: {Error}", bookingCode, ex.Message);
+                        return new CreateBookingResultDto
+                        {
+                            Success = false,
+                            Message = $"Lỗi khi tạo link thanh toán: {ex.Message}. Vui lòng kiểm tra thông tin và thử lại."
+                        };
+                    }
+                    
+                    string paymentUrl = paymentTransaction.CheckoutUrl;
 
-                // 10. === ENHANCED PAYOS: Create PayOS payment URL with transaction tracking ===
-                if (_payOsService == null)
-                {
-                    throw new InvalidOperationException("PayOsService is not available. Cannot create payment link.");
-                }
+                    _logger.LogInformation("Enhanced PayOS tour booking payment created successfully for booking {BookingCode}: TransactionId={TransactionId}, PaymentUrl={PaymentUrl}",
+                        bookingCode, paymentTransaction.Id, paymentUrl);
 
-                // Use Enhanced PayOS system with PaymentTransaction tracking
-                var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
-                {
-                    OrderId = null, // NULL for tour booking payments
-                    TourBookingId = booking.Id, // Link to TourBooking (Tour Payment)
-                    Amount = totalPrice,
-                    Description = $"Tour {payOsOrderCode}" // Shortened to fit 25 char limit
-                };
+                    await transaction.CommitAsync();
 
-                var paymentTransaction = await _payOsService.CreatePaymentLinkAsync(paymentRequest);
-                string paymentUrl = paymentTransaction.CheckoutUrl ?? throw new InvalidOperationException("Failed to create PayOS checkout URL");
-
-                _logger.LogInformation("Enhanced PayOS tour booking payment created successfully for booking {BookingCode}: TransactionId={TransactionId}, PaymentUrl={PaymentUrl}",
-                    bookingCode, paymentTransaction.Id, paymentUrl);
-
-                await _unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                _logger.LogInformation("Tour booking created successfully. BookingId: {BookingId}, BookingCode: {BookingCode}, UserId: {UserId}", 
-                    booking.Id, bookingCode, userId);
+                    _logger.LogInformation("Tour booking created successfully. BookingId: {BookingId}, BookingCode: {BookingCode}, UserId: {UserId}", 
+                        booking.Id, bookingCode, userId);
 
                     return new CreateBookingResultDto
                     {
@@ -914,21 +974,61 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     _logger.LogInformation("Payment success processed successfully for booking {BookingCode}. Revenue hold: {RevenueHold}", 
                         booking.BookingCode, booking.RevenueHold);
 
-                    // 6. ✅ Send confirmation email with QR code (async, don't wait for completion)
-                    _ = Task.Run(async () =>
+                    // 6. ✅ Send confirmation email with QR code - FIXED: Better error handling and validation
+                    string emailStatus = "Email xác nhận đã được gửi";
+                    bool emailSent = false;
+                    
+                    try
                     {
-                        try
-                        {
-                            await SendBookingConfirmationEmailAsync(booking);
-                            _logger.LogInformation("Booking confirmation email with QR code sent for booking {BookingCode}", booking.BookingCode);
-                        }
-                        catch (Exception emailEx)
-                        {
-                            _logger.LogError(emailEx, "Failed to send booking confirmation email for booking {BookingId}", booking.Id);
-                        }
-                    });
+                        // Determine email address (priority: ContactEmail -> User.Email)
+                        var customerEmail = !string.IsNullOrWhiteSpace(booking.ContactEmail) 
+                            ? booking.ContactEmail 
+                            : booking.User?.Email;
 
-                    // 7. ✅ Send notification to TourCompany về booking mới
+                        if (string.IsNullOrWhiteSpace(customerEmail))
+                        {
+                            _logger.LogWarning("No email address available for booking {BookingId} - ContactEmail: {ContactEmail}, UserEmail: {UserEmail}", 
+                                booking.Id, booking.ContactEmail, booking.User?.Email);
+                            emailStatus = "Không có địa chỉ email để gửi vé QR";
+                        }
+                        else if (!IsValidEmail(customerEmail))
+                        {
+                            _logger.LogWarning("Invalid email address for booking {BookingId}: {Email}", 
+                                booking.Id, customerEmail);
+                            emailStatus = "Địa chỉ email không hợp lệ";
+                        }
+                        else
+                        {
+                            // Send email synchronously to ensure it completes
+                            await SendBookingConfirmationEmailAsync(booking);
+                            emailSent = true;
+                            _logger.LogInformation("Booking confirmation email with QR code sent successfully for booking {BookingCode} to {Email}", 
+                                booking.BookingCode, customerEmail);
+                        }
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogError(emailEx, "Failed to send booking confirmation email for booking {BookingId}", booking.Id);
+                        emailStatus = $"Gửi email thất bại: {emailEx.Message}";
+                        
+                        // Schedule retry in background
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(30000); // Wait 30 seconds before retry
+                            try
+                            {
+                                _logger.LogInformation("Retrying email send for booking {BookingCode}", booking.BookingCode);
+                                await SendBookingConfirmationEmailAsync(booking);
+                                _logger.LogInformation("Email retry successful for booking {BookingCode}", booking.BookingCode);
+                            }
+                            catch (Exception retryEx)
+                            {
+                                _logger.LogError(retryEx, "Email retry also failed for booking {BookingId}", booking.Id);
+                            }
+                        });
+                    }
+
+                    // 7. ✅ Send notification to TourCompany về booking mới (in background)
                     if (booking.TourOperation?.TourDetails?.CreatedById != null)
                     {
                         _ = Task.Run(async () =>
@@ -950,7 +1050,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return new BaseResposeDto
                     {
                         StatusCode = 200,
-                        Message = "Thanh toán thành công - Booking đã được xác nhận, slot đã được cập nhật, QR code đã được tạo và email xác nhận đã được gửi",
+                        Message = emailSent 
+                            ? "Thanh toán thành công - Booking đã được xác nhận, QR code đã được tạo và email xác nhận đã được gửi"
+                            : $"Thanh toán thành công - Booking đã được xác nhận, QR code đã được tạo. {emailStatus}",
                         success = true
                     };
                 }
@@ -966,6 +1068,121 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
             });
         }
+        
+        /// <summary>
+        /// Validate email address format
+        /// </summary>
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Get booking status name in Vietnamese
+        /// </summary>
+        private string GetBookingStatusName(BookingStatus status)
+        {
+            return status switch
+            {
+                BookingStatus.Pending => "Chờ thanh toán",
+                BookingStatus.Confirmed => "Đã xác nhận",
+                BookingStatus.CancelledByCustomer => "Đã hủy bởi khách hàng",
+                BookingStatus.CancelledByCompany => "Đã hủy bởi công ty",
+                BookingStatus.Completed => "Đã hoàn thành",
+                BookingStatus.NoShow => "Không xuất hiện",
+                BookingStatus.Refunded => "Đã hoàn tiền",
+                _ => "Không xác định"
+            };
+        }
+
+        /// <summary>
+        /// Manually resend QR ticket email for confirmed booking
+        /// This can be called if the original email failed to send
+        /// </summary>
+        public async Task<BaseResposeDto> ResendQRTicketEmailAsync(Guid bookingId, Guid userId)
+        {
+            try
+            {
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(b => b.Id == bookingId && b.UserId == userId && !b.IsDeleted)
+                    .Include(b => b.TourOperation)
+                        .ThenInclude(to => to.TourDetails)
+                    .Include(b => b.TourSlot)
+                    .Include(b => b.User)
+                    .FirstOrDefaultAsync();
+
+                if (booking == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy booking"
+                    };
+                }
+
+                if (booking.Status != BookingStatus.Confirmed)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Chỉ có thể gửi lại email cho booking đã được xác nhận"
+                    };
+                }
+
+                // Determine email address (priority: ContactEmail -> User.Email)
+                var customerEmail = !string.IsNullOrWhiteSpace(booking.ContactEmail) 
+                    ? booking.ContactEmail 
+                    : booking.User?.Email;
+
+                if (string.IsNullOrWhiteSpace(customerEmail))
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Không có địa chỉ email để gửi vé QR"
+                    };
+                }
+
+                if (!IsValidEmail(customerEmail))
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Địa chỉ email không hợp lệ"
+                    };
+                }
+
+                // Send the confirmation email
+                await SendBookingConfirmationEmailAsync(booking);
+
+                _logger.LogInformation("QR ticket email resent successfully for booking {BookingCode} to {Email}", 
+                    booking.BookingCode, customerEmail);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Email vé QR đã được gửi lại thành công",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending QR ticket email for booking {BookingId}", bookingId);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi khi gửi lại email: {ex.Message}"
+                };
+            }
+        }
 
         /// <summary>
         /// Xử lý callback thanh toán hủy
@@ -979,62 +1196,55 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
-                    .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
-                    .Include(b => b.TourOperation)
-                    .Include(b => b.TourSlot)
-                    .FirstOrDefaultAsync();
+                    var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                        .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
+                        .Include(b => b.TourOperation)
+                        .Include(b => b.TourSlot)
+                        .FirstOrDefaultAsync();
 
-                if (booking == null)
-                {
+                    if (booking == null)
+                    {
+                        return new BaseResposeDto
+                        {
+                            StatusCode = 404,
+                            Message = "Không tìm thấy booking với mã thanh toán này"
+                        };
+                    }
+
+                    if (booking.Status != BookingStatus.Pending)
+                    {
+                        return new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = "Booking không ở trạng thái chờ thanh toán"
+                        };
+                    }
+
+                    // Cancel booking and release capacity
+                    booking.Status = BookingStatus.CancelledByCustomer;
+                    booking.CancelledDate = DateTime.UtcNow;
+                    booking.CancellationReason = "Hủy thanh toán";
+                    booking.UpdatedAt = DateTime.UtcNow;
+                    booking.ReservedUntil = null; // Clear reservation timeout since booking is cancelled
+
+                    await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
+
+                    // Release capacity from TourSlot
+                    if (booking.TourSlotId.HasValue)
+                    {
+                        var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                        await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
+                    }
+
+                    await _unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
                     return new BaseResposeDto
                     {
-                        StatusCode = 404,
-                        Message = "Không tìm thấy booking với mã thanh toán này"
+                        StatusCode = 200,
+                        Message = "Đã hủy booking do không thanh toán",
+                        success = true
                     };
-                }
-
-                if (booking.Status != BookingStatus.Pending)
-                {
-                    return new BaseResposeDto
-                    {
-                        StatusCode = 400,
-                        Message = "Booking không ở trạng thái chờ thanh toán"
-                    };
-                }
-
-                // Cancel booking and release capacity
-                booking.Status = BookingStatus.CancelledByCustomer;
-                booking.CancelledDate = DateTime.UtcNow;
-                booking.CancellationReason = "Hủy thanh toán";
-                booking.UpdatedAt = DateTime.UtcNow;
-                booking.ReservedUntil = null; // Clear reservation timeout since booking is cancelled
-
-                await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
-
-                // Release capacity from TourOperation
-                // if (booking.TourOperation != null)
-                // {
-                //     booking.TourOperation.CurrentBookings -= booking.NumberOfGuests;
-                //     await _unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
-                // }
-
-                // Release capacity from TourSlot
-                if (booking.TourSlotId.HasValue)
-                {
-                    var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
-                    await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
-                }
-
-                await _unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                return new BaseResposeDto
-                {
-                    StatusCode = 200,
-                    Message = "Đã hủy booking do không thanh toán",
-                    success = true
-                };
                 }
                 catch (Exception ex)
                 {
@@ -1154,6 +1364,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Generate QR code data for customer
+        /// ENHANCED: Include both original and final pricing information
         /// </summary>
         private string GenerateQRCodeData(TourBooking booking)
         {
@@ -1164,30 +1375,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 UserId = booking.UserId,
                 TourOperationId = booking.TourOperationId,
                 NumberOfGuests = booking.NumberOfGuests,
-                TotalPrice = booking.TotalPrice,
+                
+                // PRICING INFORMATION - Enhanced to show both original and final prices
+                OriginalPrice = booking.OriginalPrice, // Giá gốc (trước discount)
+                DiscountPercent = booking.DiscountPercent, // % giảm giá
+                TotalPrice = booking.TotalPrice, // Giá cuối cùng (sau discount)
+                PriceType = booking.DiscountPercent > 0 ? "Early Bird" : "Standard",
+                
                 BookingDate = booking.BookingDate,
-                Status = booking.Status.ToString()
+                Status = booking.Status.ToString(),
+                
+                // Add verification info
+                GeneratedAt = DateTime.UtcNow,
+                Version = "2.0" // Updated version to reflect enhanced pricing info
             };
 
             return System.Text.Json.JsonSerializer.Serialize(qrData);
-        }
-
-        /// <summary>
-        /// Get booking status name in Vietnamese
-        /// </summary>
-        private string GetBookingStatusName(BookingStatus status)
-        {
-            return status switch
-            {
-                BookingStatus.Pending => "Chờ thanh toán",
-                BookingStatus.Confirmed => "Đã xác nhận",
-                BookingStatus.CancelledByCustomer => "Đã hủy bởi khách hàng",
-                BookingStatus.CancelledByCompany => "Đã hủy bởi công ty",
-                BookingStatus.Completed => "Đã hoàn thành",
-                BookingStatus.NoShow => "Không xuất hiện",
-                BookingStatus.Refunded => "Đã hoàn tiền",
-                _ => "Không xác định"
-            };
         }
     }
 }

@@ -72,6 +72,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Generate QR code data JSON string from tour booking
+        /// ENHANCED: Include both original and final pricing information
         /// </summary>
         public string GenerateQRCodeData(TourBooking booking)
         {
@@ -84,19 +85,27 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UserId = booking.UserId,
                     TourOperationId = booking.TourOperationId,
                     NumberOfGuests = booking.NumberOfGuests,
-                    TotalPrice = booking.TotalPrice,
+                    
+                    // PRICING INFORMATION - Enhanced to show both original and final prices
+                    OriginalPrice = booking.OriginalPrice, // Giá g?c (tr??c discount)
+                    DiscountPercent = booking.DiscountPercent, // % gi?m giá
+                    TotalPrice = booking.TotalPrice, // Giá cu?i cùng (sau discount)
+                    PriceType = booking.DiscountPercent > 0 ? "Early Bird" : "Standard",
+                    
                     BookingDate = booking.BookingDate,
                     ConfirmedDate = booking.ConfirmedDate,
                     Status = booking.Status.ToString(),
                     ContactName = booking.ContactName,
                     ContactPhone = booking.ContactPhone,
                     ContactEmail = booking.ContactEmail,
+                    
                     // Add tour information if available
                     TourTitle = booking.TourOperation?.TourDetails?.Title,
                     TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
+                    
                     // Add verification timestamp
                     GeneratedAt = DateTime.UtcNow,
-                    Version = "1.0"
+                    Version = "2.0" // Updated version to reflect enhanced pricing info
                 };
 
                 return JsonSerializer.Serialize(qrData, new JsonSerializerOptions
@@ -114,6 +123,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Validate QR code data format
+        /// ENHANCED: Updated to handle version 2.0 QR codes with pricing information
         /// </summary>
         public bool ValidateQRCodeData(string qrData)
         {
@@ -125,11 +135,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var jsonDocument = JsonDocument.Parse(qrData);
                 var root = jsonDocument.RootElement;
 
-                // Check required fields
-                return root.TryGetProperty("bookingId", out _) &&
-                       root.TryGetProperty("bookingCode", out _) &&
-                       root.TryGetProperty("userId", out _) &&
-                       root.TryGetProperty("status", out _);
+                // Check required fields for all versions
+                bool hasBasicFields = root.TryGetProperty("bookingId", out _) &&
+                                     root.TryGetProperty("bookingCode", out _) &&
+                                     root.TryGetProperty("userId", out _) &&
+                                     root.TryGetProperty("status", out _);
+
+                if (!hasBasicFields)
+                    return false;
+
+                // Check version-specific fields
+                if (root.TryGetProperty("version", out var versionElement))
+                {
+                    var version = versionElement.GetString();
+                    if (version == "2.0")
+                    {
+                        // Version 2.0 should have enhanced pricing information
+                        return root.TryGetProperty("originalPrice", out _) &&
+                               root.TryGetProperty("totalPrice", out _) &&
+                               root.TryGetProperty("discountPercent", out _) &&
+                               root.TryGetProperty("priceType", out _);
+                    }
+                }
+
+                // Fallback for version 1.0 or no version specified
+                return true;
             }
             catch (Exception ex)
             {

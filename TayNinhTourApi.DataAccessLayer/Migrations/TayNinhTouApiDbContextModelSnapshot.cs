@@ -1855,6 +1855,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("datetime(6)")
                         .HasComment("Thời gian hết hạn reservation để tự động release slot nếu không thanh toán");
 
+                    b.Property<decimal>("RevenueHold")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("RevenueTransferredDate")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime>("RowVersion")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()

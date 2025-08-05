@@ -25,9 +25,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (originalPrice <= 0)
                 throw new ArgumentException("Giá gốc phải lớn hơn 0", nameof(originalPrice));
 
-            if (bookingDate < tourDetailsCreatedAt)
-                throw new ArgumentException("Ngày đặt không thể trước ngày mở bán", nameof(bookingDate));
-
             if (tourStartDate <= bookingDate)
                 throw new ArgumentException("Ngày khởi hành phải sau ngày đặt", nameof(tourStartDate));
 
@@ -51,11 +48,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             DateTime tourDetailsCreatedAt,
             DateTime bookingDate)
         {
-            var daysSinceCreated = (bookingDate.Date - tourDetailsCreatedAt.Date).Days;
+            // Ensure proper date comparison - use the later date between creation and booking
+            var earliestValidDate = tourDetailsCreatedAt > bookingDate ? tourDetailsCreatedAt : bookingDate;
+            
+            var daysSinceCreated = Math.Max(0, (bookingDate.Date - tourDetailsCreatedAt.Date).Days);
             var daysUntilTour = (tourStartDate.Date - bookingDate.Date).Days;
 
             // Điều kiện Early Bird:
-            // 1. Đặt trong 15 ngày đầu sau khi mở bán
+            // 1. Đặt trong 15 ngày đầu sau khi mở bán (hoặc từ ngày hiện tại nếu tour đã được tạo trước đó)
             // 2. Tour khởi hành sau ít nhất 30 ngày kể từ ngày đặt
             return daysSinceCreated <= EARLY_BIRD_WINDOW_DAYS && daysUntilTour >= MINIMUM_DAYS_BEFORE_TOUR;
         }
@@ -69,7 +69,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             DateTime tourDetailsCreatedAt,
             DateTime bookingDate)
         {
-            var daysSinceCreated = (bookingDate.Date - tourDetailsCreatedAt.Date).Days;
+            var daysSinceCreated = Math.Max(0, (bookingDate.Date - tourDetailsCreatedAt.Date).Days);
             var daysUntilTour = (tourStartDate.Date - bookingDate.Date).Days;
             var isEarlyBird = IsEarlyBirdEligible(tourStartDate, tourDetailsCreatedAt, bookingDate);
 
@@ -83,7 +83,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 DiscountPercent = discountPercent,
                 DiscountAmount = discountAmount,
                 IsEarlyBird = isEarlyBird,
-                PricingType = isEarlyBird ? "Early Bird" : "Last Minute",
+                PricingType = isEarlyBird ? "Early Bird" : "Standard",
                 DaysSinceCreated = daysSinceCreated,
                 DaysUntilTour = daysUntilTour
             };

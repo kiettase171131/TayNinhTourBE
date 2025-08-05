@@ -1696,6 +1696,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     OriginalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Giá gốc trước khi áp dụng discount"),
                     DiscountPercent = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m, comment: "Phần trăm giảm giá được áp dụng"),
                     TotalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Tổng giá tiền của booking sau discount"),
+                    RevenueHold = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    RevenueTransferredDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false, defaultValue: 0, comment: "Trạng thái của booking"),
                     BookingDate = table.Column<DateTime>(type: "datetime(6)", nullable: false, comment: "Ngày tạo booking"),
                     ConfirmedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true, comment: "Ngày xác nhận booking"),
