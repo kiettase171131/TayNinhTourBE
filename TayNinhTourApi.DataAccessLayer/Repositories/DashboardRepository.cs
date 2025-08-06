@@ -96,10 +96,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Where(c => c.Blog.UserId == bloggerId), month, year)
                 .CountAsync();
         //Shop
-        public async Task<int> GetTotalProductsAsync(Guid shopId, DateTime startDate, DateTime endDate)
-         => await _context.Products.CountAsync(p => p.ShopId == shopId
-                                                 && p.CreatedAt >= startDate
-                                                 && p.CreatedAt < endDate);
+        public async Task<int> GetTotalProductsAsync(Guid shopId)
+    => await _context.Products.CountAsync(p => p.ShopId == shopId);
+
 
         public async Task<int> GetTotalOrdersAsync(Guid shopId, DateTime startDate, DateTime endDate)
         {
