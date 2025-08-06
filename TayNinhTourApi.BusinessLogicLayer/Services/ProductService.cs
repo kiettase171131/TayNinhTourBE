@@ -1265,7 +1265,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 success = true
             };
         }
-        public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status)
+        public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status ,bool? isChecked)
         {
             try
             {
@@ -1283,7 +1283,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode);
                 }
-
+                if (isChecked.HasValue)
+                {
+                    predicate = predicate.And(x => x.IsChecked == isChecked.Value);
+                }
                 // lấy danh sách + phân trang
                 var orders = await _orderRepository.GenericGetPaginationAsync(
                     pageIndexValue,
@@ -1323,7 +1326,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<ResponseGetOrdersDto> GetOrdersByUserAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, CurrentUserObject currentUserObject)
+        public async Task<ResponseGetOrdersDto> GetOrdersByUserAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, CurrentUserObject currentUserObject)
         {
             try
             {
@@ -1342,7 +1345,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode);
                 }
-
+                if (isChecked.HasValue)
+                {
+                    predicate = predicate.And(x => x.IsChecked == isChecked.Value);
+                }
                 // lấy danh sách + phân trang
                 var orders = await _orderRepository.GenericGetPaginationAsync(
                     pageIndexValue,
@@ -1381,7 +1387,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 throw; // Re-throw để controller có thể handle
             }
         }
-        public async Task<ResponseGetOrdersDto> GetOrdersByCurrentShopAsync(int? pageIndex,int? pageSize,string? payOsOrderCode,bool? status,CurrentUserObject currentUserObject)
+        public async Task<ResponseGetOrdersDto> GetOrdersByCurrentShopAsync(int? pageIndex,int? pageSize,string? payOsOrderCode,bool? status, bool? isChecked,CurrentUserObject currentUserObject)
         {
             try
             {
@@ -1404,7 +1410,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     predicate = predicate.And(x => x.PayOsOrderCode == payOsOrderCode);
                 }
-
+                if (isChecked.HasValue)
+                {
+                    predicate = predicate.And(x => x.IsChecked == isChecked.Value);
+                }
                 var orders = await _orderRepository.GenericGetPaginationAsync(
                     pageIndexValue,
                     pageSizeValue,
