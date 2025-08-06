@@ -1,20 +1,37 @@
-# Early Bird Pricing Information for Frontend
+# Enhanced Early Bird Pricing Information for Frontend
 
-## T?ng quan
-H? th?ng ?ã ???c c?p nh?t ?? cung c?p thông tin early bird chi ti?t cho Frontend thông qua các API response.
+## ?? T?ng quan C?p nh?t
+H? th?ng Early Bird ?ã ???c c?p nh?t v?i logic m?i ?? t?o ?i?u ki?n t?t h?n cho khách hàng.
 
-## Logic Early Bird
-- **Th?i gian áp d?ng**: 15 ngày ??u sau khi tour ???c t?o
-- **?i?u ki?n**: Tour ph?i kh?i hành sau ít nh?t 30 ngày t? ngày ??t
-- **M?c gi?m giá**: 25% trên giá g?c
+## ?? Enhanced Early Bird Logic
+- **Th?i gian áp d?ng**: 14 ngày ??u sau khi tour ???c **CÔNG KHAI** (thay vì ngày t?o)
+- **?i?u ki?n**: Tour ph?i kh?i hành sau ít nh?t 30 ngày t? ngày ??t (gi? nguyên)
+- **M?c gi?m giá**: 25% trên giá g?c (gi? nguyên)
+- **??c bi?t**: N?u t? ngày công khai ??n slot ??u tiên < 14 ngày ? Early Bird kéo dài ??n t?n ngày slot
 
-## API Endpoints và Thông tin Early Bird
+## ?? Thay ??i quan tr?ng
+
+### Logic C? vs Logic M?i
+| Aspect | Logic C? | Logic M?i |
+|--------|----------|-----------|
+| Th?i gian tính | 15 ngày t? ngày **t?o** tour | 14 ngày t? ngày **công khai** tour |
+| ?i?u ki?n ??c bi?t | Không | Kéo dài ??n ngày slot n?u < 14 ngày |
+| Tính t? | `TourDetails.CreatedAt` | `TourDetails.UpdatedAt` (khi status = Public) |
+
+### Ví d? Logic M?iScenario 1: Tour bình th??ng
+- Ngày công khai: 01/01/2024
+- Slot ??u tiên: 20/01/2024 (19 ngày sau công khai)
+- Early Bird: 01/01 ? 15/01 (14 ngày ??u)
+
+Scenario 2: Tour công khai mu?n
+- Ngày công khai: 10/01/2024  
+- Slot ??u tiên: 20/01/2024 (10 ngày sau công khai)
+- Early Bird: 10/01 ? 20/01 (kéo dài h?t 10 ngày)
+## API Endpoints và Thông tin Enhanced Early Bird
 
 ### 1. GET `/api/UserTourBooking/available-tours`
 
-**Response Structure:**
-```json
-{
+**Enhanced Response Structure:**{
   "items": [
     {
       "tourDetailsId": "guid",
@@ -24,38 +41,28 @@ H? th?ng ?ã ???c c?p nh?t ?? cung c?p thông tin early bird chi ti?t cho Frontend
       "earlyBirdPrice": 750000,
       "earlyBirdDiscountPercent": 25,
       "earlyBirdDiscountAmount": 250000,
-      "earlyBirdEndDate": "2024-01-30T23:59:59",
-      "daysRemainingForEarlyBird": 5,
+      "earlyBirdEndDate": "2024-01-15T23:59:59",
+      "daysRemainingForEarlyBird": 3,
       "pricingType": "Early Bird",
       "finalPrice": 750000,
-      "hasEarlyBirdDiscount": true
+      "hasEarlyBirdDiscount": true,
+      
+      // NEW: Enhanced fields
+      "tourPublicDate": "2024-01-01T00:00:00",
+      "earlyBirdWindowDays": 10,
+      "earlyBirdDescription": "Early Bird kéo dài ??n ngày tour vì ch? còn 10 ngày"
     }
   ]
 }
-```
-
-**Thông tin Early Bird:**
-- `isEarlyBirdActive`: Tour còn áp d?ng early bird không
-- `earlyBirdPrice`: Giá sau khi gi?m early bird
-- `earlyBirdDiscountPercent`: Ph?n tr?m gi?m giá (25%)
-- `earlyBirdDiscountAmount`: S? ti?n ???c gi?m
-- `earlyBirdEndDate`: Ngày k?t thúc early bird
-- `daysRemainingForEarlyBird`: S? ngày còn l?i c?a early bird
-- `pricingType`: "Early Bird" ho?c "Standard"
-- `finalPrice`: Giá cu?i cùng (computed property)
-- `hasEarlyBirdDiscount`: Có ?ang gi?m giá không (computed property)
-
 ### 2. GET `/api/UserTourBooking/tour-details/{id}`
 
-**Response Structure:**
-```json
-{
+**Enhanced Response Structure:**{
   "id": "guid",
   "title": "Tour Name",
   "tourDates": [
     {
       "tourSlotId": "guid",
-      "tourDate": "2024-02-15T00:00:00",
+      "tourDate": "2024-01-20T00:00:00",
       "originalPrice": 1000000,
       "finalPrice": 750000,
       "isEarlyBirdApplicable": true,
@@ -65,42 +72,19 @@ H? th?ng ?ã ???c c?p nh?t ?? cung c?p thông tin early bird chi ti?t cho Frontend
   "earlyBirdInfo": {
     "isActive": true,
     "discountPercent": 25,
-    "endDate": "2024-01-30T23:59:59",
-    "daysRemaining": 5,
-    "description": "??t s?m ti?t ki?m 25% trong 5 ngày còn l?i!",
+    "endDate": "2024-01-20T00:00:00",
+    "daysRemaining": 3,
+    "description": "??t s?m ti?t ki?m 25% trong 3 ngày còn l?i! (Early Bird t? 01/01/2024 Early Bird kéo dài ??n ngày tour vì ch? còn 10 ngày)",
     "originalPrice": 1000000,
     "discountedPrice": 750000,
     "savingsAmount": 250000,
     "isExpiringSoon": true,
-    "displayMessage": "Gi?m 25% - Còn 5 ngày!"
+    "displayMessage": "Gi?m 25% - Còn 3 ngày!"
   }
 }
-```
-
-**Thông tin Early Bird:**
-- `tourDates[]`: M?i slot có thông tin giá riêng
-  - `originalPrice`: Giá g?c
-  - `finalPrice`: Giá sau gi?m
-  - `isEarlyBirdApplicable`: Slot này có áp d?ng early bird không
-  - `earlyBirdDiscountPercent`: % gi?m giá
-
-- `earlyBirdInfo`: Thông tin t?ng quan
-  - `isActive`: Early bird còn hi?u l?c
-  - `discountPercent`: % gi?m giá
-  - `endDate`: Ngày k?t thúc
-  - `daysRemaining`: Ngày còn l?i
-  - `description`: Mô t? chi ti?t
-  - `originalPrice`: Giá g?c
-  - `discountedPrice`: Giá sau gi?m
-  - `savingsAmount`: S? ti?n ti?t ki?m
-  - `isExpiringSoon`: S?p h?t h?n (? 3 ngày)
-  - `displayMessage`: Message ?? hi?n th?
-
 ### 3. POST `/api/UserTourBooking/calculate-price`
 
-**Response Structure:**
-```json
-{
+**Enhanced Response Structure:**{
   "tourOperationId": "guid",
   "numberOfGuests": 2,
   "originalPricePerGuest": 1000000,
@@ -112,71 +96,97 @@ H? th?ng ?ã ???c c?p nh?t ?? cung c?p thông tin early bird chi ti?t cho Frontend
   "pricingType": "Early Bird",
   "daysSinceCreated": 5,
   "daysUntilTour": 45,
-  "isAvailable": true
+  "isAvailable": true,
+  
+  // NEW: Enhanced pricing info
+  "tourPublicDate": "2024-01-01T00:00:00",
+  "earlyBirdWindowDays": 10,
+  "daysFromPublicToTourStart": 10,
+  "earlyBirdEndDate": "2024-01-20T00:00:00",
+  "earlyBirdDescription": "Early Bird kéo dài ??n ngày tour vì ch? còn 10 ngày"
 }
-```
+## ?? Testing Endpoints
 
-## Cách FE s? d?ng thông tin Early Bird
+### Enhanced Test EndpointsGET /api/Testing/early-bird-pricing-tests
+GET /api/Testing/test-early-bird-pricing?daysSincePublic=5&daysUntilTour=45
+GET /api/Testing/early-bird-performance-test
+**Test Parameters Changed:**
+- `daysSinceCreated` ? `daysSincePublic`
+- Reflects new logic based on public date
 
-### 1. Hi?n th? badge Early Bird
-```javascript
-if (tour.isEarlyBirdActive) {
-  showEarlyBirdBadge(`Gi?m ${tour.earlyBirdDiscountPercent}%`);
+## Cách FE s? d?ng Enhanced Early Bird
+
+### 1. Hi?n th? Enhanced Early Bird Badgeif (tour.isEarlyBirdActive) {
+  const description = tour.earlyBirdDescription || `Gi?m ${tour.earlyBirdDiscountPercent}%`;
+  showEarlyBirdBadge(description);
+  
+  // Show special message for extended Early Bird
+  if (tour.earlyBirdWindowDays < 14) {
+    showSpecialMessage(`?? Early Bird ??c bi?t: kéo dài ??n ngày tour!`);
+  }
 }
-```
-
-### 2. Hi?n th? giá v?i gi?m giá
-```javascript
-if (tour.hasEarlyBirdDiscount) {
-  showOriginalPrice(tour.price, { strikethrough: true });
-  showDiscountedPrice(tour.finalPrice, { highlight: true });
-  showSavings(tour.earlyBirdDiscountAmount);
+### 2. Enhanced Countdown Displayif (tour.isEarlyBirdActive && tour.daysRemainingForEarlyBird > 0) {
+  const isExtended = tour.earlyBirdWindowDays < 14;
+  const message = isExtended 
+    ? `Còn ${tour.daysRemainingForEarlyBird} ngày ??n ngày tour!`
+    : `Còn ${tour.daysRemainingForEarlyBird} ngày Early Bird!`;
+  
+  showCountdown(message);
 }
-```
-
-### 3. Hi?n th? countdown
-```javascript
-if (tour.isEarlyBirdActive && tour.daysRemainingForEarlyBird > 0) {
-  showCountdown(`Còn ${tour.daysRemainingForEarlyBird} ngày gi?m giá!`);
+### 3. Enhanced Information Displayif (tour.earlyBirdInfo?.isActive) {
+  showEarlyBirdInfo({
+    discount: `${tour.earlyBirdInfo.discountPercent}%`,
+    description: tour.earlyBirdInfo.description,
+    timeRemaining: `${tour.earlyBirdInfo.daysRemaining} ngày`,
+    specialNote: tour.earlyBirdWindowDays < 14 
+      ? "?u ?ãi ??c bi?t kéo dài ??n ngày tour!"
+      : null
+  });
 }
-```
+## ?? L?u ý cho Developer
 
-### 4. C?nh báo s?p h?t h?n
-```javascript
-if (tour.earlyBirdInfo?.isExpiringSoon) {
-  showUrgentMessage("?? ?u ?ãi s?p k?t thúc!");
+### 1. Backward Compatibility
+- Các field c? v?n ???c gi? ?? không phá v? code hi?n t?i
+- `daysSinceCreated` bây gi? th?c ch?t là `daysSincePublic`
+
+### 2. New Fields to Use// Use these new fields for better UX
+tour.earlyBirdWindowDays      // S? ngày Early Bird th?c t?
+tour.earlyBirdDescription     // Mô t? logic ???c áp d?ng
+tour.daysFromPublicToTourStart // ?? hi?n th? thông tin debug
+### 3. Enhanced Logic Handling// Check if Early Bird is extended to tour start
+const isExtendedEarlyBird = tour.earlyBirdWindowDays < 14;
+
+if (isExtendedEarlyBird) {
+  showSpecialPromotion("?? ?u ?ãi ??c bi?t: Early Bird kéo dài ??n ngày tour!");
 }
-```
+## ?? Enhanced Test Cases
 
-### 5. Tính t?ng ti?n v?i early bird
-```javascript
-const totalPrice = tour.finalPrice * numberOfGuests;
-const savings = (tour.price - tour.finalPrice) * numberOfGuests;
+### Test Case 1: Enhanced Early Bird Active// Tour công khai: 01/01/2024
+// Booking: 05/01/2024 (4 ngày sau công khai < 14)
+// Tour start: 15/02/2024 (41 ngày sau booking >= 30)
+// Expected: Early Bird active, 25% discount
+### Test Case 2: Extended Early Bird (< 14 days)// Tour công khai: 10/01/2024
+// Tour start: 20/01/2024 (10 ngày sau công khai)
+// Booking: 15/01/2024 (5 ngày sau công khai)
+// Expected: Early Bird active (extended to tour start)
+### Test Case 3: Early Bird Expired// Tour công khai: 01/01/2024
+// Booking: 20/01/2024 (19 ngày sau công khai > 14)
+// Expected: Standard pricing, no discount
+## ?? Benefits c?a Enhanced Logic
 
-if (savings > 0) {
-  showSavingsMessage(`B?n ti?t ki?m ???c ${formatCurrency(savings)}!`);
-}
-```
+1. **Khách hàng ???c l?i h?n**: Có Early Bird ngay c? khi tour công khai mu?n
+2. **Tour company linh ho?t h?n**: Có th? công khai tour mu?n mà v?n có Early Bird
+3. **UX t?t h?n**: Thông tin Early Bird rõ ràng, minh b?ch
+4. **Business logic h?p lý**: Tính t? ngày khách có th? ??t (công khai) thay vì ngày t?o
 
-## L?u ý cho Developer
+## ?? Migration Guide
 
-1. **Always check `isEarlyBirdActive`** tr??c khi hi?n th? thông tin early bird
-2. **Use `finalPrice`** ?? tính t?ng ti?n, không ph?i `price`
-3. **Show countdown** khi `daysRemainingForEarlyBird > 0`
-4. **Highlight urgency** khi `isExpiringSoon = true`
-5. **Display savings** ?? khuy?n khích khách hàng ??t s?m
+### For existing frontend code:
+1. **Không c?n thay ??i gì** - các field c? v?n ho?t ??ng
+2. **Khuy?n ngh?**: S? d?ng `earlyBirdDescription` ?? hi?n th? thông tin chi ti?t
+3. **Optional**: Implement special handling cho extended Early Bird cases
 
-## Test Cases
-
-### Early Bird Active
-- Tour ???c t?o 5 ngày tr??c
-- Tour kh?i hành 45 ngày n?a
-- Expected: `isEarlyBirdActive = true`, `discountPercent = 25%`
-
-### Early Bird Expired
-- Tour ???c t?o 20 ngày tr??c  
-- Expected: `isEarlyBirdActive = false`, `pricingType = "Standard"`
-
-### Tour Too Soon
-- Tour kh?i hành 20 ngày n?a
-- Expected: `isEarlyBirdActive = false` (không ?? 30 ngày)
+### For new frontend features:
+- S? d?ng enhanced fields ?? t?o UX t?t h?n
+- Hi?n th? thông tin v? logic Early Bird ???c áp d?ng
+- Show special promotions cho extended Early Bird cases

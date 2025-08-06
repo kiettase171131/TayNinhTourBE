@@ -104,17 +104,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     td.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : 
                     DateTime.MaxValue;
 
-                // Get pricing information for this tour
+                // NEW LOGIC: Sử dụng UpdatedAt như ngày công khai tour (khi status chuyển thành Public)
+                // Nếu không có UpdatedAt, fallback về CreatedAt
+                var tourPublicDate = td.UpdatedAt ?? td.CreatedAt;
+
+                // Get pricing information với logic mới
                 var pricingInfo = _pricingService.GetPricingInfo(
                     td.TourOperation!.Price,
                     tourStartDate,
-                    td.CreatedAt,
+                    tourPublicDate, // Sử dụng ngày công khai thay vì CreatedAt
                     currentDate);
 
-                // Calculate early bird end date (15 days after creation)
-                var earlyBirdEndDate = td.CreatedAt.AddDays(15);
+                // Calculate early bird end date với logic mới
+                var earlyBirdEndDate = pricingInfo.IsEarlyBird 
+                    ? _pricingService.CalculateEarlyBirdEndDate(tourPublicDate, tourStartDate)
+                    : (DateTime?)null;
+                
                 var daysRemainingForEarlyBird = pricingInfo.IsEarlyBird 
-                    ? Math.Max(0, (earlyBirdEndDate - currentDate).Days)
+                    ? _pricingService.CalculateDaysRemainingForEarlyBird(tourPublicDate, tourStartDate, currentDate)
                     : 0;
 
                 tours.Add(new AvailableTourDto
@@ -132,12 +139,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     EndLocation = td.TourTemplate.EndLocation,
                     CreatedAt = td.CreatedAt,
 
-                    // Enhanced Early Bird Information
+                    // Enhanced Early Bird Information với logic mới
                     IsEarlyBirdActive = pricingInfo.IsEarlyBird,
                     EarlyBirdPrice = pricingInfo.FinalPrice,
                     EarlyBirdDiscountPercent = pricingInfo.DiscountPercent,
                     EarlyBirdDiscountAmount = pricingInfo.DiscountAmount,
-                    EarlyBirdEndDate = pricingInfo.IsEarlyBird ? earlyBirdEndDate : null,
+                    EarlyBirdEndDate = earlyBirdEndDate,
                     DaysRemainingForEarlyBird = daysRemainingForEarlyBird,
                     PricingType = pricingInfo.PricingType
                 });
@@ -179,16 +186,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 slotsData.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : 
                 DateTime.MaxValue;
 
-            // Get early bird information for this tour
+            // NEW LOGIC: Sử dụng UpdatedAt như ngày công khai tour
+            var tourPublicDate = tourDetails.UpdatedAt ?? tourDetails.CreatedAt;
+
+            // Get early bird information với logic mới
             var pricingInfo = _pricingService.GetPricingInfo(
                 tourDetails.TourOperation.Price,
                 tourStartDate,
-                tourDetails.CreatedAt,
+                tourPublicDate, // Ngày công khai thay vì CreatedAt
                 currentDate);
 
-            var earlyBirdEndDate = tourDetails.CreatedAt.AddDays(15);
+            var earlyBirdEndDate = pricingInfo.IsEarlyBird 
+                ? _pricingService.CalculateEarlyBirdEndDate(tourPublicDate, tourStartDate)
+                : (DateTime?)null;
+            
             var daysRemainingForEarlyBird = pricingInfo.IsEarlyBird 
-                ? Math.Max(0, (earlyBirdEndDate - currentDate).Days)
+                ? _pricingService.CalculateDaysRemainingForEarlyBird(tourPublicDate, tourStartDate, currentDate)
                 : 0;
 
             return new TourDetailsForBookingDto
@@ -241,7 +254,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var slotPricingInfo = _pricingService.GetPricingInfo(
                         tourDetails.TourOperation.Price,
                         slotTourDate,
-                        tourDetails.CreatedAt,
+                        tourPublicDate, // Sử dụng ngày công khai
                         currentDate);
 
                     return new TourDateDto
@@ -264,16 +277,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }).OrderBy(d => d.TourDate).ToList(),
 
-                // Early Bird Information for the tour
+                // Enhanced Early Bird Information với logic mới
                 EarlyBirdInfo = new EarlyBirdInfoDto
                 {
                     IsActive = pricingInfo.IsEarlyBird,
                     DiscountPercent = pricingInfo.DiscountPercent,
-                    EndDate = pricingInfo.IsEarlyBird ? earlyBirdEndDate : null,
+                    EndDate = earlyBirdEndDate,
                     DaysRemaining = daysRemainingForEarlyBird,
                     Description = pricingInfo.IsEarlyBird 
-                        ? $"Đặt sớm tiết kiệm {pricingInfo.DiscountPercent}% trong {daysRemainingForEarlyBird} ngày còn lại!"
-                        : "Không có ưu đại Early Bird",
+                        ? $"Đặt sớm tiết kiệm {pricingInfo.DiscountPercent}% trong {daysRemainingForEarlyBird} ngày còn lại! " +
+                          $"(Early Bird từ {tourPublicDate:dd/MM/yyyy} {pricingInfo.EarlyBirdDescription})"
+                        : "Không có ưu đãi Early Bird",
                     OriginalPrice = pricingInfo.OriginalPrice,
                     DiscountedPrice = pricingInfo.FinalPrice,
                     SavingsAmount = pricingInfo.DiscountAmount
@@ -282,7 +296,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Tính giá tour trước khi booking
+        /// Tính giá tour trước khi booking với logic Early Bird mới
         /// </summary>
         public async Task<PriceCalculationDto?> CalculateBookingPriceAsync(CalculatePriceRequest request)
         {
@@ -301,13 +315,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 tourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : 
                 DateTime.MaxValue;
 
+            // NEW LOGIC: Sử dụng UpdatedAt như ngày công khai tour
+            var tourPublicDate = tourOperation.TourDetails.UpdatedAt ?? tourOperation.TourDetails.CreatedAt;
+
             var availableSpots = tourOperation.MaxGuests - tourOperation.CurrentBookings;
             var isAvailable = availableSpots >= request.NumberOfGuests && tourStartDate > VietnamTimeZoneUtility.GetVietnamNow();
 
             var pricingInfo = _pricingService.GetPricingInfo(
                 tourOperation.Price,
                 tourStartDate,
-                tourOperation.TourDetails.CreatedAt,
+                tourPublicDate, // Sử dụng ngày công khai thay vì CreatedAt
                 bookingDate);
 
             var totalOriginalPrice = pricingInfo.OriginalPrice * request.NumberOfGuests;
@@ -325,11 +342,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 FinalPrice = totalFinalPrice,
                 IsEarlyBird = pricingInfo.IsEarlyBird,
                 PricingType = pricingInfo.PricingType,
-                DaysSinceCreated = pricingInfo.DaysSinceCreated,
+                DaysSinceCreated = pricingInfo.DaysSinceCreated, // Bây giờ là days since public
                 DaysUntilTour = pricingInfo.DaysUntilTour,
                 BookingDate = bookingDate,
                 TourStartDate = tourStartDate != DateTime.MaxValue ? tourStartDate : null,
-                TourDetailsCreatedAt = tourOperation.TourDetails.CreatedAt,
+                TourDetailsCreatedAt = tourOperation.TourDetails.CreatedAt, // Giữ để reference
                 IsAvailable = isAvailable,
                 AvailableSpots = availableSpots,
                 UnavailableReason = !isAvailable ? 
@@ -527,7 +544,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         return new CreateBookingResultDto
                         {
                             Success = false,
-                            Message = "Không thể đặt chỗ cho slot này. Slot có thể đã được đặt bởi khách hàng khác hoặc không đủ chỗ trống."
+                            Message = "Không thể đặt chỗ cho slot này. Slot có thể đã được đặt bởi khách hàng hoặc không đủ chỗ trống."
                         };
                     }
 
