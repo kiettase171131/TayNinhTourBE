@@ -325,11 +325,11 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
         [HttpGet("AllOrder")]
-        public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked)
+        public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, OrderStatus? orderStatus)
         {
             try
             {
-                var result = await _productService.GetAllOrdersAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked);
+                var result = await _productService.GetAllOrdersAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked,orderStatus);
                 return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
@@ -348,12 +348,12 @@ namespace TayNinhTourApi.Controller.Controllers
         }
         [HttpGet("GetOrder-ByUser")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetOrderByUser(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked)
+        public async Task<IActionResult> GetOrderByUser(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, OrderStatus? orderStatus)
         {
             try
             {
                 CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var result = await _productService.GetOrdersByUserAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked, currentUser);
+                var result = await _productService.GetOrdersByUserAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked,orderStatus, currentUser);
                 return StatusCode(result.StatusCode, result);
             }
             catch (Exception ex)
@@ -372,10 +372,10 @@ namespace TayNinhTourApi.Controller.Controllers
         }
         [HttpGet("GetOrder-ByShop")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetOrdersByShop(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked)
+        public async Task<IActionResult> GetOrdersByShop(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, OrderStatus? orderStatus)
         {
             CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _productService.GetOrdersByCurrentShopAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked, currentUser);
+            var result = await _productService.GetOrdersByCurrentShopAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked,orderStatus, currentUser);
             return Ok(result);
         }
 
