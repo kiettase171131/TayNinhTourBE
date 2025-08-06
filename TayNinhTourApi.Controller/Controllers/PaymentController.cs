@@ -337,9 +337,9 @@ namespace TayNinhTourApi.Controller.Controllers
 
                     foreach (var orderDetail in orderDetails)
                     {
-                        if (orderDetail.Product?.Shop?.SpecialtyShop != null)
+                        if (orderDetail.Product?.Shop != null)
                         {
-                            var shop = orderDetail.Product.Shop.SpecialtyShop;
+                            var shop = orderDetail.Product.Shop;
                             var orderDetailTotal = orderDetail.Quantity * orderDetail.UnitPrice;
                             var commission = orderDetailTotal * SHOP_COMMISSION_RATE;
                             var shopRevenue = orderDetailTotal - commission;

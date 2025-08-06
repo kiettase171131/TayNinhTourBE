@@ -542,7 +542,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 CartItemId = x.Id,
                 ProductId = x.ProductId,
                 ProductName = x.Product.Name,
-                ShopName = x.Product.Shop.Name,
+                ShopName = x.Product.Shop.ShopName,
                 Quantity = x.Quantity,
                 Price = x.Product.Price,
                 Total = x.Quantity * x.Product.Price,
@@ -1316,10 +1316,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     pageSizeValue,
                     predicate,
                     new[] {
-                nameof(Order.OrderDetails),
-                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                        nameof(Order.OrderDetails),
+                        $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}",
+                        nameof(Order.User) // <-- thêm dòng này!
                     }
                 );
+
 
                 var totalOrders = orders.Count();
                 var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
@@ -1454,7 +1456,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     new[]
                     {
                 nameof(Order.OrderDetails),
-                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}",nameof(Order.User)
                     }
                 );
 
