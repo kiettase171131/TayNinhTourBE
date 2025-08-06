@@ -14,5 +14,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
         public decimal UnitPrice { get; set; }
         public string? ImageUrl { get; set; }
         public Guid ShopId { get; set; }
+        public string ShopName { get; set; }
+        public string ShopEmail { get; set; }
+        public string ShopType { get; set; }
+        public decimal? Rating { get; set; }
+
     }
 }
