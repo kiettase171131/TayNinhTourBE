@@ -20,6 +20,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<BloggerDashboardDto> GetBloggerStatsAsync(Guid bloggerId, int month, int year)
         {
+           
+
             return new BloggerDashboardDto
             {
                 TotalPosts = await _dashboardRepository.GetTotalPostsAsync(bloggerId, month, year),
@@ -35,6 +37,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var startDate = new DateTime(year, month, 1);
             var endDate = startDate.AddMonths(1);
+            
+
             // Gọi repository lấy dữ liệu
             var revenueByShopRaw = await _dashboardRepository.GetTotalRevenueByShopAsync(startDate, endDate);
 
@@ -68,8 +72,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var startDate = new DateTime(year, month, 1);
             var endDate = startDate.AddMonths(1);
+           
 
-            var totalProducts = await _dashboardRepository.GetTotalProductsAsync(shopId, startDate, endDate);
+
+            var totalProducts = await _dashboardRepository.GetTotalProductsAsync(shopId);
             var totalOrders = await _dashboardRepository.GetTotalOrdersAsync(shopId, startDate, endDate);
             var totalRevenue = await _dashboardRepository.GetTotalRevenueAsync(shopId, startDate, endDate);
             var wallet = await _dashboardRepository.GetWalletAsync(shopId);
