@@ -59,7 +59,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _voucherCodeRepository = voucherCodeRepository;
             _orderDetailRepository = orderDetailRepository;
         }
-        public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
+        public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status,string? sortBySoldCount)
         {
             var include = new string[] { nameof(Product.ProductImages), nameof(Product.ProductRatings) };
 
@@ -82,11 +82,29 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 predicate = predicate.And(x => x.IsActive == status);
             }
+            // Dùng IQueryable để sort, phân trang động
+            var query = _productRepository.GetQueryable()
+                .Where(predicate);
 
-            // Lấy danh sách sản phẩm
-            var products = await _productRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate, include);
+            // Bao gồm các navigation property
+            foreach (var inc in include)
+                query = query.Include(inc);
 
-            var totalProducts = products.Count();
+            // Sắp xếp theo SoldCount tăng/giảm nếu có yêu cầu
+            if (!string.IsNullOrEmpty(sortBySoldCount))
+            {
+                if (sortBySoldCount.ToLower() == "asc")
+                    query = query.OrderBy(x => x.SoldCount);
+                else if (sortBySoldCount.ToLower() == "desc")
+                    query = query.OrderByDescending(x => x.SoldCount);
+            }
+            else
+            {
+                query = query.OrderByDescending(x => x.CreatedAt); // default
+            }
+
+            var totalProducts = await query.CountAsync();
+            var products = await query.Skip((pageIndexValue - 1) * pageSizeValue).Take(pageSizeValue).ToListAsync();
             var totalPages = (int)Math.Ceiling((double)totalProducts / pageSizeValue);
 
             return new ResponseGetProductsDto
