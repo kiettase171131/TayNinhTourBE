@@ -180,24 +180,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         _logger.LogInformation("Successfully reused invitation {InvitationId} for guide {GuideId}",
                             latestInvitation.Id, guide.Id);
 
-                        // Send invitation email
-                        try
-                        {
-                            await _emailSender.SendTourGuideInvitationAsync(
-                                guide.Email,
-                                guide.FullName,
-                                tourDetails.Title,
-                                tourDetails.CreatedBy.Name,
-                                expiresAt,
-                                latestInvitation.Id.ToString()
-                            );
-                            _logger.LogInformation("Successfully sent invitation email to {GuideEmail}", guide.Email);
-                        }
-                        catch (Exception emailEx)
-                        {
-                            _logger.LogWarning("Failed to send invitation email to {GuideEmail}: {Error}",
-                                guide.Email, emailEx.Message);
-                        }
+                        // PERFORMANCE OPTIMIZATION: Email sending disabled, using in-app notifications only
+                        _logger.LogInformation("Skipped invitation email to {GuideEmail} for performance optimization - using in-app notifications", guide.Email);
 
                         // 🔔 Send in-app notification to TourGuide (for reused invitation)
                         try
@@ -247,24 +231,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         _logger.LogInformation("Successfully created invitation {InvitationId} for guide {GuideId}",
                             invitation.Id, guide.Id);
 
-                        // Send invitation email
-                        try
-                        {
-                            await _emailSender.SendTourGuideInvitationAsync(
-                                guide.Email,
-                                guide.FullName,
-                                tourDetails.Title,
-                                tourDetails.CreatedBy.Name,
-                                expiresAt,
-                                invitation.Id.ToString()
-                            );
-                            _logger.LogInformation("Successfully sent invitation email to {GuideEmail}", guide.Email);
-                        }
-                        catch (Exception emailEx)
-                        {
-                            _logger.LogWarning("Failed to send invitation email to {GuideEmail}: {Error}",
-                                guide.Email, emailEx.Message);
-                        }
+                        // PERFORMANCE OPTIMIZATION: Email sending disabled, using in-app notifications only
+                        _logger.LogInformation("Skipped invitation email to {GuideEmail} for performance optimization - using in-app notifications", guide.Email);
 
                         // 🔔 Send in-app notification to TourGuide
                         try
@@ -424,23 +392,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.TourGuideInvitationRepository.AddAsync(invitation);
                 await _unitOfWork.SaveChangesAsync();
 
-                // 7. Send invitation email
-                try
-                {
-                    await _emailSender.SendTourGuideInvitationAsync(
-                        guide.Email,
-                        guide.FullName,
-                        tourDetails.Title,
-                        tourDetails.CreatedBy.Name,
-                        invitation.ExpiresAt,
-                        invitation.Id.ToString()
-                    );
-                }
-                catch (Exception emailEx)
-                {
-                    _logger.LogWarning("Failed to send manual invitation email to {GuideEmail}: {Error}",
-                        guide.Email, emailEx.Message);
-                }
+                // 7. PERFORMANCE OPTIMIZATION: Email sending disabled, using in-app notifications only
+                _logger.LogInformation("Skipped manual invitation email to {GuideEmail} for performance optimization - using in-app notifications", guide.Email);
 
                 // 8. 🔔 Send in-app notification to TourGuide
                 try

@@ -1038,11 +1038,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogInformation("Would send {Status} notification to TourCompany {CompanyId} for TourDetail {TourDetailId}",
                     statusText, tourDetail.CreatedById, tourDetailId);
 
-                // TRIGGER EMAIL INVITATIONS: Gửi email mời khi admin approve TourDetails
+                // TRIGGER AUTOMATIC GUIDE INVITATIONS: Chỉ gửi thông báo in-app, không gửi email để cải thiện hiệu suất
                 if (request.IsApproved)
                 {
-                    await TriggerApprovalEmailsAsync(tourDetail, adminId);
-                    
+                    // Loại bỏ TriggerApprovalEmailsAsync để cải thiện hiệu suất
+                    // await TriggerApprovalEmailsAsync(tourDetail, adminId);
+
                     // 🔔 NEW: TRIGGER AUTOMATIC GUIDE INVITATIONS when approved
                     await TriggerAutomaticGuideInvitationsAsync(tourDetail, adminId);
                 }
@@ -2124,31 +2125,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Trigger approval emails when admin approves TourDetails
+        /// DEPRECATED: Email sending removed for performance optimization
+        /// Chỉ ghi log thay vì gửi email để cải thiện hiệu suất hệ thống
         /// </summary>
         private async Task TriggerApprovalEmailsAsync(TourDetails tourDetails, Guid adminId)
         {
             try
             {
-                // Get pending shop invitations and send emails
+                // Get pending shop invitations for logging only
                 var shopInvitations = await _unitOfWork.TourDetailsSpecialtyShopRepository
-                    .GetAllAsync(inv => inv.TourDetailsId == tourDetails.Id && 
+                    .GetAllAsync(inv => inv.TourDetailsId == tourDetails.Id &&
                                         inv.Status == ShopInvitationStatus.Pending);
 
                 foreach (var invitation in shopInvitations)
                 {
-                    // Send email notification to shop
-                    // Note: This would typically use an email service
-                    _logger.LogInformation("Would send email to SpecialtyShop {ShopId} for TourDetails {TourDetailsId}",
+                    // PERFORMANCE OPTIMIZATION: Chỉ ghi log, không gửi email
+                    _logger.LogInformation("SpecialtyShop {ShopId} invitation for TourDetails {TourDetailsId} - Email sending disabled for performance",
                         invitation.SpecialtyShopId, tourDetails.Id);
                 }
 
-                _logger.LogInformation("Triggered {EmailCount} approval emails for TourDetails {TourDetailsId}",
+                _logger.LogInformation("Skipped {EmailCount} approval emails for TourDetails {TourDetailsId} - Performance optimization",
                     shopInvitations.Count(), tourDetails.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error triggering approval emails for TourDetails {TourDetailsId}", tourDetails.Id);
+                _logger.LogError(ex, "Error processing approval notifications for TourDetails {TourDetailsId}", tourDetails.Id);
                 // Don't throw - this is a notification operation
             }
         }
