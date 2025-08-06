@@ -16,7 +16,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     public interface IProductService
     {
-        Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status);
+        Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount);
         Task<ResponseGetProductsDto> GetProductsByShopAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, CurrentUserObject currentUserObject);
         Task<ResponseGetProductByIdDto> GetProductByIdAsync(Guid id);
         Task<BaseResposeDto> DeleteProductAsync(Guid id);

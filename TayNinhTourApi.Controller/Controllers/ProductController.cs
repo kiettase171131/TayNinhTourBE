@@ -40,9 +40,9 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpGet("Product")]
-        public async Task<IActionResult> GetAll(int? pageIndex, int? pageSize, string? textSearch, bool? status)
+        public async Task<IActionResult> GetAll(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount)
         {
-            var result = await _productService.GetProductsAsync(pageIndex, pageSize, textSearch, status);
+            var result = await _productService.GetProductsAsync(pageIndex, pageSize, textSearch, status,sortBySoldCount);
             return StatusCode(result.StatusCode, result);
         }
         [HttpGet("Product-ByShop")]
