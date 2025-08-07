@@ -60,9 +60,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Người bán sản phẩm (có thể liên kết với Shop nếu cần)
         /// </summary>
         public Guid ShopId { get; set; }
+        public Guid SpecialtyShopId { get; set; }
 
         [ForeignKey(nameof(ShopId))]
         public virtual User Shop { get; set; } = null!;
+        [ForeignKey(nameof(SpecialtyShopId))]
+        public virtual SpecialtyShop SpecialtyShop { get; set; } = null!;
         public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
         public virtual ICollection<ProductRating> ProductRatings { get; set; } = new List<ProductRating>();
 
