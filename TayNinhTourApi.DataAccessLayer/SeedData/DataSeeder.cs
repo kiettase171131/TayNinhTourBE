@@ -984,7 +984,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     new ProductImage
                     {
                         Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                        ProductId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                        ProductId = Guid.Parse("aa111111-1111-1111-1111-111111111111"),
                         Url = "https://example.com/images/bamboo-basket-1.jpg",
                         CreatedAt = now.AddDays(-10),
                         CreatedById = firstSpecialtyShopUserId,
@@ -994,7 +994,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     new ProductImage
                     {
                         Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                        ProductId = Guid.Parse("222222-2222-2222-2222-222222222222"),
+                        ProductId = Guid.Parse("bb222222-2222-2222-2222-222222222222"),
                         Url = "https://example.com/images/pottery-set-1.jpg",
                         CreatedAt = now.AddDays(-8),
                         CreatedById = firstSpecialtyShopUserId,
@@ -1004,7 +1004,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     new ProductImage
                     {
                         Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
-                        ProductId = Guid.Parse("333333-3333-3333-3333-333333333333"),
+                        ProductId = Guid.Parse("cc333333-3333-3333-3333-333333333333"),
                         Url = "https://example.com/images/traditional-textile-1.jpg",
                         CreatedAt = now.AddDays(-5),
                         CreatedById = firstSpecialtyShopUserId,
