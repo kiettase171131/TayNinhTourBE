@@ -252,8 +252,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                 .ForMember(dest => dest.Quantity, opt => opt.MapFrom(src => src.Quantity))
                 .ForMember(dest => dest.UnitPrice, opt => opt.MapFrom(src => src.UnitPrice))
                 .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src => src.Product.ImageUrl))
-                .ForMember(dest => dest.ShopId, opt => opt.MapFrom(src => src.Product.ShopId));
-            
+                 .ForMember(dest => dest.ShopId, opt => opt.MapFrom(src => src.Product.SpecialtyShop.Id)) // Lấy theo SpecialtyShopId
+                .ForMember(dest => dest.ShopName, opt => opt.MapFrom(src => src.Product.SpecialtyShop.ShopName))
+                .ForMember(dest => dest.ShopEmail, opt => opt.MapFrom(src => src.Product.SpecialtyShop.Email))
+                .ForMember(dest => dest.ShopType, opt => opt.MapFrom(src => src.Product.SpecialtyShop.ShopType))
+                .ForMember(dest => dest.Rating, opt => opt.MapFrom(src => src.Product.SpecialtyShop.Rating));
+
+
 
             // Order -> OrderDto
             CreateMap<Order, OrderDto>()    
