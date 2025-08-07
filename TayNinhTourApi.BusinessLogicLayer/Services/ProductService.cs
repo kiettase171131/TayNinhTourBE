@@ -547,7 +547,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 CartItemId = x.Id,
                 ProductId = x.ProductId,
                 ProductName = x.Product.Name,
-                ShopName = x.Product.Shop.ShopName,
+                ShopName = x.Product.Shop.Name,
                 Quantity = x.Quantity,
                 Price = x.Product.Price,
                 Total = x.Quantity * x.Product.Price,

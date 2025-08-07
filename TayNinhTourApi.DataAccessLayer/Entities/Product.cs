@@ -62,7 +62,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public Guid ShopId { get; set; }
 
         [ForeignKey(nameof(ShopId))]
-        public virtual SpecialtyShop Shop { get; set; } = null!;
+        public virtual User Shop { get; set; } = null!;
         public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
         public virtual ICollection<ProductRating> ProductRatings { get; set; } = new List<ProductRating>();
 
