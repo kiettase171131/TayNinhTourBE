@@ -159,7 +159,90 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy chi tiết hướng dẫn viên theo ID
+        /// </summary>
+        /// <param name="id">ID của hướng dẫn viên</param>
+        /// <returns>Chi tiết hướng dẫn viên</returns>
+        [HttpGet("guides/{id:guid}")]
+        [Authorize(Roles = Constants.RoleAdminName + "," + Constants.RoleTourCompanyName)]
+        [ProducesResponseType(typeof(GuideDetailDto), 200)]
+        [ProducesResponseType(typeof(BaseResposeDto), 404)]
+        public async Task<ActionResult<GuideDetailDto>> GetGuideById([FromRoute] Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("Getting tour guide details for ID: {GuideId}", id);
 
+                // Lấy tour guide với đầy đủ thông tin relationships
+                var tourGuide = await _unitOfWork.TourGuideRepository.GetByIdWithDetailsAsync(id);
+
+                if (tourGuide == null)
+                {
+                    _logger.LogWarning("Tour guide not found with ID: {GuideId}", id);
+                    return NotFound(new BaseResposeDto
+                    {
+                        success = false,
+                        StatusCode = 404,
+                        Message = "Không tìm thấy hướng dẫn viên với ID đã cho"
+                    });
+                }
+
+                // Lấy thống kê bổ sung
+                var statistics = await _unitOfWork.TourGuideRepository.GetGuideStatisticsAsync(id);
+
+                // Map to detailed DTO
+                var guideDetailDto = new GuideDetailDto
+                {
+                    Id = tourGuide.Id,
+                    UserId = tourGuide.UserId,
+                    ApplicationId = tourGuide.ApplicationId,
+                    FullName = tourGuide.FullName,
+                    Email = tourGuide.Email,
+                    PhoneNumber = tourGuide.PhoneNumber,
+                    Experience = tourGuide.Experience,
+                    Skills = tourGuide.Skills,
+                    Rating = tourGuide.Rating,
+                    TotalToursGuided = tourGuide.TotalToursGuided,
+                    IsAvailable = tourGuide.IsAvailable,
+                    IsActive = tourGuide.IsActive,
+                    Notes = tourGuide.Notes,
+                    ProfileImageUrl = tourGuide.ProfileImageUrl,
+                    ApprovedAt = tourGuide.ApprovedAt,
+                    ApprovedById = tourGuide.ApprovedById,
+                    ApprovedByName = tourGuide.ApprovedBy?.Name,
+                    CreatedAt = tourGuide.CreatedAt,
+                    UpdatedAt = tourGuide.UpdatedAt,
+                    Statistics = statistics != null ? new GuideStatisticsDto
+                    {
+                        ActiveInvitations = statistics.ActiveInvitations,
+                        CompletedTours = statistics.CompletedTours,
+                        LastTourDate = statistics.LastTourDate != DateTime.MinValue ? statistics.LastTourDate : null
+                    } : null,
+                    UserInfo = tourGuide.User != null ? new GuideUserInfoDto
+                    {
+                        UserName = tourGuide.User.Email, // Use Email as UserName since there's no UserName property
+                        DisplayName = tourGuide.User.Name, // Use Name as DisplayName
+                        Avatar = tourGuide.User.Avatar,
+                        JoinedDate = tourGuide.User.CreatedAt,
+                        IsUserActive = tourGuide.User.IsActive
+                    } : null
+                };
+
+                _logger.LogInformation("Successfully retrieved tour guide details for ID: {GuideId}", id);
+                return Ok(guideDetailDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tour guide details for ID: {GuideId}", id);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    success = false,
+                    StatusCode = 500,
+                    Message = "Lỗi hệ thống khi lấy thông tin chi tiết hướng dẫn viên"
+                });
+            }
+        }
 
         /// <summary>
         /// Lấy danh sách hướng dẫn viên available cho ngày cụ thể
