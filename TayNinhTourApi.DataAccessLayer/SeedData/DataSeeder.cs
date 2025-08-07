@@ -918,7 +918,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         Id = Guid.Parse("aa111111-1111-1111-1111-111111111111"),
                         Name = "Giỏ tre truyền thống Tây Ninh",
                         Description = "Giỏ tre thủ công được làm từ tre già, đan theo kỹ thuật truyền thống của người dân Tây Ninh. Sản phẩm thân thiện với môi trường, bền đẹp, phù hợp để đựng đồ gia dụng hoặc làm quà tặng.",
-                        Price = 150000m, // 150,000 VNĐ
+                        Price = 10000m, // Changed to 10,000 VNĐ for easy testing
                         QuantityInStock = 50,
                         Category = ProductCategory.Souvenir,
                         IsSale = false,
@@ -938,7 +938,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         Id = Guid.Parse("bb222222-2222-2222-2222-222222222222"),
                         Name = "Gốm sứ thủ công Tây Ninh",
                         Description = "Bộ ấm chén gốm sứ được làm thủ công bởi nghệ nhân địa phương. Thiết kế tinh xảo với họa tiết truyền thống, phù hợp để thưởng trà hoặc trang trí.",
-                        Price = 280000m, // 280,000 VNĐ
+                        Price = 10000m, // Changed to 10,000 VNĐ for easy testing
                         QuantityInStock = 25,
                         Category = ProductCategory.Souvenir,
                         IsSale = true,
@@ -958,7 +958,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         Id = Guid.Parse("cc333333-3333-3333-3333-333333333333"),
                         Name = "Thổ cẩm Tây Ninh",
                         Description = "Vải thổ cẩm dệt thủ công với họa tiết đặc trưng của đồng bào dân tộc Tây Ninh. Chất liệu bền, màu sắc tự nhiên từ thực vật. Có thể làm túi xách, trang trí nội thất.",
-                        Price = 320000m, // 320,000 VNĐ
+                        Price = 10000m, // Changed to 10,000 VNĐ for easy testing
                         QuantityInStock = 15,
                         Category = ProductCategory.Clothing,
                         IsSale = false,
@@ -1043,7 +1043,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                             Id = Guid.NewGuid(),
                             Name = $"Sản phẩm test {i + 1}",
                             Description = $"Đây là sản phẩm test số {i + 1} cho Shop {shopId.ToString().Substring(0, 8)}",
-                            Price = 100000 + i * 50000,
+                            Price = 10000m, // Changed to 10,000 VNĐ for easy testing
                             QuantityInStock = 10,
                             Category = ProductCategory.Souvenir,
                             IsSale = false,
