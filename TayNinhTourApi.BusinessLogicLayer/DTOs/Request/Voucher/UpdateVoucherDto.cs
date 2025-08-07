@@ -9,6 +9,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher
     public class UpdateVoucherDto
     {
         public string? Name { get; set; }
+        public string? Description { get; set; }
         public int? Quantity { get; set; }
         public decimal? DiscountAmount { get; set; }
         public int? DiscountPercent { get; set; }

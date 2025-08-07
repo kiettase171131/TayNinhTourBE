@@ -15,7 +15,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public decimal TotalAfterDiscount { get; set; } 
         public decimal DiscountAmount { get; set; }
         public OrderStatus Status { get; set; }
-        public string? VoucherCode { get; set; }
+
+        /// <summary>
+        /// ID của voucher được sử dụng (nếu có)
+        /// </summary>
+        public Guid? VoucherId { get; set; }
 
         /// <summary>
         /// PayOS order code with TNDT prefix for display and tracking
@@ -41,6 +45,6 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
        
         public virtual ICollection<OrderDetail> OrderDetails { get; set; } = new List<OrderDetail>();
         public virtual User User { get; set; } = null!;
-
+        public virtual Voucher? Voucher { get; set; }
     }
 }

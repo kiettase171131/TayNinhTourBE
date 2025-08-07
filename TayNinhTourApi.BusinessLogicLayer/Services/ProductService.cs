@@ -14,6 +14,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Notification;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
@@ -42,8 +43,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IVoucherRepository _voucherRepository;
         private readonly IVoucherCodeRepository _voucherCodeRepository;
         private readonly IOrderDetailRepository _orderDetailRepository;
+        private readonly INotificationService _notificationService;
+        private readonly IUserRepository _userRepository;
 
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository)
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -58,6 +61,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _voucherRepository = voucherRepository;
             _voucherCodeRepository = voucherCodeRepository;
             _orderDetailRepository = orderDetailRepository;
+            _notificationService = notificationService;
+            _userRepository = userRepository;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status,string? sortBySoldCount)
         {
@@ -591,7 +596,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 Console.WriteLine($"ClearCartAndUpdateInventoryAsync called for order: {orderId}");
 
-                var order = await _orderRepository.GetByIdAsync(orderId, new[] { nameof(Order.OrderDetails) });
+                var order = await _orderRepository.GetByIdAsync(orderId, new[] { nameof(Order.OrderDetails), nameof(Order.Voucher) });
 
                 if (order == null)
                 {
@@ -607,51 +612,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return;
                 }
 
-                // ✅ 1. Đánh dấu voucher code đã sử dụng (nếu có)
-                if (!string.IsNullOrEmpty(order.VoucherCode))
+                // ✅ 1. Cập nhật voucher usage count (nếu có voucher được sử dụng)
+                if (order.VoucherId.HasValue && order.Voucher != null)
                 {
-                    Console.WriteLine($"Processing voucher code: {order.VoucherCode}");
+                    Console.WriteLine($"Processing voucher: {order.Voucher.Name}");
                     
-                    var voucherCode = await _voucherCodeRepository.GetByCodeAsync(order.VoucherCode);
-                    if (voucherCode == null)
-                    {
-                        Console.WriteLine($"Voucher code not found: {order.VoucherCode}");
-                    }
-                    else if (voucherCode.IsUsed)
-                    {
-                        Console.WriteLine($"Voucher code {order.VoucherCode} already marked as used by user {voucherCode.UsedByUserId} at {voucherCode.UsedAt}");
-                    }
-                    else
-                    {
-                        // Kiểm tra xem voucher đã được claim bởi user này chưa
-                        if (voucherCode.IsClaimed && voucherCode.ClaimedByUserId != order.UserId)
-                        {
-                            Console.WriteLine($"WARNING: Voucher code {order.VoucherCode} was claimed by user {voucherCode.ClaimedByUserId} but being used by user {order.UserId}");
-                        }
-                        else if (voucherCode.IsClaimed)
-                        {
-                            Console.WriteLine($"Voucher code {order.VoucherCode} was properly claimed by user {order.UserId} on {voucherCode.ClaimedAt}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Voucher code {order.VoucherCode} was used directly without claiming (backward compatibility)");
-                        }
-
-                        // Đánh dấu voucher đã sử dụng
-                        voucherCode.IsUsed = true;
-                        voucherCode.UsedByUserId = order.UserId;
-                        voucherCode.UsedAt = DateTime.UtcNow;
-                        voucherCode.UpdatedAt = DateTime.UtcNow;
-                        voucherCode.UpdatedById = order.UserId;
-                        
-                        await _voucherCodeRepository.UpdateAsync(voucherCode);
-                        await _voucherCodeRepository.SaveChangesAsync();
-                        Console.WriteLine($"Voucher code {order.VoucherCode} successfully marked as used by user {order.UserId}");
-                    }
+                    // Tăng số lượng đã sử dụng
+                    order.Voucher.UsedCount += 1;
+                    order.Voucher.UpdatedAt = DateTime.UtcNow;
+                    
+                    await _voucherRepository.UpdateAsync(order.Voucher);
+                    await _voucherRepository.SaveChangesAsync();
+                    
+                    Console.WriteLine($"Voucher usage count updated: {order.Voucher.UsedCount}/{order.Voucher.Quantity}");
                 }
                 else
                 {
-                    Console.WriteLine("No voucher code found in order");
+                    Console.WriteLine("No voucher used in this order");
                 }
 
                 // ✅ 2. Giảm tồn kho sản phẩm
@@ -665,9 +642,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         var oldQuantity = product.QuantityInStock;
                         product.QuantityInStock -= detail.Quantity;
+                        product.SoldCount += detail.Quantity; // Cập nhật số lượng đã bán
                         if (product.QuantityInStock < 0) product.QuantityInStock = 0;
 
-                        Console.WriteLine($"Product {detail.ProductId}: {oldQuantity} -> {product.QuantityInStock}");
+                        Console.WriteLine($"Product {detail.ProductId}: {oldQuantity} -> {product.QuantityInStock}, SoldCount: {product.SoldCount}");
                         await _productRepository.UpdateAsync(product);
                     }
                     else
@@ -709,7 +687,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, Guid? myVoucherCodeId = null)
+        public async Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, Guid? voucherId = null)
         {
             if (cartItemIds == null || !cartItemIds.Any())
                 throw new ArgumentException("Danh sách sản phẩm không được để trống.");
@@ -739,27 +717,38 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
             decimal discountAmount = 0m;
             decimal totalAfterDiscount = total;
-            string? finalVoucherCode = null;
+            Guid? finalVoucherId = null;
 
-            var cartItemDtos = cartItems.Select(x => new CartItemDto
+            // Áp dụng voucher nếu được chọn
+            if (voucherId.HasValue)
             {
-                ProductId = x.ProductId,
-                Quantity = x.Quantity
-            }).ToList();
-
-            // Chỉ sử dụng voucher từ kho cá nhân
-            if (myVoucherCodeId.HasValue)
-            {
-                var voucherResult = await ApplyMyVoucherForCartAsync(myVoucherCodeId.Value, cartItemDtos, currentUser);
-                if (!voucherResult.success)
-                    throw new InvalidOperationException(voucherResult.Message);
-
-                totalAfterDiscount = voucherResult.FinalPrice;
-                discountAmount = voucherResult.DiscountAmount;
+                var voucher = await _voucherRepository.GetByIdAsync(voucherId.Value);
                 
-                // Lấy voucher code để lưu vào order
-                var userVoucher = await _voucherCodeRepository.GetUserVoucherCodeAsync(myVoucherCodeId.Value, currentUser.Id);
-                finalVoucherCode = userVoucher?.Code;
+                if (voucher == null || !voucher.IsAvailable)
+                {
+                    throw new InvalidOperationException("Voucher không tồn tại hoặc không khả dụng.");
+                }
+
+                // Kiểm tra sản phẩm có đang sale không
+                foreach (var item in cartItems)
+                {
+                    if (item.Product.IsSale)
+                    {
+                        throw new InvalidOperationException($"Sản phẩm \"{item.Product.Name}\" đang được giảm giá, không thể áp dụng voucher.");
+                    }
+                }
+
+                // Tính discount
+                if (voucher.DiscountAmount > 0)
+                    discountAmount = voucher.DiscountAmount;
+                else if (voucher.DiscountPercent.HasValue)
+                    discountAmount = total * voucher.DiscountPercent.Value / 100m;
+
+                if (discountAmount > total)
+                    discountAmount = total;
+
+                totalAfterDiscount = total - discountAmount;
+                finalVoucherId = voucherId;
             }
 
             if (totalAfterDiscount <= 0)
@@ -778,7 +767,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Status = OrderStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
                 CreatedById = currentUser.Id,
-                VoucherCode = finalVoucherCode,
+                VoucherId = finalVoucherId,
                 PayOsOrderCode = payOsOrderCodeString, // Lưu string với prefix TNDT
                 OrderDetails = cartItems.Select(x => new OrderDetail
                 {
@@ -1045,12 +1034,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            if (dto.Quantity <= 0 || dto.Quantity > 1000)
+            if (dto.Quantity <= 0 || dto.Quantity > 10000)
             {
                 return new ResponseCreateVoucher
                 {
                     StatusCode = 400,
-                    Message = "Số lượng voucher phải từ 1 đến 1000."
+                    Message = "Số lượng voucher phải từ 1 đến 10,000."
                 };
             }
 
@@ -1058,7 +1047,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 Id = Guid.NewGuid(),
                 Name = dto.Name,
+                Description = dto.Description,
                 Quantity = dto.Quantity,
+                UsedCount = 0,
                 DiscountAmount = dto.DiscountAmount,
                 DiscountPercent = dto.DiscountPercent,
                 StartDate = dto.StartDate,
@@ -1069,72 +1060,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
 
             await _voucherRepository.AddAsync(voucher);
-
-            // Tạo các mã voucher ngẫu nhiên
-            var generatedCodes = new List<string>();
-            for (int i = 0; i < dto.Quantity; i++)
-            {
-                string code;
-                int attempts = 0;
-                do
-                {
-                    code = GenerateVoucherCode(dto.Name);
-                    attempts++;
-                    if (attempts > 100) // Tránh vòng lặp vô hạn
-                        throw new InvalidOperationException("Không thể tạo mã voucher duy nhất sau 100 lần thử.");
-                } while (await _voucherCodeRepository.IsCodeExistsAsync(code));
-
-                var voucherCode = new VoucherCode
-                {
-                    Id = Guid.NewGuid(),
-                    VoucherId = voucher.Id,
-                    Code = code,
-                    IsUsed = false,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedById = userId,
-                    IsActive = true
-                };
-
-                await _voucherCodeRepository.AddAsync(voucherCode);
-                generatedCodes.Add(code);
-            }
-
             await _voucherRepository.SaveChangesAsync();
-            await _voucherCodeRepository.SaveChangesAsync();
+
+            // Gửi thông báo đến tất cả users
+            await SendVoucherNotificationToAllUsersAsync(voucher);
 
             return new ResponseCreateVoucher
             {
                 VoucherId = voucher.Id,
-                GeneratedCodes = generatedCodes,
+                VoucherName = voucher.Name,
+                Quantity = voucher.Quantity,
                 StatusCode = 200,
-                Message = "Voucher và các mã voucher đã được tạo thành công.",
+                Message = "Voucher đã được tạo thành công và thông báo đã được gửi đến tất cả người dùng.",
                 success = true
             };
         }
 
-        private string GenerateVoucherCode(string voucherName)
-        {
-            // Tạo prefix từ tên voucher (lấy 3-4 ký tự đầu, loại bỏ dấu và khoảng trắng)
-            var prefix = new string(voucherName
-                .Where(c => char.IsLetter(c))
-                .Take(4)
-                .ToArray())
-                .ToUpper();
-
-            if (string.IsNullOrEmpty(prefix))
-                prefix = "VOUCHER";
-
-            // Tạo suffix ngẫu nhiên
-            var random = new Random();
-            var suffix = random.Next(1000, 9999).ToString();
-
-            // Tạo mã ngẫu nhiên
-            var randomChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            var randomPart = new string(Enumerable.Repeat(randomChars, 4)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
-
-            return $"{prefix}-{randomPart}-{suffix}";
-        }
         public async Task<ResponseGetVouchersDto> GetAllVouchersAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status)
         {
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
@@ -1159,7 +1100,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 pageIndexValue,
                 pageSizeValue,
                 predicate,
-                new[] { nameof(Voucher.VoucherCodes), $"{nameof(Voucher.VoucherCodes)}.{nameof(VoucherCode.UsedByUser)}" }
+                null // No includes needed for simplified voucher system
             );
 
             var totalVouchers = vouchers.Count();
@@ -1168,16 +1109,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetVouchersDto
             {
                 StatusCode = 200,
+                Message = "Lấy danh sách voucher thành công.",
+                success = true,
                 Data = _mapper.Map<List<VoucherDto>>(vouchers),
                 TotalRecord = totalVouchers,
                 TotalPages = totalPages
             };
         }
+
         public async Task<ResponseGetVoucherDto> GetVoucherByIdAsync(Guid id)
         {
             var voucher = await _voucherRepository.GetFirstOrDefaultAsync(
                 x => x.Id == id && !x.IsDeleted,
-                new[] { nameof(Voucher.VoucherCodes), $"{nameof(Voucher.VoucherCodes)}.{nameof(VoucherCode.UsedByUser)}" }
+                null
             );
 
             if (voucher == null)
@@ -1192,9 +1136,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return new ResponseGetVoucherDto
             {
                 StatusCode = 200,
+                Message = "Lấy thông tin voucher thành công.",
+                success = true,
                 Data = _mapper.Map<VoucherDto>(voucher)
             };
         }
+
         public async Task<BaseResposeDto> UpdateVoucherAsync(Guid id, UpdateVoucherDto dto, Guid userId)
         {
             var voucher = await _voucherRepository.GetByIdAsync(id);
@@ -1235,7 +1182,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
+            var wasInactive = !voucher.IsActive;
+
             voucher.Name = dto.Name ?? voucher.Name;
+            voucher.Description = dto.Description ?? voucher.Description;
+            voucher.Quantity = dto.Quantity ?? voucher.Quantity;
             voucher.DiscountAmount = dto.DiscountAmount ?? voucher.DiscountAmount;
             voucher.DiscountPercent = dto.DiscountPercent ?? voucher.DiscountPercent;
             voucher.StartDate = dto.StartDate ?? voucher.StartDate;
@@ -1244,11 +1195,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             voucher.UpdatedAt = DateTime.UtcNow;
             voucher.UpdatedById = userId;
 
-            // Không cho phép thay đổi quantity sau khi tạo voucher
-            // Nếu cần thay đổi số lượng, phải tạo voucher mới
-
             await _voucherRepository.UpdateAsync(voucher);
             await _voucherRepository.SaveChangesAsync();
+
+            // Nếu voucher được kích hoạt lại (từ inactive thành active), gửi thông báo
+            if (wasInactive && voucher.IsActive)
+            {
+                await SendVoucherNotificationToAllUsersAsync(voucher, isUpdate: true);
+            }
 
             return new BaseResposeDto
             {
@@ -1257,6 +1211,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 success = true
             };
         }
+
         public async Task<BaseResposeDto> DeleteVoucherAsync(Guid id)
         {
             var voucher = await _voucherRepository.GetByIdAsync(id);
@@ -1283,7 +1238,45 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 success = true
             };
         }
-        public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status ,bool? isChecked, OrderStatus? orderStatus)
+
+        public async Task<ResponseGetAvailableVouchersDto> GetAvailableVouchersAsync(int? pageIndex, int? pageSize)
+        {
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+            var now = DateTime.UtcNow;
+
+            // Lấy tất cả voucher khả dụng
+            var predicate = PredicateBuilder.New<Voucher>(x => 
+                !x.IsDeleted &&
+                x.IsActive &&
+                x.StartDate <= now &&
+                x.EndDate >= now &&
+                x.RemainingCount > 0);
+
+            var availableVouchers = await _voucherRepository.GenericGetPaginationAsync(
+                pageIndexValue,
+                pageSizeValue,
+                predicate,
+                null);
+
+            var totalVouchers = availableVouchers.Count();
+            var totalPages = (int)Math.Ceiling((double)totalVouchers / pageSizeValue);
+
+            var result = _mapper.Map<List<AvailableVoucherDto>>(availableVouchers);
+
+            return new ResponseGetAvailableVouchersDto
+            {
+                StatusCode = 200,
+                Message = "Lấy danh sách voucher khả dụng thành công.",
+                success = true,
+                Data = result,
+                TotalRecord = totalVouchers,
+                TotalPages = totalPages
+            };
+        }
+
+        public async Task<ResponseGetOrdersDto> GetAllOrdersAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, OrderStatus? orderStatus)
         {
             try
             {
@@ -1322,7 +1315,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 );
 
-
                 var totalOrders = orders.Count();
                 var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
 
@@ -1338,6 +1330,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseGetOrdersDto
                 {
                     StatusCode = 200,
+                    success = true,
                     Data = _mapper.Map<List<OrderDto>>(orders),
                     TotalRecord = totalOrders,
                     TotalPages = totalPages
@@ -1364,7 +1357,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (status.HasValue)
                 {
                     predicate = predicate.And(x => x.Status == OrderStatus.Paid || x.Status == OrderStatus.Cancelled);
-
                 }
                 if (!string.IsNullOrEmpty(payOsOrderCode))
                 {
@@ -1405,6 +1397,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseGetOrdersDto
                 {
                     StatusCode = 200,
+                    success = true,
                     Data = _mapper.Map<List<OrderDto>>(orders),
                     TotalRecord = totalOrders,
                     TotalPages = totalPages
@@ -1417,6 +1410,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 throw; // Re-throw để controller có thể handle
             }
         }
+
         public async Task<ResponseGetOrdersDto> GetOrdersByCurrentShopAsync(int? pageIndex,int? pageSize,string? payOsOrderCode,bool? status, bool? isChecked, OrderStatus? orderStatus,CurrentUserObject currentUserObject)
         {
             try
@@ -1474,6 +1468,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseGetOrdersDto
                 {
                     StatusCode = 200,
+                    success = true,
                     Data = _mapper.Map<List<OrderDto>>(orders),
                     TotalRecord = totalOrders,
                     TotalPages = totalPages
@@ -1487,253 +1482,42 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<ResponseGetAvailableVoucherCodesDto> GetAvailableVoucherCodesAsync(int? pageIndex, int? pageSize)
+        private async Task SendVoucherNotificationToAllUsersAsync(Voucher voucher, bool isUpdate = false)
         {
-            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
-            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
-
-            // Lấy tất cả voucher codes chưa được claim từ voucher đang hoạt động và chưa hết hạn
-            var availableCodes = await _voucherCodeRepository.GetAvailableToClaimAsync(pageIndexValue, pageSizeValue);
-
-            var now = DateTime.UtcNow;
-            var allAvailableCodes = await _voucherCodeRepository.GetAllAsync(vc => 
-                !vc.IsDeleted &&
-                !vc.IsClaimed &&
-                vc.Voucher.IsActive &&
-                vc.Voucher.StartDate <= now &&
-                vc.Voucher.EndDate >= now);
-
-            var totalCodes = allAvailableCodes.Count();
-            var totalPages = (int)Math.Ceiling((double)totalCodes / pageSizeValue);
-
-            var result = _mapper.Map<List<AvailableVoucherCodeDto>>(availableCodes);
-
-            return new ResponseGetAvailableVoucherCodesDto
+            try
             {
-                StatusCode = 200,
-                Message = "Lấy danh sách mã voucher khả dụng thành công.",
-                success = true,
-                Data = result,
-                TotalRecord = totalCodes,
-                TotalPages = totalPages
-            };
-        }
+                // Lấy tất cả users active (trừ admin)
+                var users = await _userRepository.GetAllAsync(u => u.IsActive && !u.IsDeleted && u.Role.Name != "Admin");
 
-        public async Task<ResponseClaimVoucherDto> ClaimVoucherCodeAsync(Guid voucherCodeId, CurrentUserObject currentUser)
-        {
-            // Tìm voucher code có thể claim
-            var voucherCode = await _voucherCodeRepository.GetAvailableCodeByIdAsync(voucherCodeId);
+                var title = isUpdate ? "🎁 Voucher được cập nhật!" : "🎁 Voucher mới từ TNDT!";
+                var message = isUpdate 
+                    ? $"Voucher \"{voucher.Name}\" đã được cập nhật. Vui lòng kiểm tra danh sách voucher để không bỏ lỡ những ưu đãi hấp dẫn!"
+                    : $"Bạn nhận được voucher \"{voucher.Name}\" từ TNDT! Vui lòng kiểm tra trong danh sách voucher thường xuyên để đừng bỏ lỡ những bất ngờ.";
 
-            if (voucherCode == null)
-            {
-                return new ResponseClaimVoucherDto
+                foreach (var user in users)
                 {
-                    StatusCode = 404,
-                    Message = "Mã voucher không tồn tại hoặc đã được nhận bởi người khác.",
-                    success = false
-                };
-            }
-
-            // Kiểm tra user đã claim voucher từ cùng voucher template chưa
-            var existingClaim = await _voucherCodeRepository.GetFirstOrDefaultAsync(vc =>
-                vc.VoucherId == voucherCode.VoucherId &&
-                vc.ClaimedByUserId == currentUser.Id &&
-                !vc.IsDeleted);
-
-            if (existingClaim != null)
-            {
-                return new ResponseClaimVoucherDto
-                {
-                    StatusCode = 400,
-                    Message = "Bạn đã nhận một mã voucher từ chương trình này rồi.",
-                    success = false
-                };
-            }
-
-            // Claim voucher
-            voucherCode.IsClaimed = true;
-            voucherCode.ClaimedByUserId = currentUser.Id;
-            voucherCode.ClaimedAt = DateTime.UtcNow;
-            voucherCode.UpdatedAt = DateTime.UtcNow;
-            voucherCode.UpdatedById = currentUser.Id;
-
-            await _voucherCodeRepository.UpdateAsync(voucherCode);
-            await _voucherCodeRepository.SaveChangesAsync();
-
-            var myVoucher = _mapper.Map<MyVoucherDto>(voucherCode);
-
-            return new ResponseClaimVoucherDto
-            {
-                StatusCode = 200,
-                Message = "Nhận mã voucher thành công!",
-                success = true,
-                VoucherCode = myVoucher
-            };
-        }
-
-        public async Task<ResponseGetMyVouchersDto> GetMyVouchersAsync(CurrentUserObject currentUser, int? pageIndex, int? pageSize, string? status, string? textSearch)
-        {
-            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
-            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
-
-            // Lấy TẤT CẢ voucher codes của user trước (không pagination)
-            var allUserVouchers = await _voucherCodeRepository.GetAllAsync(vc => 
-                !vc.IsDeleted && 
-                vc.IsClaimed && 
-                vc.ClaimedByUserId == currentUser.Id,
-                new[] { nameof(VoucherCode.Voucher) });
-
-            // Apply textSearch filter trước
-            if (!string.IsNullOrEmpty(textSearch))
-            {
-                allUserVouchers = allUserVouchers.Where(vc => 
-                    vc.Voucher.Name.Contains(textSearch, StringComparison.OrdinalIgnoreCase)).ToList();
-            }
-
-            // Apply status filter
-            if (!string.IsNullOrEmpty(status))
-            {
-                var nowForFilter = DateTime.UtcNow;
-                allUserVouchers = status.ToLower() switch
-                {
-                    "active" => allUserVouchers.Where(vc => !vc.IsUsed && vc.Voucher.EndDate >= nowForFilter).ToList(),
-                    "used" => allUserVouchers.Where(vc => vc.IsUsed).ToList(),
-                    "expired" => allUserVouchers.Where(vc => !vc.IsUsed && vc.Voucher.EndDate < nowForFilter).ToList(),
-                    _ => allUserVouchers
-                };
-            }
-
-            // Tính toán thống kê từ tất cả vouchers sau khi filter
-            var nowForStats = DateTime.UtcNow;
-            var activeCount = allUserVouchers.Count(vc => !vc.IsUsed && vc.Voucher.EndDate >= nowForStats);
-            var usedCount = allUserVouchers.Count(vc => vc.IsUsed);
-            var expiredCount = allUserVouchers.Count(vc => !vc.IsUsed && vc.Voucher.EndDate < nowForStats);
-
-            var totalUserVouchers = allUserVouchers.Count();
-            var totalPages = (int)Math.Ceiling((double)totalUserVouchers / pageSizeValue);
-
-            // Apply pagination SAU KHI đã filter
-            var pagedVouchers = allUserVouchers
-                .OrderByDescending(vc => vc.ClaimedAt)
-                .Skip((pageIndexValue - 1) * pageSizeValue)
-                .Take(pageSizeValue)
-                .ToList();
-
-            var myVouchers = _mapper.Map<List<MyVoucherDto>>(pagedVouchers);
-
-            return new ResponseGetMyVouchersDto
-            {
-                StatusCode = 200,
-                Message = "Lấy danh sách voucher của bạn thành công.",
-                success = true,
-                Data = myVouchers,
-                TotalRecord = totalUserVouchers,
-                TotalPages = totalPages,
-                ActiveCount = activeCount,
-                UsedCount = usedCount,
-                ExpiredCount = expiredCount
-            };
-        }
-        public async Task<ApplyVoucherResult> ApplyMyVoucherForCartAsync(Guid voucherCodeId, List<CartItemDto> cartItems, CurrentUserObject currentUser)
-        {
-            if (!cartItems.Any())
-                return new ApplyVoucherResult
-                {
-                    StatusCode = 400,
-                    Message = "Giỏ hàng không có sản phẩm nào để áp dụng voucher.",
-                    success = false
-                };
-
-            // Tìm voucher code của user
-            var voucherCode = await _voucherCodeRepository.GetUserVoucherCodeAsync(voucherCodeId, currentUser.Id);
-
-            if (voucherCode == null)
-            {
-                return new ApplyVoucherResult
-                {
-                    StatusCode = 404,
-                    Message = "Không tìm thấy mã voucher trong kho voucher của bạn.",
-                    success = false
-                };
-            }
-
-            if (voucherCode.IsUsed)
-            {
-                return new ApplyVoucherResult
-                {
-                    StatusCode = 400,
-                    Message = "Mã voucher này đã được sử dụng.",
-                    success = false
-                };
-            }
-
-            var now = DateTime.UtcNow;
-            var voucher = voucherCode.Voucher;
-
-            if (!voucher.IsActive || voucher.StartDate > now || voucher.EndDate < now)
-            {
-                return new ApplyVoucherResult
-                {
-                    StatusCode = 400,
-                    Message = "Voucher không hợp lệ hoặc đã hết hạn.",
-                    success = false
-                };
-            }
-
-            decimal totalOriginal = 0m;
-
-            foreach (var item in cartItems)
-            {
-                var product = await _productRepository.GetByIdAsync(item.ProductId);
-                if (product == null) continue;
-                
-                // Nếu sản phẩm đang giảm giá thì không áp dụng voucher
-                if (product.IsSale)
-                {
-                    return new ApplyVoucherResult
+                    var createNotificationDto = new CreateNotificationDto
                     {
-                        StatusCode = 400,
-                        Message = $"Sản phẩm \"{product.Name}\" đang được giảm giá, không thể áp dụng voucher.",
-                        success = false
+                        UserId = user.Id,
+                        Title = title,
+                        Message = message,
+                        Type = NotificationType.Promotion,
+                        Priority = NotificationPriority.Normal,
+                        ActionUrl = "/vouchers",
+                        Icon = "gift",
+                        AdditionalData = System.Text.Json.JsonSerializer.Serialize(new { VoucherId = voucher.Id, VoucherName = voucher.Name })
                     };
+
+                    await _notificationService.CreateNotificationAsync(createNotificationDto);
                 }
-                totalOriginal += product.Price * item.Quantity;
+
+                Console.WriteLine($"Sent voucher notification to {users.Count()} users for voucher: {voucher.Name}");
             }
-
-            if (totalOriginal <= 0)
+            catch (Exception ex)
             {
-                return new ApplyVoucherResult
-                {
-                    StatusCode = 400,
-                    Message = "Tổng tiền giỏ hàng không hợp lệ.",
-                    success = false
-                };
+                Console.WriteLine($"Error sending voucher notifications: {ex.Message}");
+                // Log error nhưng không throw để không ảnh hưởng đến việc tạo voucher
             }
-
-            decimal discount = 0m;
-
-            if (voucher.DiscountAmount > 0)
-                discount = voucher.DiscountAmount;
-            else if (voucher.DiscountPercent.HasValue)
-                discount = totalOriginal * voucher.DiscountPercent.Value / 100m;
-
-            if (discount > totalOriginal)
-                discount = totalOriginal;
-
-            var finalPrice = totalOriginal - discount;
-
-            // PayOS yêu cầu >=1
-            if (finalPrice < 1m)
-                finalPrice = 1m;
-
-            return new ApplyVoucherResult
-            {
-                StatusCode = 200,
-                Message = "Áp dụng voucher thành công.",
-                success = true,
-                FinalPrice = finalPrice,
-                DiscountAmount = discount
-            };
         }
     }
 

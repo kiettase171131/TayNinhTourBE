@@ -6,9 +6,6 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher
 {
-    public class ResponseGetVoucherDto : BaseResposeDto
-    {
-        public VoucherDto? Data { get; set; }
-    }
-
+    // This file has been merged into ResponseGetVouchersDto.cs to avoid duplication
+    // ResponseGetVoucherDto is now defined in ResponseGetVouchersDto.cs
 }

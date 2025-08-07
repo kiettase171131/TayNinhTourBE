@@ -1,98 +1,53 @@
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories
 {
+    // DEPRECATED: VoucherCode system has been simplified
+    // This class is kept temporarily to avoid breaking existing references
+    // TODO: Remove this class and all references after system migration is complete
     public class VoucherCodeRepository : GenericRepository<VoucherCode>, IVoucherCodeRepository
     {
         public VoucherCodeRepository(TayNinhTouApiDbContext context) : base(context)
         {
         }
 
+        // All methods now return empty or throw NotImplementedException since VoucherCode is deprecated
         public async Task<VoucherCode?> GetByCodeAsync(string code)
         {
-            return await _context.VoucherCodes
-                .Include(vc => vc.Voucher)
-                .Include(vc => vc.ClaimedByUser)
-                .Include(vc => vc.UsedByUser)
-                .FirstOrDefaultAsync(vc => vc.Code == code && !vc.IsDeleted);
+            throw new NotImplementedException("VoucherCode system has been deprecated. Use Voucher directly instead.");
         }
 
         public async Task<List<VoucherCode>> GetByVoucherIdAsync(Guid voucherId)
         {
-            return await _context.VoucherCodes
-                .Include(vc => vc.ClaimedByUser)
-                .Include(vc => vc.UsedByUser)
-                .Where(vc => vc.VoucherId == voucherId && !vc.IsDeleted)
-                .OrderBy(vc => vc.CreatedAt)
-                .ToListAsync();
+            return new List<VoucherCode>(); // Return empty list
         }
 
         public async Task<bool> IsCodeExistsAsync(string code)
         {
-            return await _context.VoucherCodes
-                .AnyAsync(vc => vc.Code == code && !vc.IsDeleted);
+            return false; // No voucher codes exist in new system
         }
 
         public async Task<List<VoucherCode>> GetAvailableToClaimAsync(int pageIndex, int pageSize)
         {
-            var now = DateTime.UtcNow;
-            
-            return await _context.VoucherCodes
-                .Include(vc => vc.Voucher)
-                .Where(vc => !vc.IsDeleted &&
-                            !vc.IsClaimed &&
-                            vc.Voucher.IsActive &&
-                            vc.Voucher.StartDate <= now &&
-                            vc.Voucher.EndDate >= now)
-                .OrderBy(vc => vc.CreatedAt)
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            return new List<VoucherCode>(); // Return empty list
         }
 
         public async Task<List<VoucherCode>> GetClaimedByUserAsync(Guid userId, int pageIndex, int pageSize)
         {
-            return await _context.VoucherCodes
-                .Include(vc => vc.Voucher)
-                .Where(vc => !vc.IsDeleted &&
-                            vc.IsClaimed &&
-                            vc.ClaimedByUserId == userId)
-                .OrderByDescending(vc => vc.ClaimedAt)
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            return new List<VoucherCode>(); // Return empty list
         }
 
         public async Task<VoucherCode?> GetAvailableCodeByIdAsync(Guid voucherCodeId)
         {
-            var now = DateTime.UtcNow;
-            
-            return await _context.VoucherCodes
-                .Include(vc => vc.Voucher)
-                .FirstOrDefaultAsync(vc => vc.Id == voucherCodeId &&
-                                          !vc.IsDeleted &&
-                                          !vc.IsClaimed &&
-                                          vc.Voucher.IsActive &&
-                                          vc.Voucher.StartDate <= now &&
-                                          vc.Voucher.EndDate >= now);
+            return null; // No voucher codes available in new system
         }
 
         public async Task<VoucherCode?> GetUserVoucherCodeAsync(Guid voucherCodeId, Guid userId)
         {
-            return await _context.VoucherCodes
-                .Include(vc => vc.Voucher)
-                .FirstOrDefaultAsync(vc => vc.Id == voucherCodeId &&
-                                          !vc.IsDeleted &&
-                                          vc.IsClaimed &&
-                                          vc.ClaimedByUserId == userId);
+            return null; // No user voucher codes in new system
         }
     }
 }

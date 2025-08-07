@@ -13,38 +13,35 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher
         public int TotalPages { get; set; }
     }
 
-    public class ResponseGetAvailableVoucherCodesDto : BaseResposeDto
+    public class ResponseGetVoucherDto : BaseResposeDto
     {
-        public List<AvailableVoucherCodeDto> Data { get; set; } = new List<AvailableVoucherCodeDto>();
+        public VoucherDto? Data { get; set; }
+    }
+
+    public class ResponseGetAvailableVouchersDto : BaseResposeDto
+    {
+        public List<AvailableVoucherDto> Data { get; set; } = new List<AvailableVoucherDto>();
         public int TotalRecord { get; set; }
         public int TotalPages { get; set; }
     }
 
-    public class AvailableVoucherCodeDto
+    public class AvailableVoucherDto
     {
-        public Guid VoucherCodeId { get; set; }
-        public string VoucherName { get; set; } = null!;
-        public string Code { get; set; } = null!;
+        public Guid Id { get; set; }
+        public string Name { get; set; } = null!;
+        public string? Description { get; set; }
         public decimal DiscountAmount { get; set; }
         public int? DiscountPercent { get; set; }
+        public int RemainingCount { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public bool IsExpiringSoon => EndDate.Subtract(DateTime.UtcNow).TotalDays <= 7;
-        public bool CanClaim => !IsExpiringSoon && DateTime.UtcNow >= StartDate;
     }
 
-    public class ResponseClaimVoucherDto : BaseResposeDto
+    public class ResponseCreateVoucher : BaseResposeDto
     {
-        public MyVoucherDto? VoucherCode { get; set; }
-    }
-
-    public class ResponseGetMyVouchersDto : BaseResposeDto
-    {
-        public List<MyVoucherDto> Data { get; set; } = new List<MyVoucherDto>();
-        public int TotalRecord { get; set; }
-        public int TotalPages { get; set; }
-        public int ActiveCount { get; set; } // Số voucher chưa sử dụng
-        public int UsedCount { get; set; } // Số voucher đã sử dụng
-        public int ExpiredCount { get; set; } // Số voucher đã hết hạn
+        public Guid VoucherId { get; set; }
+        public string VoucherName { get; set; } = null!;
+        public int Quantity { get; set; }
     }
 }

@@ -171,11 +171,11 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 
-                // Gọi service chỉ với myVoucherCodeId (bỏ voucherCode)
+                // Gọi service với voucherId
                 var result = await _productService.CheckoutCartAsync(
                     dto.CartItemIds, 
                     currentUser, 
-                    dto.MyVoucherCodeId);
+                    dto.VoucherId);
 
                 if (result == null)
                     return BadRequest("Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho.");
@@ -279,104 +279,11 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpGet("GetAvailable-VoucherCodes")]
-        public async Task<IActionResult> GetAvailableVoucherCodes([FromQuery] int? pageIndex, [FromQuery] int? pageSize)
+        [HttpGet("GetAvailable-Vouchers")]
+        public async Task<IActionResult> GetAvailableVouchers([FromQuery] int? pageIndex, [FromQuery] int? pageSize)
         {
-            var result = await _productService.GetAvailableVoucherCodesAsync(pageIndex, pageSize);
+            var result = await _productService.GetAvailableVouchersAsync(pageIndex, pageSize);
             return StatusCode(result.StatusCode, result);
-        }
-
-        [HttpPost("Claim-VoucherCode/{voucherCodeId}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> ClaimVoucherCode(Guid voucherCodeId)
-        {
-            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _productService.ClaimVoucherCodeAsync(voucherCodeId, currentUser);
-            return StatusCode(result.StatusCode, result);
-        }
-
-        [HttpGet("My-Vouchers")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetMyVouchers([FromQuery] int? pageIndex, [FromQuery] int? pageSize, [FromQuery] string? status, [FromQuery] string? textSearch)
-        {
-            try
-            {
-                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var result = await _productService.GetMyVouchersAsync(currentUser, pageIndex, pageSize, status, textSearch);
-                return StatusCode(result.StatusCode, result);
-            }
-            catch (Exception ex)
-            {
-                // Log lỗi chi tiết
-                Console.WriteLine($"GetMyVouchers error: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                }
-                
-                return StatusCode(500, new
-                {
-                    StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi lấy danh sách voucher",
-                    Error = ex.Message,
-                    success = false
-                });
-            }
-        }
-        [HttpGet("AllOrder")]
-        public async Task<IActionResult> GetAllOrder(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, OrderStatus? orderStatus)
-        {
-            try
-            {
-                var result = await _productService.GetAllOrdersAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked,orderStatus);
-                return StatusCode(result.StatusCode, result);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"GetAllOrder Controller error: {ex.Message}");
-                Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                
-                return StatusCode(500, new 
-                { 
-                    message = "Internal server error", 
-                    error = ex.Message,
-                    innerError = ex.InnerException?.Message 
-                });
-            }
-        }
-        [HttpGet("GetOrder-ByUser")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetOrderByUser(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, OrderStatus? orderStatus)
-        {
-            try
-            {
-                CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-                var result = await _productService.GetOrdersByUserAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked,orderStatus, currentUser);
-                return StatusCode(result.StatusCode, result);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"GetOrderByUser Controller error: {ex.Message}");
-                Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-
-                return StatusCode(500, new
-                {
-                    message = "Internal server error",
-                    error = ex.Message,
-                    innerError = ex.InnerException?.Message
-                });
-            }
-        }
-        [HttpGet("GetOrder-ByShop")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        public async Task<IActionResult> GetOrdersByShop(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, OrderStatus? orderStatus)
-        {
-            CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _productService.GetOrdersByCurrentShopAsync(pageIndex, pageSize, payOsOrderCode, status,isChecked,orderStatus, currentUser);
-            return Ok(result);
         }
 
         [HttpPost("simple-checkout")]
@@ -388,7 +295,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 // Log request info
                 Console.WriteLine($"SimpleCheckout called");
                 Console.WriteLine($"CartItemIds count: {dto?.CartItemIds?.Count ?? 0}");
-                Console.WriteLine($"MyVoucherCodeId: {dto?.MyVoucherCodeId}");
+                Console.WriteLine($"VoucherId: {dto?.VoucherId}");
 
                 // Validate basic requirements
                 if (dto?.CartItemIds == null || !dto.CartItemIds.Any())
@@ -398,11 +305,11 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 
-                // Call service chỉ với myVoucherCodeId
+                // Call service với voucherId
                 var result = await _productService.CheckoutCartAsync(
                     dto.CartItemIds, 
                     currentUser, 
-                    dto.MyVoucherCodeId);
+                    dto.VoucherId);
 
                 if (result == null)
                     return BadRequest("Sản phẩm chọn không hợp lệ hoặc không đủ tồn kho.");

@@ -17,10 +17,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher
         public string Name { get; set; } = null!;
 
         /// <summary>
+        /// Mô tả chi tiết về voucher
+        /// </summary>
+        [StringLength(500, ErrorMessage = "Mô tả không được vượt quá 500 ký tự")]
+        public string? Description { get; set; }
+
+        /// <summary>
         /// Số lượng mã voucher sẽ được tự động tạo ra
         /// </summary>
         [Required(ErrorMessage = "Số lượng voucher là bắt buộc")]
-        [Range(1, 1000, ErrorMessage = "Số lượng voucher phải từ 1 đến 1000")]
+        [Range(1, 10000, ErrorMessage = "Số lượng voucher phải từ 1 đến 10,000")]
         public int Quantity { get; set; }
 
         /// <summary>

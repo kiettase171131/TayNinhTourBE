@@ -14,10 +14,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment
         public List<Guid> CartItemIds { get; set; } = new List<Guid>();
 
         /// <summary>
-        /// ID của voucher code từ kho cá nhân của user
+        /// ID của voucher được chọn để áp dụng cho đơn hàng
         /// OPTIONAL - có thể để trống nếu không sử dụng voucher
-        /// Chỉ có thể sử dụng voucher đã claim trong kho cá nhân
         /// </summary>
-        public Guid? MyVoucherCodeId { get; set; }
+        public Guid? VoucherId { get; set; }
     }
 }

@@ -45,7 +45,6 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<ProductRating> ProductRatings { get; set; } = null!;
         public DbSet<ProductReview> ProductReviews { get; set; } = null!;
         public DbSet<Voucher> Vouchers { get; set; } = null!;
-        public DbSet<VoucherCode> VoucherCodes { get; set; } = null!;
 
         // AI Chat entities
         public DbSet<AIChatSession> AIChatSessions { get; set; } = null!;
@@ -69,10 +68,18 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         {
             // modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(TayNinhTouApiDbContext).Assembly);
+            
             // Đảm bảo một user không thể reaction nhiều lần cho cùng 1 blog
             modelBuilder.Entity<BlogReaction>()
                 .HasIndex(br => new { br.BlogId, br.UserId })
                 .IsUnique();
+
+            // Configure Order-Voucher relationship
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.Voucher)
+                .WithMany(v => v.Orders)
+                .HasForeignKey(o => o.VoucherId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
 
         public override int SaveChanges()

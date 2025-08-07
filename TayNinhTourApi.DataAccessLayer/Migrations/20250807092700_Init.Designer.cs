@@ -12,7 +12,7 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    [Migration("20250805051744_Init")]
+    [Migration("20250807092700_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -662,10 +662,14 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("VoucherCode")
-                        .HasColumnType("longtext");
+                    b.Property<Guid?>("VoucherId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VoucherId");
 
                     b.ToTable("Orders");
                 });
@@ -3166,6 +3170,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("decimal(65,30)");
 
@@ -3198,73 +3207,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("char(36)");
 
+                    b.Property<int>("UsedCount")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.ToTable("Vouchers");
-                });
-
-            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.VoucherCode", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("ClaimedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid?>("ClaimedByUserId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("CreatedById")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsClaimed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsUsed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("UsedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid?>("UsedByUserId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("VoucherId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClaimedByUserId");
-
-                    b.HasIndex("UsedByUserId");
-
-                    b.HasIndex("VoucherId");
-
-                    b.ToTable("VoucherCodes");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.WithdrawalRequest", b =>
@@ -3549,6 +3497,24 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Order", b =>
+                {
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Voucher", "Voucher")
+                        .WithMany("Orders")
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("User");
+
+                    b.Navigation("Voucher");
+                });
+
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.OrderDetail", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Order", "Order")
@@ -3594,7 +3560,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Product", b =>
                 {
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Shop")
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.SpecialtyShop", "Shop")
                         .WithMany()
                         .HasForeignKey("ShopId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -4114,29 +4080,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.VoucherCode", b =>
-                {
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "ClaimedByUser")
-                        .WithMany()
-                        .HasForeignKey("ClaimedByUserId");
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UsedByUser")
-                        .WithMany()
-                        .HasForeignKey("UsedByUserId");
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.Voucher", "Voucher")
-                        .WithMany("VoucherCodes")
-                        .HasForeignKey("VoucherId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ClaimedByUser");
-
-                    b.Navigation("UsedByUser");
-
-                    b.Navigation("Voucher");
-                });
-
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.WithdrawalRequest", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.BankAccount", "BankAccount")
@@ -4321,7 +4264,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Voucher", b =>
                 {
-                    b.Navigation("VoucherCodes");
+                    b.Navigation("Orders");
                 });
 #pragma warning restore 612, 618
         }

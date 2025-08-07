@@ -231,32 +231,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #endregion
             #region Voucher Mapping
             CreateMap<Voucher, VoucherDto>()
-                .ForMember(dest => dest.ClaimedCount, opt => opt.MapFrom(src => src.VoucherCodes.Count(vc => vc.IsClaimed)))
-                .ForMember(dest => dest.UsedCount, opt => opt.MapFrom(src => src.VoucherCodes.Count(vc => vc.IsUsed)))
-                .ForMember(dest => dest.RemainingCount, opt => opt.MapFrom(src => src.VoucherCodes.Count(vc => !vc.IsClaimed)))
-                .ForMember(dest => dest.VoucherCodes, opt => opt.MapFrom(src => src.VoucherCodes));
+                .ForMember(dest => dest.RemainingCount, opt => opt.MapFrom(src => src.Quantity - src.UsedCount))
+                .ForMember(dest => dest.IsExpired, opt => opt.MapFrom(src => src.EndDate < DateTime.UtcNow))
+                .ForMember(dest => dest.IsAvailable, opt => opt.MapFrom(src => 
+                    src.IsActive && 
+                    src.StartDate <= DateTime.UtcNow && 
+                    src.EndDate >= DateTime.UtcNow && 
+                    src.UsedCount < src.Quantity));
 
-            CreateMap<VoucherCode, VoucherCodeDto>()
-                .ForMember(dest => dest.ClaimedByUserName, opt => opt.MapFrom(src => src.ClaimedByUser != null ? src.ClaimedByUser.Name : null))
-                .ForMember(dest => dest.UsedByUserName, opt => opt.MapFrom(src => src.UsedByUser != null ? src.UsedByUser.Name : null));
-
-            CreateMap<VoucherCode, MyVoucherDto>()
-                .ForMember(dest => dest.VoucherCodeId, opt => opt.MapFrom(src => src.Id))
-                .ForMember(dest => dest.VoucherName, opt => opt.MapFrom(src => src.Voucher.Name))
-                .ForMember(dest => dest.DiscountAmount, opt => opt.MapFrom(src => src.Voucher.DiscountAmount))
-                .ForMember(dest => dest.DiscountPercent, opt => opt.MapFrom(src => src.Voucher.DiscountPercent))
-                .ForMember(dest => dest.StartDate, opt => opt.MapFrom(src => src.Voucher.StartDate))
-                .ForMember(dest => dest.EndDate, opt => opt.MapFrom(src => src.Voucher.EndDate))
-                .ForMember(dest => dest.ClaimedAt, opt => opt.MapFrom(src => src.ClaimedAt ?? DateTime.MinValue));
-
-            CreateMap<VoucherCode, AvailableVoucherCodeDto>()
-                .ForMember(dest => dest.VoucherCodeId, opt => opt.MapFrom(src => src.Id))
-                .ForMember(dest => dest.VoucherName, opt => opt.MapFrom(src => src.Voucher.Name))
-                .ForMember(dest => dest.DiscountAmount, opt => opt.MapFrom(src => src.Voucher.DiscountAmount))
-                .ForMember(dest => dest.DiscountPercent, opt => opt.MapFrom(src => src.Voucher.DiscountPercent))
-                .ForMember(dest => dest.StartDate, opt => opt.MapFrom(src => src.Voucher.StartDate))
-                .ForMember(dest => dest.EndDate, opt => opt.MapFrom(src => src.Voucher.EndDate));
-
+            CreateMap<Voucher, AvailableVoucherDto>()
+                .ForMember(dest => dest.RemainingCount, opt => opt.MapFrom(src => src.Quantity - src.UsedCount))
+                .ForMember(dest => dest.IsExpiringSoon, opt => opt.MapFrom(src => (src.EndDate - DateTime.UtcNow).TotalDays <= 7));
 
             #endregion
             #region Order Mapping

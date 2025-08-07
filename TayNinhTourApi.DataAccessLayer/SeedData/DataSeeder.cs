@@ -928,7 +928,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
             Id = Guid.Parse("aa111111-1111-1111-1111-111111111111"),
             Name = "Giỏ tre truyền thống Tây Ninh",
             Description = "Giỏ tre thủ công được làm từ tre già, đan theo kỹ thuật truyền thống của người dân Tây Ninh...",
-            Price = 150000m,
+            Price = 10000m, // Đã sửa từ 150000m thành 10000m
             QuantityInStock = 50,
             Category = ProductCategory.Souvenir,
             IsSale = false,
@@ -947,7 +947,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
             Id = Guid.Parse("bb222222-2222-2222-2222-222222222222"),
             Name = "Gốm sứ thủ công Tây Ninh",
             Description = "Bộ ấm chén gốm sứ được làm thủ công bởi nghệ nhân địa phương...",
-            Price = 280000m,
+            Price = 10000m, // Đã sửa từ 280000m thành 10000m
             QuantityInStock = 25,
             Category = ProductCategory.Souvenir,
             IsSale = true,
@@ -966,7 +966,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
             Id = Guid.Parse("cc333333-3333-3333-3333-333333333333"),
             Name = "Thổ cẩm Tây Ninh",
             Description = "Vải thổ cẩm dệt thủ công với họa tiết đặc trưng của đồng bào dân tộc Tây Ninh...",
-            Price = 320000m,
+            Price = 10000m, // Đã sửa từ 320000m thành 10000m
             QuantityInStock = 15,
             Category = ProductCategory.Clothing,
             IsSale = false,
@@ -1052,7 +1052,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                             Id = Guid.NewGuid(),
                             Name = $"Sản phẩm test {i + 1}",
                             Description = $"Đây là sản phẩm test số {i + 1} cho Shop {shop.Id.ToString().Substring(0, 4)}",
-                            Price = 100000 + i * 50000,
+                            Price = 10000m, // Đã sửa từ 100000 + i * 50000 thành 10000m
                             QuantityInStock = 10,
                             Category = ProductCategory.Souvenir,
                             IsSale = false,
@@ -1143,7 +1143,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                             TotalAfterDiscount = totalAmount,
                             DiscountAmount = 0,
                             Status = OrderStatus.Paid,
-                            VoucherCode = null,
+                            VoucherId = null, // Updated to use VoucherId instead of VoucherCode
                             PayOsOrderCode = $"TNDT{DateTime.UtcNow.Ticks}{i:D3}".Substring(0, 20),
                             IsChecked = false,
                             CheckedAt = null,
