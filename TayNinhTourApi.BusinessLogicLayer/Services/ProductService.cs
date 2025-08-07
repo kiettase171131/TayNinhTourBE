@@ -1311,6 +1311,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     new[] {
                         nameof(Order.OrderDetails),
                         $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}",
+                        $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}.{nameof(Product.SpecialtyShop)}",
                         nameof(Order.User) // <-- thêm dòng này!
                     }
                 );
@@ -1378,7 +1379,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     predicate,
                     new[] {
                 nameof(Order.OrderDetails),
-                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}"
+                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}",
+                $"{nameof(Order.OrderDetails)}.{nameof(OrderDetail.Product)}.{nameof(Product.SpecialtyShop)}"
                     }
                 );
 
