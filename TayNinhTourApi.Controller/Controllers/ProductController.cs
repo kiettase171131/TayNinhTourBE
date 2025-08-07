@@ -62,7 +62,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         [HttpPut("Product/{id}")]
-        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]   
         public async Task<IActionResult> Update(Guid id, [FromForm] RequestUpdateProductDto dto)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
@@ -324,6 +324,34 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 return StatusCode(500, new { message = "Có lỗi xảy ra: " + ex.Message });
             }
+        }
+        [HttpGet("GetAllOrder")]
+        
+        public async Task<IActionResult> GetAll(int? pageIndex,int? pageSize,string? payOsOrderCode,bool? status,bool? isChecked,OrderStatus? orderStatus)
+        {
+            var result = await _productService.GetAllOrdersAsync(pageIndex, pageSize, payOsOrderCode, status, isChecked, orderStatus);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("GetOrder-ByUser")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetByUser(int? pageIndex,int? pageSize,string? payOsOrderCode,bool? status,bool? isChecked, OrderStatus? orderStatus)
+        {
+
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+
+            var result = await _productService.GetOrdersByUserAsync(pageIndex, pageSize, payOsOrderCode, status, isChecked, orderStatus, currentUser);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("GetOrder-ByCurrentShop")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
+        public async Task<IActionResult> GetByShop(int? pageIndex,int? pageSize,string? payOsOrderCode,bool? status,bool? isChecked, OrderStatus? orderStatus)
+        {
+            // Lấy user hiện tại là chủ shop (ví dụ từ middleware hoặc claims)
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.GetOrdersByCurrentShopAsync(
+                pageIndex, pageSize, payOsOrderCode, status, isChecked, orderStatus, currentUser
+            );
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

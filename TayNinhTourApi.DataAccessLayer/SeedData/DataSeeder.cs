@@ -907,72 +907,82 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
             // Seed test products for the first specialty shop user
             if (!await _context.Products.AnyAsync())
             {
+                await _context.SaveChangesAsync();
                 var now = DateTime.UtcNow;
-                var firstSpecialtyShopUserId = specialtyShopUserIds[0]; // Shop 1 (Handicrafts)
+                var handcraftShop = await _context.SpecialtyShops.FirstOrDefaultAsync(x => x.UserId == specialtyShopUserIds[0]);
+                if (handcraftShop == null) { Console.WriteLine("No SpecialtyShop!"); return; }
+
+          
 
                 var testProducts = new List<Product>
+
                 {
-                    // Product 1 - Traditional Bamboo Basket
-                    new Product
-                    {
-                        Id = Guid.Parse("aa111111-1111-1111-1111-111111111111"),
-                        Name = "Giỏ tre truyền thống Tây Ninh",
-                        Description = "Giỏ tre thủ công được làm từ tre già, đan theo kỹ thuật truyền thống của người dân Tây Ninh. Sản phẩm thân thiện với môi trường, bền đẹp, phù hợp để đựng đồ gia dụng hoặc làm quà tặng.",
-                        Price = 10000m, // Changed to 10,000 VNĐ for easy testing
-                        QuantityInStock = 50,
-                        Category = ProductCategory.Souvenir,
-                        IsSale = false,
-                        SalePercent = null,
-                        SoldCount = 5,
-                        ShopId = firstSpecialtyShopUserId,
-                        CreatedAt = now.AddDays(-10),
-                        CreatedById = firstSpecialtyShopUserId,
-                        UpdatedAt = now.AddDays(-10),
-                        UpdatedById = firstSpecialtyShopUserId,
-                        IsActive = true,
-                        IsDeleted = false
-                    },
-                    // Product 2 - Tay Ninh Pottery
-                    new Product
-                    {
-                        Id = Guid.Parse("bb222222-2222-2222-2222-222222222222"),
-                        Name = "Gốm sứ thủ công Tây Ninh",
-                        Description = "Bộ ấm chén gốm sứ được làm thủ công bởi nghệ nhân địa phương. Thiết kế tinh xảo với họa tiết truyền thống, phù hợp để thưởng trà hoặc trang trí.",
-                        Price = 10000m, // Changed to 10,000 VNĐ for easy testing
-                        QuantityInStock = 25,
-                        Category = ProductCategory.Souvenir,
-                        IsSale = true,
-                        SalePercent = 10, // Giảm 10%
-                        SoldCount = 8,
-                        ShopId = firstSpecialtyShopUserId,
-                        CreatedAt = now.AddDays(-8),
-                        CreatedById = firstSpecialtyShopUserId,
-                        UpdatedAt = now.AddDays(-3),
-                        UpdatedById = firstSpecialtyShopUserId,
-                        IsActive = true,
-                        IsDeleted = false
-                    },
-                    // Product 3 - Traditional Textile
-                    new Product
-                    {
-                        Id = Guid.Parse("cc333333-3333-3333-3333-333333333333"),
-                        Name = "Thổ cẩm Tây Ninh",
-                        Description = "Vải thổ cẩm dệt thủ công với họa tiết đặc trưng của đồng bào dân tộc Tây Ninh. Chất liệu bền, màu sắc tự nhiên từ thực vật. Có thể làm túi xách, trang trí nội thất.",
-                        Price = 10000m, // Changed to 10,000 VNĐ for easy testing
-                        QuantityInStock = 15,
-                        Category = ProductCategory.Clothing,
-                        IsSale = false,
-                        SalePercent = null,
-                        SoldCount = 3,
-                        ShopId = firstSpecialtyShopUserId,
-                        CreatedAt = now.AddDays(-5),
-                        CreatedById = firstSpecialtyShopUserId,
-                        UpdatedAt = now.AddDays(-5),
-                        UpdatedById = firstSpecialtyShopUserId,
-                        IsActive = true,
-                        IsDeleted = false
-                    }
-                };
+                        
+        // Product 1 - Traditional Bamboo Basket
+        new Product
+        {
+            Id = Guid.Parse("aa111111-1111-1111-1111-111111111111"),
+            Name = "Giỏ tre truyền thống Tây Ninh",
+            Description = "Giỏ tre thủ công được làm từ tre già, đan theo kỹ thuật truyền thống của người dân Tây Ninh...",
+            Price = 150000m,
+            QuantityInStock = 50,
+            Category = ProductCategory.Souvenir,
+            IsSale = false,
+            SalePercent = null,
+            SoldCount = 5,
+            ShopId = specialtyShopUserIds[0],
+            SpecialtyShopId = handcraftShop.Id, // <-- Quan trọng, phải truyền đúng Id SpecialtyShop
+            CreatedAt = now.AddDays(-10),
+            CreatedById = specialtyShopUserIds[0],
+            UpdatedAt = now.AddDays(-10),
+            UpdatedById = specialtyShopUserIds[0],
+            IsActive = true,
+            IsDeleted = false
+        },
+        // Product 2 - Tay Ninh Pottery
+        new Product
+        {
+            Id = Guid.Parse("bb222222-2222-2222-2222-222222222222"),
+            Name = "Gốm sứ thủ công Tây Ninh",
+            Description = "Bộ ấm chén gốm sứ được làm thủ công bởi nghệ nhân địa phương...",
+            Price = 280000m,
+            QuantityInStock = 25,
+            Category = ProductCategory.Souvenir,
+            IsSale = true,
+            SalePercent = 10,
+            SoldCount = 8,
+            ShopId = specialtyShopUserIds[1],
+            SpecialtyShopId = handcraftShop.Id, // <-- Quan trọng
+            CreatedAt = now.AddDays(-8),
+            CreatedById = specialtyShopUserIds[1],
+            UpdatedAt = now.AddDays(-3),
+            UpdatedById = specialtyShopUserIds[1],
+            IsActive = true,
+            IsDeleted = false
+        },
+        // Product 3 - Traditional Textile
+        new Product
+        {
+            Id = Guid.Parse("cc333333-3333-3333-3333-333333333333"),
+            Name = "Thổ cẩm Tây Ninh",
+            Description = "Vải thổ cẩm dệt thủ công với họa tiết đặc trưng của đồng bào dân tộc Tây Ninh...",
+            Price = 320000m,
+            QuantityInStock = 15,
+            Category = ProductCategory.Clothing,
+            IsSale = false,
+            SalePercent = null,
+            SoldCount = 3,
+            ShopId = specialtyShopUserIds[2],
+            SpecialtyShopId = handcraftShop.Id, // <-- Quan trọng
+            CreatedAt = now.AddDays(-5),
+            CreatedById = specialtyShopUserIds[2],
+            UpdatedAt = now.AddDays(-5),
+            UpdatedById = specialtyShopUserIds[2],
+            IsActive = true,
+            IsDeleted = false
+        }
+    };
+
 
                 _context.Products.AddRange(testProducts);
                 await _context.SaveChangesAsync();
@@ -987,7 +997,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         ProductId = Guid.Parse("aa111111-1111-1111-1111-111111111111"),
                         Url = "https://example.com/images/bamboo-basket-1.jpg",
                         CreatedAt = now.AddDays(-10),
-                        CreatedById = firstSpecialtyShopUserId,
+                        CreatedById = specialtyShopUserIds[0],
                         IsActive = true
                     },
                     // Images for Pottery   
@@ -997,7 +1007,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         ProductId = Guid.Parse("bb222222-2222-2222-2222-222222222222"),
                         Url = "https://example.com/images/pottery-set-1.jpg",
                         CreatedAt = now.AddDays(-8),
-                        CreatedById = firstSpecialtyShopUserId,
+                        CreatedById = specialtyShopUserIds[1],
                         IsActive = true
                     },
                     // Images for Traditional Textile
@@ -1007,7 +1017,7 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                         ProductId = Guid.Parse("cc333333-3333-3333-3333-333333333333"),
                         Url = "https://example.com/images/traditional-textile-1.jpg",
                         CreatedAt = now.AddDays(-5),
-                        CreatedById = firstSpecialtyShopUserId,
+                        CreatedById = specialtyShopUserIds[2],
                         IsActive = true
                     }
                 };
@@ -1029,30 +1039,33 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     Guid.Parse("66666666-6666-6666-6666-666666666666"), // SpecialtyShop 3
                     Guid.Parse("a3b4c5d6-e7f8-9012-abc3-345678901234"), // Shop (User đã seed)
                 };
-                
+
                 var productSeedList = new List<Product>();
-                
                 for (int i = 0; i < shopUserIds.Length; i++)
                 {
-                    var shopId = shopUserIds[i];
-                    // Nếu shop chưa có sản phẩm nào thì seed thêm 1 sản phẩm
-                    if (!await _context.Products.AnyAsync(p => p.ShopId == shopId))
+                    var shopUserId = shopUserIds[i];
+                    var specialtyShop = await _context.SpecialtyShops.FirstOrDefaultAsync(s => s.UserId == shopUserId);
+
+                    if (specialtyShop == null) continue;
+
+                    if (!await _context.Products.AnyAsync(p => p.ShopId == shopUserId))
                     {
                         productSeedList.Add(new Product
                         {
                             Id = Guid.NewGuid(),
                             Name = $"Sản phẩm test {i + 1}",
-                            Description = $"Đây là sản phẩm test số {i + 1} cho Shop {shopId.ToString().Substring(0, 8)}",
-                            Price = 10000m, // Changed to 10,000 VNĐ for easy testing
+                            Description = $"Đây là sản phẩm test số {i + 1} cho Shop {shopUserId.ToString().Substring(0, 4)}",
+                            Price = 100000 + i * 50000,
                             QuantityInStock = 10,
                             Category = ProductCategory.Souvenir,
                             IsSale = false,
                             SoldCount = 0,
-                            ShopId = shopId,
+                            ShopId = shopUserId,
+                            SpecialtyShopId = specialtyShop.Id,  // CHỈNH ĐÚNG Ở ĐÂY
                             CreatedAt = now,
-                            CreatedById = shopId,
+                            CreatedById = shopUserId,
                             UpdatedAt = now,
-                            UpdatedById = shopId,
+                            UpdatedById = shopUserId,
                             IsActive = true,
                             IsDeleted = false
                         });
@@ -1065,18 +1078,20 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                     await _context.SaveChangesAsync();
                 }
 
+
+
                 // Lấy mỗi shop 1 sản phẩm
                 var products = await _context.Products
-                    .Where(p => shopUserIds.Contains(p.ShopId))
-                    .GroupBy(p => p.ShopId)
-                    .Select(g => g.First())
-                    .ToListAsync();
+    .Where(p => shopUserIds.Contains(p.ShopId))
+    .GroupBy(p => p.ShopId)
+    .Select(g => g.First())
+    .ToListAsync();
 
                 // Lấy 4 user role 'User' làm người mua (hoặc có thể dùng user khác)
                 var buyers = await _context.Users
-                    .Where(u => u.RoleId == Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7")) // role User
-                    .Take(4)
-                    .ToListAsync();
+    .Where(u => u.RoleId == Guid.Parse("f0263e28-97d6-48eb-9b7a-ebd9b383a7e7"))
+    .Take(4)
+    .ToListAsync();
 
                 // Ensure we have enough buyers
                 if (buyers.Count == 0)
