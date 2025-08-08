@@ -90,7 +90,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     _logger.LogInformation("Gemini API attempt {Attempt}/{MaxRetries}", attempt, _geminiSettings.MaxRetries);
 
-                    // Ghi nh?n request ?? tracking quota
+                    // Ghi nhãn request ?? tracking quota
                     if (_geminiSettings.EnableQuotaTracking)
                     {
                         QuotaTracker.RecordRequest(_geminiSettings.ApiKey);
@@ -264,10 +264,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        private string GenerateCacheKey(string prompt, List<GeminiMessage>? conversationHistory)
+        private string GenerateCacheKey(string prompt, List<GeminiMessage>? conversationHistory, string? systemPrompt = null)
         {
             var keyBuilder = new StringBuilder();
             keyBuilder.Append($"gemini:{prompt.GetHashCode()}");
+            
+            if (!string.IsNullOrEmpty(systemPrompt))
+            {
+                keyBuilder.Append($":system:{systemPrompt.GetHashCode()}");
+            }
             
             if (conversationHistory?.Any() == true)
             {
@@ -439,16 +444,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         }
 
-        private object CreateRequestPayload(string prompt, List<GeminiMessage>? conversationHistory)
+        private object CreateRequestPayload(string prompt, List<GeminiMessage>? conversationHistory, string? systemPrompt = null)
         {
             var contents = new List<object>();
 
-            if (!string.IsNullOrEmpty(_geminiSettings.SystemPrompt))
+            // Use provided systemPrompt or fall back to default
+            var effectiveSystemPrompt = systemPrompt ?? _geminiSettings.SystemPrompt;
+            if (!string.IsNullOrEmpty(effectiveSystemPrompt))
             {
                 contents.Add(new
                 {
                     role = "user",
-                    parts = new[] { new { text = _geminiSettings.SystemPrompt } }
+                    parts = new[] { new { text = effectiveSystemPrompt } }
                 });
             }
 
@@ -493,6 +500,230 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private int EstimateTokens(string text)
         {
             return text.Length / 4; // ??c l??ng s? tokens t? ?? dài text
+        }
+
+        public async Task<GeminiResponse> GenerateContentAsync(string message)
+        {
+            return await GenerateContentAsync(message, conversationHistory: null);
+        }
+
+        public async Task<GeminiResponse> GenerateContentAsync(string message, string systemPrompt)
+        {
+            return await GenerateContentAsync(message, systemPrompt, conversationHistory: null);
+        }
+
+        public async Task<GeminiResponse> GenerateContentAsync(string message, string systemPrompt, List<GeminiMessage>? conversationHistory = null)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            // Tạo cache key từ prompt và conversation history
+            var cacheKey = GenerateCacheKey(message, conversationHistory, systemPrompt);
+            
+            // Kiểm tra cache trước
+            if (_geminiSettings.UseCache && _cache.TryGetValue(cacheKey, out GeminiResponse? cachedResponse))
+            {
+                stopwatch.Stop();
+                _logger.LogInformation("Using cached response for prompt: {Prompt}", 
+                    message.Substring(0, Math.Min(50, message.Length)));
+                
+                cachedResponse!.ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds;
+                return cachedResponse;
+            }
+
+            // Log quota status trước khi gọi API
+            if (_geminiSettings.EnableQuotaTracking)
+            {
+                var quotaToday = QuotaTracker.GetRequestCountToday(_geminiSettings.ApiKey);
+                _logger.LogInformation("Current quota today: {QuotaToday}", quotaToday);
+
+                if (!QuotaTracker.CanMakeRequest(_geminiSettings.ApiKey, 
+                    _geminiSettings.RateLimitPerMinute, 
+                    _geminiSettings.RateLimitPerDay,
+                    _geminiSettings.RequestDelayMs))
+                {
+                    _logger.LogWarning("Rate limit exceeded.");
+                    
+                    var waitTime = QuotaTracker.GetTimeUntilNextRequest(_geminiSettings.ApiKey, _geminiSettings.RequestDelayMs);
+                    if (waitTime > TimeSpan.Zero && waitTime < TimeSpan.FromMinutes(2))
+                    {
+                        _logger.LogInformation("Waiting {Seconds}s before next request", waitTime.TotalSeconds);
+                        await Task.Delay(waitTime);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Wait time too long ({Seconds}s), using fallback immediately", waitTime.TotalSeconds);
+                        return await CreateFallbackResponseAsync(message, stopwatch, "Rate limit exceeded - using fallback");
+                    }
+                }
+            }
+
+            // Enrich prompt với thông tin tour nếu có từ khóa liên quan
+            var enrichedPrompt = await EnrichPromptWithTourDataAsync(message);
+
+            // Chỉ thử 1 lần để tiết kiệm quota
+            for (int attempt = 1; attempt <= _geminiSettings.MaxRetries; attempt++)
+            {
+                try
+                {
+                    _logger.LogInformation("Gemini API attempt {Attempt}/{MaxRetries}", attempt, _geminiSettings.MaxRetries);
+
+                    // Ghi nhận request để tracking quota
+                    if (_geminiSettings.EnableQuotaTracking)
+                    {
+                        QuotaTracker.RecordRequest(_geminiSettings.ApiKey);
+                    }
+
+                    // Tạo request payload với cấu hình tối ưu, sử dụng systemPrompt parameter
+                    var requestPayload = CreateRequestPayload(enrichedPrompt, conversationHistory, systemPrompt);
+                    var jsonPayload = JsonSerializer.Serialize(requestPayload, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        WriteIndented = false
+                    });
+                    var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                    // Tạo URL v?i API key
+                    var url = $"{_geminiSettings.ApiUrl}?key={_geminiSettings.ApiKey}";
+
+                    if (attempt == 1)
+                    {
+                        _logger.LogInformation("Sending request to Gemini API. Model: {Model}, Quota today: {QuotaToday}", 
+                            _geminiSettings.Model, 
+                            _geminiSettings.EnableQuotaTracking ? QuotaTracker.GetRequestCountToday(_geminiSettings.ApiKey) : 0);
+                    }
+
+                    // Timeout ?? nhanh fail-over
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(_geminiSettings.FallbackTimeoutSeconds));
+
+                    // G?i request
+                    var response = await _httpClient.PostAsync(url, content, cts.Token);
+                    var responseContent = await response.Content.ReadAsStringAsync();
+
+                    _logger.LogInformation("Attempt {Attempt}: Gemini API response status: {Status}", attempt, response.StatusCode);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        if (string.IsNullOrWhiteSpace(responseContent))
+                        {
+                            _logger.LogWarning("Attempt {Attempt}: Gemini API returned empty response body", attempt);
+                            return await CreateFallbackResponseAsync(message, stopwatch, "Empty response from API");
+                        }
+
+                        try
+                        {
+                            using var jsonDoc = JsonDocument.Parse(responseContent);
+                            
+                            if (jsonDoc.RootElement.TryGetProperty("candidates", out var candidatesElement) &&
+                                candidatesElement.ValueKind == JsonValueKind.Array &&
+                                candidatesElement.GetArrayLength() > 0)
+                            {
+                                var firstCandidate = candidatesElement[0];
+                                if (firstCandidate.TryGetProperty("content", out var contentElement) &&
+                                    contentElement.TryGetProperty("parts", out var partsElement) &&
+                                    partsElement.ValueKind == JsonValueKind.Array &&
+                                    partsElement.GetArrayLength() > 0)
+                                {
+                                    var firstPart = partsElement[0];
+                                    if (firstPart.TryGetProperty("text", out var textElement))
+                                    {
+                                        var generatedText = textElement.GetString();
+                                        if (!string.IsNullOrWhiteSpace(generatedText))
+                                        {
+                                            var tokensUsed = EstimateTokens(message + generatedText);
+
+                                            stopwatch.Stop();
+                                            _logger.LogInformation("✓ Gemini API SUCCESS! Text length: {Length}, Tokens: {Tokens}, Time: {Time}ms",
+                                                generatedText.Length, tokensUsed, stopwatch.ElapsedMilliseconds);
+
+                                            var successResponse = new GeminiResponse
+                                            {
+                                                Success = true,
+                                                Content = generatedText,
+                                                TokensUsed = tokensUsed,
+                                                ResponseTimeMs = (int)stopwatch.ElapsedMilliseconds
+                                            };
+
+                                            // Cache response
+                                            if (_geminiSettings.UseCache)
+                                            {
+                                                var cacheExpiry = TimeSpan.FromMinutes(_geminiSettings.CacheExpirationMinutes);
+                                                _cache.Set(cacheKey, successResponse, cacheExpiry);
+                                                _logger.LogInformation("Response cached for {Minutes} minutes", _geminiSettings.CacheExpirationMinutes);
+                                            }
+
+                                            return successResponse;
+                                        }
+                                    }
+                                }
+                            }
+
+                            _logger.LogWarning("Attempt {Attempt}: Gemini API returned response but no valid content found", attempt);
+                            return await CreateFallbackResponseAsync(message, stopwatch, "No valid content in API response");
+                        }
+                        catch (JsonException jsonEx)
+                        {
+                            _logger.LogError(jsonEx, "Attempt {Attempt}: JSON deserialization error", attempt);
+                            return await CreateFallbackResponseAsync(message, stopwatch, "JSON parsing error");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("✗ Attempt {Attempt}: Gemini API failed. Status: {Status}, Response: {Response}",
+                            attempt, response.StatusCode, responseContent.Substring(0, Math.Min(500, responseContent.Length)));
+
+                        // Nếu là 429 (rate limit), không retry - dùng fallback ngay
+                        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                        {
+                            _logger.LogError("✗✗ QUOTA EXCEEDED! Using fallback response.");
+                            return await CreateFallbackResponseAsync(message, stopwatch, "Quota exceeded - API returned 429");
+                        }
+
+                        // Nếu là 503 (overload), fail nhanh và dùng fallback
+                        if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                        {
+                            _logger.LogWarning("Model overloaded (503), using fallback immediately");
+                            return await CreateFallbackResponseAsync(message, stopwatch, "Gemini API is overloaded");
+                        }
+
+                        // Không retry cho các lỗi khác để tiết kiệm quota
+                        return await CreateFallbackResponseAsync(message, stopwatch, $"API request failed: {response.StatusCode}");
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    _logger.LogWarning("Attempt {Attempt}: Request timeout, using fallback", attempt);
+                    return await CreateFallbackResponseAsync(message, stopwatch, "Request timeout");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Attempt {Attempt}: Exception calling Gemini API", attempt);
+                    return await CreateFallbackResponseAsync(message, stopwatch, ex.Message);
+                }
+            }
+
+            // Fallback cuối cùng
+            return await CreateFallbackResponseAsync(message, stopwatch, $"Gemini API failed after {_geminiSettings.MaxRetries} attempts");
+        }
+
+        public async Task<bool> CheckApiStatusAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Checking Gemini API status...");
+
+                // Use a simple test message
+                var testResponse = await GenerateContentAsync("Hello", conversationHistory: null);
+                
+                var isHealthy = testResponse.Success && !string.IsNullOrEmpty(testResponse.Content);
+                
+                _logger.LogInformation("Gemini API health check result: {IsHealthy}", isHealthy);
+                return isHealthy;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking Gemini API status");
+                return false;
+            }
         }
     }
 }

@@ -208,7 +208,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         MessageType = "AI",
                         TokensUsed = aiResponse.TokensUsed,
                         ResponseTimeMs = aiResponse.ResponseTimeMs,
-                        Metadata = aiResponse.IsFallback ? "{\"isFallback\": true}" : null,
+                        Metadata = BuildMetadata(aiResponse),
                         CreatedById = userId,
                         CreatedAt = DateTime.UtcNow,
                         IsActive = true,
@@ -225,6 +225,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         responseMessage = "Gửi tin nhắn thành công (sử dụng phản hồi tự động)";
                         _logger.LogInformation("Used fallback response for {ChatType} session {SessionId}", 
                             session.ChatType, request.SessionId);
+                    }
+                    
+                    if (aiResponse.RequiresTopicRedirect)
+                    {
+                        responseMessage = "AI gợi ý chuyển sang loại chat phù hợp hơn";
+                        _logger.LogInformation("Topic redirect suggested for {ChatType} session {SessionId} to {SuggestedType}", 
+                            session.ChatType, request.SessionId, aiResponse.SuggestedChatType);
                     }
                 }
                 else
@@ -252,8 +259,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Processed {ChatType} message for session {SessionId}, AI response: {Success}, IsFallback: {IsFallback}", 
-                    session.ChatType, request.SessionId, aiResponse.Success, aiResponse.IsFallback);
+                _logger.LogInformation("Processed {ChatType} message for session {SessionId}, AI response: {Success}, IsFallback: {IsFallback}, RequiresRedirect: {RequiresRedirect}", 
+                    session.ChatType, request.SessionId, aiResponse.Success, aiResponse.IsFallback, aiResponse.RequiresTopicRedirect);
 
                 return new ResponseSendMessageDto
                 {
@@ -276,12 +283,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         TokensUsed = aiMessage.TokensUsed,
                         ResponseTimeMs = aiMessage.ResponseTimeMs,
                         IsFallback = aiResponse.IsFallback,
-                        IsError = !aiResponse.Success
+                        IsError = !aiResponse.Success,
+                        IsTopicRedirect = aiResponse.RequiresTopicRedirect,
+                        SuggestedChatType = aiResponse.SuggestedChatType
                     },
                     TokensUsed = aiResponse.TokensUsed,
                     ResponseTimeMs = aiResponse.ResponseTimeMs,
                     Error = aiResponse.Success ? null : aiResponse.ErrorMessage,
-                    IsFallback = aiResponse.IsFallback
+                    IsFallback = aiResponse.IsFallback,
+                    RequiresTopicRedirect = aiResponse.RequiresTopicRedirect,
+                    SuggestedChatType = aiResponse.SuggestedChatType,
+                    RedirectSuggestion = aiResponse.RequiresTopicRedirect ? GetRedirectSuggestionMessage(aiResponse.SuggestedChatType) : null
                 };
             }
             catch (Exception ex)
@@ -376,7 +388,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TokensUsed = m.TokensUsed,
                     ResponseTimeMs = m.ResponseTimeMs,
                     IsFallback = m.Metadata?.Contains("\"isFallback\": true") == true,
-                    IsError = m.Metadata?.Contains("\"isError\": true") == true
+                    IsError = m.Metadata?.Contains("\"isError\": true") == true,
+                    IsTopicRedirect = m.Metadata?.Contains("\"requiresTopicRedirect\": true") == true,
+                    SuggestedChatType = ExtractSuggestedChatType(m.Metadata)
                 }).ToList();
 
                 return new ResponseGetMessagesDto
@@ -532,6 +546,66 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 AIChatType.TayNinh => "Xin lỗi, tôi tạm thời không thể chia sẻ thông tin về Tây Ninh. Vui lòng thử lại sau.",
                 _ => "Xin lỗi, tôi hiện đang gặp khó khăn kỹ thuật. Vui lòng thử lại sau hoặc liên hệ hỗ trợ."
             };
+        }
+
+        /// <summary>
+        /// Build metadata string for AIChatMessage
+        /// </summary>
+        private string BuildMetadata(GeminiResponse aiResponse)
+        {
+            var metadata = new Dictionary<string, object>();
+            
+            if (aiResponse.IsFallback)
+                metadata["isFallback"] = true;
+                
+            if (aiResponse.RequiresTopicRedirect)
+            {
+                metadata["requiresTopicRedirect"] = true;
+                if (aiResponse.SuggestedChatType.HasValue)
+                    metadata["suggestedChatType"] = aiResponse.SuggestedChatType.Value.ToString();
+            }
+
+            return metadata.Any() ? System.Text.Json.JsonSerializer.Serialize(metadata) : string.Empty;
+        }
+
+        /// <summary>
+        /// Get user-friendly redirect suggestion message
+        /// </summary>
+        private string GetRedirectSuggestionMessage(AIChatType? suggestedChatType)
+        {
+            return suggestedChatType switch
+            {
+                AIChatType.Tour => "Để được tư vấn tour tốt nhất, bạn nên tạo phiên 'Tour Chat' mới.",
+                AIChatType.Product => "Để được tư vấn sản phẩm tốt nhất, bạn nên tạo phiên 'Product Chat' mới.",
+                AIChatType.TayNinh => "Để biết thông tin chi tiết về Tây Ninh, bạn nên tạo phiên 'TayNinh Chat' mới.",
+                _ => "Bạn có thể tạo phiên chat mới phù hợp với nhu cầu."
+            };
+        }
+
+        /// <summary>
+        /// Extract suggested chat type from metadata JSON
+        /// </summary>
+        private AIChatType? ExtractSuggestedChatType(string? metadata)
+        {
+            if (string.IsNullOrEmpty(metadata))
+                return null;
+
+            try
+            {
+                using var document = System.Text.Json.JsonDocument.Parse(metadata);
+                if (document.RootElement.TryGetProperty("suggestedChatType", out var element) && 
+                    element.GetString() is string chatTypeStr &&
+                    Enum.TryParse<AIChatType>(chatTypeStr, out var chatType))
+                {
+                    return chatType;
+                }
+            }
+            catch
+            {
+                // Ignore parsing errors
+            }
+
+            return null;
         }
     }
 }

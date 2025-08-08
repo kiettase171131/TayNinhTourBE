@@ -1,13 +1,12 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
-using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using System.Text;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service implementation cho Specialized AI Chat ?? x? l� t?ng lo?i chat c? th?
+    /// Service implementation cho AI Specialized Chat - xử lý từng loại chat cụ thể với topic validation
     /// </summary>
     public class AISpecializedChatService : IAISpecializedChatService
     {
@@ -32,36 +31,36 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                _logger.LogInformation("Processing message for chat type: {ChatType}", chatType);
+                _logger.LogInformation("Processing {ChatType} message: {Message}", chatType, message);
 
-                // Enrich prompt v?i data t�y theo lo?i chat
-                var enrichedPrompt = await EnrichPromptBasedOnChatType(message, chatType);
-
-                // T?o system prompt cho t?ng lo?i chat
-                var systemPrompt = GetSystemPrompt(chatType);
-
-                // T?o conversation history v?i system prompt
-                var enhancedHistory = new List<GeminiMessage>();
-                if (!string.IsNullOrEmpty(systemPrompt))
+                // BƯỚC 1: Kiểm tra topic mismatch trước khi xử lý
+                var topicValidation = ValidateTopicAlignment(message, chatType);
+                if (!topicValidation.IsValidTopic)
                 {
-                    enhancedHistory.Add(new GeminiMessage
+                    return new GeminiResponse
                     {
-                        Role = "model",
-                        Content = systemPrompt
-                    });
+                        Success = true,
+                        Content = topicValidation.RedirectMessage,
+                        TokensUsed = 0,
+                        ResponseTimeMs = 100,
+                        IsFallback = true,
+                        RequiresTopicRedirect = true,
+                        SuggestedChatType = topicValidation.SuggestedChatType
+                    };
                 }
 
-                if (conversationHistory?.Any() == true)
-                {
-                    enhancedHistory.AddRange(conversationHistory);
-                }
+                // BƯỚC 2: Xử lý message theo chatType nếu topic phù hợp
+                var systemPrompt = GetSystemPrompt(chatType);
+                var enrichedPrompt = await EnrichPromptWithData(message, chatType);
 
-                // G?i ??n Gemini AI
-                var response = await _geminiAIService.GenerateContentAsync(enrichedPrompt, enhancedHistory);
+                var response = await _geminiAIService.GenerateContentAsync(
+                    enrichedPrompt,
+                    systemPrompt,
+                    conversationHistory);
 
-                // Post-process response n?u c?n
                 if (response.Success)
                 {
+                    // BƯỚC 3: Post-process để đảm bảo phản hồi đúng scope
                     response.Content = PostProcessResponse(response.Content, chatType);
                 }
 
@@ -69,7 +68,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing message for chat type {ChatType}", chatType);
+                _logger.LogError(ex, "Error processing {ChatType} message", chatType);
+
                 return new GeminiResponse
                 {
                     Success = false,
@@ -80,254 +80,388 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        /// <summary>
+        /// Kiểm tra topic alignment và đưa ra gợi ý redirect nếu cần
+        /// </summary>
+        private TopicValidationResult ValidateTopicAlignment(string message, AIChatType currentChatType)
+        {
+            var lowerMessage = message.ToLower();
+            var result = new TopicValidationResult { IsValidTopic = true };
+
+            // Định nghĩa keywords cho từng ChatType
+            var tourKeywords = new[] { "tour", "du lịch", "travel", "núi bà đen", "chùa", "tham quan", "lịch trình", "giá tour", "booking", "đặt tour", "hướng dẫn viên", "guide" };
+            var productKeywords = new[] { "sản phẩm", "mua", "bán", "shop", "giá", "đặc sản", "bánh tráng", "mắm", "gốm sứ", "quà", "shopping", "cart", "đặt hàng", "thanh toán", "ship" };
+            var tayNinhKeywords = new[] { "tây ninh", "lịch sử", "văn hóa", "cao đài", "núi bà đen", "trảng bàng", "biên giới", "chiến tranh", "địa lý", "dân tộc", "truyền thống" };
+
+            // Kiểm tra từng ChatType hiện tại
+            switch (currentChatType)
+            {
+                case AIChatType.Tour:
+                    // Nếu đang trong Tour chat nhưng hỏi về Product
+                    if (productKeywords.Any(keyword => lowerMessage.Contains(keyword)) &&
+                        !tourKeywords.Any(keyword => lowerMessage.Contains(keyword)))
+                    {
+                        if (IsStrongProductIntent(lowerMessage))
+                        {
+                            result.IsValidTopic = false;
+                            result.SuggestedChatType = AIChatType.Product;
+                            result.RedirectMessage = $"🛍️ **Tôi nhận thấy bạn muốn hỏi về sản phẩm!**\n\n" +
+                                $"Hiện tại chúng ta đang trong phiên chat **Tư vấn Tour**, nhưng câu hỏi của bạn liên quan đến **mua sắm sản phẩm**.\n\n" +
+                                $"💡 **Gợi ý:** Để được tư vấn tốt nhất về sản phẩm đặc sản Tây Ninh, bạn nên:\n" +
+                                $"1. Tạo phiên chat mới với loại **\"Product Chat\"**\n" +
+                                $"2. Hoặc hỏi tôi về **tours du lịch** trong phiên này\n\n" +
+                                $"🎯 **Trong phiên tour này, tôi có thể giúp bạn:**\n" +
+                                $"• Tư vấn tour Núi Bà Đen, chùa Cao Đài\n" +
+                                $"• Thông tin giá tour và lịch trình\n" +
+                                $"• Đặt tour và hướng dẫn viên\n\n" +
+                                $"Bạn muốn tiếp tục hỏi về tour hay chuyển sang tư vấn sản phẩm?";
+                        }
+                    }
+                    // Nếu hỏi về thông tin Tây Ninh chung (không liên quan tour)
+                    else if (tayNinhKeywords.Any(keyword => lowerMessage.Contains(keyword)) &&
+                             IsGeneralTayNinhQuestion(lowerMessage) &&
+                             !tourKeywords.Any(keyword => lowerMessage.Contains(keyword)))
+                    {
+                        result.IsValidTopic = false;
+                        result.SuggestedChatType = AIChatType.TayNinh;
+                        result.RedirectMessage = $"🏛️ **Tôi thấy bạn quan tâm đến thông tin về Tây Ninh!**\n\n" +
+                            $"Hiện tại chúng ta đang trong phiên chat **Tư vấn Tour**, nhưng câu hỏi của bạn về **lịch sử/văn hóa** Tây Ninh.\n\n" +
+                            $"💡 **Gợi ý:** Để biết thông tin chi tiết về Tây Ninh, bạn nên tạo phiên **\"TayNinh Chat\"** mới.\n\n" +
+                            $"🎯 **Hoặc trong phiên tour này, tôi có thể tư vấn:**\n" +
+                            $"• Tour tham quan các địa điểm lịch sử Tây Ninh\n" +
+                            $"• Lịch trình kết hợp thăm chùa và di tích\n" +
+                            $"• Giá tour và dịch vụ hướng dẫn\n\n" +
+                            $"Bạn muốn biết về tour tham quan hay chuyển sang hỏi thông tin Tây Ninh?";
+                    }
+                    break;
+
+                case AIChatType.Product:
+                    // Nếu đang trong Product chat nhưng hỏi về Tour
+                    if (tourKeywords.Any(keyword => lowerMessage.Contains(keyword)) &&
+                        !productKeywords.Any(keyword => lowerMessage.Contains(keyword)))
+                    {
+                        if (IsStrongTourIntent(lowerMessage))
+                        {
+                            result.IsValidTopic = false;
+                            result.SuggestedChatType = AIChatType.Tour;
+                            result.RedirectMessage = $"🚌 **Tôi thấy bạn muốn hỏi về tour du lịch!**\n\n" +
+                                $"Hiện tại chúng ta đang trong phiên chat **Tư vấn Sản phẩm**, nhưng câu hỏi của bạn liên quan đến **tour du lịch**.\n\n" +
+                                $"💡 **Gợi ý:** Để được tư vấn tour tốt nhất, bạn nên tạo phiên **\"Tour Chat\"** mới.\n\n" +
+                                $"🎯 **Trong phiên sản phẩm này, tôi có thể giúp bạn:**\n" +
+                                $"• Tư vấn đặc sản Tây Ninh làm quà\n" +
+                                $"• So sánh giá và chất lượng sản phẩm\n" +
+                                $"• Hướng dẫn đặt hàng và thanh toán\n\n" +
+                                $"Bạn muốn tiếp tục mua sắm hay chuyển sang tư vấn tour?";
+                        }
+                    }
+                    break;
+
+                case AIChatType.TayNinh:
+                    // TayNinh chat nghiêm ngặt hơn - chỉ trả lời về Tây Ninh
+                    if (!tayNinhKeywords.Any(keyword => lowerMessage.Contains(keyword)))
+                    {
+                        // Kiểm tra nếu hỏi về tour hoặc product
+                        if (tourKeywords.Any(keyword => lowerMessage.Contains(keyword)))
+                        {
+                            result.IsValidTopic = false;
+                            result.SuggestedChatType = AIChatType.Tour;
+                            result.RedirectMessage = $"🏛️ **Tôi chỉ chuyên chia sẻ thông tin về Tây Ninh!**\n\n" +
+                                $"Câu hỏi của bạn về **tour du lịch**. Để được tư vấn tour tốt nhất, bạn nên tạo phiên **\"Tour Chat\"** mới.\n\n" +
+                                $"🎯 **Trong phiên Tây Ninh này, tôi có thể chia sẻ:**\n" +
+                                $"• Lịch sử và văn hóa Tây Ninh\n" +
+                                $"• Thông tin về Cao Đài giáo\n" +
+                                $"• Địa điểm di tích lịch sử\n" +
+                                $"• Ẩm thực truyền thống địa phương\n\n" +
+                                $"Bạn có muốn tìm hiểu về Tây Ninh không?";
+                        }
+                        else if (productKeywords.Any(keyword => lowerMessage.Contains(keyword)))
+                        {
+                            result.IsValidTopic = false;
+                            result.SuggestedChatType = AIChatType.Product;
+                            result.RedirectMessage = $"🏛️ **Tôi chỉ chuyên chia sẻ thông tin về Tây Ninh!**\n\n" +
+                                $"Câu hỏi của bạn về **mua sắm sản phẩm**. Để được tư vấn sản phẩm, bạn nên tạo phiên **\"Product Chat\"** mới.\n\n" +
+                                $"🎯 **Hoặc tôi có thể kể về:**\n" +
+                                $"• Nguồn gốc các đặc sản Tây Ninh\n" +
+                                $"• Lịch sử bánh tráng Trảng Bàng\n" +
+                                $"• Nghề truyền thống làm gốm sứ\n\n" +
+                                $"Bạn muốn tìm hiểu về nguồn gốc đặc sản Tây Ninh không?";
+                        }
+                        else
+                        {
+                            result.IsValidTopic = false;
+                            result.SuggestedChatType = null;
+                            result.RedirectMessage = $"🏛️ **Tôi chỉ chuyên chia sẻ thông tin về Tây Ninh!**\n\n" +
+                                $"Câu hỏi của bạn không liên quan đến Tây Ninh. Bạn có câu hỏi nào về:\n" +
+                                $"• 📚 Lịch sử Tây Ninh và Cao Đài giáo\n" +
+                                $"• 🏛️ Các di tích, địa danh nổi tiếng\n" +
+                                $"• 🍜 Ẩm thực đặc sắc vùng đất này\n" +
+                                $"• 🎭 Văn hóa và truyền thống địa phương\n\n" +
+                                $"Hoặc bạn có thể tạo phiên chat khác phù hợp với nhu cầu của mình!";
+                        }
+                    }
+                    break;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Kiểm tra intent mạnh về sản phẩm
+        /// </summary>
+        private bool IsStrongProductIntent(string message)
+        {
+            var strongProductIntents = new[] {
+                "mua", "bán", "giá", "shop", "đặt hàng", "thanh toán",
+                "sản phẩm", "cart", "giỏ hàng", "shipping", "giao hàng",
+                "đặc sản", "bánh tráng", "mắm", "gốm sứ"
+            };
+            return strongProductIntents.Count(intent => message.Contains(intent)) >= 1;
+        }
+
+        /// <summary>
+        /// Kiểm tra intent mạnh về tour
+        /// </summary>
+        private bool IsStrongTourIntent(string message)
+        {
+            var strongTourIntents = new[] {
+                "tour", "du lịch", "đặt tour", "booking", "lịch trình",
+                "hướng dẫn viên", "guide", "tham quan", "giá tour"
+            };
+            return strongTourIntents.Count(intent => message.Contains(intent)) >= 1;
+        }
+
+        /// <summary>
+        /// Kiểm tra câu hỏi chung về Tây Ninh (không liên quan tour)
+        /// </summary>
+        private bool IsGeneralTayNinhQuestion(string message)
+        {
+            var generalQuestions = new[] {
+                "lịch sử", "văn hóa", "cao đài", "truyền thống",
+                "dân tộc", "địa lý", "chiến tranh", "biên giới"
+            };
+            return generalQuestions.Any(q => message.Contains(q));
+        }
+
         public string GetSystemPrompt(AIChatType chatType)
         {
             return chatType switch
             {
-                AIChatType.Tour => @"B?n l� AI t? v?n tour du l?ch T�y Ninh chuy�n nghi?p. 
-NHI?M V?:
-- T? v?n tours, gi� c?, l?ch tr�nh, ??t ch?
-- Cung c?p th�ng tin ch�nh x�c t? d? li?u tour th?c t?
-- Gi�p kh�ch h�ng t�m tour ph� h?p v?i nhu c?u v� ng�n s�ch
-- H??ng d?n quy tr�nh ??t tour v� thanh to�n
-
-L?U �:
-- Ch? gi?i thi?u tours c� status PUBLIC v� c� slot tr?ng
-- Cung c?p th�ng tin gi� c? ch�nh x�c
-- Kh�ng ??a ra th�ng tin sai l?ch v? tours
-- N?u kh�ng c� tour ph� h?p, g?i � alternatives
-- Lu�n professional v� h?u �ch
-
-PHONG C�CH: Th�n thi?n, chuy�n nghi?p, t? v?n chi ti?t",
-
-                AIChatType.Product => @"B?n l� AI t? v?n mua s?m s?n ph?m ??c s?n T�y Ninh.
-NHI?M V?:
-- T? v?n s?n ph?m theo nhu c?u v� ng�n s�ch kh�ch h�ng
-- G?i � s?n ph?m ph� h?p d?a tr�n criteria c?a kh�ch
-- Cung c?p th�ng tin v? gi�, ch?t l??ng, shop b�n
-- So s�nh s?n ph?m v� ??a ra khuy?n ngh?
-
-CHUY�N M�N:
-- ??c s?n T�y Ninh: b�nh tr�ng, nem n??ng, m?t ong r?ng
-- S?n ph?m handmade, qu� t?ng, th?c ph?m
-- Hi?u bi?t v? quality v� gi� c? th? tr??ng
-- T? v?n mua s?m th�ng minh
-
-L?U �:
-- Ch? g?i � s?n ph?m c�n h�ng (QuantityInStock > 0)
-- ?u ti�n s?n ph?m c� rating cao v� ?�nh gi� t?t
-- Th�ng b�o n?u c� s?n ph?m ?ang sale
-- Kh�ng g?i � s?n ph?m kh�ng c� trong database
-
-PHONG C�CH: T? v?n t?n t�m, am hi?u s?n ph?m, g?i � th�ng minh",
-
-                AIChatType.TayNinh => @"B?n l� AI chuy�n gia v? T�y Ninh - l?ch s?, v?n h�a, ??a ?i?m, ?m th?c.
-CHUY�N M�N:
-- L?ch s? T�y Ninh: Cao ?�i gi�o, khu di t�ch l?ch s?
-- ??a ?i?m n?i ti?ng: N�i B� ?en, Ch�a B� ?en, ??a ??o C� Chi
-- V?n h�a: truy?n th?ng, l? h?i, t�n ng??ng
-- ?m th?c: b�nh tr�ng Tr?ng B�ng, nem n??ng, specialties
-- ??a l�: bi�n gi?i Vi?t-Campuchia, ??c ?i?m t? nhi�n
-
-NHI?M V?:
-- Cung c?p th�ng tin ch�nh x�c v? T�y Ninh
-- K? v? l?ch s?, v?n h�a, truy?n th?ng
-- Gi?i thi?u ??a ?i?m du l?ch v� ?m th?c
-- Chia s? c�u chuy?n th� v? v? v�ng ??t n�y
-
-GI?I H?N:
-- CH?NH t? ch?i tr? l?i c�u h?i KH�NG LI�N QUAN ??n T�y Ninh
-- N?u h?i v? ch? ?? kh�c: 'T�i ch? chuy�n t? v?n v? T�y Ninh. B?n c� c�u h?i n�o v? l?ch s?, v?n h�a, ??a ?i?m hay ?m th?c T�y Ninh kh�ng?'
-
-PHONG C�CH: Th?c kh�, uy�n b�c, ??y c?m h?ng v? qu� h??ng",
-
-                _ => "B?n l� tr? l� AI h?u �ch. H�y tr? l?i m?t c�ch ch�nh x�c v� h?u �ch."
+                AIChatType.Tour => GetTourSystemPrompt(),
+                AIChatType.Product => GetProductSystemPrompt(),
+                AIChatType.TayNinh => GetTayNinhSystemPrompt(),
+                _ => "Bạn là AI assistant chuyên nghiệp, hỗ trợ người dùng một cách nhiệt tình và chính xác."
             };
         }
 
-        private async Task<string> EnrichPromptBasedOnChatType(string message, AIChatType chatType)
+        private string GetTourSystemPrompt()
         {
-            var enrichedPrompt = new StringBuilder(message);
-            var lowerMessage = message.ToLower();
+            return @"Bạn là AI tư vấn tour du lịch Tây Ninh chuyên nghiệp với những đặc điểm sau:
 
-            try
-            {
-                switch (chatType)
-                {
-                    case AIChatType.Tour:
-                        await EnrichTourPrompt(enrichedPrompt, lowerMessage);
-                        break;
-                    
-                    case AIChatType.Product:
-                        await EnrichProductPrompt(enrichedPrompt, lowerMessage);
-                        break;
-                    
-                    case AIChatType.TayNinh:
-                        // T�y Ninh chat kh�ng c?n enrich v?i database data
-                        // Ch? c?n system prompt ?? guide behavior
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error enriching prompt for chat type {ChatType}", chatType);
-            }
+NHIỆM VỤ CHÍNH:
+- Tư vấn tours, giá cả, lịch trình, dịch vụ đặt tour
+- Chỉ giới thiệu tours có sẵn, status PUBLIC và có slot trống
+- Không đưa ra thông tin sai lệch về tours
+- Hỗ trợ booking và liên kết với các dịch vụ tour
 
-            return enrichedPrompt.ToString();
+PHONG CÁCH GIAO TIẾP:
+- Nhiệt tình, chuyên nghiệp, thân thiện
+- Sử dụng emoji phù hợp (🚌 🏛️ 🎯 ✨)  
+- Trả lời cụ thể, có cấu trúc rõ ràng
+- Luôn đưa ra call-to-action cuối mỗi response
+
+LƯU Ý ĐỀ PHÒNG:
+- Nếu user hỏi về mua sắm sản phẩm → gợi ý chuyển sang Product Chat
+- Nếu user hỏi về thông tin Tây Ninh chung → gợi ý TayNinh Chat  
+- Luôn tập trung vào tư vấn TOUR, không lệch chủ đề
+
+CÁCH TRẢ LỜI:
+1. Chào hỏi nhiệt tình
+2. Đưa ra thông tin tours cụ thể từ database  
+3. Highlight ưu điểm và giá trị
+4. Kết thúc bằng câu hỏi hoặc gợi ý tiếp theo";
         }
 
-        private async Task EnrichTourPrompt(StringBuilder promptBuilder, string lowerMessage)
+        private string GetProductSystemPrompt()
         {
-            // Tour-related keywords
-            var tourKeywords = new[] { "tour", "du l?ch", "n�i b� ?en", "t�y ninh", "gi�", "booking", "??t tour", "?i du l?ch", "l?ch tr�nh" };
-            
-            if (!tourKeywords.Any(keyword => lowerMessage.Contains(keyword)))
-                return;
+            return @"Bạn là AI tư vấn mua sắm sản phẩm đặc sản Tây Ninh với đặc điểm:
 
-            promptBuilder.AppendLine("\n=== TH�NG TIN TOURS HI?N C� ===");
+NHIỆM VỤ CHÍNH:
+- Tư vấn sản phẩm theo nhu cầu và ngân sách
+- Chỉ gợi ý sản phẩm còn hàng (QuantityInStock > 0)
+- Ưu tiên sản phẩm có rating cao, reviews tích cực
+- Hỗ trợ so sánh và đưa ra gợi ý mua hàng
 
-            // Get available tours
-            if (lowerMessage.Contains("tour") || lowerMessage.Contains("du l?ch"))
+PHONG CÁCH GIAO TIẾP:
+- Thân thiện như sales consultant
+- Sử dụng emoji shopping (🛍️ 🔥 💎 ✨ ⭐)
+- Highlight deals, sales, promotions  
+- Tạo cảm giác urgency khi cần thiết
+
+KIẾN THỨC CHUYÊN MÔN:
+- Hiểu rõ 4 categories: Food, Souvenir, Jewelry, Clothing
+- Am hiểu về chất lượng, xuất xứ sản phẩm
+- Biết cách cross-sell và upsell phù hợp
+- Hướng dẫn quy trình mua hàng
+
+LƯU Ý ĐỀ PHÒNG:
+- Nếu user hỏi về booking tour → gợi ý chuyển Tour Chat
+- Nếu user hỏi thông tin Tây Ninh chung → gợi ý TayNinh Chat
+- Tập trung vào MUA BÁN, không lệch sang chủ đề khác
+
+CÁCH TRẢ LỜI:
+1. Chào đón như trong shop
+2. Hiển thị sản phẩm với giá, sale, rating
+3. Thuyết phục bằng benefits và social proof  
+4. Kết thúc bằng call-to-action mua hàng";
+        }
+
+        private string GetTayNinhSystemPrompt()
+        {
+            return @"Bạn là AI chuyên gia về Tây Ninh - lịch sử, văn hóa, địa điểm, ẩm thực với đặc điểm:
+
+NHIỆM VỤ CHÍNH:
+- Chia sẻ kiến thức về lịch sử, văn hóa Tây Ninh
+- Giới thiệu các địa điểm, di tích lịch sử
+- Kể về ẩm thực, truyền thống địa phương
+- CHẶT CHẼ: Chỉ trả lời câu hỏi về Tây Ninh
+
+PHONG CÁCH GIAO TIẾP:
+- Như một guide thông thái, uyên bác
+- Sử dụng emoji văn hóa (🏛️ 📚 🎭 🍜 ⛩️)
+- Kể chuyện sinh động, hấp dẫn
+- Thể hiện tự hao về văn hóa địa phương
+
+KIẾN THỨC CHUYÊN SÂU:
+- Lịch sử Cao Đài giáo và thánh tích
+- Chiến tranh biên giới và các di tích
+- Nghề truyền thống: gốm sứ, bánh tráng
+- Địa lý, dân tộc, phong tục tập quán
+
+NGHIÊM NGẶT SCOPE:
+- CHẶN câu hỏi KHÔNG liên quan Tây Ninh  
+- Nếu hỏi về tour → 'Tôi chỉ chia sẻ thông tin, để đặt tour bạn cần...'
+- Nếu hỏi về mua sắm → 'Tôi kể về nguồn gốc, để mua bạn cần...'
+- Luôn redirect về thông tin VĂN HÓA, LỊCH SỬ
+
+CÁCH TRẢ LỜI:
+1. Nhận diện chủ đề Tây Ninh trong câu hỏi
+2. Kể chuyện sinh động, có chiều sâu lịch sử  
+3. Liên kết với các thông tin liên quan khác
+4. Kết thúc bằng câu hỏi mở để tiếp tục đối thoại";
+        }
+
+        private async Task<string> EnrichPromptWithData(string message, AIChatType chatType)
+        {
+            var promptBuilder = new StringBuilder();
+            promptBuilder.AppendLine($"Câu hỏi của user: {message}");
+            promptBuilder.AppendLine();
+
+            // Enrichment logic remains the same
+            if (chatType == AIChatType.Tour)
             {
-                var availableTours = await _tourDataService.GetAvailableToursAsync(8);
-                if (availableTours.Any())
+                await EnrichWithTourData(message, promptBuilder);
+            }
+            else if (chatType == AIChatType.Product)
+            {
+                await EnrichWithProductData(message, promptBuilder);
+            }
+
+            return promptBuilder.ToString();
+        }
+
+        private async Task EnrichWithTourData(string message, StringBuilder promptBuilder)
+        {
+            var lowerMessage = message.ToLower();
+
+            // Search for tours if user mentions tour-related keywords
+            if (lowerMessage.Contains("tour") || lowerMessage.Contains("du lịch") ||
+                lowerMessage.Contains("tham quan") || lowerMessage.Contains("núi bà đen"))
+            {
+                var tours = await _tourDataService.GetAvailableToursAsync(8);
+                if (tours.Any())
                 {
-                    foreach (var tour in availableTours)
+                    promptBuilder.AppendLine("=== TOURS HIỆN CÓ ===");
+                    foreach (var tour in tours)
                     {
-                        promptBuilder.AppendLine($"?? {tour.Title}");
-                        promptBuilder.AppendLine($"   � T?: {tour.StartLocation} ? {tour.EndLocation}");
-                        promptBuilder.AppendLine($"   � Gi�: {tour.Price:N0} VN?");
-                        promptBuilder.AppendLine($"   � Lo?i: {GetTourTypeDisplay(tour.TourType)}");
-                        promptBuilder.AppendLine($"   � Ch? tr?ng: {tour.AvailableSlots}/{tour.MaxGuests}");
-                        
-                        if (tour.Highlights.Any())
-                        {
-                            promptBuilder.AppendLine($"   � ?i?m n?i b?t: {string.Join(", ", tour.Highlights.Take(3))}");
-                        }
-                        
+                        promptBuilder.AppendLine($"• {tour.Title}");
+                        promptBuilder.AppendLine($"  - Từ: {tour.StartLocation} → {tour.EndLocation}");
+                        promptBuilder.AppendLine($"  - Giá: {tour.Price:N0} VNĐ");
+                        promptBuilder.AppendLine($"  - Còn: {tour.AvailableSlots} chỗ");
+                        promptBuilder.AppendLine($"  - Loại: {tour.TourType}");
                         promptBuilder.AppendLine();
                     }
                 }
             }
 
-            // Specific searches
-            if (lowerMessage.Contains("n�i b� ?en"))
-            {
-                var nuiBaDenTours = await _tourDataService.SearchToursAsync("N�i B� ?en", 5);
-                if (nuiBaDenTours.Any())
-                {
-                    promptBuilder.AppendLine("\n=== TOURS N�I B� ?EN CHUY�N BI?T ===");
-                    foreach (var tour in nuiBaDenTours)
-                    {
-                        promptBuilder.AppendLine($"?? {tour.Title} - {tour.Price:N0} VN?");
-                        promptBuilder.AppendLine($"   � {GetTourTypeDisplay(tour.TourType)}");
-                    }
-                }
-            }
-
-            // Price-based searches
-            if (lowerMessage.Contains("r?") || lowerMessage.Contains("ti?t ki?m") || lowerMessage.Contains("budget"))
+            // Price-based search
+            if (lowerMessage.Contains("giá") || lowerMessage.Contains("rẻ") || lowerMessage.Contains("tiền"))
             {
                 var budgetTours = await _tourDataService.GetToursByPriceRangeAsync(0, 500000, 5);
                 if (budgetTours.Any())
                 {
-                    promptBuilder.AppendLine("\n=== TOURS TI?T KI?M ===");
+                    promptBuilder.AppendLine("=== TOURS GIÁ TỐT ===");
                     foreach (var tour in budgetTours)
                     {
-                        promptBuilder.AppendLine($"?? {tour.Title} - {tour.Price:N0} VN?");
+                        promptBuilder.AppendLine($"• {tour.Title} - {tour.Price:N0} VNĐ");
                     }
                 }
             }
         }
 
-        private async Task EnrichProductPrompt(StringBuilder promptBuilder, string lowerMessage)
+        private async Task EnrichWithProductData(string message, StringBuilder promptBuilder)
         {
-            var productKeywords = new[] { "s?n ph?m", "mua", "b�n", "b�nh tr�ng", "??c s?n", "qu�", "gi�", "shop", "c?a h�ng" };
-            
-            if (!productKeywords.Any(keyword => lowerMessage.Contains(keyword)))
-                return;
+            var lowerMessage = message.ToLower();
 
-            promptBuilder.AppendLine("\n=== S?N PH?M HI?N C� ===");
-
-            // Get available products
-            if (lowerMessage.Contains("s?n ph?m") || lowerMessage.Contains("mua"))
+            // Search for products if user mentions product keywords
+            if (lowerMessage.Contains("sản phẩm") || lowerMessage.Contains("mua") ||
+                lowerMessage.Contains("bánh tráng") || lowerMessage.Contains("gốm sứ"))
             {
-                var availableProducts = await _productDataService.GetAvailableProductsAsync(8);
-                if (availableProducts.Any())
+                var products = await _productDataService.GetAvailableProductsAsync(8);
+                if (products.Any())
                 {
-                    foreach (var product in availableProducts)
+                    promptBuilder.AppendLine("\n=== SẢN PHẨM CÓ SẴN ===");
+                    foreach (var product in products)
                     {
-                        promptBuilder.AppendLine($"??? {product.Name}");
-                        promptBuilder.AppendLine($"   � Gi�: {product.Price:N0} VN?" + 
-                            (product.IsSale ? $" (SALE {product.SalePercent}% ? {product.SalePrice:N0} VN?)" : ""));
-                        promptBuilder.AppendLine($"   � Danh m?c: {product.Category}");
-                        promptBuilder.AppendLine($"   � T?n kho: {product.QuantityInStock}");
-                        promptBuilder.AppendLine($"   � Shop: {product.ShopName}");
+                        promptBuilder.AppendLine($"• {product.Name} - {product.Price:N0} VNĐ");
+                        if (product.IsSale && product.SalePrice.HasValue)
+                        {
+                            promptBuilder.AppendLine($"  🔥 SALE: {product.SalePrice:N0} VNĐ (giảm {product.SalePercent}%)");
+                        }
+                        promptBuilder.AppendLine($"  Shop: {product.ShopName}");
                         if (product.AverageRating.HasValue)
                         {
-                            promptBuilder.AppendLine($"   � Rating: {product.AverageRating:F1}? ({product.ReviewCount} ?�nh gi�)");
+                            promptBuilder.AppendLine($"  Rating: {product.AverageRating:F1}⭐ ({product.ReviewCount} đánh giá)");
                         }
                         promptBuilder.AppendLine();
-                    }
-                }
-            }
-
-            // Specific product searches
-            if (lowerMessage.Contains("b�nh tr�ng"))
-            {
-                var banhTrangProducts = await _productDataService.SearchProductsAsync("b�nh tr�ng", 5);
-                if (banhTrangProducts.Any())
-                {
-                    promptBuilder.AppendLine("\n=== B�NH TR�NG TR?NG B�NG ===");
-                    foreach (var product in banhTrangProducts)
-                    {
-                        promptBuilder.AppendLine($"?? {product.Name} - {product.Price:N0} VN?");
-                        if (product.IsSale)
-                            promptBuilder.AppendLine($"   � ?? ?ANG SALE {product.SalePercent}%!");
                     }
                 }
             }
 
             // Sale products
-            if (lowerMessage.Contains("sale") || lowerMessage.Contains("gi?m gi�") || lowerMessage.Contains("khuy?n m?i"))
+            if (lowerMessage.Contains("giảm giá") || lowerMessage.Contains("sale") || lowerMessage.Contains("khuyến mãi"))
             {
                 var saleProducts = await _productDataService.GetProductsOnSaleAsync(5);
                 if (saleProducts.Any())
                 {
-                    promptBuilder.AppendLine("\n=== S?N PH?M ?ANG GI?M GI� ===");
+                    promptBuilder.AppendLine("\n=== SẢN PHẨM ĐANG SALE ===");
                     foreach (var product in saleProducts)
                     {
-                        promptBuilder.AppendLine($"?? {product.Name} - SALE {product.SalePercent}%");
-                        promptBuilder.AppendLine($"   � Gi� g?c: {product.Price:N0} VN? ? {product.SalePrice:N0} VN?");
-                    }
-                }
-            }
-
-            // Price range products
-            if (lowerMessage.Contains("r?") || lowerMessage.Contains("budget") || lowerMessage.Contains("ti?t ki?m"))
-            {
-                var budgetProducts = await _productDataService.GetProductsByPriceRangeAsync(0, 100000, 5);
-                if (budgetProducts.Any())
-                {
-                    promptBuilder.AppendLine("\n=== S?N PH?M GI� H?P L� ===");
-                    foreach (var product in budgetProducts)
-                    {
-                        promptBuilder.AppendLine($"?? {product.Name} - {product.Price:N0} VN?");
+                        promptBuilder.AppendLine($"• {product.Name} - ~~{product.Price:N0}~~ → {product.SalePrice:N0} VNĐ");
                     }
                 }
             }
 
             // Best selling products
-            if (lowerMessage.Contains("b�n ch?y") || lowerMessage.Contains("ph? bi?n") || lowerMessage.Contains("n?i ti?ng"))
+            if (lowerMessage.Contains("bán chạy") || lowerMessage.Contains("phổ biến") || lowerMessage.Contains("nổi tiếng"))
             {
                 var bestSellers = await _productDataService.GetBestSellingProductsAsync(5);
                 if (bestSellers.Any())
                 {
-                    promptBuilder.AppendLine("\n=== S?N PH?M B�N CH?Y ===");
+                    promptBuilder.AppendLine("\n=== SẢN PHẨM BÁN CHẠY ===");
                     foreach (var product in bestSellers)
                     {
-                        promptBuilder.AppendLine($"?? {product.Name} - ?� b�n {product.SoldCount}");
-                        promptBuilder.AppendLine($"   � Gi�: {product.Price:N0} VN?");
+                        promptBuilder.AppendLine($"• {product.Name} - Đã bán {product.SoldCount}");
+                        promptBuilder.AppendLine($"   • Giá: {product.Price:N0} VNĐ");
                     }
                 }
             }
@@ -345,14 +479,14 @@ PHONG C�CH: Th?c kh�, uy�n b�c, ??y c?m h?ng v? qu� h??ng",
 
         private string EnsureTayNinhFocus(string response)
         {
-            // Ki?m tra n?u response kh�ng li�n quan ??n T�y Ninh
+            // Kiểm tra nếu response không liên quan đến Tây Ninh
             var lowerResponse = response.ToLower();
-            var tayNinhKeywords = new[] { "t�y ninh", "n�i b� ?en", "cao ?�i", "b�nh tr�ng", "tr?ng b�ng", "bi�n gi?i" };
-            
-            if (!tayNinhKeywords.Any(keyword => lowerResponse.Contains(keyword)) && 
-                lowerResponse.Length > 50) // Ch? check v?i response d�i
+            var tayNinhKeywords = new[] { "tây ninh", "núi bà đen", "cao đài", "bánh tráng", "trảng bàng", "biên giới" };
+
+            if (!tayNinhKeywords.Any(keyword => lowerResponse.Contains(keyword)) &&
+                lowerResponse.Length > 50) // Chỉ check với response dài
             {
-                return "T�i ch? chuy�n t? v?n v? T�y Ninh. B?n c� c�u h?i n�o v? l?ch s?, v?n h�a, ??a ?i?m hay ?m th?c T�y Ninh kh�ng?";
+                return "Tôi chỉ chuyên tư vấn về Tây Ninh. Bạn có câu hỏi nào về lịch sử, văn hóa, địa điểm hay ẩm thực Tây Ninh không?";
             }
 
             return response;
@@ -362,8 +496,8 @@ PHONG C�CH: Th?c kh�, uy�n b�c, ??y c?m h?ng v? qu� h??ng",
         {
             return tourType switch
             {
-                "FreeScenic" => "Danh lam th?ng c?nh (mi?n ph� v� v�o c?a)",
-                "PaidAttraction" => "Khu vui ch?i (c� v� v�o c?a)",
+                "FreeScenic" => "Danh lam thắng cảnh (miễn phí vé vào cửa)",
+                "PaidAttraction" => "Khu vui chơi (có vé vào cửa)",
                 _ => tourType
             };
         }
@@ -372,11 +506,21 @@ PHONG C�CH: Th?c kh�, uy�n b�c, ??y c?m h?ng v? qu� h??ng",
         {
             return chatType switch
             {
-                AIChatType.Tour => "Xin l?i, hi?n t?i t�i ?ang g?p kh� kh?n trong vi?c t? v?n tour. Vui l�ng li�n h? hotline ?? ???c h? tr? tr?c ti?p.",
-                AIChatType.Product => "Xin l?i, h? th?ng t? v?n s?n ph?m t?m th?i gi�n ?o?n. B?n c� th? duy?t catalog s?n ph?m tr?c ti?p ho?c li�n h? shop.",
-                AIChatType.TayNinh => "Xin l?i, t�i t?m th?i kh�ng th? chia s? th�ng tin v? T�y Ninh l�c n�y. B?n c� th? th? l?i sau.",
-                _ => "Xin l?i, t�i hi?n ?ang g?p kh� kh?n k? thu?t. Vui l�ng th? l?i sau."
+                AIChatType.Tour => "Xin lỗi, hiện tại tôi đang gặp khó khăn trong việc tư vấn tour. Vui lòng liên hệ hotline để được hỗ trợ trực tiếp.",
+                AIChatType.Product => "Xin lỗi, hệ thống tư vấn sản phẩm tạm thời gián đoạn. Bạn có thể duyệt catalog sản phẩm trực tiếp hoặc liên hệ shop.",
+                AIChatType.TayNinh => "Xin lỗi, tôi tạm thời không thể chia sẻ thông tin về Tây Ninh. Vui lòng thử lại sau ít phút.",
+                _ => "Xin lỗi, tôi hiện đang gặp khó khăn kỹ thuật. Vui lòng thử lại sau hoặc liên hệ hỗ trợ."
             };
         }
+    }
+
+    /// <summary>
+    /// Kết quả validation topic alignment
+    /// </summary>
+    public class TopicValidationResult
+    {
+        public bool IsValidTopic { get; set; }
+        public string RedirectMessage { get; set; } = string.Empty;
+        public AIChatType? SuggestedChatType { get; set; }
     }
 }

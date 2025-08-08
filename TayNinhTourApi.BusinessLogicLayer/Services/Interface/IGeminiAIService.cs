@@ -7,19 +7,34 @@ using TayNinhTourApi.DataAccessLayer.Enums;
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     /// <summary>
-    /// Interface cho Gemini AI Service
+    /// Interface cho Gemini AI Service - tích h?p v?i Google Gemini API
     /// </summary>
     public interface IGeminiAIService
     {
         /// <summary>
-        /// G?i tin nh?n ??n Gemini AI và nh?n ph?n h?i
+        /// G?i tin nh?n ??n Gemini và nh?n ph?n h?i
         /// </summary>
-        Task<GeminiResponse> GenerateContentAsync(string prompt, List<GeminiMessage>? conversationHistory = null);
+        Task<GeminiResponse> GenerateContentAsync(string message);
 
         /// <summary>
-        /// T?o title cho chat session t? tin nh?n ??u tiên
+        /// G?i tin nh?n v?i system prompt
+        /// </summary>
+        Task<GeminiResponse> GenerateContentAsync(string message, string systemPrompt);
+
+        /// <summary>
+        /// G?i tin nh?n v?i conversation history
+        /// </summary>
+        Task<GeminiResponse> GenerateContentAsync(string message, string systemPrompt, List<GeminiMessage>? conversationHistory = null);
+
+        /// <summary>
+        /// T?o tiêu ?? cho session t? tin nh?n ??u tiên
         /// </summary>
         Task<string> GenerateTitleAsync(string firstMessage);
+
+        /// <summary>
+        /// Ki?m tra tr?ng thái API
+        /// </summary>
+        Task<bool> CheckApiStatusAsync();
     }
 
     /// <summary>
@@ -38,12 +53,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<List<AITourInfo>> SearchToursAsync(string keyword, int maxResults = 10);
 
         /// <summary>
-        /// L?y thông tin chi ti?t tour theo ID
+        /// L?y tour detail theo ID
         /// </summary>
         Task<AITourInfo?> GetTourDetailAsync(Guid tourId);
 
         /// <summary>
-        /// L?y tours theo lo?i (FreeScenic, Paid, etc.)
+        /// L?y tours theo lo?i
         /// </summary>
         Task<List<AITourInfo>> GetToursByTypeAsync(string tourType, int maxResults = 10);
 
@@ -120,7 +135,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
     }
 
     /// <summary>
-    /// Model cho response t? Gemini API
+    /// Model cho response t? Gemini API v?i h? tr? topic redirect
     /// </summary>
     public class GeminiResponse
     {
@@ -129,17 +144,27 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public int TokensUsed { get; set; }
         public int ResponseTimeMs { get; set; }
         public string? ErrorMessage { get; set; }
-        public bool IsFallback { get; set; } = false;
+        public bool IsFallback { get; set; }
+
+        /// <summary>
+        /// Indicates if this response requires user to switch chat type
+        /// </summary>
+        public bool RequiresTopicRedirect { get; set; }
+
+        /// <summary>
+        /// Suggested ChatType to redirect user to
+        /// </summary>
+        public AIChatType? SuggestedChatType { get; set; }
     }
 
     /// <summary>
-    /// Model cho thông tin tour dành cho AI
+    /// Model ch?a thông tin tour cho AI
     /// </summary>
     public class AITourInfo
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = null!;
-        public string? Description { get; set; }
+        public string Description { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public string StartLocation { get; set; } = null!;
         public string EndLocation { get; set; } = null!;
@@ -153,13 +178,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
     }
 
     /// <summary>
-    /// Model cho thông tin s?n ph?m dành cho AI
+    /// Model ch?a thông tin s?n ph?m cho AI
     /// </summary>
     public class AIProductInfo
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = null!;
-        public string? Description { get; set; }
+        public string Description { get; set; } = string.Empty;
         public decimal Price { get; set; }
         public decimal? SalePrice { get; set; }
         public int QuantityInStock { get; set; }
