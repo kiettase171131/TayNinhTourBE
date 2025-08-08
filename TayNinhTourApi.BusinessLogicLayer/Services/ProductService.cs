@@ -1084,10 +1084,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // predicate mặc định: chưa xóa
             var predicate = PredicateBuilder.New<Voucher>(x => !x.IsDeleted);
 
-            // lọc theo textSearch (tên voucher)
+            // lọc theo textSearch (tên voucher) - Fix: Use EF.Functions.Like instead of Contains with StringComparison
             if (!string.IsNullOrEmpty(textSearch))
             {
-                predicate = predicate.And(x => x.Name.Contains(textSearch, StringComparison.OrdinalIgnoreCase));
+                predicate = predicate.And(x => EF.Functions.Like(x.Name, $"%{textSearch}%"));
             }
 
             // lọc theo status (IsActive)
@@ -1244,26 +1244,95 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
             var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
 
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
+            Console.WriteLine($"[DEBUG] GetAvailableVouchersAsync called. Current time: {now}");
+            Console.WriteLine($"[DEBUG] Pagination: pageIndex={pageIndexValue}, pageSize={pageSizeValue}");
 
-            // Lấy tất cả voucher khả dụng
-            var predicate = PredicateBuilder.New<Voucher>(x => 
-                !x.IsDeleted &&
-                x.IsActive &&
-                x.StartDate <= now &&
-                x.EndDate >= now &&
-                x.RemainingCount > 0);
+            // Step 1: Get all vouchers first for debugging
+            var allVouchersInDb = await _voucherRepository.GetAllAsync(x => !x.IsDeleted);
+            Console.WriteLine($"[DEBUG] Total vouchers in database (not deleted): {allVouchersInDb.Count()}");
+            
+            if (!allVouchersInDb.Any())
+            {
+                Console.WriteLine("[DEBUG] No vouchers found in database!");
+                return new ResponseGetAvailableVouchersDto
+                {
+                    StatusCode = 200,
+                    Message = "Không có voucher nào trong hệ thống.",
+                    success = true,
+                    Data = new List<AvailableVoucherDto>(),
+                    TotalRecord = 0,
+                    TotalPages = 0
+                };
+            }
 
-            var availableVouchers = await _voucherRepository.GenericGetPaginationAsync(
-                pageIndexValue,
-                pageSizeValue,
-                predicate,
-                null);
+            foreach (var voucher in allVouchersInDb.Take(5)) // Log first 5 vouchers
+            {
+                Console.WriteLine($"[DEBUG] Voucher: {voucher.Name}");
+                Console.WriteLine($"  - ID: {voucher.Id}");
+                Console.WriteLine($"  - IsActive: {voucher.IsActive}");
+                Console.WriteLine($"  - IsDeleted: {voucher.IsDeleted}");
+                Console.WriteLine($"  - StartDate: {voucher.StartDate}");
+                Console.WriteLine($"  - EndDate: {voucher.EndDate}");
+                Console.WriteLine($"  - Quantity: {voucher.Quantity}");
+                Console.WriteLine($"  - UsedCount: {voucher.UsedCount}");
+                Console.WriteLine($"  - Remaining: {voucher.Quantity - voucher.UsedCount}");
+                Console.WriteLine($"  - Start check: {voucher.StartDate <= now} ({voucher.StartDate} <= {now})");
+                Console.WriteLine($"  - End check: {voucher.EndDate >= now} ({voucher.EndDate} >= {now})");
+                Console.WriteLine("---");
+            }
 
-            var totalVouchers = availableVouchers.Count();
+            // Step 2: Filter step by step
+            var activeVouchers = allVouchersInDb.Where(x => x.IsActive).ToList();
+            Console.WriteLine($"[DEBUG] Active vouchers: {activeVouchers.Count}");
+
+            var dateValidVouchers = activeVouchers.Where(x => x.StartDate <= now && x.EndDate >= now).ToList();
+            Console.WriteLine($"[DEBUG] Date valid vouchers: {dateValidVouchers.Count}");
+
+            var availableVouchers = dateValidVouchers.Where(x => (x.Quantity - x.UsedCount) > 0).ToList();
+            Console.WriteLine($"[DEBUG] Final available vouchers: {availableVouchers.Count}");
+
+            // Step 3: Apply pagination
+            var totalVouchers = availableVouchers.Count;
             var totalPages = (int)Math.Ceiling((double)totalVouchers / pageSizeValue);
+            
+            Console.WriteLine($"[DEBUG] Before pagination: Total={totalVouchers}, Pages={totalPages}");
+            
+            var paginatedVouchers = availableVouchers
+                .Skip((pageIndexValue - 1) * pageSizeValue)
+                .Take(pageSizeValue)
+                .ToList();
+            
+            Console.WriteLine($"[DEBUG] After pagination: Count={paginatedVouchers.Count}");
 
-            var result = _mapper.Map<List<AvailableVoucherDto>>(availableVouchers);
+            // Step 4: Manual mapping instead of AutoMapper for debugging
+            var result = new List<AvailableVoucherDto>();
+            
+            foreach (var voucher in paginatedVouchers)
+            {
+                try 
+                {
+                    var dto = new AvailableVoucherDto
+                    {
+                        Id = voucher.Id,
+                        Name = voucher.Name,
+                        Description = voucher.Description,
+                        DiscountAmount = voucher.DiscountAmount,
+                        DiscountPercent = voucher.DiscountPercent,
+                        RemainingCount = voucher.Quantity - voucher.UsedCount,
+                        StartDate = voucher.StartDate,
+                        EndDate = voucher.EndDate
+                    };
+                    result.Add(dto);
+                    Console.WriteLine($"[DEBUG] Mapped voucher: {dto.Name}, Remaining: {dto.RemainingCount}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[DEBUG] Error mapping voucher {voucher.Name}: {ex.Message}");
+                }
+            }
+            
+            Console.WriteLine($"[DEBUG] Final mapped result count: {result.Count}");
 
             return new ResponseGetAvailableVouchersDto
             {
@@ -1488,8 +1557,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                // Lấy tất cả users active (trừ admin)
-                var users = await _userRepository.GetAllAsync(u => u.IsActive && !u.IsDeleted && u.Role.Name != "Admin");
+                // Lấy chỉ users có role "User" thôi
+                var users = await _userRepository.GetAllAsync(u => u.IsActive && !u.IsDeleted && u.Role.Name == "User");
 
                 var title = isUpdate ? "🎁 Voucher được cập nhật!" : "🎁 Voucher mới từ TNDT!";
                 var message = isUpdate 
@@ -1513,7 +1582,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     await _notificationService.CreateNotificationAsync(createNotificationDto);
                 }
 
-                Console.WriteLine($"Sent voucher notification to {users.Count()} users for voucher: {voucher.Name}");
+                Console.WriteLine($"Sent voucher notification to {users.Count()} users (role: User only) for voucher: {voucher.Name}");
             }
             catch (Exception ex)
             {
