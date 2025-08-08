@@ -42,15 +42,39 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher
         public int? DiscountPercent { get; set; }
 
         /// <summary>
-        /// Ngày bắt đầu có hiệu lực
+        /// Ngày bắt đầu có hiệu lực (phải lớn hơn thời điểm hiện tại)
         /// </summary>
         [Required(ErrorMessage = "Ngày bắt đầu là bắt buộc")]
+        [FutureDate(ErrorMessage = "Ngày bắt đầu phải lớn hơn thời điểm hiện tại")]
         public DateTime StartDate { get; set; }
 
         /// <summary>
-        /// Ngày hết hạn
+        /// Ngày hết hạn (phải lớn hơn StartDate)
         /// </summary>
         [Required(ErrorMessage = "Ngày kết thúc là bắt buộc")]
         public DateTime EndDate { get; set; }
+    }
+
+    /// <summary>
+    /// Custom validation attribute để kiểm tra ngày phải lớn hơn hiện tại
+    /// </summary>
+    public class FutureDateAttribute : ValidationAttribute
+    {
+        public override bool IsValid(object? value)
+        {
+            if (value is DateTime dateValue)
+            {
+                // Sử dụng Vietnam timezone để so sánh
+                var vietnamNow = DataAccessLayer.Utilities.VietnamTimeZoneUtility.GetVietnamNow();
+                return dateValue > vietnamNow;
+            }
+            return true; // Nếu không phải DateTime thì để validation khác xử lý
+        }
+
+        public override string FormatErrorMessage(string name)
+        {
+            var vietnamNow = DataAccessLayer.Utilities.VietnamTimeZoneUtility.GetVietnamNow();
+            return $"{name} phải lớn hơn thời điểm hiện tại ({vietnamNow:dd/MM/yyyy HH:mm} GMT+7)";
+        }
     }
 }

@@ -1009,6 +1009,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<ResponseCreateVoucher> CreateAsync(CreateVoucherDto dto, Guid userId)
         {
+            // Sử dụng Vietnam timezone để validate
+            var now = VietnamTimeZoneUtility.GetVietnamNow();
+
             if ((dto.DiscountAmount <= 0) && (!dto.DiscountPercent.HasValue || dto.DiscountPercent <= 0))
             {
                 return new ResponseCreateVoucher
@@ -1024,6 +1027,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 400,
                     Message = "Chỉ được chọn một trong hai: số tiền giảm hoặc phần trăm giảm."
+                };
+            }
+
+            // ✅ Validation mới: StartDate phải lớn hơn hiện tại
+            if (dto.StartDate <= now)
+            {
+                return new ResponseCreateVoucher
+                {
+                    StatusCode = 400,
+                    Message = $"Ngày bắt đầu phải lớn hơn thời điểm hiện tại. Hiện tại: {now:dd/MM/yyyy HH:mm} (GMT+7)"
                 };
             }
 
@@ -1057,7 +1070,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 IsActive = true,
-                CreatedAt = VietnamTimeZoneUtility.GetVietnamNow(), // Sử dụng Vietnam timezone
+                CreatedAt = now, // Sử dụng Vietnam timezone
                 CreatedById = userId
             };
 
@@ -1148,6 +1161,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var voucher = await _voucherRepository.GetByIdAsync(id);
             
+            if (voucher == null || voucher.IsDeleted)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "Không tìm thấy voucher."
+                };
+            }
+
+            // Sử dụng Vietnam timezone để validate
+            var now = VietnamTimeZoneUtility.GetVietnamNow();
+
             if (dto.DiscountAmount.HasValue && dto.DiscountAmount <= 0 && (!dto.DiscountPercent.HasValue || dto.DiscountPercent <= 0))
             {
                 return new BaseResposeDto
@@ -1166,6 +1191,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
+            // ✅ Validation mới: Nếu update StartDate, phải lớn hơn hiện tại
+            if (dto.StartDate.HasValue && dto.StartDate.Value <= now)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = $"Ngày bắt đầu phải lớn hơn thời điểm hiện tại. Hiện tại: {now:dd/MM/yyyy HH:mm} (GMT+7)"
+                };
+            }
+
+            // Validation cho trường hợp update cả StartDate và EndDate
             if (dto.StartDate.HasValue && dto.EndDate.HasValue && dto.StartDate >= dto.EndDate)
             {
                 return new BaseResposeDto
@@ -1175,12 +1211,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            if (voucher == null || voucher.IsDeleted)
+            // Validation cho trường hợp update chỉ StartDate (so với EndDate hiện tại)
+            if (dto.StartDate.HasValue && !dto.EndDate.HasValue && dto.StartDate >= voucher.EndDate)
             {
                 return new BaseResposeDto
                 {
-                    StatusCode = 404,
-                    Message = "Không tìm thấy voucher."
+                    StatusCode = 400,
+                    Message = "Ngày bắt đầu mới phải nhỏ hơn ngày kết thúc hiện tại."
+                };
+            }
+
+            // Validation cho trường hợp update chỉ EndDate (so với StartDate hiện tại)
+            if (!dto.StartDate.HasValue && dto.EndDate.HasValue && voucher.StartDate >= dto.EndDate)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Ngày kết thúc mới phải lớn hơn ngày bắt đầu hiện tại."
                 };
             }
 
@@ -1194,7 +1241,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             voucher.StartDate = dto.StartDate ?? voucher.StartDate;
             voucher.EndDate = dto.EndDate ?? voucher.EndDate;
             voucher.IsActive = dto.IsActive ?? voucher.IsActive;
-            voucher.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow(); // Sử dụng Vietnam timezone
+            voucher.UpdatedAt = now; // Sử dụng Vietnam timezone
             voucher.UpdatedById = userId;
 
             await _voucherRepository.UpdateAsync(voucher);
