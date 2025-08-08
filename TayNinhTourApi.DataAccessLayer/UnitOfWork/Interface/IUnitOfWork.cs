@@ -29,6 +29,9 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         ITimelineItemRepository TimelineItemRepository { get; }
         IBlogRepository BlogRepository { get; }
 
+        // Product system repositories
+        IProductRepository ProductRepository { get; }
+
         // Notification repository
         INotificationRepository NotificationRepository { get; }
 

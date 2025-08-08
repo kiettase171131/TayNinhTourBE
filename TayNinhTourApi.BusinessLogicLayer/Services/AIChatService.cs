@@ -3,25 +3,29 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.AIChat;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service implementation cho AI Chat functionality
+    /// Service implementation cho AI Chat functionality với hỗ trợ 3 loại chat
     /// </summary>
     public class AIChatService : IAIChatService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IAISpecializedChatService _specializedChatService;
         private readonly IGeminiAIService _geminiAIService;
         private readonly ILogger<AIChatService> _logger;
 
         public AIChatService(
             IUnitOfWork unitOfWork,
+            IAISpecializedChatService specializedChatService,
             IGeminiAIService geminiAIService,
             ILogger<AIChatService> logger)
         {
             _unitOfWork = unitOfWork;
+            _specializedChatService = specializedChatService;
             _geminiAIService = geminiAIService;
             _logger = logger;
         }
@@ -30,15 +34,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                _logger.LogInformation("Creating new chat session for user {UserId}", userId);
+                _logger.LogInformation("Creating new {ChatType} chat session for user {UserId}", request.ChatType, userId);
 
-                // T?o session m?i
+                // Tạo session mới với ChatType
                 var session = new AIChatSession
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    Title = request.CustomTitle ?? "Cuộc trò chuyện mới",
+                    Title = request.CustomTitle ?? GetDefaultTitle(request.ChatType),
                     Status = "Active",
+                    ChatType = request.ChatType,
                     LastMessageAt = DateTime.UtcNow,
                     CreatedById = userId,
                     CreatedAt = DateTime.UtcNow,
@@ -48,10 +53,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.AIChatSessionRepository.AddAsync(session);
 
-                // N?u có tin nh?n ??u tiên, x? lý luôn
+                // Nếu có tin nhắn đầu tiên, xử lý luôn
                 if (!string.IsNullOrWhiteSpace(request.FirstMessage))
                 {
-                    // T?o tin nh?n t? user
+                    // Tạo tin nhắn từ user
                     var userMessage = new AIChatMessage
                     {
                         Id = Guid.NewGuid(),
@@ -66,12 +71,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     await _unitOfWork.AIChatMessageRepository.AddAsync(userMessage);
 
-                    // G?i ??n AI và nh?n ph?n h?i
-                    var aiResponse = await _geminiAIService.GenerateContentAsync(request.FirstMessage);
+                    // Gửi đến specialized AI service
+                    var aiResponse = await _specializedChatService.ProcessMessageAsync(
+                        request.FirstMessage, 
+                        request.ChatType, 
+                        null);
 
                     if (aiResponse.Success)
                     {
-                        // T?o tin nh?n ph?n h?i t? AI
+                        // Tạo tin nhắn phản hồi từ AI
                         var aiMessage = new AIChatMessage
                         {
                             Id = Guid.NewGuid(),
@@ -80,6 +88,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             MessageType = "AI",
                             TokensUsed = aiResponse.TokensUsed,
                             ResponseTimeMs = aiResponse.ResponseTimeMs,
+                            Metadata = aiResponse.IsFallback ? "{\"isFallback\": true}" : null,
                             CreatedById = userId,
                             CreatedAt = DateTime.UtcNow,
                             IsActive = true,
@@ -88,18 +97,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                         await _unitOfWork.AIChatMessageRepository.AddAsync(aiMessage);
 
-                        // T?o tiêu ?? t? ??ng t? tin nh?n ??u tiên
+                        // Tạo tiêu đề tự động từ tin nhắn đầu tiên nếu cần
                         if (string.IsNullOrEmpty(request.CustomTitle))
                         {
                             var generatedTitle = await _geminiAIService.GenerateTitleAsync(request.FirstMessage);
-                            session.Title = generatedTitle;
+                            session.Title = $"[{GetChatTypeDisplayName(request.ChatType)}] {generatedTitle}";
                         }
                     }
                 }
 
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Created chat session {SessionId} for user {UserId}", session.Id, userId);
+                _logger.LogInformation("Created {ChatType} chat session {SessionId} for user {UserId}", 
+                    request.ChatType, session.Id, userId);
 
                 return new ResponseCreateChatSessionDto
                 {
@@ -111,6 +121,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Id = session.Id,
                         Title = session.Title,
                         Status = session.Status,
+                        ChatType = session.ChatType,
                         CreatedAt = session.CreatedAt,
                         LastMessageAt = session.LastMessageAt,
                         MessageCount = 0
@@ -119,7 +130,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating chat session for user {UserId}", userId);
+                _logger.LogError(ex, "Error creating {ChatType} chat session for user {UserId}", request.ChatType, userId);
                 
                 return new ResponseCreateChatSessionDto
                 {
@@ -136,19 +147,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogInformation("Sending message to session {SessionId} from user {UserId}", request.SessionId, userId);
 
-                // Ki?m tra session t?n t?i và thu?c v? user
+                // Kiểm tra session tồn tại và thuộc về user
                 var session = await _unitOfWork.AIChatSessionRepository.GetSessionWithMessagesAsync(request.SessionId, userId);
                 if (session == null)
                 {
                     return new ResponseSendMessageDto
                     {
                         success = false,
-                        Message = "Không tìm thấyy phiên chat",
+                        Message = "Không tìm thấy phiên chat",
                         StatusCode = 404
                     };
                 }
 
-                // T?o tin nh?n t? user
+                // Tạo tin nhắn từ user
                 var userMessage = new AIChatMessage
                 {
                     Id = Guid.NewGuid(),
@@ -163,7 +174,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.AIChatMessageRepository.AddAsync(userMessage);
 
-                // L?y context n?u c?n
+                // Lấy context nếu cần
                 List<GeminiMessage>? conversationHistory = null;
                 if (request.IncludeContext)
                 {
@@ -172,20 +183,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     
                     conversationHistory = contextMessages.Select(m => new GeminiMessage
                     {
-                        Role = m.MessageType,
+                        Role = m.MessageType == "User" ? "user" : "model",
                         Content = m.Content
                     }).ToList();
                 }
 
-                // G?i ??n AI
-                var aiResponse = await _geminiAIService.GenerateContentAsync(request.Message, conversationHistory);
+                // Gửi đến specialized AI service dựa trên chat type
+                var aiResponse = await _specializedChatService.ProcessMessageAsync(
+                    request.Message, 
+                    session.ChatType, 
+                    conversationHistory);
 
                 AIChatMessage? aiMessage = null;
                 string responseMessage = "Gửi tin nhắn thành công";
                 
                 if (aiResponse.Success)
                 {
-                    // T?o tin nh?n ph?n h?i t? AI
+                    // Tạo tin nhắn phản hồi từ AI
                     aiMessage = new AIChatMessage
                     {
                         Id = Guid.NewGuid(),
@@ -203,23 +217,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     await _unitOfWork.AIChatMessageRepository.AddAsync(aiMessage);
 
-                    // C?p nh?t th?i gian tin nh?n cu?i
+                    // Cập nhật thời gian tin nhắn cuối
                     await _unitOfWork.AIChatSessionRepository.UpdateLastMessageTimeAsync(request.SessionId);
                     
                     if (aiResponse.IsFallback)
                     {
-                        responseMessage = "Gửi tin nhắn thành công (AI tạm thời bận, sẽ dùng phản hồi tự động)";
-                        _logger.LogInformation("Used fallback response for session {SessionId}", request.SessionId);
+                        responseMessage = "Gửi tin nhắn thành công (sử dụng phản hồi tự động)";
+                        _logger.LogInformation("Used fallback response for {ChatType} session {SessionId}", 
+                            session.ChatType, request.SessionId);
                     }
                 }
                 else
                 {
-                    // N?u AI không ph?n h?i, t?o message thông báo l?i
+                    // Nếu AI không phản hồi, tạo message thông báo lỗi
                     aiMessage = new AIChatMessage
                     {
                         Id = Guid.NewGuid(),
                         SessionId = request.SessionId,
-                        Content = "Xin lỗi, tôi hiện đang gặp khó khăn kỹ thuật. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
+                        Content = GetErrorMessage(session.ChatType),
                         MessageType = "AI",
                         Metadata = "{\"isError\": true}",
                         CreatedById = userId,
@@ -231,14 +246,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     await _unitOfWork.AIChatMessageRepository.AddAsync(aiMessage);
                     responseMessage = "Gửi tin nhắn thành công nhưng AI không thể phản hồi";
                     
-                    _logger.LogWarning("AI failed to respond for session {SessionId}: {Error}", 
-                        request.SessionId, aiResponse.ErrorMessage);
+                    _logger.LogWarning("AI failed to respond for {ChatType} session {SessionId}: {Error}", 
+                        session.ChatType, request.SessionId, aiResponse.ErrorMessage);
                 }
 
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Processed message for session {SessionId}, AI response: {Success}, IsFallback: {IsFallback}", 
-                    request.SessionId, aiResponse.Success, aiResponse.IsFallback);
+                _logger.LogInformation("Processed {ChatType} message for session {SessionId}, AI response: {Success}, IsFallback: {IsFallback}", 
+                    session.ChatType, request.SessionId, aiResponse.Success, aiResponse.IsFallback);
 
                 return new ResponseSendMessageDto
                 {
@@ -287,10 +302,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                _logger.LogInformation("Getting chat sessions for user {UserId}, page {Page}", userId, request.Page);
+                _logger.LogInformation("Getting chat sessions for user {UserId}, page {Page}, ChatType filter: {ChatType}", 
+                    userId, request.Page, request.ChatType);
 
                 var (sessions, totalCount) = await _unitOfWork.AIChatSessionRepository
-                    .GetUserChatSessionsAsync(userId, request.Page, request.PageSize);
+                    .GetUserChatSessionsAsync(userId, request.Page, request.PageSize, request.ChatType);
 
                 var sessionDtos = new List<AIChatSessionDto>();
                 
@@ -303,6 +319,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Id = session.Id,
                         Title = session.Title,
                         Status = session.Status,
+                        ChatType = session.ChatType,
                         CreatedAt = session.CreatedAt,
                         LastMessageAt = session.LastMessageAt,
                         MessageCount = messageCount
@@ -372,6 +389,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Id = session.Id,
                         Title = session.Title,
                         Status = session.Status,
+                        ChatType = session.ChatType,
                         CreatedAt = session.CreatedAt,
                         LastMessageAt = session.LastMessageAt,
                         Messages = messageDtos
@@ -480,6 +498,40 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     StatusCode = 500
                 };
             }
+        }
+
+        // Helper methods
+        private string GetDefaultTitle(AIChatType chatType)
+        {
+            return chatType switch
+            {
+                AIChatType.Tour => "[Tour] Tư vấn tour du lịch",
+                AIChatType.Product => "[Sản phẩm] Tư vấn mua sắm",
+                AIChatType.TayNinh => "[Tây Ninh] Hỏi đáp về Tây Ninh",
+                _ => "Cuộc trò chuyện mới"
+            };
+        }
+
+        private string GetChatTypeDisplayName(AIChatType chatType)
+        {
+            return chatType switch
+            {
+                AIChatType.Tour => "Tour",
+                AIChatType.Product => "Sản phẩm",
+                AIChatType.TayNinh => "Tây Ninh",
+                _ => "Chat"
+            };
+        }
+
+        private string GetErrorMessage(AIChatType chatType)
+        {
+            return chatType switch
+            {
+                AIChatType.Tour => "Xin lỗi, hệ thống tư vấn tour hiện đang gặp khó khăn. Vui lòng thử lại sau hoặc liên hệ hotline để được hỗ trợ.",
+                AIChatType.Product => "Xin lỗi, hệ thống tư vấn sản phẩm tạm thời không khả dụng. Bạn có thể duyệt catalog sản phẩm trực tiếp.",
+                AIChatType.TayNinh => "Xin lỗi, tôi tạm thời không thể chia sẻ thông tin về Tây Ninh. Vui lòng thử lại sau.",
+                _ => "Xin lỗi, tôi hiện đang gặp khó khăn kỹ thuật. Vui lòng thử lại sau hoặc liên hệ hỗ trợ."
+            };
         }
     }
 }

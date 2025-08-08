@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories
@@ -13,9 +14,21 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         public async Task<(List<AIChatSession> Sessions, int TotalCount)> GetUserChatSessionsAsync(Guid userId, int page, int pageSize)
         {
+            return await GetUserChatSessionsAsync(userId, page, pageSize, null);
+        }
+
+        public async Task<(List<AIChatSession> Sessions, int TotalCount)> GetUserChatSessionsAsync(Guid userId, int page, int pageSize, AIChatType? chatType = null)
+        {
             var query = _context.AIChatSessions
-                .Where(s => s.UserId == userId && !s.IsDeleted && s.Status != "Deleted")
-                .OrderByDescending(s => s.LastMessageAt);
+                .Where(s => s.UserId == userId && !s.IsDeleted && s.Status != "Deleted");
+
+            // Filter by ChatType if specified
+            if (chatType.HasValue)
+            {
+                query = query.Where(s => s.ChatType == chatType.Value);
+            }
+
+            query = query.OrderByDescending(s => s.LastMessageAt);
 
             var totalCount = await query.CountAsync();
             var sessions = await query

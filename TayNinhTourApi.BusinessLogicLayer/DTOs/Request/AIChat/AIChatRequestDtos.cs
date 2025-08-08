@@ -1,3 +1,5 @@
+using TayNinhTourApi.DataAccessLayer.Enums;
+
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.AIChat
 {
     /// <summary>
@@ -5,6 +7,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.AIChat
     /// </summary>
     public class RequestCreateChatSessionDto
     {
+        /// <summary>
+        /// Lo?i chat session (Tour, Product, TayNinh)
+        /// </summary>
+        public AIChatType ChatType { get; set; }
+
         /// <summary>
         /// Tin nh?n ??u tiên (optional, có th? t?o session tr?ng)
         /// </summary>
@@ -61,6 +68,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.AIChat
         /// Tr?ng thái session (Active, Archived, All)
         /// </summary>
         public string Status { get; set; } = "Active";
+
+        /// <summary>
+        /// L?c theo lo?i chat (optional)
+        /// </summary>
+        public AIChatType? ChatType { get; set; }
     }
 
     /// <summary>

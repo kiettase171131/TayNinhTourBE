@@ -20,7 +20,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private ITourRepository _tourRepository = null!;
         private ITourTemplateRepository _tourTemplateRepository = null!;
         // TODO: Remove after Shop merge complete
-        // private IShopRepository _shopRepository = null!;
+        // private IShopRepository _shopRepository = null!
         private ISpecialtyShopRepository _specialtyShopRepository = null!;
         private ISpecialtyShopApplicationRepository _specialtyShopApplicationRepository = null!;
         private ITourGuideApplicationRepository _tourGuideApplicationRepository = null!;
@@ -35,6 +35,9 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private ITourGuideInvitationRepository _tourGuideInvitationRepository = null!;
         private ITimelineItemRepository _timelineItemRepository = null!;
         private IBlogRepository _blogRepository = null!;
+
+        // Product system repository
+        private IProductRepository _productRepository = null!;
 
         // Notification repository
         private INotificationRepository _notificationRepository = null!;
@@ -214,6 +217,15 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
             get
             {
                 return _blogRepository ??= new BlogRepository(_context);
+            }
+        }
+
+        // Product system repository implementation
+        public IProductRepository ProductRepository
+        {
+            get
+            {
+                return _productRepository ??= new ProductRepository(_context);
             }
         }
 

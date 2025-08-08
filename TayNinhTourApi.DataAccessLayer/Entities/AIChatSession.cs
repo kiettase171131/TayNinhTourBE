@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -26,6 +27,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         [Required]
         [StringLength(20)]
         public string Status { get; set; } = "Active";
+
+        /// <summary>
+        /// Lo?i chat session (Tour, Product, TayNinh)
+        /// </summary>
+        [Required]
+        public AIChatType ChatType { get; set; }
 
         /// <summary>
         /// Th?i gian tin nh?n cu?i cùng trong phiên

@@ -1,3 +1,5 @@
+using TayNinhTourApi.DataAccessLayer.Enums;
+
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
 {
     /// <summary>
@@ -23,6 +25,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
         public Guid Id { get; set; }
         public string Title { get; set; } = null!;
         public string Status { get; set; } = null!;
+        public AIChatType ChatType { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime LastMessageAt { get; set; }
         public int MessageCount { get; set; }
@@ -37,6 +40,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat
         public Guid Id { get; set; }
         public string Title { get; set; } = null!;
         public string Status { get; set; } = null!;
+        public AIChatType ChatType { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime LastMessageAt { get; set; }
         public List<AIChatMessageDto> Messages { get; set; } = new List<AIChatMessageDto>();

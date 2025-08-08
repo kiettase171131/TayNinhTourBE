@@ -120,7 +120,6 @@ builder.Services.AddAuthorization(options =>
     );
 });
 
-
 // Config Forwarded Headers
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -229,6 +228,8 @@ builder.Services.AddScoped<DataMigrationService>();
 builder.Services.AddScoped<IGeminiAIService, GeminiAIService>();
 builder.Services.AddScoped<IAIChatService, AIChatService>();
 builder.Services.AddScoped<IAITourDataService, AITourDataService>();
+builder.Services.AddScoped<IAIProductDataService, AIProductDataService>();
+builder.Services.AddScoped<IAISpecializedChatService, AISpecializedChatService>();
 
 // Notification Services
 builder.Services.AddScoped<INotificationService, NotificationService>();

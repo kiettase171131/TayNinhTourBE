@@ -7,11 +7,12 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.AIChat;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.AIChat;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
     /// <summary>
-    /// Controller qu?n lý AI Chat - chat v?i AI chatbot s? d?ng Gemini API
+    /// Controller quản lý AI Chat - chat với AI chatbot sử dụng Gemini API với 3 loại chat chuyên biệt
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
@@ -35,10 +36,10 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Test endpoint ?? ki?m tra Gemini API (không c?n authentication)
+        /// Test endpoint để kiểm tra Gemini API (không cần authentication)
         /// </summary>
-        /// <param name="message">Tin nh?n test</param>
-        /// <returns>Ph?n h?i t? Gemini AI</returns>
+        /// <param name="message">Tin nhắn test</param>
+        /// <returns>Phản hồi từ Gemini AI</returns>
         [HttpPost("test-gemini")]
         public async Task<ActionResult> TestGemini([FromBody] TestGeminiRequest request)
         {
@@ -75,58 +76,17 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Test endpoint ?? test tour recommendations (không c?n authentication)
+        /// Tạo phiên chat mới với loại chat cụ thể
         /// </summary>
-        /// <param name="request">Request v?i query v? tour</param>
-        /// <returns>Ph?n h?i t? AI v?i thông tin tour</returns>
-        [HttpPost("test-tour-recommendations")]
-        public async Task<ActionResult> TestTourRecommendations([FromBody] TestTourRecommendationRequest request)
-        {
-            try
-            {
-                _logger.LogInformation("Testing tour recommendations with query: {Query}", request.Query);
-
-                var response = await _geminiAIService.GenerateContentAsync(request.Query);
-
-                return Ok(new
-                {
-                    success = response.Success,
-                    message = response.Success ? "Tour recommendation test thành công" : "Tour recommendation test thất bại",
-                    data = new
-                    {
-                        userQuery = request.Query,
-                        aiResponse = response.Content,
-                        tokensUsed = response.TokensUsed,
-                        responseTimeMs = response.ResponseTimeMs,
-                        isFallback = response.IsFallback,
-                        errorMessage = response.ErrorMessage
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error testing tour recommendations");
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Có lỗi xảy ra khi test tour recommendations",
-                    error = ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// T?o phiên chat m?i
-        /// </summary>
-        /// <param name="request">Thông tin phiên chat m?i</param>
-        /// <returns>K?t qu? t?o phiên chat</returns>
+        /// <param name="request">Thông tin phiên chat mới</param>
+        /// <returns>Kết quả tạo phiên chat</returns>
         [HttpPost("sessions")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseCreateChatSessionDto>> CreateChatSession([FromBody] RequestCreateChatSessionDto request)
         {
             try
             {
-                _logger.LogInformation("Creating chat session, getting current user...");
+                _logger.LogInformation("Creating {ChatType} chat session", request.ChatType);
                 
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 if (currentUser == null)
@@ -140,14 +100,15 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                _logger.LogInformation("Current user ID: {UserId}, Email: {Email}", currentUser.UserId, currentUser.Email);
+                _logger.LogInformation("Creating {ChatType} chat session for user {UserId}", 
+                    request.ChatType, currentUser.UserId);
                 
                 var response = await _aiChatService.CreateChatSessionAsync(request, currentUser.UserId);
                 return StatusCode(response.StatusCode, response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating chat session. Stack trace: {StackTrace}", ex.StackTrace);
+                _logger.LogError(ex, "Error creating {ChatType} chat session", request.ChatType);
                 return StatusCode(500, new ResponseCreateChatSessionDto
                 {
                     success = false,
@@ -158,10 +119,10 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// G?i tin nh?n ??n AI chatbot
+        /// Gửi tin nhắn đến AI chatbot với xử lý chuyên biệt theo loại chat
         /// </summary>
-        /// <param name="request">Thông tin tin nh?n</param>
-        /// <returns>Ph?n h?i t? AI</returns>
+        /// <param name="request">Thông tin tin nhắn</param>
+        /// <returns>Phản hồi từ AI</returns>
         [HttpPost("messages")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSendMessageDto>> SendMessage([FromBody] RequestSendMessageDto request)
@@ -174,7 +135,7 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending message");
+                _logger.LogError(ex, "Error sending message to session {SessionId}", request.SessionId);
                 return StatusCode(500, new ResponseSendMessageDto
                 {
                     success = false,
@@ -185,18 +146,20 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// L?y danh sách phiên chat c?a user hi?n t?i
+        /// Lấy danh sách phiên chat của user hiện tại với hỗ trợ lọc theo loại chat
         /// </summary>
-        /// <param name="page">Trang hi?n t?i (0-based)</param>
-        /// <param name="pageSize">S? l??ng sessions per page</param>
-        /// <param name="status">Tr?ng thái session (Active, Archived, All)</param>
+        /// <param name="page">Trang hiện tại (0-based)</param>
+        /// <param name="pageSize">Số lượng sessions per page</param>
+        /// <param name="status">Trạng thái session (Active, Archived, All)</param>
+        /// <param name="chatType">Lọc theo loại chat (Tour, Product, TayNinh)</param>
         /// <returns>Danh sách phiên chat</returns>
         [HttpGet("sessions")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseGetChatSessionsDto>> GetChatSessions(
             [FromQuery] int page = 0,
             [FromQuery] int pageSize = 20,
-            [FromQuery] string status = "Active")
+            [FromQuery] string status = "Active",
+            [FromQuery] AIChatType? chatType = null)
         {
             try
             {
@@ -205,8 +168,12 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     Page = page,
                     PageSize = pageSize,
-                    Status = status
+                    Status = status,
+                    ChatType = chatType
                 };
+                
+                _logger.LogInformation("Getting chat sessions for user {UserId}, ChatType filter: {ChatType}", 
+                    currentUser.UserId, chatType);
                 
                 var response = await _aiChatService.GetChatSessionsAsync(request, currentUser.UserId);
                 return StatusCode(response.StatusCode, response);
@@ -224,12 +191,12 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// L?y tin nh?n trong phiên chat
+        /// Lấy tin nhắn trong phiên chat
         /// </summary>
-        /// <param name="sessionId">ID c?a phiên chat</param>
-        /// <param name="page">Trang hi?n t?i (0-based)</param>
-        /// <param name="pageSize">S? l??ng messages per page</param>
-        /// <returns>Tin nh?n trong phiên chat</returns>
+        /// <param name="sessionId">ID của phiên chat</param>
+        /// <param name="page">Trang hiện tại (0-based)</param>
+        /// <param name="pageSize">Số lượng messages per page</param>
+        /// <returns>Tin nhắn trong phiên chat</returns>
         [HttpGet("sessions/{sessionId}/messages")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseGetMessagesDto>> GetMessages(
@@ -263,10 +230,10 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// L?u tr? phiên chat (archive)
+        /// Lưu trữ phiên chat (archive)
         /// </summary>
-        /// <param name="sessionId">ID c?a phiên chat</param>
-        /// <returns>K?t qu? thao tác</returns>
+        /// <param name="sessionId">ID của phiên chat</param>
+        /// <returns>Kết quả thao tác</returns>
         [HttpPut("sessions/{sessionId}/archive")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> ArchiveSession([FromRoute] Guid sessionId)
@@ -292,8 +259,8 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <summary>
         /// Xóa phiên chat
         /// </summary>
-        /// <param name="sessionId">ID c?a phiên chat</param>
-        /// <returns>K?t qu? thao tác</returns>
+        /// <param name="sessionId">ID của phiên chat</param>
+        /// <returns>Kết quả thao tác</returns>
         [HttpDelete("sessions/{sessionId}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> DeleteSession([FromRoute] Guid sessionId)
@@ -317,11 +284,11 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// C?p nh?t tiêu ?? phiên chat
+        /// Cập nhật tiêu đề phiên chat
         /// </summary>
-        /// <param name="sessionId">ID c?a phiên chat</param>
-        /// <param name="request">Tiêu ?? m?i</param>
-        /// <returns>K?t qu? thao tác</returns>
+        /// <param name="sessionId">ID của phiên chat</param>
+        /// <param name="request">Tiêu đề mới</param>
+        /// <returns>Kết quả thao tác</returns>
         [HttpPut("sessions/{sessionId}/title")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<ResponseSessionActionDto>> UpdateSessionTitle(
@@ -347,9 +314,9 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// L?y th?ng kê AI Chat c?a user
+        /// Lấy thống kê AI Chat của user với phân tích theo loại chat
         /// </summary>
-        /// <returns>Th?ng kê chat</returns>
+        /// <returns>Thống kê chat</returns>
         [HttpGet("stats")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
         public async Task<ActionResult<object>> GetChatStats()
@@ -358,9 +325,19 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 
-                // L?y th?ng kê c? b?n
-                var sessionsRequest = new RequestGetChatSessionsDto { PageSize = 1 };
-                var sessionsResponse = await _aiChatService.GetChatSessionsAsync(sessionsRequest, currentUser.UserId);
+                // Lấy thống kê tổng
+                var allSessionsRequest = new RequestGetChatSessionsDto { PageSize = 1 };
+                var allSessionsResponse = await _aiChatService.GetChatSessionsAsync(allSessionsRequest, currentUser.UserId);
+                
+                // Lấy thống kê theo từng loại chat
+                var tourStatsRequest = new RequestGetChatSessionsDto { PageSize = 1, ChatType = AIChatType.Tour };
+                var tourStatsResponse = await _aiChatService.GetChatSessionsAsync(tourStatsRequest, currentUser.UserId);
+                
+                var productStatsRequest = new RequestGetChatSessionsDto { PageSize = 1, ChatType = AIChatType.Product };
+                var productStatsResponse = await _aiChatService.GetChatSessionsAsync(productStatsRequest, currentUser.UserId);
+                
+                var tayNinhStatsRequest = new RequestGetChatSessionsDto { PageSize = 1, ChatType = AIChatType.TayNinh };
+                var tayNinhStatsResponse = await _aiChatService.GetChatSessionsAsync(tayNinhStatsRequest, currentUser.UserId);
                 
                 return Ok(new
                 {
@@ -368,8 +345,14 @@ namespace TayNinhTourApi.Controller.Controllers
                     Message = "Lấy thống kê thành công",
                     Data = new
                     {
-                        TotalSessions = sessionsResponse.TotalCount,
-                        ActiveSessions = sessionsResponse.TotalCount // Có th? m? r?ng ?? ??m riêng active sessions
+                        TotalSessions = allSessionsResponse.TotalCount,
+                        ActiveSessions = allSessionsResponse.TotalCount,
+                        ByType = new
+                        {
+                            TourSessions = tourStatsResponse.TotalCount,
+                            ProductSessions = productStatsResponse.TotalCount,
+                            TayNinhSessions = tayNinhStatsResponse.TotalCount
+                        }
                     }
                 });
             }
@@ -385,7 +368,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Admin endpoint ?? reset quota Gemini API
+        /// Admin endpoint để reset quota Gemini API
         /// </summary>
         [HttpPost("admin/reset-quota")]
         [Authorize(Roles = "Admin")]
@@ -422,7 +405,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Admin endpoint ?? xem quota status
+        /// Admin endpoint để xem quota status
         /// </summary>
         [HttpGet("admin/quota-status")]
         [Authorize(Roles = "Admin")]

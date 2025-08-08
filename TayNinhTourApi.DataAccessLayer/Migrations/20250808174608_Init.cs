@@ -178,6 +178,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Active")
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    ChatType = table.Column<int>(type: "int", nullable: false),
                     LastMessageAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
