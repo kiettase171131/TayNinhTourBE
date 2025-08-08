@@ -17,6 +17,7 @@ using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 {
@@ -232,16 +233,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             #region Voucher Mapping
             CreateMap<Voucher, VoucherDto>()
                 .ForMember(dest => dest.RemainingCount, opt => opt.MapFrom(src => src.Quantity - src.UsedCount))
-                .ForMember(dest => dest.IsExpired, opt => opt.MapFrom(src => src.EndDate < DateTime.UtcNow))
+                .ForMember(dest => dest.IsExpired, opt => opt.MapFrom(src => src.EndDate < VietnamTimeZoneUtility.GetVietnamNow()))
                 .ForMember(dest => dest.IsAvailable, opt => opt.MapFrom(src => 
                     src.IsActive && 
-                    src.StartDate <= DateTime.UtcNow && 
-                    src.EndDate >= DateTime.UtcNow && 
+                    src.StartDate <= VietnamTimeZoneUtility.GetVietnamNow() && 
+                    src.EndDate >= VietnamTimeZoneUtility.GetVietnamNow() && 
                     src.UsedCount < src.Quantity));
 
             CreateMap<Voucher, AvailableVoucherDto>()
                 .ForMember(dest => dest.RemainingCount, opt => opt.MapFrom(src => src.Quantity - src.UsedCount))
-                .ForMember(dest => dest.IsExpiringSoon, opt => opt.MapFrom(src => (src.EndDate - DateTime.UtcNow).TotalDays <= 7));
+                .ForMember(dest => dest.IsExpiringSoon, opt => opt.MapFrom(src => (src.EndDate - VietnamTimeZoneUtility.GetVietnamNow()).TotalDays <= 7));
 
             #endregion
             #region Order Mapping

@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -32,10 +33,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
 
-        // Computed properties
+        // Computed properties - Sử dụng Vietnam timezone
         public int RemainingCount => Math.Max(0, Quantity - UsedCount);
-        public bool IsExpired => DateTime.UtcNow > EndDate;
-        public bool IsAvailable => IsActive && !IsExpired && RemainingCount > 0 && DateTime.UtcNow >= StartDate;
+        public bool IsExpired => VietnamTimeZoneUtility.GetVietnamNow() > EndDate;
+        public bool IsAvailable => IsActive && !IsExpired && RemainingCount > 0 && VietnamTimeZoneUtility.GetVietnamNow() >= StartDate;
 
         // Navigation properties for orders that used this voucher
         public virtual ICollection<Order> Orders { get; set; } = new List<Order>();

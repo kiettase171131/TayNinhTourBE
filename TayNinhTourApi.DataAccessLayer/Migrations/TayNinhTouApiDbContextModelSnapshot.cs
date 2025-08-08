@@ -907,6 +907,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<int>("SoldCount")
                         .HasColumnType("int");
 
+                    b.Property<Guid>("SpecialtyShopId")
+                        .HasColumnType("char(36)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -916,6 +919,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ShopId");
+
+                    b.HasIndex("SpecialtyShopId");
 
                     b.ToTable("Products");
                 });
@@ -3557,13 +3562,21 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.Product", b =>
                 {
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.SpecialtyShop", "Shop")
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "Shop")
                         .WithMany()
                         .HasForeignKey("ShopId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.SpecialtyShop", "SpecialtyShop")
+                        .WithMany()
+                        .HasForeignKey("SpecialtyShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Shop");
+
+                    b.Navigation("SpecialtyShop");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.ProductImage", b =>

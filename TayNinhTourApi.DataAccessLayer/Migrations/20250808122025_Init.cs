@@ -914,6 +914,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     Category = table.Column<int>(type: "int", nullable: false),
                     SoldCount = table.Column<int>(type: "int", nullable: false),
                     ShopId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    SpecialtyShopId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
@@ -926,9 +927,15 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 {
                     table.PrimaryKey("PK_Products", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Products_SpecialtyShops_ShopId",
-                        column: x => x.ShopId,
+                        name: "FK_Products_SpecialtyShops_SpecialtyShopId",
+                        column: x => x.SpecialtyShopId,
                         principalTable: "SpecialtyShops",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Products_Users_ShopId",
+                        column: x => x.ShopId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -2092,6 +2099,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 name: "IX_Products_ShopId",
                 table: "Products",
                 column: "ShopId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Products_SpecialtyShopId",
+                table: "Products",
+                column: "SpecialtyShopId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RefundPolicy_Active_Effective",

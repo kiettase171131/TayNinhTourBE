@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher
 {
@@ -35,7 +36,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher
         public int RemainingCount { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
-        public bool IsExpiringSoon => EndDate.Subtract(DateTime.UtcNow).TotalDays <= 7;
+        // Sử dụng Vietnam timezone
+        public bool IsExpiringSoon => EndDate.Subtract(VietnamTimeZoneUtility.GetVietnamNow()).TotalDays <= 7;
     }
 
     public class ResponseCreateVoucher : BaseResposeDto

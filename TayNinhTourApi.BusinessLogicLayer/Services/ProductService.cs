@@ -25,6 +25,7 @@ using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.Utilities;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
+using TayNinhTourApi.BusinessLogicLayer.Utilities; // <-- Thêm dòng này
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -919,7 +920,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     success = false
                 };
 
-            var now = DateTime.UtcNow;
+            // Sử dụng Vietnam timezone
+            var now = VietnamTimeZoneUtility.GetVietnamNow();
 
             // Tìm mã voucher cụ thể
             var voucherCodeEntity = await _voucherCodeRepository.GetByCodeAsync(voucherCode.Trim());
@@ -1055,7 +1057,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = VietnamTimeZoneUtility.GetVietnamNow(), // Sử dụng Vietnam timezone
                 CreatedById = userId
             };
 
@@ -1192,7 +1194,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             voucher.StartDate = dto.StartDate ?? voucher.StartDate;
             voucher.EndDate = dto.EndDate ?? voucher.EndDate;
             voucher.IsActive = dto.IsActive ?? voucher.IsActive;
-            voucher.UpdatedAt = DateTime.UtcNow;
+            voucher.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow(); // Sử dụng Vietnam timezone
             voucher.UpdatedById = userId;
 
             await _voucherRepository.UpdateAsync(voucher);
@@ -1226,7 +1228,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
 
             voucher.IsDeleted = true;
-            voucher.UpdatedAt = DateTime.UtcNow;
+            voucher.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow(); // Sử dụng Vietnam timezone
 
             await _voucherRepository.UpdateAsync(voucher);
             await _voucherRepository.SaveChangesAsync();
@@ -1244,8 +1246,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
             var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
 
-            var now = DateTime.Now;
-            Console.WriteLine($"[DEBUG] GetAvailableVouchersAsync called. Current time: {now}");
+            // Sử dụng Vietnam timezone
+            var now = VietnamTimeZoneUtility.GetVietnamNow();
+            Console.WriteLine($"[DEBUG] GetAvailableVouchersAsync called. Current Vietnam time: {now}");
             Console.WriteLine($"[DEBUG] Pagination: pageIndex={pageIndexValue}, pageSize={pageSizeValue}");
 
             // Step 1: Get all vouchers first for debugging
