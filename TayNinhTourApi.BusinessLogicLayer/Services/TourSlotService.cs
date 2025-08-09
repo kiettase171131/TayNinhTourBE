@@ -150,116 +150,252 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<(bool Success, string Message, int CustomersNotified)> CancelPublicTourSlotAsync(Guid slotId, string reason, Guid tourCompanyUserId)
         {
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
-                // 1. Lấy thông tin slot với tất cả related data
-                var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
-                    .Include(s => s.TourDetails)
-                        .ThenInclude(td => td!.TourOperation)
-                    .Include(s => s.TourTemplate)
-                    .Include(s => s.Bookings.Where(b => !b.IsDeleted && 
-                        (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)))
-                        .ThenInclude(b => b.User)
-                    .FirstOrDefaultAsync(s => s.Id == slotId && !s.IsDeleted);
+                _logger.LogInformation("=== STARTING CANCEL TOUR SLOT ===");
+                _logger.LogInformation("SlotId: {SlotId}, UserId: {UserId}, Reason: {Reason}", slotId, tourCompanyUserId, reason);
 
-                if (slot == null)
+                // ✅ Sử dụng execution strategy để handle MySQL retry policy với transactions
+                var executionStrategy = _unitOfWork.GetExecutionStrategy();
+
+                return await executionStrategy.ExecuteAsync(async () =>
                 {
-                    return (false, "Không tìm thấy tour slot", 0);
-                }
-
-                // 2. Validate business rules
-                if (slot.TourDetailsId == null)
-                {
-                    return (false, "Slot này chưa được assign tour details, không thể hủy", 0);
-                }
-
-                if (slot.TourDetails?.Status != TourDetailsStatus.Public)
-                {
-                    return (false, "Chỉ có thể hủy tour đang ở trạng thái Public", 0);
-                }
-
-                if (slot.TourDetails?.CreatedById != tourCompanyUserId)
-                {
-                    return (false, "Bạn không có quyền hủy tour này", 0);
-                }
-
-                if (!slot.IsActive)
-                {
-                    return (false, "Tour slot đã bị hủy trước đó", 0);
-                }
-
-                // 3. Lấy danh sách bookings cần xử lý
-                var affectedBookings = slot.Bookings.Where(b => !b.IsDeleted && 
-                    (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)).ToList();
-
-                // 4. Deactivate slot và set status
-                slot.IsActive = false;
-                slot.Status = TourSlotStatus.Cancelled;
-                slot.UpdatedAt = DateTime.UtcNow;
-
-                await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
-
-                // 5. Update các bookings thành cancelled
-                var affectedCustomers = new List<AffectedCustomerInfo>();
-                int customersNotified = 0;
-
-                foreach (var booking in affectedBookings)
-                {
-                    // Cancel booking
-                    booking.Status = BookingStatus.CancelledByCompany;
-                    booking.CancelledDate = DateTime.UtcNow;
-                    booking.CancellationReason = reason;
-                    booking.UpdatedAt = DateTime.UtcNow;
-
-                    await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
-
-                    // Tạo thông tin khách hàng bị ảnh hưởng - Ưu tiên ContactEmail từ booking
-                    var customerInfo = new AffectedCustomerInfo
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
                     {
-                        BookingId = booking.Id,
-                        BookingCode = booking.BookingCode,
-                        CustomerName = !string.IsNullOrEmpty(booking.ContactName) ? booking.ContactName : booking.User?.Name ?? "Khách hàng",
-                        CustomerEmail = !string.IsNullOrEmpty(booking.ContactEmail) ? booking.ContactEmail : booking.User?.Email ?? "",
-                        NumberOfGuests = booking.NumberOfGuests,
-                        RefundAmount = booking.TotalPrice,
-                        EmailSent = false
-                    };
+                        // 1. Lấy thông tin slot với tất cả related data
+                        _logger.LogInformation("Step 1: Loading slot data with includes...");
+                        var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                            .Include(s => s.TourDetails)
+                                .ThenInclude(td => td!.TourOperation)
+                            .Include(s => s.TourTemplate)
+                            .Include(s => s.Bookings.Where(b => !b.IsDeleted && 
+                                (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)))
+                                .ThenInclude(b => b.User)
+                            .FirstOrDefaultAsync(s => s.Id == slotId && !s.IsDeleted);
 
-                    affectedCustomers.Add(customerInfo);
-                }
+                        if (slot == null)
+                        {
+                            _logger.LogWarning("Step 1 FAILED: TourSlot not found - SlotId: {SlotId}", slotId);
+                            return (false, "Không tìm thấy tour slot", 0);
+                        }
 
-                // 6. Release capacity từ TourOperation
-                if (slot.TourDetails?.TourOperation != null)
-                {
-                    var totalGuestsToRelease = affectedBookings.Sum(b => b.NumberOfGuests);
-                    slot.TourDetails.TourOperation.CurrentBookings = Math.Max(0, 
-                        slot.TourDetails.TourOperation.CurrentBookings - totalGuestsToRelease);
-                    
-                    await _unitOfWork.TourOperationRepository.UpdateAsync(slot.TourDetails.TourOperation);
-                }
+                        _logger.LogInformation("Step 1 SUCCESS: Found slot - ID: {SlotId}, IsActive: {IsActive}, TourDetailsId: {TourDetailsId}", 
+                            slot.Id, slot.IsActive, slot.TourDetailsId);
 
-                await _unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
+                        // 2. Validate business rules
+                        _logger.LogInformation("Step 2: Validating business rules...");
 
-                // 7. Gửi email thông báo cho khách hàng (sau khi commit transaction)
-                customersNotified = await SendCancellationEmailsToCustomersAsync(
-                    affectedCustomers, slot.TourDetails!.Title, slot.TourDate, reason);
+                        if (slot.TourDetailsId == null)
+                        {
+                            _logger.LogWarning("Step 2 FAILED: TourSlot has no TourDetails assigned - SlotId: {SlotId}", slotId);
+                            return (false, "Slot này chưa được assign tour details, không thể hủy", 0);
+                        }
 
-                // 8. Gửi thông báo cho tour company
-                await NotifyTourCompanyAboutCancellationAsync(
-                    tourCompanyUserId, slot.TourDetails!.Title, slot.TourDate, affectedBookings.Count, reason);
+                        if (slot.TourDetails == null)
+                        {
+                            _logger.LogError("Step 2 FAILED: TourDetails is null despite TourDetailsId being set - SlotId: {SlotId}, TourDetailsId: {TourDetailsId}", 
+                                slotId, slot.TourDetailsId);
+                            return (false, "Không thể truy cập thông tin tour details", 0);
+                        }
 
-                _logger.LogInformation("Tour slot {SlotId} cancelled successfully. Affected bookings: {BookingCount}, Customers notified: {CustomersNotified}", 
-                    slotId, affectedBookings.Count, customersNotified);
+                        _logger.LogInformation("Step 2: TourDetails loaded - ID: {TourDetailsId}, Status: {Status}, CreatedById: {CreatedById}", 
+                            slot.TourDetails.Id, slot.TourDetails.Status, slot.TourDetails.CreatedById);
 
-                return (true, $"Hủy tour thành công. Đã thông báo cho {customersNotified} khách hàng và xử lý {affectedBookings.Count} booking.", customersNotified);
+                        if (slot.TourDetails.Status != TourDetailsStatus.Public)
+                        {
+                            _logger.LogWarning("Step 2 FAILED: TourDetails is not public - SlotId: {SlotId}, Status: {Status}", 
+                                slotId, slot.TourDetails.Status);
+                            return (false, "Chỉ có thể hủy tour đang ở trạng thái Public", 0);
+                        }
+
+                        // 3. Kiểm tra quyền sở hữu tour
+                        _logger.LogInformation("Step 3: Checking ownership - TourDetailsCreatedById: {CreatedById}, CurrentUserId: {UserId}", 
+                            slot.TourDetails.CreatedById, tourCompanyUserId);
+
+                        if (slot.TourDetails.CreatedById != tourCompanyUserId)
+                        {
+                            _logger.LogWarning("Step 3 FAILED: User does not own this TourDetails - SlotId: {SlotId}, TourDetailsCreatedById: {CreatedById}, CurrentUserId: {UserId}", 
+                                slotId, slot.TourDetails.CreatedById, tourCompanyUserId);
+                            return (false, "Bạn không có quyền hủy tour này", 0);
+                        }
+
+                        if (!slot.IsActive)
+                        {
+                            _logger.LogWarning("Step 3 FAILED: TourSlot is not active - SlotId: {SlotId}", slotId);
+                            return (false, "Tour slot đã bị hủy trước đó", 0);
+                        }
+
+                        _logger.LogInformation("Step 3 SUCCESS: All validations passed");
+
+                        // 4. Lấy danh sách bookings cần xử lý
+                        _logger.LogInformation("Step 4: Processing bookings...");
+                        var affectedBookings = slot.Bookings.Where(b => !b.IsDeleted && 
+                            (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)).ToList();
+
+                        _logger.LogInformation("Step 4: Found {BookingCount} affected bookings for slot {SlotId}", affectedBookings.Count, slotId);
+
+                        // 5. Deactivate slot và set status
+                        _logger.LogInformation("Step 5: Updating slot status...");
+                        slot.IsActive = false;
+                        slot.Status = TourSlotStatus.Cancelled;
+                        slot.UpdatedAt = DateTime.UtcNow;
+                        slot.UpdatedById = tourCompanyUserId;
+
+                        await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
+                        _logger.LogInformation("Step 5 SUCCESS: Slot status updated");
+
+                        // 6. Update các bookings thành cancelled
+                        _logger.LogInformation("Step 6: Cancelling bookings...");
+                        var affectedCustomers = new List<AffectedCustomerInfo>();
+
+                        foreach (var booking in affectedBookings)
+                        {
+                            _logger.LogInformation("Processing booking {BookingId} - {BookingCode}", booking.Id, booking.BookingCode);
+
+                            // Cancel booking
+                            booking.Status = BookingStatus.CancelledByCompany;
+                            booking.CancelledDate = DateTime.UtcNow;
+                            booking.CancellationReason = reason;
+                            booking.UpdatedAt = DateTime.UtcNow;
+                            booking.UpdatedById = tourCompanyUserId;
+
+                            await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
+
+                            // Tạo thông tin khách hàng bị ảnh hưởng - Ưu tiên ContactEmail từ booking
+                            var customerInfo = new AffectedCustomerInfo
+                            {
+                                BookingId = booking.Id,
+                                BookingCode = booking.BookingCode,
+                                CustomerName = !string.IsNullOrEmpty(booking.ContactName) ? booking.ContactName : booking.User?.Name ?? "Khách hàng",
+                                CustomerEmail = !string.IsNullOrEmpty(booking.ContactEmail) ? booking.ContactEmail : booking.User?.Email ?? "",
+                                NumberOfGuests = booking.NumberOfGuests,
+                                RefundAmount = booking.TotalPrice,
+                                EmailSent = false
+                            };
+
+                            affectedCustomers.Add(customerInfo);
+                            _logger.LogInformation("Added customer info - Name: {Name}, Email: {Email}", customerInfo.CustomerName, customerInfo.CustomerEmail);
+                        }
+
+                        _logger.LogInformation("Step 6 SUCCESS: Updated {BookingCount} bookings", affectedBookings.Count);
+
+                        // 7. Release capacity từ TourOperation
+                        _logger.LogInformation("Step 7: Releasing capacity...");
+                        if (slot.TourDetails.TourOperation != null)
+                        {
+                            var totalGuestsToRelease = affectedBookings.Sum(b => b.NumberOfGuests);
+                            var oldCurrentBookings = slot.TourDetails.TourOperation.CurrentBookings;
+                            
+                            slot.TourDetails.TourOperation.CurrentBookings = Math.Max(0, 
+                                slot.TourDetails.TourOperation.CurrentBookings - totalGuestsToRelease);
+                            
+                            await _unitOfWork.TourOperationRepository.UpdateAsync(slot.TourDetails.TourOperation);
+                            
+                            _logger.LogInformation("Step 7 SUCCESS: Released {GuestCount} guests - CurrentBookings: {Old} -> {New}", 
+                                totalGuestsToRelease, oldCurrentBookings, slot.TourDetails.TourOperation.CurrentBookings);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Step 7 WARNING: No TourOperation found to release capacity");
+                        }
+
+                        // 8. Commit transaction
+                        _logger.LogInformation("Step 8: Saving changes...");
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                        _logger.LogInformation("Step 8 SUCCESS: Transaction committed successfully");
+
+                        // 9. Gửi email thông báo cho khách hàng (OUTSIDE transaction - non-blocking)
+                        _logger.LogInformation("Step 9: Sending customer emails (post-transaction)...");
+                        int customersNotified = 0;
+                        
+                        if (_emailSender == null)
+                        {
+                            _logger.LogWarning("Step 9 SKIPPED: EmailSender service is null");
+                        }
+                        else
+                        {
+                            try
+                            {
+                                customersNotified = await SendCancellationEmailsToCustomersAsync(
+                                    affectedCustomers, slot.TourDetails!.Title, slot.TourDate, reason);
+                                _logger.LogInformation("Step 9 SUCCESS: Notified {CustomersNotified} customers via email", customersNotified);
+                            }
+                            catch (Exception emailEx)
+                            {
+                                _logger.LogError(emailEx, "Step 9 FAILED: Error sending customer emails - EmailException: {EmailError}", emailEx.Message);
+                                _logger.LogWarning("Step 9 CONTINUED: Cancellation was successful despite email failure");
+                                customersNotified = 0; // Reset to 0 vì không gửi được email
+                            }
+                        }
+
+                        // 10. Gửi thông báo cho tour company (OUTSIDE transaction - non-blocking)
+                        _logger.LogInformation("Step 10: Sending company notification (post-transaction)...");
+                        try
+                        {
+                            if (_emailSender == null)
+                            {
+                                _logger.LogWarning("Step 10 SKIPPED: EmailSender service is null");
+                            }
+                            else
+                            {
+                                await NotifyTourCompanyAboutCancellationAsync(
+                                    tourCompanyUserId, slot.TourDetails!.Title, slot.TourDate, affectedBookings.Count, reason);
+                                _logger.LogInformation("Step 10 SUCCESS: Company notification sent");
+                            }
+                        }
+                        catch (Exception notifyEx)
+                        {
+                            _logger.LogError(notifyEx, "Step 10 FAILED: Error sending company notification - NotificationException: {NotifyError}", notifyEx.Message);
+                            _logger.LogWarning("Step 10 CONTINUED: Cancellation was successful despite notification failure");
+                        }
+
+                        _logger.LogInformation("=== CANCEL TOUR SLOT COMPLETED SUCCESSFULLY ===");
+                        _logger.LogInformation("Final result - SlotId: {SlotId}, AffectedBookings: {BookingCount}, CustomersNotified: {CustomersNotified}", 
+                            slotId, affectedBookings.Count, customersNotified);
+
+                        // Tạo message phù hợp dựa trên việc gửi email có thành công không
+                        var successMessage = customersNotified > 0 
+                            ? $"Hủy tour thành công. Đã thông báo email cho {customersNotified}/{affectedCustomers.Count} khách hàng và xử lý {affectedBookings.Count} booking."
+                            : $"Hủy tour thành công. Đã xử lý {affectedBookings.Count} booking. (Email thông báo có thể gửi chậm do sự cố kỹ thuật)";
+
+                        return (true, successMessage, customersNotified);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError("Transaction failed, rolling back - Exception: {ExceptionType}: {ExceptionMessage}", ex.GetType().Name, ex.Message);
+                        
+                        try
+                        {
+                            await transaction.RollbackAsync();
+                            _logger.LogInformation("Transaction rolled back successfully");
+                        }
+                        catch (Exception rollbackEx)
+                        {
+                            _logger.LogError(rollbackEx, "CRITICAL: Error during transaction rollback - RollbackException: {RollbackError}", rollbackEx.Message);
+                        }
+                        
+                        // Re-throw để execution strategy có thể handle
+                        throw;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error cancelling tour slot: {SlotId}", slotId);
-                return (false, "Có lỗi xảy ra khi hủy tour", 0);
+                _logger.LogError("=== CANCEL TOUR SLOT FAILED ===");
+                _logger.LogError(ex, "Critical error cancelling tour slot - SlotId: {SlotId}, UserId: {UserId}", slotId, tourCompanyUserId);
+                _logger.LogError("Exception type: {ExceptionType}", ex.GetType().Name);
+                _logger.LogError("Exception message: {ExceptionMessage}", ex.Message);
+                _logger.LogError("Inner exception: {InnerException}", ex.InnerException?.Message ?? "None");
+                
+                // Log stack trace chỉ khi cần thiết (không phải lỗi business logic)
+                if (!(ex is InvalidOperationException || ex is ArgumentException))
+                {
+                    _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
+                }
+                
+                return (false, $"Có lỗi xảy ra khi hủy tour: {ex.Message}", 0);
             }
         }
 
