@@ -47,10 +47,10 @@ namespace TayNinhTourApi.Controller.Controllers
         }
         [HttpGet("Product-ByShop")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
-        public async Task<IActionResult> GetAllByShop(int? pageIndex, int? pageSize, string? textSearch, bool? status)
+        public async Task<IActionResult> GetAllByShop(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount)
         {
             CurrentUserObject currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _productService.GetProductsByShopAsync(pageIndex, pageSize, textSearch, status, currentUser);
+            var result = await _productService.GetProductsByShopAsync(pageIndex, pageSize, textSearch, status,sortBySoldCount, currentUser);
             return StatusCode(result.StatusCode, result);
         }
 
