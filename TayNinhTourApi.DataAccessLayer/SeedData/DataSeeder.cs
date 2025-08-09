@@ -1174,7 +1174,41 @@ namespace TayNinhTourApi.DataAccessLayer.SeedData
                             IsActive = true,
                             IsDeleted = false
                         });
+                        // Order isChecked = true
+                        var checkedOrderId = Guid.NewGuid();
+                        orders.Add(new Order
+                        {
+                            Id = checkedOrderId,
+                            UserId = buyer.Id,
+                            TotalAmount = totalAmount,
+                            TotalAfterDiscount = totalAmount,
+                            DiscountAmount = 0,
+                            Status = OrderStatus.Paid,
+                            VoucherId = null,
+                            PayOsOrderCode = $"CHK{DateTime.UtcNow.Ticks}{i:D3}".Substring(0, 20),
+                            IsChecked = true,
+                            CheckedAt = DateTime.UtcNow, // Thời điểm check
+                            CheckedByShopId = Guid.NewGuid(), // hoặc Id shop thực tế
+                            CreatedAt = DateTime.UtcNow.AddMinutes(-i * 5),
+                            UpdatedAt = DateTime.UtcNow.AddMinutes(-i * 5),
+                            IsActive = true,
+                            IsDeleted = false,
+                        });
+
+                        orderDetails.Add(new OrderDetail
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderId = checkedOrderId,
+                            ProductId = product.Id,
+                            Quantity = quantity,
+                            UnitPrice = unitPrice,
+                            CreatedAt = DateTime.UtcNow.AddMinutes(-i * 5),
+                            UpdatedAt = DateTime.UtcNow.AddMinutes(-i * 5),
+                            IsActive = true,
+                            IsDeleted = false
+                        });
                     }
+
 
                     await _context.Orders.AddRangeAsync(orders);
                     await _context.OrderDetails.AddRangeAsync(orderDetails);
