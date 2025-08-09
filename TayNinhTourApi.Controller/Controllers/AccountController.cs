@@ -14,7 +14,6 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
 using TayNinhTourApi.DataAccessLayer.Entities;
-using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
@@ -451,7 +450,8 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error testing specialty shop valid case");
-                return StatusCode(500, new {
+                return StatusCode(500, new
+                {
                     StatusCode = 500,
                     Message = "Internal server error",
                     Error = ex.Message,

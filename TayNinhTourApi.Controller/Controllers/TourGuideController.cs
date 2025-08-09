@@ -74,38 +74,46 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                // Lấy tours đang active của HDV này
+                // Lấy tourDetails đang active của HDV này (có TourSlot status InProgress)
                 var activeTours = await _context.TourOperations
                     .Include(to => to.TourDetails)
                         .ThenInclude(td => td.TourTemplate)
                     .Include(to => to.TourDetails)
                         .ThenInclude(td => td.AssignedSlots)
                     .Include(to => to.TourBookings)
-                    .Where(to => to.TourGuideId == tourGuide.Id && 
-                                to.IsActive && 
-                                to.TourDetails.Status == DataAccessLayer.Enums.TourDetailsStatus.Approved)
+                    .Where(to => to.TourGuideId == tourGuide.Id &&
+                                to.IsActive &&
+                                to.TourDetails.Status == DataAccessLayer.Enums.TourDetailsStatus.Public &&
+                                to.TourDetails.AssignedSlots.Any(slot =>
+                                    slot.Status == DataAccessLayer.Enums.TourSlotStatus.InProgress))
                     .Select(to => new
                     {
                         to.Id,
+                        TourDetailsId = to.TourDetails.Id,
                         to.TourDetails.Title,
                         to.TourDetails.Description,
-                        TourDate = to.TourDetails.AssignedSlots.FirstOrDefault() != null ?
-                                  to.TourDetails.AssignedSlots.FirstOrDefault()!.TourDate :
-                                  DateOnly.FromDateTime(DateTime.Today),
+                        StartDate = to.TourDetails.AssignedSlots.FirstOrDefault() != null ?
+                                   to.TourDetails.AssignedSlots.FirstOrDefault()!.TourDate.ToDateTime(TimeOnly.MinValue) :
+                                   DateTime.Today,
+                        EndDate = to.TourDetails.AssignedSlots.FirstOrDefault() != null ?
+                                 to.TourDetails.AssignedSlots.FirstOrDefault()!.TourDate.ToDateTime(TimeOnly.MaxValue) :
+                                 DateTime.Today.AddHours(23).AddMinutes(59),
                         to.Price,
                         to.MaxGuests,
                         to.CurrentBookings,
                         to.Status,
                         TourTemplate = new
                         {
+                            Id = to.TourDetails.TourTemplate.Id,
                             to.TourDetails.TourTemplate.Title,
                             to.TourDetails.TourTemplate.StartLocation,
-                            to.TourDetails.TourTemplate.EndLocation
+                            to.TourDetails.TourTemplate.EndLocation,
+                            Description = to.TourDetails.Description ?? ""
                         },
                         BookingsCount = to.TourBookings.Count(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed),
                         CheckedInCount = to.TourBookings.Count(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed && tb.IsCheckedIn)
                     })
-                    .OrderBy(to => to.TourDate)
+                    .OrderBy(to => to.StartDate)
                     .ToListAsync();
 
                 return Ok(new ApiResponse<object>
@@ -171,7 +179,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 // Lấy danh sách bookings
                 var bookings = await _context.TourBookings
                     .Include(tb => tb.User)
-                    .Where(tb => tb.TourOperationId == operationId && 
+                    .Where(tb => tb.TourOperationId == operationId &&
                                 tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed)
                     .Select(tb => new
                     {
@@ -477,29 +485,33 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                // Use transaction to ensure data consistency
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
+                // Use execution strategy to handle transactions properly with MySQL
+                var strategy = _context.Database.CreateExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
                 {
-                    // Update completion status
-                    timelineItem.IsCompleted = true;
-                    timelineItem.CompletedAt = DateTime.UtcNow;
-                    timelineItem.CompletionNotes = request.Notes;
-                    timelineItem.UpdatedAt = DateTime.UtcNow;
-                    timelineItem.UpdatedById = currentUserObject.UserId;
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        // Update completion status
+                        timelineItem.IsCompleted = true;
+                        timelineItem.CompletedAt = DateTime.UtcNow;
+                        timelineItem.CompletionNotes = request.Notes;
+                        timelineItem.UpdatedAt = DateTime.UtcNow;
+                        timelineItem.UpdatedById = currentUserObject.UserId;
 
-                    await _context.SaveChangesAsync();
+                        await _context.SaveChangesAsync();
 
-                    // Gửi notification cho tất cả guests trong tour
-                    await NotifyGuestsAboutTimelineProgress(timelineItem.TourDetails.TourOperation.Id, timelineItem.Activity);
+                        // Gửi notification cho tất cả guests trong tour
+                        await NotifyGuestsAboutTimelineProgress(timelineItem.TourDetails.TourOperation.Id, timelineItem.Activity);
 
-                    await transaction.CommitAsync();
-                }
-                catch (Exception)
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                        await transaction.CommitAsync();
+                    }
+                    catch (Exception)
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
 
                 return Ok(new ApiResponse<object>
                 {
@@ -689,6 +701,163 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// Hoàn thành tour và cập nhật trạng thái
+        /// </summary>
+        /// <param name="operationId">ID của TourOperation</param>
+        /// <returns>Kết quả hoàn thành tour</returns>
+        [HttpPost("tour/{operationId:guid}/complete")]
+        public async Task<IActionResult> CompleteTour(Guid operationId)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                // Verify HDV có quyền complete tour này không
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserObject.UserId);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var tourOperation = await _context.TourOperations
+                    .Include(to => to.TourDetails)
+                        .ThenInclude(td => td.Timeline)
+                    .Include(to => to.TourBookings)
+                    .FirstOrDefaultAsync(to => to.Id == operationId && to.TourGuideId == tourGuide.Id);
+
+                if (tourOperation == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour hoặc HDV không có quyền truy cập"
+                    });
+                }
+
+                // Kiểm tra tất cả timeline items đã hoàn thành chưa
+                var incompleteItems = tourOperation.TourDetails.Timeline
+                    .Where(ti => !ti.IsCompleted)
+                    .ToList();
+
+                if (incompleteItems.Any())
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = $"Còn {incompleteItems.Count} mục timeline chưa hoàn thành. Vui lòng hoàn thành tất cả trước khi kết thúc tour."
+                    });
+                }
+
+                // Use execution strategy to handle transactions properly with MySQL
+                var strategy = _context.Database.CreateExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        // Update tour operation status
+                        tourOperation.Status = DataAccessLayer.Enums.TourOperationStatus.Completed;
+                        tourOperation.UpdatedAt = DateTime.UtcNow;
+                        tourOperation.UpdatedById = currentUserObject.UserId;
+
+                        // Update all confirmed bookings to completed
+                        var confirmedBookings = tourOperation.TourBookings
+                            .Where(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed)
+                            .ToList();
+
+                        foreach (var booking in confirmedBookings)
+                        {
+                            booking.Status = DataAccessLayer.Enums.BookingStatus.Completed;
+                            booking.UpdatedAt = DateTime.UtcNow;
+                            booking.UpdatedById = currentUserObject.UserId;
+                        }
+
+                        await _context.SaveChangesAsync();
+
+                        // Gửi notification cho tất cả guests
+                        await NotifyGuestsAboutTourCompletion(operationId);
+
+                        await transaction.CommitAsync();
+                    }
+                    catch (Exception)
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
+
+                return Ok(new ApiResponse<object>
+                {
+                    StatusCode = 200,
+                    Message = "Tour đã hoàn thành thành công",
+                    Data = new
+                    {
+                        tourOperation.Id,
+                        tourOperation.Status,
+                        CompletedBookings = tourOperation.TourBookings.Count(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Completed),
+                        CompletedAt = DateTime.UtcNow
+                    },
+                    success = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error completing tour {OperationId}", operationId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi hoàn thành tour"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Helper method để gửi notification cho guests về tour completion
+        /// </summary>
+        private async Task NotifyGuestsAboutTourCompletion(Guid tourOperationId)
+        {
+            try
+            {
+                var guestUserIds = await _context.TourBookings
+                    .Where(tb => tb.TourOperationId == tourOperationId &&
+                                tb.Status == DataAccessLayer.Enums.BookingStatus.Completed)
+                    .Select(tb => tb.UserId)
+                    .ToListAsync();
+
+                foreach (var userId in guestUserIds)
+                {
+                    await _notificationService.CreateNotificationAsync(new CreateNotificationDto
+                    {
+                        UserId = userId,
+                        Title = "🎉 Tour hoàn thành",
+                        Message = "Tour đã kết thúc thành công! Cảm ơn bạn đã tham gia. Chúc bạn về nhà an toàn!",
+                        Type = DataAccessLayer.Enums.NotificationType.Tour,
+                        Priority = DataAccessLayer.Enums.NotificationPriority.High,
+                        Icon = "🎉"
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending tour completion notifications for tour {TourOperationId}", tourOperationId);
+            }
+        }
+
+        /// <summary>
         /// Gửi thông báo cho tất cả guests trong tour
         /// </summary>
         /// <param name="operationId">ID của TourOperation</param>
@@ -790,6 +959,106 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Lỗi server khi gửi thông báo"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Upload hình ảnh cho incident reporting
+        /// </summary>
+        /// <param name="files">Danh sách file ảnh</param>
+        /// <returns>Danh sách URL của ảnh đã upload</returns>
+        [HttpPost("incident/upload-images")]
+        public async Task<IActionResult> UploadIncidentImages([FromForm] List<IFormFile> files)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                if (files == null || !files.Any())
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Không có file nào được upload"
+                    });
+                }
+
+                // Validate files
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+                var maxFileSize = 5 * 1024 * 1024; // 5MB
+                var uploadedUrls = new List<string>();
+
+                foreach (var file in files)
+                {
+                    if (file.Length == 0)
+                        continue;
+
+                    if (file.Length > maxFileSize)
+                    {
+                        return BadRequest(new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = $"File {file.FileName} quá lớn. Kích thước tối đa là 5MB."
+                        });
+                    }
+
+                    var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+                    if (!allowedExtensions.Contains(extension))
+                    {
+                        return BadRequest(new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = $"File {file.FileName} không đúng định dạng. Chỉ chấp nhận: {string.Join(", ", allowedExtensions)}"
+                        });
+                    }
+
+                    // Generate unique filename
+                    var fileName = $"incident_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}{extension}";
+                    var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "incidents");
+
+                    // Create directory if not exists
+                    if (!Directory.Exists(uploadsPath))
+                    {
+                        Directory.CreateDirectory(uploadsPath);
+                    }
+
+                    var filePath = Path.Combine(uploadsPath, fileName);
+
+                    // Save file
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    // Generate URL (adjust based on your domain configuration)
+                    var fileUrl = $"/uploads/incidents/{fileName}";
+                    uploadedUrls.Add(fileUrl);
+                }
+
+                return Ok(new ApiResponse<List<string>>
+                {
+                    StatusCode = 200,
+                    Message = "Upload ảnh thành công",
+                    Data = uploadedUrls,
+                    success = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading incident images");
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi upload ảnh"
                 });
             }
         }
