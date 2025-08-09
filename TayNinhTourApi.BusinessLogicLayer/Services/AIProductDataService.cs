@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
@@ -8,7 +8,7 @@ using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service implementation cho AI Product Data - cung c?p th�ng tin s?n ph?m cho AI
+    /// Service implementation cho AI Product Data - cung c?p thông tin s?n ph?m cho AI
     /// </summary>
     public class AIProductDataService : IAIProductDataService
     {
@@ -56,7 +56,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     SoldCount = p.SoldCount,
                     ShopName = !string.IsNullOrEmpty(p.Shop?.Name) ? 
                               p.Shop.Name : 
-                              p.SpecialtyShop?.ShopName ?? "Shop kh�ng x�c ??nh",
+                              p.SpecialtyShop?.ShopName ?? "Shop không xác ??nh",
                     AverageRating = p.ProductRatings.Any() ? 
                                   p.ProductRatings.Average(r => r.Rating) : null,
                     ReviewCount = p.ProductRatings.Count
@@ -220,18 +220,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Name = product.Name,
                 Description = product.Description,
                 Price = product.Price,
-                SalePrice = product.IsSale && product.SalePercent.HasValue ? 
-                          product.Price * (100 - product.SalePercent.Value) / 100 : null,
+                SalePrice = product.IsSale && product.SalePercent.HasValue
+                    ? product.Price * (100 - product.SalePercent.Value) / 100
+                    : null,
                 QuantityInStock = product.QuantityInStock,
                 Category = GetCategoryDisplayName(product.Category),
                 IsSale = product.IsSale,
                 SalePercent = product.SalePercent,
                 SoldCount = product.SoldCount,
-                ShopName = !string.IsNullOrEmpty(product.Shop?.Name) ? 
-                          product.Shop.Name : 
-                          product.SpecialtyShop?.ShopName ?? "Shop kh�ng x�c ??nh",
-                AverageRating = product.ProductRatings?.Any() == true ? 
-                              product.ProductRatings.Average(r => r.Rating) : null,
+                ShopName = !string.IsNullOrEmpty(product.Shop?.Name)
+                    ? product.Shop.Name
+                    : product.SpecialtyShop?.ShopName ?? "Shop không xác định",
+                AverageRating = product.ProductRatings?.Any() == true
+                    ? product.ProductRatings.Average(r => r.Rating)
+                    : null,
                 ReviewCount = product.ProductRatings?.Count ?? 0
             };
         }
@@ -240,12 +242,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             return category switch
             {
-                ProductCategory.Food => "Th?c ph?m",
-                ProductCategory.Souvenir => "Qu� l?u ni?m", 
-                ProductCategory.Jewelry => "Trang s?c",
-                ProductCategory.Clothing => "Qu?n �o",
+                ProductCategory.Food => "Thực phẩm",
+                ProductCategory.Souvenir => "Quà lưu niệm",
+                ProductCategory.Jewelry => "Trang sức",
+                ProductCategory.Clothing => "Quần áo",
                 _ => category.ToString()
             };
         }
+
     }
 }
