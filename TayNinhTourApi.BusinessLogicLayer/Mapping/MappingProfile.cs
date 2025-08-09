@@ -122,7 +122,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                     src.ProductRatings.Any()
                         ? Math.Round(src.ProductRatings.Average(r => (double)r.Rating), 1)
                         : (double?)null
-                ));
+                ))
+    .ForMember(dest => dest.SpecialtyShopId, opt => opt.MapFrom(src => src.SpecialtyShopId)); 
 
 
             #endregion
