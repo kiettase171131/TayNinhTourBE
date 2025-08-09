@@ -4,11 +4,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
     /// <summary>
     /// Service gửi thông báo cho TourCompany về các sự kiện booking
+    /// OPTIMIZED: Chỉ sử dụng in-app notifications, bỏ email để tối ưu hiệu năng
     /// </summary>
     public interface ITourCompanyNotificationService
     {
         /// <summary>
         /// Gửi thông báo khi có booking mới
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="booking">Thông tin booking</param>
@@ -17,6 +19,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi thông báo khi tour bị hủy tự động do không đủ khách
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="affectedBookings">Danh sách bookings bị ảnh hưởng</param>
@@ -33,6 +36,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi thông báo khi khách hàng hủy booking
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="booking">Thông tin booking bị hủy</param>
@@ -42,6 +46,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi thông báo khi tiền được chuyển từ revenue hold sang wallet
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="amount">Số tiền được chuyển</param>
@@ -56,15 +61,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi email thông báo cho TourCompany
+        /// DEPRECATED: Method deprecated as we only use in-app notifications now for performance optimization
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="subject">Tiêu đề email</param>
         /// <param name="htmlBody">Nội dung email HTML</param>
         /// <returns>Kết quả gửi email</returns>
+        [Obsolete("Email functionality has been deprecated. Use in-app notifications for better performance.")]
         Task<bool> SendEmailNotificationAsync(Guid tourCompanyUserId, string subject, string htmlBody);
 
         /// <summary>
         /// Gửi thông báo khi TourGuide từ chối lời mời
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="tourDetailsTitle">Tên tour</param>
@@ -79,6 +87,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi thông báo khi lời mời hết hạn sau 24h và cần tìm guide thủ công
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="tourDetailsTitle">Tên tour</param>
@@ -91,6 +100,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi thông báo khi tất cả guides không phản hồi và tour sắp bị hủy
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="tourDetailsTitle">Tên tour</param>
@@ -103,6 +113,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi thông báo khi admin duyệt tour details
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="tourDetailsTitle">Tên tour</param>
@@ -115,6 +126,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi thông báo khi admin từ chối tour details
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="tourDetailsTitle">Tên tour</param>
@@ -127,6 +139,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 
         /// <summary>
         /// Gửi thông báo khi TourGuide chấp nhận lời mời tour
+        /// OPTIMIZED: Chỉ gửi in-app notification
         /// </summary>
         /// <param name="tourCompanyUserId">ID của User có role Tour Company</param>
         /// <param name="tourDetailsTitle">Tên tour</param>

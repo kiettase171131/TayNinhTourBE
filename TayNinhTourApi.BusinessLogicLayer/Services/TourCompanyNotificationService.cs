@@ -7,26 +7,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
     /// Service gửi thông báo cho TourCompany về các sự kiện booking
-    /// Bao gồm cả email và in-app notifications
+    /// OPTIMIZED: Chỉ gửi in-app notifications, bỏ email để tối ưu hiệu năng
     /// </summary>
     public class TourCompanyNotificationService : ITourCompanyNotificationService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly EmailSender _emailSender;
         private readonly INotificationService _notificationService;
 
         public TourCompanyNotificationService(
             IUnitOfWork unitOfWork,
-            EmailSender emailSender,
             INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
-            _emailSender = emailSender;
             _notificationService = notificationService;
         }
 
         /// <summary>
         /// Gửi thông báo khi có booking mới
+        /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
         /// </summary>
         public async Task<bool> NotifyNewBookingAsync(Guid tourCompanyUserId, TourBookingDto booking)
         {
@@ -35,27 +33,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                var subject = "Thông báo: Có booking tour mới";
-                var htmlBody = $@"
-                    <h2>Chào {user.Name},</h2>
-                    <p>Bạn có một booking tour mới với thông tin sau:</p>
-                    <ul>
-                        <li><strong>Mã booking:</strong> {booking.BookingCode}</li>
-                        <li><strong>Tour:</strong> {booking.TourOperation?.TourTitle}</li>
-                        <li><strong>Số khách:</strong> {booking.NumberOfGuests}</li>
-                        <li><strong>Tổng tiền:</strong> {booking.TotalPrice:N0} VNĐ</li>
-                        <li><strong>Ngày đặt:</strong> {booking.BookingDate:dd/MM/yyyy HH:mm}</li>
-                        <li><strong>Ngày khởi hành:</strong> {booking.TourOperation?.TourStartDate:dd/MM/yyyy}</li>
-                    </ul>
-                    <p>Vui lòng kiểm tra và chuẩn bị cho tour.</p>
-                    <br/>
-                    <p>Trân trọng,</p>
-                    <p>Đội ngũ Tay Ninh Tour</p>";
-
-                // 🔔 Tạo in-app notification
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateNewBookingNotificationAsync(tourCompanyUserId, booking);
 
-                return await SendEmailNotificationAsync(tourCompanyUserId, subject, htmlBody);
+                Console.WriteLine($"New booking notification sent (in-app only) for user {tourCompanyUserId}, booking: {booking.BookingCode}");
+                return true;
             }
             catch (Exception ex)
             {
@@ -67,6 +49,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Gửi thông báo khi tour bị hủy tự động
+        /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
         /// </summary>
         public async Task<bool> NotifyTourCancellationAsync(
             Guid tourCompanyUserId, 
@@ -80,35 +63,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                var totalRefundAmount = affectedBookings.Sum(b => b.TotalPrice);
-                var bookingsList = string.Join("", affectedBookings.Select(b => 
-                    $"<li>{b.BookingCode} - {b.NumberOfGuests} khách - {b.TotalPrice:N0} VNĐ</li>"));
-
-                var subject = $"Thông báo: Tour '{tourTitle}' đã bị hủy tự động";
-                var htmlBody = $@"
-                    <h2>Chào {user.Name},</h2>
-                    <p>Tour <strong>'{tourTitle}'</strong> dự kiến khởi hành ngày <strong>{tourStartDate:dd/MM/yyyy}</strong> đã bị hủy tự động.</p>
-                    <p><strong>Lý do:</strong> {reason}</p>
-                    
-                    <h3>Các booking bị ảnh hưởng:</h3>
-                    <ul>
-                        {bookingsList}
-                    </ul>
-                    
-                    <p><strong>Tổng số tiền cần hoàn:</strong> {totalRefundAmount:N0} VNĐ</p>
-                    <p>Số tiền này đã được trừ khỏi revenue hold của bạn để chuẩn bị hoàn tiền cho khách hàng.</p>
-                    
-                    <p>Chúng tôi đã gửi email thông báo hủy tour cho tất cả khách hàng bị ảnh hưởng.</p>
-                    
-                    <br/>
-                    <p>Trân trọng,</p>
-                    <p>Đội ngũ Tay Ninh Tour</p>";
-
-                // 🔔 Tạo in-app notification
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateTourCancellationNotificationAsync(
                     tourCompanyUserId, affectedBookings, tourTitle, tourStartDate, reason);
 
-                return await SendEmailNotificationAsync(tourCompanyUserId, subject, htmlBody);
+                Console.WriteLine($"Tour cancellation notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourTitle}");
+                return true;
             }
             catch (Exception ex)
             {
@@ -119,6 +79,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Gửi thông báo khi khách hàng hủy booking
+        /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
         /// </summary>
         public async Task<bool> NotifyBookingCancellationAsync(Guid tourCompanyUserId, TourBookingDto booking, string? reason)
         {
@@ -127,28 +88,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                var subject = "Thông báo: Khách hàng đã hủy booking";
-                var htmlBody = $@"
-                    <h2>Chào {user.Name},</h2>
-                    <p>Khách hàng đã hủy booking với thông tin sau:</p>
-                    <ul>
-                        <li><strong>Mã booking:</strong> {booking.BookingCode}</li>
-                        <li><strong>Tour:</strong> {booking.TourOperation?.TourTitle}</li>
-                        <li><strong>Số khách:</strong> {booking.NumberOfGuests}</li>
-                        <li><strong>Tổng tiền:</strong> {booking.TotalPrice:N0} VNĐ</li>
-                        <li><strong>Ngày đặt:</strong> {booking.BookingDate:dd/MM/yyyy HH:mm}</li>
-                        <li><strong>Ngày hủy:</strong> {booking.CancelledDate:dd/MM/yyyy HH:mm}</li>
-                        <li><strong>Lý do hủy:</strong> {reason ?? "Không có lý do cụ thể"}</li>
-                    </ul>
-                    <p>Slot đã được giải phóng và có thể nhận booking mới.</p>
-                    <br/>
-                    <p>Trân trọng,</p>
-                    <p>Đội ngũ Tay Ninh Tour</p>";
-
-                // 🔔 Tạo in-app notification
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateBookingCancellationNotificationAsync(tourCompanyUserId, booking, reason);
 
-                return await SendEmailNotificationAsync(tourCompanyUserId, subject, htmlBody);
+                Console.WriteLine($"Booking cancellation notification sent (in-app only) for user {tourCompanyUserId}, booking: {booking.BookingCode}");
+                return true;
             }
             catch (Exception ex)
             {
@@ -159,6 +103,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Gửi thông báo khi tiền được chuyển từ revenue hold sang wallet
+        /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
         /// </summary>
         public async Task<bool> NotifyRevenueTransferAsync(
             Guid tourCompanyUserId, 
@@ -171,22 +116,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                var subject = "Thông báo: Tiền tour đã được chuyển vào ví";
-                var htmlBody = $@"
-                    <h2>Chào {user.Name},</h2>
-                    <p>Tiền từ tour <strong>'{tourTitle}'</strong> đã được chuyển vào ví của bạn.</p>
-                    <ul>
-                        <li><strong>Số tiền:</strong> {amount:N0} VNĐ</li>
-                        <li><strong>Tour:</strong> {tourTitle}</li>
-                        <li><strong>Ngày hoàn thành tour:</strong> {tourCompletedDate:dd/MM/yyyy}</li>
-                        <li><strong>Ngày chuyển tiền:</strong> {DateTime.UtcNow:dd/MM/yyyy HH:mm}</li>
-                    </ul>
-                    <p>Tiền đã được chuyển từ revenue hold sang wallet và bạn có thể rút tiền.</p>
-                    <br/>
-                    <p>Trân trọng,</p>
-                    <p>Đội ngũ Tay Ninh Tour</p>";
+                // 🔔 Tạo in-app notification ONLY
+                await _notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
+                {
+                    UserId = tourCompanyUserId,
+                    Title = "💰 Tiền tour đã chuyển vào ví",
+                    Message = $"Tiền từ tour '{tourTitle}' ({amount:N0} VNĐ) đã được chuyển vào ví. Bạn có thể rút tiền ngay!",
+                    Type = DataAccessLayer.Enums.NotificationType.Wallet,
+                    Priority = DataAccessLayer.Enums.NotificationPriority.Medium,
+                    Icon = "💰",
+                    ActionUrl = "/wallet/revenue"
+                });
 
-                return await SendEmailNotificationAsync(tourCompanyUserId, subject, htmlBody);
+                Console.WriteLine($"Revenue transfer notification sent (in-app only) for user {tourCompanyUserId}, amount: {amount:N0} VNĐ");
+                return true;
             }
             catch (Exception ex)
             {
@@ -197,26 +140,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Gửi email thông báo cho TourCompany
+        /// DEPRECATED: Method deprecated as we only use in-app notifications now
         /// </summary>
         public async Task<bool> SendEmailNotificationAsync(Guid tourCompanyUserId, string subject, string htmlBody)
         {
-            try
-            {
-                var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
-                if (user == null) return false;
-
-                await _emailSender.SendEmailAsync(user.Email, user.Name, subject, htmlBody);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error sending email notification: {ex.Message}");
-                return false;
-            }
+            // ⚡ EMAIL FUNCTIONALITY REMOVED FOR PERFORMANCE OPTIMIZATION
+            Console.WriteLine($"Email notification skipped (performance optimization) for user {tourCompanyUserId}, subject: {subject}");
+            return true; // Return true to maintain compatibility
         }
 
         /// <summary>
         /// Gửi thông báo khi TourGuide từ chối lời mời
+        /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
         /// </summary>
         public async Task<bool> NotifyGuideRejectionAsync(
             Guid tourCompanyUserId,
@@ -229,59 +164,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateGuideRejectionNotificationAsync(
                     tourCompanyUserId, tourDetailsTitle, guideFullName, rejectionReason);
 
-                // 📧 Gửi email notification
-                var subject = $"Thông báo: Hướng dẫn viên từ chối tour '{tourDetailsTitle}'";
-                var htmlBody = $@"
-                    <h2>Chào {user.Name},</h2>
-                    <p>Hướng dẫn viên <strong>{guideFullName}</strong> đã từ chối lời mời cho tour <strong>'{tourDetailsTitle}'</strong>.</p>
-                    
-                    {(!string.IsNullOrEmpty(rejectionReason) ? $@"
-                    <h3>Lý do từ chối:</h3>
-                    <div style='background-color: #f5f5f5; padding: 15px; border-left: 4px solid #ff6b6b; margin: 10px 0;'>
-                        <p><em>{rejectionReason}</em></p>
-                    </div>" : "")}
-                    
-                    <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
-                        <h3 style='margin-top: 0; color: #856404;'>⚠️ Hành động cần thực hiện ngay:</h3>
-                        <p style='font-size: 16px; margin-bottom: 10px;'><strong>Tour sẽ KHÔNG THỂ DIỄN RA nếu không có hướng dẫn viên!</strong></p>
-                        <ol style='margin-bottom: 0;'>
-                            <li><strong>Đăng nhập hệ thống ngay</strong> để xem danh sách hướng dẫn viên có sẵn</li>
-                            <li><strong>Chọn và mời hướng dẫn viên khác</strong> từ danh sách hệ thống</li>
-                            <li><strong>Xem xét điều chỉnh:</strong> mức phí, hoặc điều kiện tour</li>
-                        </ol>
-                    </div>
-                    
-                    <div style='background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 15px 0;'>
-                        <h4 style='margin-top: 0; color: #155724;'>💡 Gợi ý để tìm hướng dẫn viên phù hợp:</h4>
-                        <ul style='margin-bottom: 0;'>
-                            <li><strong>Vào mục 'Quản lý hướng dẫn viên'</strong> trong hệ thống</li>
-                            <li><strong>Xem danh sách hướng dẫn viên</strong> có kỹ năng và ngôn ngữ phù hợp</li>
-                            <li><strong>Gửi lời mời trực tiếp</strong> đến những hướng dẫn viên bạn muốn chọn</li>
-                            <li><strong>Liên hệ trực tiếp</strong> với hướng dẫn viên để thảo luận điều kiện</li>
-                        </ul>
-                    </div>
-                    
-                    <div style='text-align: center; margin: 30px 0;'>
-                        <a href='#' style='background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;'>
-                            👥 Xem danh sách hướng dẫn viên
-                        </a>
-                    </div>
-                    
-                    <div style='background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;'>
-                        <p style='margin: 0; font-weight: bold; color: #721c24;'>
-                            ⚠️ Lưu ý: Nếu không tìm được hướng dẫn viên trong 5 ngày, tour sẽ bị hủy tự động!
-                        </p>
-                    </div>
-                    
-                    <br/>
-                    <p>Trân trọng,</p>
-                    <p>Đội ngũ Tay Ninh Tour</p>";
-
-                return await SendEmailNotificationAsync(tourCompanyUserId, subject, htmlBody);
+                Console.WriteLine($"Guide rejection notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}, guide: {guideFullName}");
+                return true;
             }
             catch (Exception ex)
             {
@@ -292,6 +180,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Gửi thông báo khi lời mời hết hạn sau 24h và cần tìm guide thủ công
+        /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
         /// </summary>
         public async Task<bool> NotifyManualGuideSelectionNeededAsync(
             Guid tourCompanyUserId,
@@ -303,69 +192,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateManualGuideSelectionNotificationAsync(
                     tourCompanyUserId, tourDetailsTitle, expiredInvitationsCount);
 
-                // 📧 Gửi email notification
-                var subject = $"Cần hành động: Tour '{tourDetailsTitle}' chưa có hướng dẫn viên";
-                var htmlBody = $@"
-                    <h2>Chào {user.Name},</h2>
-                    <p>Tour <strong>'{tourDetailsTitle}'</strong> của bạn hiện chưa có hướng dẫn viên nào chấp nhận lời mời tự động.</p>
-                    
-                    <div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 15px 0;'>
-                        <h3 style='margin-top: 0; color: #856404;'>⚠️ Tình trạng hiện tại:</h3>
-                        <ul style='margin-bottom: 0;'>
-                            <li>Hệ thống không tìm thấy hướng dẫn viên phù hợp với kỹ năng yêu cầu</li>
-                            <li>Hoặc các hướng dẫn viên đã từ chối/không phản hồi lời mời ({expiredInvitationsCount} lời mời đã hết hạn)</li>
-                            <li><strong>Tour KHÔNG THỂ DIỄN RA nếu không có hướng dẫn viên!</strong></li>
-                        </ul>
-                    </div>
-                    
-                    <div style='background-color: #e7f3ff; padding: 20px; border-left: 4px solid #007bff; margin: 20px 0;'>
-                        <h3 style='margin-top: 0; color: #004085;'>🎯 Giải pháp: Tự chọn hướng dẫn viên</h3>
-                        <p style='font-size: 16px; margin-bottom: 15px;'><strong>Chúng tôi khuyến nghị bạn vào hệ thống và tự chọn hướng dẫn viên phù hợp:</strong></p>
-                        <ol style='margin-bottom: 0;'>
-                            <li><strong>Đăng nhập hệ thống</strong> của Tay Ninh Tour</li>
-                            <li><strong>Vào mục 'Danh sách hướng dẫn viên'</strong> để xem tất cả hướng dẫn viên có sẵn</li>
-                            <li><strong>Lọc theo kỹ năng và ngôn ngữ</strong> phù hợp với tour của bạn</li>
-                            <li><strong>Chọn và gửi lời mời trực tiếp</strong> đến hướng dẫn viên bạn muốn</li>
-                            <li><strong>Theo dõi phản hồi</strong> và sẵn sàng thương lượng điều kiện</li>
-                        </ol>
-                    </div>
-                    
-                    <div style='background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 15px 0;'>
-                        <h4 style='margin-top: 0; color: #155724;'>💡 Lợi ích của việc tự chọn hướng dẫn viên:</h4>
-                        <ul style='margin-bottom: 0;'>
-                            <li>Xem được <strong>thông tin chi tiết</strong> về từng hướng dẫn viên</li>
-                            <li>Đánh giá <strong>kinh nghiệm và kỹ năng</strong> trước khi mời</li>
-                            <li>Liên hệ trực tiếp để <strong>thỏa thuận điều kiện</strong></li>
-                            <li>Tăng khả năng <strong>tìm được hướng dẫn viên phù hợp</strong></li>
-                        </ul>
-                    </div>
-                    
-                    <div style='text-align: center; margin: 30px 0;'>
-                        <a href='#' style='background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-right: 10px;'>
-                            👥 Xem danh sách hướng dẫn viên
-                        </a>
-                        <a href='#' style='background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;'>
-                            ✉️ Gửi lời mời mới
-                        </a>
-                    </div>
-                    
-                    <div style='background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;'>
-                        <h4 style='margin-top: 0; color: #721c24;'>⏰ Thời hạn quan trọng:</h4>
-                        <p style='margin-bottom: 0; font-weight: bold;'>
-                            Nếu không tìm được hướng dẫn viên trong <strong>5 ngày</strong>, tour sẽ bị hủy tự động và tất cả booking sẽ được hoàn tiền!
-                        </p>
-                    </div>
-                    
-                    <br/>
-                    <p>Chúng tôi tin rằng với danh sách hướng dẫn viên phong phú trong hệ thống, bạn sẽ tìm được người phù hợp cho tour của mình.</p>
-                    <p>Trân trọng,</p>
-                    <p>Đội ngũ Tay Ninh Tour</p>";
-
-                return await SendEmailNotificationAsync(tourCompanyUserId, subject, htmlBody);
+                Console.WriteLine($"Manual guide selection notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}");
+                return true;
             }
             catch (Exception ex)
             {
@@ -376,6 +208,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Gửi thông báo khi tất cả guides không phản hồi và tour sắp bị hủy
+        /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
         /// </summary>
         public async Task<bool> NotifyTourRiskCancellationAsync(
             Guid tourCompanyUserId,
@@ -387,56 +220,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateTourRiskCancellationNotificationAsync(
                     tourCompanyUserId, tourDetailsTitle, daysUntilCancellation);
 
-                // 📧 Gửi email notification
-                var subject = $"🚨 KHẨN CẤP: Tour '{tourDetailsTitle}' sắp bị hủy";
-                var htmlBody = $@"
-                    <h2>Chào {user.Name},</h2>
-                    
-                    <div style='background-color: #f8d7da; padding: 20px; border-left: 4px solid #dc3545; margin: 15px 0;'>
-                        <h3 style='margin-top: 0; color: #721c24;'>🚨 CẢNH BÁO KHẨN CẤP</h3>
-                        <p style='font-size: 16px; margin-bottom: 0;'>
-                            Tour <strong>'{tourDetailsTitle}'</strong> sẽ bị <strong>HỦY TỰ ĐỘNG</strong> trong <strong>{daysUntilCancellation} ngày</strong> nếu không tìm được hướng dẫn viên!
-                        </p>
-                    </div>
-                    
-                    <h3>📊 Tình trạng hiện tại:</h3>
-                    <ul>
-                        <li>❌ Chưa có hướng dẫn viên chấp nhận</li>
-                        <li>⏰ Đã hết thời gian chờ tự động</li>
-                        <li>🕒 Còn <strong>{daysUntilCancellation} ngày</strong> trước khi hủy</li>
-                    </ul>
-                    
-                    <h3>⚡ HÀNH ĐỘNG NGAY LẬP TỨC:</h3>
-                    <ol style='background-color: #fff3cd; padding: 15px; border-radius: 5px;'>
-                        <li><strong>Đăng nhập hệ thống ngay</strong></li>
-                        <li><strong>Gửi lời mời thủ công</strong> cho nhiều hướng dẫn viên</li>
-                        <li><strong>Liên hệ hotline:</strong> 1900-xxx-xxx để được hỗ trợ</li>
-                        <li><strong>Xem xét giảm yêu cầu</strong> hoặc tăng phí để thu hút guide</li>
-                    </ol>
-                    
-                    <div style='background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                        <h4 style='margin-top: 0; color: #721c24;'>⚠️ Hậu quả nếu tour bị hủy:</h4>
-                        <ul style='margin-bottom: 0;'>
-                            <li>Tất cả booking sẽ bị hủy</li>
-                            <li>Khách hàng sẽ được hoàn tiền</li>
-                            <li>Ảnh hưởng đến uy tín công ty</li>
-                            <li>Mất cơ hội kinh doanh</li>
-                        </ul>
-                    </div>
-                    
-                    <p style='font-size: 16px; font-weight: bold; color: #dc3545;'>
-                        📞 Cần hỗ trợ khẩn cấp? Gọi ngay: <a href='tel:1900-xxx-xxx'>1900-xxx-xxx</a>
-                    </p>
-                    
-                    <br/>
-                    <p>Trân trọng,</p>
-                    <p>Đội ngũ Tay Ninh Tour</p>";
-
-                return await SendEmailNotificationAsync(tourCompanyUserId, subject, htmlBody);
+                Console.WriteLine($"Tour risk cancellation notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}");
+                return true;
             }
             catch (Exception ex)
             {
@@ -459,7 +248,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification ONLY - Không gửi email để tối ưu tốc độ
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
                 {
                     UserId = tourCompanyUserId,
@@ -471,9 +260,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ActionUrl = "/tours/approved"
                 });
 
-                // ⚡ REMOVED EMAIL NOTIFICATION để tăng tốc độ xử lý duyệt tour (từ 5-6s xuống <1s)
-                // Email notification đã được loại bỏ để giảm thời gian phản hồi
-                
                 Console.WriteLine($"Tour approval notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}");
                 return true;
             }
@@ -498,7 +284,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification ONLY - Không gửi email để tối ưu tốc độ
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
                 {
                     UserId = tourCompanyUserId,
@@ -510,9 +296,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ActionUrl = "/tours/rejected"
                 });
 
-                // ⚡ REMOVED EMAIL NOTIFICATION để tăng tốc độ xử lý duyệt tour (từ 5-6s xuống <1s)
-                // Email notification đã được loại bỏ để giảm thời gian phản hồi
-                
                 Console.WriteLine($"Tour rejection notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}");
                 return true;
             }
@@ -525,6 +308,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Gửi thông báo khi TourGuide chấp nhận lời mời tour
+        /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
         /// </summary>
         public async Task<bool> NotifyGuideAcceptanceAsync(
             Guid tourCompanyUserId,
@@ -538,7 +322,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification
+                // 🔔 Tạo in-app notification ONLY
                 await _notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
                 {
                     UserId = tourCompanyUserId,
@@ -550,66 +334,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ActionUrl = "/tours/ready-to-public"
                 });
 
-                // 📧 Gửi email notification
-                var subject = $"🎉 Tuyệt vời! Hướng dẫn viên đã chấp nhận tour '{tourDetailsTitle}'";
-                var htmlBody = $@"
-                    <h2>Chào {user.Name},</h2>
-                    
-                    <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 15px 0;'>
-                        <h3 style='margin-top: 0; color: #155724;'>🎉 TIN TUYỆT VỜI!</h3>
-                        <p style='font-size: 16px; margin-bottom: 0;'>
-                            Hướng dẫn viên <strong>{guideFullName}</strong> đã <strong>CHẤP NHẬN</strong> lời mời cho tour <strong>'{tourDetailsTitle}'</strong>!
-                        </p>
-                    </div>
-                    
-                    <h3>👨‍🏫 Thông tin hướng dẫn viên:</h3>
-                    <div style='background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 10px 0;'>
-                        <ul style='margin: 0; list-style: none; padding: 0;'>
-                            <li><strong>🙋‍♂️ Tên:</strong> {guideFullName}</li>
-                            <li><strong>📧 Email:</strong> {guideEmail}</li>
-                            <li><strong>⏰ Chấp nhận lúc:</strong> {acceptedAt:dd/MM/yyyy HH:mm}</li>
-                        </ul>
-                    </div>
-                    
-                    <h3>🚀 Bước tiếp theo:</h3>
-                    <div style='background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;'>
-                        <ol style='margin: 0;'>
-                            <li><strong>✅ Xác nhận thông tin:</strong> Liên hệ với hướng dẫn viên để xác nhận chi tiết tour</li>
-                            <li><strong>📅 Lên lịch meeting:</strong> Thảo luận về kế hoạch cụ thể cho tour</li>
-                            <li><strong>🌐 Kích hoạt Public:</strong> Tour sẵn sàng để nhận booking từ khách hàng</li>
-                            <li><strong>📢 Marketing:</strong> Bắt đầu quảng bá tour để thu hút khách hàng</li>
-                        </ol>
-                    </div>
-                    
-                    <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                        <h4 style='margin-top: 0; color: #004085;'>💡 Gợi ý thành công:</h4>
-                        <ul style='margin-bottom: 0;'>
-                            <li><strong>Giao tiếp sớm:</strong> Liên hệ ngay với hướng dẫn viên để tạo relationship tốt</li>
-                            <li><strong>Chuẩn bị kỹ:</strong> Chia sẻ tài liệu chi tiết về tour và khách hàng</li>
-                            <li><strong>Feedback loop:</strong> Thiết lập kênh communication thường xuyên</li>
-                            <li><strong>Backup plan:</strong> Có kế hoạch dự phòng cho các tình huống bất ngờ</li>
-                        </ul>
-                    </div>
-                    
-                    <div style='text-align: center; margin: 30px 0;'>
-                        <a href='mailto:{guideEmail}' style='background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-right: 10px;'>
-                            📧 Liên hệ hướng dẫn viên
-                        </a>
-                        <a href='#' style='background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
-                            🌐 Kích hoạt Public Tour
-                        </a>
-                    </div>
-                    
-                    <div style='background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                        <p style='margin: 0;'><strong>📞 Cần hỗ trợ?</strong> Liên hệ team support để được tư vấn về việc quản lý tour và hướng dẫn viên.</p>
-                    </div>
-                    
-                    <br/>
-                    <p>Chúc bạn có một tour thành công và đáng nhớ!</p>
-                    <p>Trân trọng,</p>
-                    <p>Đội ngũ Tay Ninh Tour</p>";
-
-                return await SendEmailNotificationAsync(tourCompanyUserId, subject, htmlBody);
+                Console.WriteLine($"Guide acceptance notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}, guide: {guideFullName}");
+                return true;
             }
             catch (Exception ex)
             {

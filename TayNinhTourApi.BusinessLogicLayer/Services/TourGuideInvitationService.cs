@@ -16,11 +16,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
     /// Service implementation cho TourGuide invitation workflow
+    /// OPTIMIZED: Chỉ sử dụng in-app notifications, bỏ email để tối ưu hiệu năng
     /// </summary>
     public class TourGuideInvitationService : BaseService, ITourGuideInvitationService
     {
         private readonly ILogger<TourGuideInvitationService> _logger;
-        private readonly EmailSender _emailSender;
         private readonly ITourCompanyNotificationService _notificationService;
         private readonly IServiceProvider _serviceProvider;
 
@@ -28,12 +28,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             IMapper mapper,
             IUnitOfWork unitOfWork,
             ILogger<TourGuideInvitationService> logger,
-            EmailSender emailSender,
             ITourCompanyNotificationService notificationService,
             IServiceProvider serviceProvider) : base(mapper, unitOfWork)
         {
             _logger = logger;
-            _emailSender = emailSender;
             _notificationService = notificationService;
             _serviceProvider = serviceProvider;
         }
@@ -974,20 +972,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     tourDetails.UpdatedAt = DateTime.UtcNow;
                     await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
 
-                    // Send cancellation email
-                    try
-                    {
-                        await _emailSender.SendTourDetailsCancellationAsync(
-                            tourDetails.CreatedBy.Email,
-                            tourDetails.CreatedBy.Name,
-                            tourDetails.Title,
-                            "Không tìm được hướng dẫn viên trong thời gian quy định (5 ngày)"
-                        );
-                    }
-                    catch (Exception emailEx)
-                    {
-                        _logger.LogWarning("Failed to send cancellation email: {Error}", emailEx.Message);
-                    }
+                    // ⚡ REMOVED EMAIL NOTIFICATION để tối ưu hiệu năng
+                    _logger.LogInformation("Tour {TourDetailsId} cancelled due to no guide assignment. Email notification skipped for performance optimization.", tourDetails.Id);
 
                     count++;
                 }
@@ -1645,43 +1631,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.NotificationRepository.AddAsync(notification);
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Successfully created in-app notification for TourDetails {TourDetailsId}", tourDetails.Id);
-
-                // 📧 Gửi email notification
-                try
-                {
-                    var user = await _unitOfWork.UserRepository.GetByIdAsync(tourDetails.CreatedById);
-                    if (user != null)
-                    {
-                        var subject = $"Cần chọn hướng dẫn viên: Tour '{tourDetails.Title}'";
-                        var htmlBody = $@"<h2>Chào {user.Name},</h2>
-<p>Hệ thống không tìm thấy hướng dẫn viên nào có kỹ năng phù hợp với tour <strong>'{tourDetails.Title}'</strong>.</p>
-<div style='background-color: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 20px 0;'>
-    <h3 style='margin-top: 0; color: #856404;'>Hành động cần thực hiện:</h3>
-    <p><strong>Đăng nhập hệ thống</strong> để xem danh sách hướng dẫn viên có sẵn</p>
-    <p><strong>Chọn và mời hướng dẫn viên</strong> từ danh sách hệ thống</p>
-    <p><strong>Liên hệ trực tiếp</strong> với hướng dẫn viên để thảo luận điều kiện</p>
-    <p><strong>Xem xét điều chỉnh yêu cầu kỹ năng</strong> hoặc tăng phí để thu hút guide</p>
-</div>
-<br/>
-<p>Trân trọng,</p>
-<p>Đội ngũ Tay Ninh Tour</p>";
-
-                        await _emailSender.SendEmailAsync(user.Email, user.Name, subject, htmlBody);
-                        _logger.LogInformation("Successfully sent email notification for no suitable guides to {Email}", user.Email);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Cannot send email - User {UserId} not found", tourDetails.CreatedById);
-                    }
-                }
-                catch (Exception emailEx)
-                {
-                    _logger.LogError(emailEx, "Error sending email notification for no suitable guides");
-                    // Don't fail the main flow if email fails
-                }
-
-                _logger.LogInformation("Successfully sent no suitable guides notification for TourDetails {TourDetailsId}", tourDetails.Id);
+                _logger.LogInformation("Successfully created in-app notification (email skipped for performance) for TourDetails {TourDetailsId}", tourDetails.Id);
             }
             catch (Exception ex)
             {
