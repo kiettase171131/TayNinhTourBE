@@ -49,13 +49,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             }
             catch (Exception ex)
             {
-                // Log the error but don't throw to avoid breaking the application flow
-                Console.WriteLine($"Email sending failed: {ex.Message}");
-                // In a real application, you would use proper logging here
-                // _logger.LogError(ex, "Failed to send email to {ToEmail}", message.To.FirstOrDefault()?.ToString());
+                // Log the error với thông tin chi tiết
+                var toEmail = message.To.FirstOrDefault()?.ToString() ?? "Unknown";
+                var subject = message.Subject ?? "No subject";
+                
+                Console.WriteLine($"=== EMAIL SENDING FAILED ===");
+                Console.WriteLine($"To: {toEmail}");
+                Console.WriteLine($"Subject: {subject}");
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine($"Exception Type: {ex.GetType().Name}");
+                
+                // Log SMTP settings (nhưng không log password)
+                Console.WriteLine($"SMTP Server: {_emailSettings.SmtpServer}:{_emailSettings.SmtpPort}");
+                Console.WriteLine($"Username: {_emailSettings.Username}");
+                Console.WriteLine($"Sender: {_emailSettings.SenderName} <{_emailSettings.SenderEmail}>");
+                
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
+                
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                Console.WriteLine("=== END EMAIL ERROR ===");
 
-                // Optionally, you could store failed emails in a queue for retry
-                // or send to a dead letter queue for manual processing
+                // THROW LẠI EXCEPTION để caller có thể handle
+                throw new InvalidOperationException($"Failed to send email to {toEmail}: {ex.Message}", ex);
             }
         }
 

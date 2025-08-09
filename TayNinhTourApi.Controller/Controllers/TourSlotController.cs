@@ -458,6 +458,129 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// TEST ONLY - Hủy tour slot với debug mode và detailed logging
+        /// Endpoint này sẽ skip email nếu có lỗi và vẫn hoàn thành việc hủy
+        /// </summary>
+        /// <param name="slotId">ID của slot cần hủy</param>
+        /// <param name="request">Thông tin lý do hủy tour</param>
+        /// <returns>Kết quả hủy tour với debug info</returns>
+        [HttpPost("{slotId}/cancel-public-debug")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<IActionResult> CancelPublicTourSlotDebug(Guid slotId, [FromBody] CancelPublicTourSlotDto request)
+        {
+            try
+            {
+                _logger.LogInformation("=== DEBUG CANCEL REQUEST RECEIVED ===");
+                _logger.LogInformation("SlotId: {SlotId}, Reason: {Reason}", slotId, request?.Reason);
+
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogWarning("ModelState is invalid: {Errors}", 
+                        string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
+                    
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Dữ liệu không hợp lệ",
+                        errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage),
+                        debug = new
+                        {
+                            receivedRequest = request,
+                            modelStateValid = false,
+                            timestamp = DateTime.UtcNow
+                        }
+                    });
+                }
+
+                // Get current user ID
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("Id")?.Value;
+                _logger.LogInformation("User claims: NameIdentifier={NameId}, Id={Id}", 
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                    User.FindFirst("Id")?.Value);
+
+                if (!Guid.TryParse(userIdClaim, out var tourCompanyUserId))
+                {
+                    _logger.LogError("Cannot parse user ID from claims: {UserIdClaim}", userIdClaim);
+                    
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        message = "Không thể xác thực người dùng",
+                        debug = new
+                        {
+                            userIdClaim,
+                            claimsCount = User.Claims.Count(),
+                            allClaims = User.Claims.Select(c => new { c.Type, c.Value }).ToArray(),
+                            timestamp = DateTime.UtcNow
+                        }
+                    });
+                }
+
+                _logger.LogInformation("Authenticated user: {UserId}", tourCompanyUserId);
+
+                // Call service with detailed logging
+                var (success, message, customersNotified) = await _tourSlotService.CancelPublicTourSlotAsync(
+                    slotId, request.Reason, tourCompanyUserId);
+
+                _logger.LogInformation("Service call completed - Success: {Success}, Message: {Message}, CustomersNotified: {CustomersNotified}", 
+                    success, message, customersNotified);
+
+                if (!success)
+                {
+                    _logger.LogWarning("Service returned failure: {Message}", message);
+                    
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message,
+                        debug = new
+                        {
+                            slotId,
+                            userId = tourCompanyUserId,
+                            reason = request.Reason,
+                            serviceSuccess = success,
+                            timestamp = DateTime.UtcNow
+                        }
+                    });
+                }
+
+                _logger.LogInformation("Cancel operation successful");
+
+                return Ok(new CancelTourSlotResultDto
+                {
+                    Success = true,
+                    Message = message,
+                    CustomersNotified = customersNotified,
+                    AffectedBookings = 0, // TODO: Update if needed
+                    TotalRefundAmount = 0, // TODO: Update if needed
+                    AffectedCustomers = new List<AffectedCustomerInfo>() // TODO: Update if needed
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("=== DEBUG CANCEL CONTROLLER EXCEPTION ===");
+                _logger.LogError(ex, "Controller exception in debug cancel - SlotId: {SlotId}", slotId);
+                _logger.LogError("Exception details: Type={Type}, Message={Message}", ex.GetType().Name, ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
+                
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi hủy tour",
+                    error = ex.Message,
+                    debug = new
+                    {
+                        slotId,
+                        exceptionType = ex.GetType().Name,
+                        innerException = ex.InnerException?.Message,
+                        stackTrace = ex.StackTrace,
+                        timestamp = DateTime.UtcNow
+                    }
+                });
+            }
+        }
+
+        /// <summary>
         /// Debug endpoint - Sync slots capacity với TourOperation MaxGuests
         /// </summary>
         /// <param name="tourDetailsId">ID của TourDetails</param>
@@ -504,6 +627,162 @@ namespace TayNinhTourApi.Controller.Controllers
                     success = false,
                     message = "Có lỗi xảy ra khi sync slots capacity",
                     error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint - Kiểm tra chi tiết slot và thông tin để debug lỗi cancel
+        /// </summary>
+        /// <param name="slotId">ID của slot cần kiểm tra</param>
+        /// <returns>Thông tin debug chi tiết</returns>
+        [HttpGet("{slotId}/debug-cancel-info")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<IActionResult> GetSlotDebugCancelInfo(Guid slotId)
+        {
+            try
+            {
+                _logger.LogInformation("Debug cancel info requested for slot {SlotId}", slotId);
+
+                // Get current user ID
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("Id")?.Value;
+                if (!Guid.TryParse(userIdClaim, out var tourCompanyUserId))
+                {
+                    return Unauthorized(new
+                    {
+                        success = false,
+                        message = "Không thể xác thực người dùng"
+                    });
+                }
+
+                // Get slot with all related data (same as cancel method)
+                var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Include(s => s.TourDetails)
+                        .ThenInclude(td => td!.TourOperation)
+                    .Include(s => s.TourTemplate)
+                    .Include(s => s.Bookings.Where(b => !b.IsDeleted && 
+                        (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)))
+                        .ThenInclude(b => b.User)
+                    .FirstOrDefaultAsync(s => s.Id == slotId && !s.IsDeleted);
+
+                if (slot == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy tour slot",
+                        debug = new
+                        {
+                            slotId,
+                            slotFound = false,
+                            timestamp = DateTime.UtcNow
+                        }
+                    });
+                }
+
+                var affectedBookings = slot.Bookings.Where(b => !b.IsDeleted && 
+                    (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)).ToList();
+
+                var debugInfo = new
+                {
+                    slot = new
+                    {
+                        id = slot.Id,
+                        isActive = slot.IsActive,
+                        status = slot.Status,
+                        statusName = slot.Status.ToString(),
+                        tourDate = slot.TourDate,
+                        tourDetailsId = slot.TourDetailsId,
+                        isDeleted = slot.IsDeleted,
+                        createdById = slot.CreatedById,
+                        updatedById = slot.UpdatedById,
+                        createdAt = slot.CreatedAt,
+                        updatedAt = slot.UpdatedAt
+                    },
+                    tourDetails = slot.TourDetails != null ? new
+                    {
+                        id = slot.TourDetails.Id,
+                        title = slot.TourDetails.Title,
+                        status = slot.TourDetails.Status,
+                        statusName = slot.TourDetails.Status.ToString(),
+                        createdById = slot.TourDetails.CreatedById,
+                        updatedById = slot.TourDetails.UpdatedById,
+                        createdAt = slot.TourDetails.CreatedAt,
+                        updatedAt = slot.TourDetails.UpdatedAt,
+                        isDeleted = slot.TourDetails.IsDeleted
+                    } : null,
+                    tourOperation = slot.TourDetails?.TourOperation != null ? new
+                    {
+                        id = slot.TourDetails.TourOperation.Id,
+                        maxGuests = slot.TourDetails.TourOperation.MaxGuests,
+                        currentBookings = slot.TourDetails.TourOperation.CurrentBookings,
+                        price = slot.TourDetails.TourOperation.Price,
+                        isActive = slot.TourDetails.TourOperation.IsActive,
+                        status = slot.TourDetails.TourOperation.Status
+                    } : null,
+                    currentUser = new
+                    {
+                        userId = tourCompanyUserId,
+                        userIdClaim,
+                        canCancel = slot.TourDetails?.CreatedById == tourCompanyUserId
+                    },
+                    bookings = new
+                    {
+                        totalBookings = slot.Bookings.Count,
+                        affectedBookings = affectedBookings.Count,
+                        bookingDetails = affectedBookings.Select(b => new
+                        {
+                            id = b.Id,
+                            bookingCode = b.BookingCode,
+                            status = b.Status,
+                            statusName = b.Status.ToString(),
+                            numberOfGuests = b.NumberOfGuests,
+                            totalPrice = b.TotalPrice,
+                            contactName = b.ContactName,
+                            contactEmail = b.ContactEmail,
+                            contactPhone = b.ContactPhone,
+                            userId = b.UserId,
+                            userName = b.User?.Name,
+                            userEmail = b.User?.Email,
+                            isDeleted = b.IsDeleted,
+                            createdAt = b.BookingDate
+                        }).ToList()
+                    },
+                    validationChecks = new
+                    {
+                        slotExists = slot != null,
+                        hasTourDetails = slot.TourDetailsId != null,
+                        tourDetailsLoaded = slot.TourDetails != null,
+                        tourDetailsIsPublic = slot.TourDetails?.Status == TourDetailsStatus.Public,
+                        userOwnsDetails = slot.TourDetails?.CreatedById == tourCompanyUserId,
+                        slotIsActive = slot.IsActive,
+                        canCancel = slot != null &&
+                                   slot.TourDetailsId != null &&
+                                   slot.TourDetails != null &&
+                                   slot.TourDetails.Status == TourDetailsStatus.Public &&
+                                   slot.TourDetails.CreatedById == tourCompanyUserId &&
+                                   slot.IsActive
+                    },
+                    timestamp = DateTime.UtcNow
+                };
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Thông tin debug lấy thành công",
+                    data = debugInfo
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting debug cancel info for slot: {SlotId}", slotId);
+                
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy thông tin debug",
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
                 });
             }
         }
