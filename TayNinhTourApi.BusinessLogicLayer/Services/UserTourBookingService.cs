@@ -1370,6 +1370,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Send booking confirmation email with QR code
         /// Enhanced: Includes tour details and QR code for customer
+        /// FIXED: Better fallback handling when QR code generation fails
         /// </summary>
         private async Task SendBookingConfirmationEmailAsync(TourBooking booking)
         {
@@ -1387,13 +1388,41 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return;
                 }
 
-                // Generate QR code image using the QR service
-                var qrCodeImage = await _qrCodeService.GenerateQRCodeImageAsync(booking, 300);
-
                 // Prepare email data
                 var customerName = booking.ContactName ?? booking.User?.Name ?? "Valued Customer";
                 var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience";
                 var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
+
+                byte[] qrCodeImage;
+                try
+                {
+                    // Try to generate QR code image using the QR service
+                    _logger.LogInformation("Generating QR code for booking {BookingCode}", booking.BookingCode);
+                    qrCodeImage = await _qrCodeService.GenerateQRCodeImageAsync(booking, 300);
+                    _logger.LogInformation("QR code generated successfully for booking {BookingCode} - {ByteCount} bytes", 
+                        booking.BookingCode, qrCodeImage.Length);
+                }
+                catch (Exception qrEx)
+                {
+                    _logger.LogError(qrEx, "Failed to generate QR code for booking {BookingId}, proceeding with email without QR", booking.Id);
+                    
+                    // Create a simple placeholder image or send email without QR
+                    try
+                    {
+                        // Generate a minimal QR code with just booking code as fallback
+                        var fallbackData = $"Booking: {booking.BookingCode}";
+                        qrCodeImage = await _qrCodeService.GenerateQRCodeImageFromDataAsync(fallbackData, 300);
+                        _logger.LogInformation("Generated fallback QR code for booking {BookingCode}", booking.BookingCode);
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        _logger.LogError(fallbackEx, "Fallback QR code generation also failed for booking {BookingId}", booking.Id);
+                        
+                        // If all QR generation methods fail, send email without QR code
+                        await SendBookingConfirmationEmailWithoutQRAsync(booking, customerEmail, customerName, tourTitle, tourDate);
+                        return;
+                    }
+                }
 
                 // Send confirmation email with QR code
                 await _emailSender.SendTourBookingConfirmationAsync(
@@ -1414,6 +1443,127 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to send booking confirmation email for booking {BookingId}", booking.Id);
+                
+                // Try to send email without QR as last resort
+                try
+                {
+                    var customerEmail = !string.IsNullOrWhiteSpace(booking.ContactEmail) 
+                        ? booking.ContactEmail 
+                        : booking.User?.Email;
+                    
+                    if (!string.IsNullOrWhiteSpace(customerEmail))
+                    {
+                        var customerName = booking.ContactName ?? booking.User?.Name ?? "Valued Customer";
+                        var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience";
+                        var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
+                        
+                        await SendBookingConfirmationEmailWithoutQRAsync(booking, customerEmail, customerName, tourTitle, tourDate);
+                        _logger.LogInformation("Sent fallback booking confirmation email without QR for booking {BookingId}", booking.Id);
+                    }
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogError(fallbackEx, "Even fallback email sending failed for booking {BookingId}", booking.Id);
+                }
+                
+                throw; // Re-throw original exception for caller to handle
+            }
+        }
+
+        /// <summary>
+        /// Send booking confirmation email without QR code as fallback
+        /// Used when QR code generation fails
+        /// </summary>
+        private async Task SendBookingConfirmationEmailWithoutQRAsync(
+            TourBooking booking, 
+            string customerEmail, 
+            string customerName, 
+            string tourTitle, 
+            DateTime tourDate)
+        {
+            try
+            {
+                var subject = "Tour Booking Confirmed - Important Booking Information";
+                var htmlBody = $@"
+                <div style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"">
+                    <div style=""text-align: center; margin-bottom: 30px;"">
+                        <h1 style=""color: #2c3e50; margin-bottom: 10px;"">🎉 Booking Confirmed!</h1>
+                        <p style=""color: #7f8c8d; font-size: 16px;"">Thank you for choosing Tay Ninh Tour</p>
+                    </div>
+
+                    <div style=""background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;"">
+                        <h2 style=""color: #155724; margin-top: 0; text-align: center;"">Your Tour Booking Details</h2>
+
+                        <table style=""width: 100%; border-collapse: collapse; margin-top: 15px;"">
+                            <tr>
+                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Booking Code:</td>
+                                <td style=""padding: 8px 0; color: #155724;"">{booking.BookingCode}</td>
+                            </tr>
+                            <tr>
+                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Tour:</td>
+                                <td style=""padding: 8px 0; color: #155724;"">{tourTitle}</td>
+                            </tr>
+                            <tr>
+                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Date:</td>
+                                <td style=""padding: 8px 0; color: #155724;"">{tourDate:dd/MM/yyyy}</td>
+                            </tr>
+                            <tr>
+                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Number of Guests:</td>
+                                <td style=""padding: 8px 0; color: #155724;"">{booking.NumberOfGuests}</td>
+                            </tr>
+                            <tr>
+                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Total Price:</td>
+                                <td style=""padding: 8px 0; color: #155724; font-weight: bold;"">{booking.TotalPrice:N0} VND</td>
+                            </tr>
+                            <tr>
+                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Contact Phone:</td>
+                                <td style=""padding: 8px 0; color: #155724;"">{booking.ContactPhone ?? booking.User?.PhoneNumber ?? "N/A"}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div style=""background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;"">
+                        <h4 style=""color: #856404; margin-top: 0;"">📋 Important Information:</h4>
+                        <ul style=""color: #856404; margin: 10px 0; padding-left: 20px;"">
+                            <li>Please arrive 15 minutes before the tour start time</li>
+                            <li>Bring a valid ID for verification</li>
+                            <li>Present your booking code <strong>{booking.BookingCode}</strong> to the tour guide</li>
+                            <li>Contact us if you need to make any changes to your booking</li>
+                        </ul>
+                    </div>
+
+                    <div style=""background-color: #f8d7da; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;"">
+                        <h4 style=""color: #721c24; margin-top: 0;"">⚠️ Note about QR Code:</h4>
+                        <p style=""color: #721c24; margin: 0;"">
+                            Due to technical issues, your QR code ticket could not be generated at this time. 
+                            Please save this email and present your <strong>Booking Code: {booking.BookingCode}</strong> to the tour guide instead.
+                            We apologize for any inconvenience.
+                        </p>
+                    </div>
+
+                    <div style=""text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;"">
+                        <h4 style=""color: #2c3e50; margin-bottom: 15px;"">Need Help?</h4>
+                        <p style=""color: #6c757d; margin: 5px 0;"">📞 Phone: +84 123 456 789</p>
+                        <p style=""color: #6c757d; margin: 5px 0;"">📧 Email: support@tayninhtravel.com</p>
+                        <p style=""color: #6c757d; margin: 5px 0;"">🌐 Website: www.tayninhtravel.com</p>
+                    </div>
+
+                    <div style=""text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;"">
+                        <p style=""color: #6c757d; font-size: 14px;"">We look forward to providing you with an amazing tour experience!</p>
+                        <br/>
+                        <p style=""color: #2c3e50; font-weight: bold;"">Best regards,</p>
+                        <p style=""color: #2c3e50; font-weight: bold;"">The Tay Ninh Tour Team</p>
+                    </div>
+                </div>";
+
+                await _emailSender.SendEmailAsync(customerEmail, customerName, subject, htmlBody);
+                
+                _logger.LogInformation("Fallback booking confirmation email (without QR) sent to {Email} for booking {BookingId}", 
+                    customerEmail, booking.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send fallback booking confirmation email for booking {BookingId}", booking.Id);
                 throw;
             }
         }
