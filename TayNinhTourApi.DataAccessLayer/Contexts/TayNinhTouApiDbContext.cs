@@ -21,6 +21,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         public DbSet<TourOperation> TourOperations { get; set; } = null!;
         public DbSet<TourGuideInvitation> TourGuideInvitations { get; set; } = null!;
         public DbSet<TimelineItem> TimelineItems { get; set; } = null!;
+        public DbSet<TourSlotTimelineProgress> TourSlotTimelineProgress { get; set; } = null!;
         public DbSet<TourIncident> TourIncidents { get; set; } = null!;
 
         public DbSet<SupportTicketImage> SupportTicketImages { get; set; } = null!;
@@ -68,7 +69,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         {
             // modelBuilder.ApplyConfiguration(new UserConfiguration());
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(TayNinhTouApiDbContext).Assembly);
-            
+
             // Đảm bảo một user không thể reaction nhiều lần cho cùng 1 blog
             modelBuilder.Entity<BlogReaction>()
                 .HasIndex(br => new { br.BlogId, br.UserId })

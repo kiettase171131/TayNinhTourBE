@@ -82,5 +82,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// User đã cập nhật timeline item này lần cuối
         /// </summary>
         public virtual User? UpdatedBy { get; set; }
+
+        /// <summary>
+        /// Progress records for this timeline item across different tour slots
+        /// Relationship: One TimelineItem to Many TourSlotTimelineProgress
+        /// </summary>
+        public virtual ICollection<TourSlotTimelineProgress> SlotProgress { get; set; } = new List<TourSlotTimelineProgress>();
     }
 }

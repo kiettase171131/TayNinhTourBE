@@ -102,5 +102,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Danh sách các bookings cho slot này
         /// </summary>
         public virtual ICollection<TourBooking> Bookings { get; set; } = new List<TourBooking>();
+
+        /// <summary>
+        /// Timeline progress records for this tour slot
+        /// Relationship: One TourSlot to Many TourSlotTimelineProgress
+        /// </summary>
+        public virtual ICollection<TourSlotTimelineProgress> TimelineProgress { get; set; } = new List<TourSlotTimelineProgress>();
     }
 }

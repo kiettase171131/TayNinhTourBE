@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 
@@ -11,9 +12,11 @@ using TayNinhTourApi.DataAccessLayer.Contexts;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     [DbContext(typeof(TayNinhTouApiDbContext))]
-    partial class TayNinhTouApiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250808165420_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -118,9 +121,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
-
-                    b.Property<int>("ChatType")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
@@ -3007,102 +3007,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.ToTable("TourSlots", (string)null);
                 });
 
-            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourSlotTimelineProgress", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)")
-                        .HasComment("Primary key identifier");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime")
-                        .HasComment("Timestamp when the timeline item was completed");
-
-                    b.Property<string>("CompletionNotes")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)")
-                        .HasComment("Optional notes added when completing the timeline item");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                        .HasComment("Timestamp when the record was created");
-
-                    b.Property<Guid>("CreatedById")
-                        .HasColumnType("char(36)")
-                        .HasComment("ID of the user who created this record");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasComment("Soft delete flag");
-
-                    b.Property<bool>("IsCompleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false)
-                        .HasComment("Whether this timeline item has been completed for this tour slot");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid>("TimelineItemId")
-                        .HasColumnType("char(36)")
-                        .HasComment("Reference to the timeline item template");
-
-                    b.Property<Guid>("TourSlotId")
-                        .HasColumnType("char(36)")
-                        .HasComment("Reference to the specific tour slot");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime")
-                        .HasComment("Timestamp when the record was last updated");
-
-                    b.Property<Guid?>("UpdatedById")
-                        .HasColumnType("char(36)")
-                        .HasComment("ID of the user who last updated this record");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompletedAt")
-                        .HasDatabaseName("IX_TourSlotTimelineProgress_CompletedAt");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_TourSlotTimelineProgress_CreatedAt");
-
-                    b.HasIndex("CreatedById");
-
-                    b.HasIndex("IsCompleted")
-                        .HasDatabaseName("IX_TourSlotTimelineProgress_IsCompleted");
-
-                    b.HasIndex("TimelineItemId")
-                        .HasDatabaseName("IX_TourSlotTimelineProgress_TimelineItemId");
-
-                    b.HasIndex("TourSlotId")
-                        .HasDatabaseName("IX_TourSlotTimelineProgress_TourSlotId");
-
-                    b.HasIndex("UpdatedById");
-
-                    b.HasIndex("TourSlotId", "TimelineItemId")
-                        .IsUnique()
-                        .HasDatabaseName("UK_TourSlotTimeline");
-
-                    b.HasIndex("TourSlotId", "IsCompleted", "CompletedAt")
-                        .HasDatabaseName("IX_TourSlotTimelineProgress_TourSlot_Completed");
-
-                    b.ToTable("TourSlotTimelineProgress", null, t =>
-                        {
-                            t.HasComment("Tracks timeline completion progress for individual tour slots");
-
-                            t.HasCheckConstraint("CK_TourSlotTimelineProgress_Completion_Logic", "(IsCompleted = FALSE AND CompletedAt IS NULL) OR (IsCompleted = TRUE AND CompletedAt IS NOT NULL)");
-                        });
-                });
-
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4160,44 +4064,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourSlotTimelineProgress", b =>
-                {
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
-                        .WithMany()
-                        .HasForeignKey("CreatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_TourSlotTimelineProgress_CreatedBy");
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TimelineItem", "TimelineItem")
-                        .WithMany("SlotProgress")
-                        .HasForeignKey("TimelineItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_TourSlotTimelineProgress_TimelineItem");
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", "TourSlot")
-                        .WithMany("TimelineProgress")
-                        .HasForeignKey("TourSlotId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_TourSlotTimelineProgress_TourSlot");
-
-                    b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("FK_TourSlotTimelineProgress_UpdatedBy");
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("TimelineItem");
-
-                    b.Navigation("TourSlot");
-
-                    b.Navigation("UpdatedBy");
-                });
-
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", b =>
                 {
                     b.HasOne("TayNinhTourApi.DataAccessLayer.Entities.User", "CreatedBy")
@@ -4313,11 +4179,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     b.Navigation("Images");
                 });
 
-            modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TimelineItem", b =>
-                {
-                    b.Navigation("SlotProgress");
-                });
-
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourBooking", b =>
                 {
                     b.Navigation("RefundRequest");
@@ -4354,8 +4215,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourSlot", b =>
                 {
                     b.Navigation("Bookings");
-
-                    b.Navigation("TimelineProgress");
                 });
 
             modelBuilder.Entity("TayNinhTourApi.DataAccessLayer.Entities.TourTemplate", b =>

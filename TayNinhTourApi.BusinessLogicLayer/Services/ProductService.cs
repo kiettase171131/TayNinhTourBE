@@ -25,7 +25,6 @@ using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.Utilities;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
-using TayNinhTourApi.BusinessLogicLayer.Utilities; // <-- Thêm dòng này
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -65,7 +64,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _notificationService = notificationService;
             _userRepository = userRepository;
         }
-        public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status,string? sortBySoldCount)
+        public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount)
         {
             var include = new string[] { nameof(Product.ProductImages), nameof(Product.ProductRatings) };
 
@@ -320,7 +319,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Cập nhật thông tin sản phẩm
             product.Name = request.Name ?? product.Name;
             product.Description = request.Description ?? product.Description;
-            
+
             product.QuantityInStock = request.QuantityInStock ?? product.QuantityInStock;
 
             // ✅ Logic tự động tính giá & giảm giá
@@ -516,7 +515,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var newCart = new CartItem
                     {
                         Id = Guid.NewGuid(),
-                        UserId = currentUser.Id,    
+                        UserId = currentUser.Id,
                         ProductId = item.ProductId,
                         Quantity = item.Quantity,
                         CreatedAt = DateTime.UtcNow,
@@ -617,14 +616,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (order.VoucherId.HasValue && order.Voucher != null)
                 {
                     Console.WriteLine($"Processing voucher: {order.Voucher.Name}");
-                    
+
                     // Tăng số lượng đã sử dụng
                     order.Voucher.UsedCount += 1;
                     order.Voucher.UpdatedAt = DateTime.UtcNow;
-                    
+
                     await _voucherRepository.UpdateAsync(order.Voucher);
                     await _voucherRepository.SaveChangesAsync();
-                    
+
                     Console.WriteLine($"Voucher usage count updated: {order.Voucher.UsedCount}/{order.Voucher.Quantity}");
                 }
                 else
@@ -724,7 +723,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (voucherId.HasValue)
             {
                 var voucher = await _voucherRepository.GetByIdAsync(voucherId.Value);
-                
+
                 if (voucher == null || !voucher.IsAvailable)
                 {
                     throw new InvalidOperationException("Voucher không tồn tại hoặc không khả dụng.");
@@ -754,10 +753,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             if (totalAfterDiscount <= 0)
                 throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
-                
+
             // Tạo PayOsOrderCode với format TNDT + 10 số sử dụng utility
             var payOsOrderCodeString = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
-            
+
             // Lưu vào DB dưới dạng string thay vì long
             var order = new Order
             {
@@ -1015,7 +1014,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if ((dto.DiscountAmount <= 0) && (!dto.DiscountPercent.HasValue || dto.DiscountPercent <= 0))
             {
                 return new ResponseCreateVoucher
-                {   
+                {
                     StatusCode = 400,
                     Message = "Phải nhập số tiền giảm hoặc phần trăm giảm > 0."
                 };
@@ -1160,7 +1159,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<BaseResposeDto> UpdateVoucherAsync(Guid id, UpdateVoucherDto dto, Guid userId)
         {
             var voucher = await _voucherRepository.GetByIdAsync(id);
-            
+
             if (voucher == null || voucher.IsDeleted)
             {
                 return new BaseResposeDto
@@ -1301,7 +1300,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Step 1: Get all vouchers first for debugging
             var allVouchersInDb = await _voucherRepository.GetAllAsync(x => !x.IsDeleted);
             Console.WriteLine($"[DEBUG] Total vouchers in database (not deleted): {allVouchersInDb.Count()}");
-            
+
             if (!allVouchersInDb.Any())
             {
                 Console.WriteLine("[DEBUG] No vouchers found in database!");
@@ -1345,22 +1344,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Step 3: Apply pagination
             var totalVouchers = availableVouchers.Count;
             var totalPages = (int)Math.Ceiling((double)totalVouchers / pageSizeValue);
-            
+
             Console.WriteLine($"[DEBUG] Before pagination: Total={totalVouchers}, Pages={totalPages}");
-            
+
             var paginatedVouchers = availableVouchers
                 .Skip((pageIndexValue - 1) * pageSizeValue)
                 .Take(pageSizeValue)
                 .ToList();
-            
+
             Console.WriteLine($"[DEBUG] After pagination: Count={paginatedVouchers.Count}");
 
             // Step 4: Manual mapping instead of AutoMapper for debugging
             var result = new List<AvailableVoucherDto>();
-            
+
             foreach (var voucher in paginatedVouchers)
             {
-                try 
+                try
                 {
                     var dto = new AvailableVoucherDto
                     {
@@ -1381,7 +1380,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Console.WriteLine($"[DEBUG] Error mapping voucher {voucher.Name}: {ex.Message}");
                 }
             }
-            
+
             Console.WriteLine($"[DEBUG] Final mapped result count: {result.Count}");
 
             return new ResponseGetAvailableVouchersDto
@@ -1400,7 +1399,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
-                var pageSizeValue = pageSize ?? Constants.PageSizeDefault;           
+                var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
 
                 var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted);
 
@@ -1440,7 +1439,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Debug: Log thông tin orders trước khi mapping
                 Console.WriteLine($"Found {totalOrders} orders to map");
-                
+
                 if (orders.Any())
                 {
                     var firstOrder = orders.First();
@@ -1532,7 +1531,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<ResponseGetOrdersDto> GetOrdersByCurrentShopAsync(int? pageIndex,int? pageSize,string? payOsOrderCode,bool? status, bool? isChecked, OrderStatus? orderStatus,CurrentUserObject currentUserObject)
+        public async Task<ResponseGetOrdersDto> GetOrdersByCurrentShopAsync(int? pageIndex, int? pageSize, string? payOsOrderCode, bool? status, bool? isChecked, OrderStatus? orderStatus, CurrentUserObject currentUserObject)
         {
             try
             {
@@ -1611,7 +1610,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var users = await _userRepository.GetAllAsync(u => u.IsActive && !u.IsDeleted && u.Role.Name == "User");
 
                 var title = isUpdate ? "🎁 Voucher được cập nhật!" : "🎁 Voucher mới từ TNDT!";
-                var message = isUpdate 
+                var message = isUpdate
                     ? $"Voucher \"{voucher.Name}\" đã được cập nhật. Vui lòng kiểm tra danh sách voucher để không bỏ lỡ những ưu đãi hấp dẫn!"
                     : $"Bạn nhận được voucher \"{voucher.Name}\" từ TNDT! Vui lòng kiểm tra trong danh sách voucher thường xuyên để đừng bỏ lỡ những bất ngờ.";
 

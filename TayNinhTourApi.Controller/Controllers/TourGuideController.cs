@@ -6,6 +6,8 @@ using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Notification;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourGuide;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourGuide;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
@@ -28,17 +30,20 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly TayNinhTouApiDbContext _context;
         private readonly INotificationService _notificationService;
         private readonly IQRCodeService _qrCodeService;
+        private readonly ITourGuideTimelineService _timelineService;
         private readonly ILogger<TourGuideController> _logger;
 
         public TourGuideController(
             TayNinhTouApiDbContext context,
             INotificationService notificationService,
             IQRCodeService qrCodeService,
+            ITourGuideTimelineService timelineService,
             ILogger<TourGuideController> logger)
         {
             _context = context;
             _notificationService = notificationService;
             _qrCodeService = qrCodeService;
+            _timelineService = timelineService;
             _logger = logger;
         }
 
@@ -219,7 +224,8 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Lấy timeline items cho tour cụ thể
+        /// [LEGACY] Lấy timeline items cho tour cụ thể - Backward compatibility
+        /// Sử dụng API mới: GET /tour-slot/{tourSlotId}/timeline
         /// </summary>
         /// <param name="operationId">ID của TourOperation</param>
         /// <returns>Danh sách TimelineItem</returns>
@@ -411,7 +417,8 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Hoàn thành timeline item và gửi notification cho guests
+        /// [LEGACY] Hoàn thành timeline item và gửi notification cho guests - Backward compatibility
+        /// Sử dụng API mới: POST /tour-slot/{tourSlotId}/timeline/{timelineItemId}/complete
         /// </summary>
         /// <param name="timelineId">ID của TimelineItem</param>
         /// <param name="request">Thông tin hoàn thành</param>
@@ -569,6 +576,343 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending timeline progress notifications for tour {TourOperationId}", tourOperationId);
+            }
+        }
+
+        // ===== NEW TIMELINE PROGRESS APIs =====
+
+        /// <summary>
+        /// [NEW] Lấy timeline với progress cho tour slot cụ thể
+        /// </summary>
+        /// <param name="tourSlotId">ID của TourSlot</param>
+        /// <param name="includeInactive">Bao gồm timeline items không active</param>
+        /// <param name="includeShopInfo">Bao gồm thông tin specialty shop</param>
+        /// <returns>Timeline với progress information</returns>
+        [HttpGet("tour-slot/{tourSlotId:guid}/timeline")]
+        public async Task<IActionResult> GetTourSlotTimeline(
+            Guid tourSlotId,
+            [FromQuery] bool includeInactive = false,
+            [FromQuery] bool includeShopInfo = true)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var response = await _timelineService.GetTimelineWithProgressAsync(
+                    tourSlotId,
+                    currentUserObject.UserId,
+                    includeInactive,
+                    includeShopInfo);
+
+                return Ok(new ApiResponse<TimelineProgressResponse>
+                {
+                    StatusCode = 200,
+                    Message = "Lấy timeline với progress thành công",
+                    Data = response,
+                    success = true
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting timeline with progress for tour slot {TourSlotId}", tourSlotId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi lấy timeline với progress"
+                });
+            }
+        }
+
+        /// <summary>
+        /// [NEW] Hoàn thành timeline item cho tour slot cụ thể
+        /// </summary>
+        /// <param name="tourSlotId">ID của TourSlot</param>
+        /// <param name="timelineItemId">ID của TimelineItem</param>
+        /// <param name="request">Thông tin hoàn thành</param>
+        /// <returns>Kết quả hoàn thành</returns>
+        [HttpPost("tour-slot/{tourSlotId:guid}/timeline/{timelineItemId:guid}/complete")]
+        public async Task<IActionResult> CompleteTimelineItemForSlot(
+            Guid tourSlotId,
+            Guid timelineItemId,
+            [FromBody] CompleteTimelineRequest request)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var response = await _timelineService.CompleteTimelineItemAsync(
+                    tourSlotId,
+                    timelineItemId,
+                    request,
+                    currentUserObject.UserId);
+
+                return Ok(new ApiResponse<CompleteTimelineResponse>
+                {
+                    StatusCode = 200,
+                    Message = response.Message,
+                    Data = response,
+                    success = response.Success
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = ex.Message
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error completing timeline item {TimelineItemId} for tour slot {TourSlotId}",
+                    timelineItemId, tourSlotId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi hoàn thành timeline item"
+                });
+            }
+        }
+
+        /// <summary>
+        /// [NEW] Hoàn thành nhiều timeline items cùng lúc
+        /// </summary>
+        /// <param name="request">Bulk completion request</param>
+        /// <returns>Kết quả bulk operation</returns>
+        [HttpPost("timeline/bulk-complete")]
+        public async Task<IActionResult> BulkCompleteTimelineItems([FromBody] BulkCompleteTimelineRequest request)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var response = await _timelineService.BulkCompleteTimelineItemsAsync(request, currentUserObject.UserId);
+
+                return Ok(new ApiResponse<BulkTimelineResponse>
+                {
+                    StatusCode = 200,
+                    Message = response.Message,
+                    Data = response,
+                    success = response.IsFullySuccessful
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in bulk completing timeline items for tour slot {TourSlotId}", request.TourSlotId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi bulk complete timeline items"
+                });
+            }
+        }
+
+        /// <summary>
+        /// [NEW] Reset timeline item completion
+        /// </summary>
+        /// <param name="tourSlotId">ID của TourSlot</param>
+        /// <param name="timelineItemId">ID của TimelineItem</param>
+        /// <param name="request">Reset request</param>
+        /// <returns>Kết quả reset</returns>
+        [HttpPost("tour-slot/{tourSlotId:guid}/timeline/{timelineItemId:guid}/reset")]
+        public async Task<IActionResult> ResetTimelineItem(
+            Guid tourSlotId,
+            Guid timelineItemId,
+            [FromBody] ResetTimelineRequest request)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var response = await _timelineService.ResetTimelineItemAsync(
+                    tourSlotId,
+                    timelineItemId,
+                    request,
+                    currentUserObject.UserId);
+
+                return Ok(new ApiResponse<CompleteTimelineResponse>
+                {
+                    StatusCode = 200,
+                    Message = response.Message,
+                    Data = response,
+                    success = response.Success
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting timeline item {TimelineItemId} for tour slot {TourSlotId}",
+                    timelineItemId, tourSlotId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi reset timeline item"
+                });
+            }
+        }
+
+        /// <summary>
+        /// [NEW] Lấy progress summary cho tour slot
+        /// </summary>
+        /// <param name="tourSlotId">ID của TourSlot</param>
+        /// <returns>Progress summary</returns>
+        [HttpGet("tour-slot/{tourSlotId:guid}/progress-summary")]
+        public async Task<IActionResult> GetProgressSummary(Guid tourSlotId)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var summary = await _timelineService.GetProgressSummaryAsync(tourSlotId, currentUserObject.UserId);
+
+                return Ok(new ApiResponse<TimelineProgressSummaryDto>
+                {
+                    StatusCode = 200,
+                    Message = "Lấy progress summary thành công",
+                    Data = summary,
+                    success = true
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting progress summary for tour slot {TourSlotId}", tourSlotId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi lấy progress summary"
+                });
+            }
+        }
+
+        /// <summary>
+        /// [NEW] Lấy timeline statistics cho analytics
+        /// </summary>
+        /// <param name="tourSlotId">ID của TourSlot</param>
+        /// <returns>Timeline statistics</returns>
+        [HttpGet("tour-slot/{tourSlotId:guid}/statistics")]
+        public async Task<IActionResult> GetTimelineStatistics(Guid tourSlotId)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var statistics = await _timelineService.GetTimelineStatisticsAsync(tourSlotId, currentUserObject.UserId);
+
+                return Ok(new ApiResponse<TimelineStatisticsResponse>
+                {
+                    StatusCode = 200,
+                    Message = "Lấy timeline statistics thành công",
+                    Data = statistics,
+                    success = true
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting timeline statistics for tour slot {TourSlotId}", tourSlotId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi lấy timeline statistics"
+                });
             }
         }
 
@@ -1073,13 +1417,7 @@ namespace TayNinhTourApi.Controller.Controllers
         public string? Notes { get; set; }
     }
 
-    /// <summary>
-    /// Request model cho complete timeline
-    /// </summary>
-    public class CompleteTimelineRequest
-    {
-        public string? Notes { get; set; }
-    }
+
 
     /// <summary>
     /// Request model cho báo cáo sự cố

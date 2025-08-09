@@ -84,7 +84,8 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<TayNinhTouApiDbContext>(options =>
     options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection")!,
         new MySqlServerVersion(new Version(8, 0, 21)),
-        mySqlOptions => {
+        mySqlOptions =>
+        {
             mySqlOptions.CommandTimeout(300); // Tăng command timeout lên 5 phút
             mySqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 3,
@@ -237,6 +238,9 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 // QR Code Services
 builder.Services.AddScoped<IQRCodeService, QRCodeService>();
 
+// Timeline Progress Services
+builder.Services.AddScoped<ITourGuideTimelineService, TourGuideTimelineService>();
+
 // Register repositories layer
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
@@ -329,7 +333,7 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
-    
+
     // Specific policy for PayOS callback
     options.AddPolicy("PayOSCallback", policy =>
     {
