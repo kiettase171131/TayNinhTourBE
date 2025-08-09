@@ -45,8 +45,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IOrderDetailRepository _orderDetailRepository;
         private readonly INotificationService _notificationService;
         private readonly IUserRepository _userRepository;
+        private readonly ISpecialtyShopRepository _specialtyShop;
 
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository)
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository, ISpecialtyShopRepository specialtyShop)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -63,6 +64,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _orderDetailRepository = orderDetailRepository;
             _notificationService = notificationService;
             _userRepository = userRepository;
+            _specialtyShop = specialtyShop;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount)
         {
@@ -238,6 +240,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var finalPrice = request.IsSale == true && request.SalePercent > 0
             ? request.Price * (1 - (request.SalePercent.Value / 100m))
             : request.Price;
+            var shop = await _specialtyShop.GetIdByUserIdAsync(currentUserObject.Id);
+
+            if (shop == null)
+            {
+                return new ResponseCreateProductDto
+                {
+                    StatusCode = 400,
+                    Message = "User hiện tại chưa có SpecialtyShop.",
+                    success = false
+                };
+            }
+                
             var product = new Product
             {
                 Id = Guid.NewGuid(),
@@ -249,6 +263,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 IsSale = isSale,
                 SalePercent = request.SalePercent ?? 0,
                 ShopId = currentUserObject.Id,
+                SpecialtyShopId = shop.Value,
                 CreatedById = currentUserObject.Id,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
