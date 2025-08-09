@@ -448,40 +448,56 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             <p style='font-style: italic; margin: 0;'>{reason}</p>
                         </div>
                         
-                        <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0;'>
-                            <h3 style='margin-top: 0; color: #155724;'>💰 HOÀN TIỀN TỰ ĐỘNG</h3>
-                            <p style='font-size: 16px; margin-bottom: 10px;'>
-                                <strong>Số tiền {customer.RefundAmount:N0} VNĐ sẽ được hoàn trả đầy đủ</strong>
-                            </p>
-                            <ul style='margin-bottom: 0;'>
-                                <li>⏰ <strong>Thời gian:</strong> 3-5 ngày làm việc</li>
-                                <li>💳 <strong>Phương thức:</strong> Hoàn về tài khoản thanh toán gốc</li>
-                                <li>📧 <strong>Xác nhận:</strong> Bạn sẽ nhận email xác nhận khi tiền được hoàn</li>
-                                <li>📞 <strong>Hỗ trợ:</strong> Nhân viên sẽ liên hệ để hỗ trợ thủ tục hoàn tiền</li>
-                            </ul>
+                        <div style='background-color: #d4edda; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                            <h3 style='margin-top: 0; color: #155724; display: flex; align-items: center;'>
+                                💰 QUY TRÌNH HOÀN TIỀN
+                            </h3>
+                            <div style='background-color: #ffffff; padding: 15px; border-radius: 6px; margin: 10px 0; border-left: 3px solid #28a745;'>
+                                <p style='font-size: 16px; margin-bottom: 8px; color: #155724; font-weight: bold;'>
+                                    📞 <strong>Nhân viên chúng tôi sẽ liên hệ để hoàn tiền</strong>
+                                </p>
+                                <p style='font-size: 16px; margin-bottom: 10px; color: #333;'>
+                                    <span style='background-color: #e8f5e8; padding: 4px 8px; border-radius: 4px; font-weight: 600;'>
+                                        Số tiền: {customer.RefundAmount:N0} VNĐ (hoàn trả đầy đủ 100%)
+                                    </span>
+                                </p>
+                            </div>
+                            
+                            <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 15px;'>
+                                <div style='background-color: rgba(255,255,255,0.8); padding: 12px; border-radius: 6px; text-align: center;'>
+                                    <div style='font-size: 20px; margin-bottom: 5px;'>⏰</div>
+                                    <strong style='color: #155724;'>Thời gian</strong>
+                                    <div style='font-size: 14px; color: #666;'>Trong 2-3 ngày làm việc</div>
+                                </div>
+                                
+                                <div style='background-color: rgba(255,255,255,0.8); padding: 12px; border-radius: 6px; text-align: center;'>
+                                    <div style='font-size: 20px; margin-bottom: 5px;'>💳</div>
+                                    <strong style='color: #155724;'>Phương thức</strong>
+                                    <div style='font-size: 14px; color: #666;'>Chuyển khoản ngân hàng</div>
+                                </div>
+                                
+                                <div style='background-color: rgba(255,255,255,0.8); padding: 12px; border-radius: 6px; text-align: center;'>
+                                    <div style='font-size: 20px; margin-bottom: 5px;'>📞</div>
+                                    <strong style='color: #155724;'>Liên hệ</strong>
+                                    <div style='font-size: 14px; color: #666;'>Xác nhận thông tin TK</div>
+                                </div>
+                                
+                                <div style='background-color: rgba(255,255,255,0.8); padding: 12px; border-radius: 6px; text-align: center;'>
+                                    <div style='font-size: 20px; margin-bottom: 5px;'>✅</div>
+                                    <strong style='color: #155724;'>Hoàn tất</strong>
+                                    <div style='font-size: 14px; color: #666;'>Thông báo qua SMS/email</div>
+                                </div>
+                            </div>
+                            
+                            <div style='background-color: #fff3cd; padding: 12px; border-radius: 6px; margin-top: 15px; border-left: 3px solid #ffc107;'>
+                                <p style='margin: 0; font-size: 14px; color: #856404;'>
+                                    <strong>📋 Lưu ý:</strong> Nhân viên sẽ gọi điện xác nhận thông tin tài khoản ngân hàng của bạn để đảm bảo chuyển khoản chính xác và an toàn.
+                                </p>
+                            </div>
                         </div>
                         
-                        <div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                            <h4 style='margin-top: 0; color: #004085;'>🎯 Gợi ý cho bạn:</h4>
-                            <ul style='margin-bottom: 0;'>
-                                <li><strong>Khám phá tour khác:</strong> Xem danh sách tour tương tự trên website</li>
-                                <li><strong>Đặt lại sau:</strong> Tour có thể được mở lại với lịch trình mới</li>
-                                <li><strong>Nhận ưu đãi:</strong> Theo dõi để nhận thông báo khuyến mãi đặc biệt</li>
-                                <li><strong>Voucher bù đắp:</strong> Chúng tôi sẽ gửi voucher giảm giá cho lần đặt tour tiếp theo</li>
-                            </ul>
-                        </div>
-                        
-                        <div style='text-align: center; margin: 30px 0;'>
-                            <a href='#' style='background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-right: 10px;'>
-                                🔍 Xem tour khác
-                            </a>
-                            <a href='#' style='background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
-                                📞 Liên hệ hỗ trợ
-                            </a>
-                        </div>
-                        
-                        <div style='background-color: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                            <h4 style='margin-top: 0; color: #721c24;'>🙏 Lời xin lỗi chân thành</h4>
+                        <div style='background-color: #d4edda; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                            <h4 style='margin-top: 0; color: #155724;'>🙏 Lời xin lỗi chân thành</h4>
                             <p style='margin-bottom: 0;'>
                                 Chúng tôi thành thật xin lỗi vì sự bất tiện này. Đây là quyết định khó khăn nhưng cần thiết để đảm bảo an toàn và chất lượng dịch vụ cho quý khách. 
                                 <strong>Nhân viên của chúng tôi sẽ liên hệ trực tiếp để hỗ trợ quá trình hoàn tiền trong thời gian sớm nhất.</strong>
