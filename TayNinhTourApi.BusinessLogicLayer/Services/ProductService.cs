@@ -45,8 +45,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IOrderDetailRepository _orderDetailRepository;
         private readonly INotificationService _notificationService;
         private readonly IUserRepository _userRepository;
+        private readonly ISpecialtyShopRepository _specialtyShop;
 
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository)
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository, ISpecialtyShopRepository specialtyShop)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -63,6 +64,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _orderDetailRepository = orderDetailRepository;
             _notificationService = notificationService;
             _userRepository = userRepository;
+            _specialtyShop = specialtyShop;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount)
         {
@@ -122,7 +124,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalPages = totalPages
             };
         }
-        public async Task<ResponseGetProductsDto> GetProductsByShopAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, CurrentUserObject currentUserObject)
+        public async Task<ResponseGetProductsDto> GetProductsByShopAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount, CurrentUserObject currentUserObject)
         {
             var include = new string[] { nameof(Product.ProductImages) };
 
@@ -147,11 +149,30 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
 
             // Lấy danh sách sản phẩm
-            var products = await _productRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate, include);
+            // Dùng IQueryable để sort, phân trang động
+            var query = _productRepository.GetQueryable()
+                .Where(predicate);
 
-            var totalProducts = products.Count();
+            // Bao gồm các navigation property
+            foreach (var inc in include)
+                query = query.Include(inc);
+
+            // Sắp xếp theo SoldCount tăng/giảm nếu có yêu cầu
+            if (!string.IsNullOrEmpty(sortBySoldCount))
+            {
+                if (sortBySoldCount.ToLower() == "asc")
+                    query = query.OrderBy(x => x.SoldCount);
+                else if (sortBySoldCount.ToLower() == "desc")
+                    query = query.OrderByDescending(x => x.SoldCount);
+            }
+            else
+            {
+                query = query.OrderByDescending(x => x.CreatedAt); // default
+            }
+
+            var totalProducts = await query.CountAsync();
+            var products = await query.Skip((pageIndexValue - 1) * pageSizeValue).Take(pageSizeValue).ToListAsync();
             var totalPages = (int)Math.Ceiling((double)totalProducts / pageSizeValue);
-
             return new ResponseGetProductsDto
             {
                 StatusCode = 200,
@@ -219,6 +240,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var finalPrice = request.IsSale == true && request.SalePercent > 0
             ? request.Price * (1 - (request.SalePercent.Value / 100m))
             : request.Price;
+            var shop = await _specialtyShop.GetIdByUserIdAsync(currentUserObject.Id);
+
+            if (shop == null)
+            {
+                return new ResponseCreateProductDto
+                {
+                    StatusCode = 400,
+                    Message = "User hiện tại chưa có SpecialtyShop.",
+                    success = false
+                };
+            }
+                
             var product = new Product
             {
                 Id = Guid.NewGuid(),
@@ -230,6 +263,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 IsSale = isSale,
                 SalePercent = request.SalePercent ?? 0,
                 ShopId = currentUserObject.Id,
+                SpecialtyShopId = shop.Value,
                 CreatedById = currentUserObject.Id,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true

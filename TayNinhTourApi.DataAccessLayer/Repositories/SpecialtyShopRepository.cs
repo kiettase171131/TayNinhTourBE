@@ -41,7 +41,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return await query.ToListAsync();
         }
 
-
+        
 
 
         /// <summary>
@@ -150,6 +150,14 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .OrderByDescending(s => s.Rating)
                 .ThenBy(s => s.ShopName)
                 .ToListAsync();
+        }
+        public async Task<Guid?> GetIdByUserIdAsync(Guid userId, CancellationToken ct = default)
+        {
+            return await _context.SpecialtyShops
+                .AsNoTracking()
+                .Where(s => s.UserId == userId && s.IsActive)
+                .Select(s => (Guid?)s.Id)      // nullable để phân biệt không tìm thấy
+                .SingleOrDefaultAsync(ct);     // dùng Single nếu UserId đã unique
         }
     }
 }

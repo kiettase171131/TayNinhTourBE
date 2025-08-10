@@ -60,5 +60,6 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="isActiveOnly">Chỉ lấy shops đang hoạt động</param>
         /// <returns>Danh sách SpecialtyShops có rating >= minRating</returns>
         Task<IEnumerable<SpecialtyShop>> GetShopsByMinRatingAsync(decimal minRating, bool isActiveOnly = true);
+        Task<Guid?> GetIdByUserIdAsync(Guid userId, CancellationToken ct = default);
     }
 }
