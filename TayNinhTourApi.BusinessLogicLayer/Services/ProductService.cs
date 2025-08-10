@@ -396,7 +396,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     if (File.Exists(oldFilePath))
                         File.Delete(oldFilePath);
 
-                    await _productRepository.DeleteAsync(oldImage.Id); // _repo2 là ProductImageRepo
+                    await _productImageRepository.DeleteAsync(oldImage.Id); // _repo2 là ProductImageRepo
                 }
 
                 if (!Directory.Exists(folder))
