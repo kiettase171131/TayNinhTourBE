@@ -190,5 +190,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Refund request for this booking (1:1 relationship, optional)
         /// </summary>
         public virtual TourBookingRefund? RefundRequest { get; set; }
+        public virtual TourFeedback? Feedback { get; set; }
+
     }
 }

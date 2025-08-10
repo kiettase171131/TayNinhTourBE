@@ -73,5 +73,6 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="id">ID của invitation</param>
         /// <returns>Invitation với TourDetails, Guide, CreatedBy information</returns>
         Task<TourGuideInvitation?> GetWithDetailsAsync(Guid id);
+        Task<TourGuideInvitation?> GetLatestAcceptedByTourDetailsIdAsync(Guid tourDetailsId, CancellationToken ct = default);
     }
 }

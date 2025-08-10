@@ -108,5 +108,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Relationship: One TourSlot to Many TourSlotTimelineProgress
         /// </summary>
         public virtual ICollection<TourSlotTimelineProgress> TimelineProgress { get; set; } = new List<TourSlotTimelineProgress>();
+        public virtual ICollection<TourFeedback> Feedbacks { get; set; } = new List<TourFeedback>();
+
     }
 }

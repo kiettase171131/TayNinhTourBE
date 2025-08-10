@@ -25,6 +25,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// </summary>
         /// <returns>IQueryable of T</returns>
         IQueryable<T> GetQueryable();
+        Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null);
+        Task<(List<T> Items, int Total)> GetPagedAsync(int pageIndex, int pageSize,Expression<Func<T, bool>>? predicate = null,string[]? include = null,Expression<Func<T, object>>? orderByDesc = null);
 
 
     }

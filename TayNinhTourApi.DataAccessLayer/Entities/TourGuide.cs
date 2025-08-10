@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -106,6 +106,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         [Required]
         public Guid ApprovedById { get; set; }
+        /// <summary>
+        /// Tổng số lượt được chấm sao
+        /// </summary>
+        public int RatingsCount { get; set; } = 0;
+
 
         // Navigation Properties
 
@@ -138,5 +143,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// One-to-Many relationship
         /// </summary>
         public virtual ICollection<TourGuideInvitation> Invitations { get; set; } = new List<TourGuideInvitation>();
+        public virtual ICollection<TourFeedback> GuideFeedbacks { get; set; } = new List<TourFeedback>();
+
     }
 }

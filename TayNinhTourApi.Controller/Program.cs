@@ -287,6 +287,7 @@ builder.Services.AddScoped<IAIChatMessageRepository, AIChatMessageRepository>();
 builder.Services.AddScoped<ITourBookingRefundRepository, TourBookingRefundRepository>();
 builder.Services.AddScoped<IRefundPolicyRepository, RefundPolicyRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+builder.Services.AddScoped<ITourFeedbackRepository, TourFeedbackRepository>();
 
 // Payment System Repositories
 builder.Services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
@@ -296,6 +297,7 @@ builder.Services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepo
 builder.Services.AddScoped<IRefundPolicyService, RefundPolicyService>();
 builder.Services.AddScoped<ITourBookingRefundService, TourBookingRefundService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<ITourFeedbackService, TourFeedbackService>();
 
 // Register utilities
 builder.Services.AddScoped<BcryptUtility>();

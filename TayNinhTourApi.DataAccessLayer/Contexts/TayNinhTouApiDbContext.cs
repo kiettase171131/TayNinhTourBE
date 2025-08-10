@@ -64,6 +64,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
 
         // Payment system entities
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
+        public DbSet<TourFeedback> TourFeedbacks { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -81,6 +82,38 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
                 .WithMany(v => v.Orders)
                 .HasForeignKey(o => o.VoucherId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<TourFeedback>(e =>
+            {
+                e.HasOne(f => f.TourBooking)
+                    .WithOne(b => b.Feedback)
+                    .HasForeignKey<TourFeedback>(f => f.TourBookingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(f => f.TourSlot)
+                    .WithMany(s => s.Feedbacks)
+                    .HasForeignKey(f => f.TourSlotId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(f => f.User)
+                    .WithMany() // hoặc .WithMany(u => u.TourFeedbacks) nếu bạn có collection bên User
+                    .HasForeignKey(f => f.UserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                e.HasOne(f => f.TourGuide)
+                     .WithMany(g => g.GuideFeedbacks)
+                     .HasForeignKey(f => f.TourGuideId)
+                     .OnDelete(DeleteBehavior.SetNull);
+
+
+                // 1 feedback duy nhất cho mỗi booking
+                e.HasIndex(f => f.TourBookingId).IsUnique();
+
+                // các index hỗ trợ lọc nhanh
+                e.HasIndex(f => f.TourSlotId);
+                e.HasIndex(f => new { f.TourGuideId });
+                e.HasIndex(f => f.UserId);
+            });
         }
 
         public override int SaveChanges()

@@ -125,5 +125,11 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(i => i.UpdatedBy)
                 .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted);
         }
+        public Task<TourGuideInvitation?> GetLatestAcceptedByTourDetailsIdAsync(Guid tourDetailsId, CancellationToken ct = default)
+            => _context.Set<TourGuideInvitation>()
+                   .AsNoTracking()
+                   .Where(i => i.TourDetailsId == tourDetailsId && i.Status == InvitationStatus.Accepted)
+                   .OrderByDescending(i => i.RespondedAt)
+                   .FirstOrDefaultAsync(ct);
     }
 }

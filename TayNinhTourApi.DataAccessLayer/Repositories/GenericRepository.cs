@@ -157,6 +157,43 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         {
             return _context.Set<T>().AsQueryable();
         }
+        public async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null)
+        {
+            var q = _context.Set<T>().AsQueryable();
+            if (predicate != null) q = q.Where(predicate);
+            return await q.CountAsync();
+        }
+
+        public async Task<(List<T> Items, int Total)> GetPagedAsync(
+            int pageIndex, int pageSize,
+            Expression<Func<T, bool>>? predicate = null,
+            string[]? include = null,
+            Expression<Func<T, object>>? orderByDesc = null)
+        {
+            if (pageIndex <= 0) pageIndex = 1;
+            if (pageSize <= 0) pageSize = 10;
+
+            var q = _context.Set<T>().AsNoTracking().AsQueryable();
+
+            if (predicate != null) q = q.Where(predicate);
+            if (include != null)
+            {
+                foreach (var inc in include)
+                    q = q.Include(inc);
+            }
+
+            var total = await q.CountAsync();
+
+            if (orderByDesc != null)
+                q = q.OrderByDescending(orderByDesc);
+
+            var items = await q.Skip((pageIndex - 1) * pageSize)
+                               .Take(pageSize)
+                               .ToListAsync();
+
+            return (items, total);
+        }
+
 
     }
 }

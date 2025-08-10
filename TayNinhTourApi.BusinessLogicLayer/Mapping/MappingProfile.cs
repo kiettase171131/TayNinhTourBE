@@ -1,22 +1,24 @@
 ﻿using AutoMapper;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Authentication;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Booking;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourFeedback;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Booking;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourFeedback;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
-using TayNinhTourApi.BusinessLogicLayer.Utilities;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.DataAccessLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Mapping
@@ -279,6 +281,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
 
 
             // All Shop mappings removed - using SpecialtyShop only
+            #endregion
+            #region TourFeedback Mapping
+            CreateMap<TourFeedback, TourFeedbackDto>()
+                .ForMember(d => d.BookingId, o => o.MapFrom(s => s.TourBookingId))
+                .ForMember(d => d.SlotId, o => o.MapFrom(s => s.TourSlotId))
+                 .ForMember(dest => dest.TourGuideName,
+               opt => opt.MapFrom(src => src.TourGuide != null
+                                          ? src.TourGuide.FullName
+                                          : null));
             #endregion
         }
 
