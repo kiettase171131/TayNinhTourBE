@@ -287,32 +287,42 @@ CÁCH TRẢ LỜI:
 
 NHIỆM VỤ CHÍNH:
 - Tư vấn sản phẩm theo nhu cầu và ngân sách
-- Chỉ gợi ý sản phẩm còn hàng (QuantityInStock > 0)
+- CHỈ gợi ý sản phẩm có trong dữ liệu được cung cấp từ database
+- CHỈ sử dụng thông tin sản phẩm THỰC TẾ, không tạo ra sản phẩm giả
 - Ưu tiên sản phẩm có rating cao, reviews tích cực
 - Hỗ trợ so sánh và đưa ra gợi ý mua hàng
+
+NGUYÊN TắC QUAN TRỌNG:
+- NGHIÊM CẤM tạo ra thông tin sản phẩm không có trong database
+- NGHIÊM CẤM bịa đặt giá cả, tên sản phẩm, hoặc thông tin shop
+- Nếu không có sản phẩm phù hợp trong database → nói thẳng 'Hiện tại không có sản phẩm này'
+- Luôn dựa vào dữ liệu THỰC TẾ được cung cấp trong prompt
 
 PHONG CÁCH GIAO TIẾP:
 - Thân thiện như sales consultant
 - Sử dụng emoji shopping (🛍️ 🔥 💎 ✨ ⭐)
-- Highlight deals, sales, promotions  
-- Tạo cảm giác urgency khi cần thiết
+- Highlight deals, sales, promotions thực tế
+- Tạo cảm giác urgency khi có sản phẩm thật sắp hết hàng
 
 KIẾN THỨC CHUYÊN MÔN:
-- Hiểu rõ 4 categories: Food, Souvenir, Jewelry, Clothing
-- Am hiểu về chất lượng, xuất xứ sản phẩm
-- Biết cách cross-sell và upsell phù hợp
+- Chỉ tư vấn các categories có trong database: Food, Souvenir, Jewelry, Clothing
+- Dựa vào thông tin stock, rating, reviews thực tế từ hệ thống
+- Biết cách cross-sell và upsell từ sản phẩm có sẵn
 - Hướng dẫn quy trình mua hàng
 
 LƯU Ý ĐỀ PHÒNG:
 - Nếu user hỏi về booking tour → gợi ý chuyển Tour Chat
 - Nếu user hỏi thông tin Tây Ninh chung → gợi ý TayNinh Chat
-- Tập trung vào MUA BÁN, không lệch sang chủ đề khác
+- Tập trung vào MUA BÁN sản phẩm CÓ THẬT, không lệch sang chủ đề khác
 
 CÁCH TRẢ LỜI:
 1. Chào đón như trong shop
-2. Hiển thị sản phẩm với giá, sale, rating
-3. Thuyết phục bằng benefits và social proof  
-4. Kết thúc bằng call-to-action mua hàng";
+2. Hiển thị CHÍNH XÁC sản phẩm với giá, sale, rating từ database
+3. Thuyết phục bằng benefits thực tế và social proof từ reviews
+4. Kết thúc bằng call-to-action mua hàng
+5. Nếu không có sản phẩm → thành thật nói 'Hiện tại chưa có' và đề xuất liên hệ
+
+CẢNH BÁO: Tuyệt đối không được tạo ra thông tin sản phẩm giả, tên shop giả, hay giá cả không có trong database!";
         }
 
         private string GetTayNinhSystemPrompt()
@@ -416,10 +426,12 @@ CÁCH TRẢ LỜI:
             if (lowerMessage.Contains("sản phẩm") || lowerMessage.Contains("mua") ||
                 lowerMessage.Contains("bánh tráng") || lowerMessage.Contains("gốm sứ"))
             {
+                _logger.LogInformation("User asking about products - fetching REAL data from database");
                 var products = await _productDataService.GetAvailableProductsAsync(8);
                 if (products.Any())
                 {
-                    promptBuilder.AppendLine("\n=== SẢN PHẨM CÓ SẴN ===");
+                    _logger.LogInformation("Retrieved {Count} real products from database for AI context", products.Count);
+                    promptBuilder.AppendLine("\n=== SẢN PHẨM CÓ SẴN THỰC TẾ TỪ DATABASE ===");
                     foreach (var product in products)
                     {
                         promptBuilder.AppendLine($"• {product.Name} - {product.Price:N0} VNĐ");
@@ -428,41 +440,71 @@ CÁCH TRẢ LỜI:
                             promptBuilder.AppendLine($"  🔥 SALE: {product.SalePrice:N0} VNĐ (giảm {product.SalePercent}%)");
                         }
                         promptBuilder.AppendLine($"  Shop: {product.ShopName}");
+                        promptBuilder.AppendLine($"  Tồn kho: {product.QuantityInStock} sản phẩm");
                         if (product.AverageRating.HasValue)
                         {
                             promptBuilder.AppendLine($"  Rating: {product.AverageRating:F1}⭐ ({product.ReviewCount} đánh giá)");
                         }
+                        promptBuilder.AppendLine($"  Đã bán: {product.SoldCount}");
                         promptBuilder.AppendLine();
                     }
+                    promptBuilder.AppendLine("LƯU Ý: Đây là dữ liệu THỰC TẾ từ cơ sở dữ liệu, không phải dữ liệu giả. Chỉ tư vấn các sản phẩm này!");
+                }
+                else
+                {
+                    _logger.LogWarning("No products found in database - may indicate database connection issues");
+                    promptBuilder.AppendLine("\n=== CẢNH BÁO ===");
+                    promptBuilder.AppendLine("Hiện tại không có sản phẩm nào trong cơ sở dữ liệu.");
+                    promptBuilder.AppendLine("Vui lòng thông báo cho khách hàng liên hệ trực tiếp để được hỗ trợ.");
+                    promptBuilder.AppendLine("KHÔNG TẠO RA THÔNG TIN SẢN PHẨM GIẢ!");
                 }
             }
 
             // Sale products
             if (lowerMessage.Contains("giảm giá") || lowerMessage.Contains("sale") || lowerMessage.Contains("khuyến mãi"))
             {
+                _logger.LogInformation("User asking about sale products - fetching from database");
                 var saleProducts = await _productDataService.GetProductsOnSaleAsync(5);
                 if (saleProducts.Any())
                 {
-                    promptBuilder.AppendLine("\n=== SẢN PHẨM ĐANG SALE ===");
+                    _logger.LogInformation("Found {Count} real sale products from database", saleProducts.Count);
+                    promptBuilder.AppendLine("\n=== SẢN PHẨM ĐANG SALE THỰC TẾ ===");
                     foreach (var product in saleProducts)
                     {
                         promptBuilder.AppendLine($"• {product.Name} - ~~{product.Price:N0}~~ → {product.SalePrice:N0} VNĐ");
+                        promptBuilder.AppendLine($"  Giảm {product.SalePercent}% - Còn {product.QuantityInStock} sản phẩm");
                     }
+                    promptBuilder.AppendLine("(Dữ liệu sale thực tế từ hệ thống)");
+                }
+                else
+                {
+                    _logger.LogInformation("No sale products found in database");
+                    promptBuilder.AppendLine("\n=== THÔNG BÁO ===");
+                    promptBuilder.AppendLine("Hiện tại không có sản phẩm nào đang giảm giá trong hệ thống.");
                 }
             }
 
             // Best selling products
             if (lowerMessage.Contains("bán chạy") || lowerMessage.Contains("phổ biến") || lowerMessage.Contains("nổi tiếng"))
             {
+                _logger.LogInformation("User asking about best selling products - fetching from database");
                 var bestSellers = await _productDataService.GetBestSellingProductsAsync(5);
                 if (bestSellers.Any())
                 {
-                    promptBuilder.AppendLine("\n=== SẢN PHẨM BÁN CHẠY ===");
+                    _logger.LogInformation("Found {Count} best selling products from database", bestSellers.Count);
+                    promptBuilder.AppendLine("\n=== SẢN PHẨM BÁN CHẠY THỰC TẾ ===");
                     foreach (var product in bestSellers)
                     {
-                        promptBuilder.AppendLine($"• {product.Name} - Đã bán {product.SoldCount}");
-                        promptBuilder.AppendLine($"   • Giá: {product.Price:N0} VNĐ");
+                        promptBuilder.AppendLine($"• {product.Name} - Đã bán {product.SoldCount} sản phẩm");
+                        promptBuilder.AppendLine($"   • Giá: {product.Price:N0} VNĐ - Còn {product.QuantityInStock} trong kho");
                     }
+                    promptBuilder.AppendLine("(Dữ liệu bán chạy thực tế từ hệ thống)");
+                }
+                else
+                {
+                    _logger.LogInformation("No best selling products found in database");
+                    promptBuilder.AppendLine("\n=== THÔNG BÁO ===");
+                    promptBuilder.AppendLine("Chưa có dữ liệu sản phẩm bán chạy trong hệ thống.");
                 }
             }
         }

@@ -398,21 +398,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var lowerPrompt = prompt.ToLower();
 
-            // Fallback cho bánh tráng Tây Ninh
-            if (lowerPrompt.Contains("bánh tráng") || lowerPrompt.Contains("banh trang"))
+            // Fallback cho sản phẩm - luôn lấy từ database
+            if (lowerPrompt.Contains("sản phẩm") || lowerPrompt.Contains("mua") || lowerPrompt.Contains("shop") || 
+                lowerPrompt.Contains("bánh tráng") || lowerPrompt.Contains("gốm sứ") || lowerPrompt.Contains("đặc sản"))
             {
-                if (lowerPrompt.Contains("giá") || lowerPrompt.Contains("bao nhiêu"))
-                {
-                    return "Bánh tráng Trảng Bàng Tây Ninh có giá khoảng 15.000-25.000 VNĐ/kg tùy loại. " +
-                           "Bánh tráng nướng muối tôm khoảng 5.000-10.000 VNĐ/cái. " +
-                           "Các tour của chúng tôi thường ghé mua bánh tráng làm quà!";
-                }
-                return "Bánh tráng Trảng Bàng là đặc sản nổi tiếng Tây Ninh, làm từ gạo ST25. " +
-                       "Có bánh tráng nướng muối tôm, bánh tráng cuốn thịt nướng rất ngon!";
-
+                return "Xin lỗi, hệ thống AI tạm thời không khả dụng. Tuy nhiên, bạn có thể xem danh sách sản phẩm thực tế " +
+                       "trong hệ thống của chúng tôi hoặc liên hệ trực tiếp với các shop để được tư vấn chi tiết. " +
+                       "Vui lòng thử lại sau hoặc sử dụng chức năng duyệt sản phẩm trực tiếp.";
             }
 
-            // Fallback v?i thông tin tour th?c t?
+            // Fallback cho tour - lấy thông tin thực từ database
             if (lowerPrompt.Contains("tour") || lowerPrompt.Contains("du lịch"))
             {
                 try
@@ -420,28 +415,75 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var tours = await _tourDataService.GetAvailableToursAsync(3);
                     if (tours.Any())
                     {
-                        var tourList = string.Join(", ", tours.Select(t => $"{t.Title} ({t.Price:N0} VNĐ)"));
-                        return $"Hiện tại chúng tôi có các tour: {tourList}. Bạn muốn biết thêm chi tiết tour nào?";
+                        var tourInfo = new StringBuilder();
+                        tourInfo.AppendLine("Hiện tại chúng tôi có các tour sau (dữ liệu từ hệ thống):");
+                        foreach (var tour in tours)
+                        {
+                            tourInfo.AppendLine($"• {tour.Title}");
+                            tourInfo.AppendLine($"  - Từ: {tour.StartLocation} → {tour.EndLocation}");
+                            tourInfo.AppendLine($"  - Giá dịch vụ: {tour.Price:N0} VNĐ");
+                            tourInfo.AppendLine($"  - Còn {tour.AvailableSlots} chỗ trống");
+                            if (tour.TourType == "FreeScenic")
+                            {
+                                tourInfo.AppendLine($"  - Loại: Danh lam thắng cảnh (không tốn vé vào cửa)");
+                            }
+                            else if (tour.TourType == "PaidAttraction")
+                            {
+                                tourInfo.AppendLine($"  - Loại: Khu vui chơi (có vé vào cửa)");
+                            }
+                            tourInfo.AppendLine();
+                        }
+                        tourInfo.AppendLine("(Đây là dữ liệu thực từ hệ thống của chúng tôi, không phải dữ liệu giả)");
+                        return tourInfo.ToString();
+                    }
+                    else
+                    {
+                        return "Hiện tại không có tour nào khả dụng trong hệ thống. " +
+                               "Vui lòng liên hệ trực tiếp để biết thêm thông tin chi tiết.";
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error in fallback tour data");
+                    _logger.LogError(ex, "Error getting real tour data for fallback");
+                    return "Xin lỗi, không thể truy xuất thông tin tour từ cơ sở dữ liệu hiện tại. " +
+                           "Vui lòng thử lại sau hoặc liên hệ trực tiếp để được hỗ trợ.";
                 }
-
-                return "Chúng tôi có tour danh lam thắng cảnh (không tốn vé vào cửa) và tour khu vui chơi " +
-                       "(có vé vào cửa) với nhiều mức giá khác nhau. Liên hệ để biết thêm chi tiết!";
             }
 
-
+            // Fallback cho Núi Bà Đen - thông tin thực tế, không phải tạo dữ liệu
             if (lowerPrompt.Contains("núi bà đen") || lowerPrompt.Contains("núi bà"))
             {
-                return "Núi Bà Đen cao nhất Nam Bộ (986m), có cáp treo và chùa linh thiêng. " +
-                       "Chúng tôi có tour đi Núi Bà Đen với dịch vụ tốt nhất!";
+                try
+                {
+                    var nuiBaDenTours = await _tourDataService.SearchToursAsync("Núi Bà Đen", 3);
+                    if (nuiBaDenTours.Any())
+                    {
+                        var nuiBaDenInfo = new StringBuilder();
+                        nuiBaDenInfo.AppendLine("Thông tin tour Núi Bà Đen hiện có trong hệ thống:");
+                        foreach (var tour in nuiBaDenTours)
+                        {
+                            nuiBaDenInfo.AppendLine($"• {tour.Title} - {tour.Price:N0} VNĐ");
+                        }
+                        nuiBaDenInfo.AppendLine("Vui lòng liên hệ để biết thêm chi tiết và đặt tour.");
+                        return nuiBaDenInfo.ToString();
+                    }
+                    else
+                    {
+                        return "Hiện tại chưa có tour Núi Bà Đen nào khả dụng trong hệ thống. " +
+                               "Vui lòng liên hệ để được thông báo khi có tour mới.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting Núi Bà Đen tour data for fallback");
+                    return "Không thể truy xuất thông tin tour Núi Bà Đen từ cơ sở dữ liệu. " +
+                           "Vui lòng liên hệ trực tiếp để được hỗ trợ.";
+                }
             }
 
-            return "Xin lỗi, tôi không hiểu yêu cầu của bạn. Vui lòng cung cấp thêm thông tin chi tiết.";
-
+            // Fallback chung - không tạo dữ liệu giả
+            return "Xin lỗi, hệ thống AI tạm thời không khả dụng và không thể truy xuất thông tin từ cơ sở dữ liệu. " +
+                   "Vui lòng thử lại sau hoặc liên hệ trực tiếp để được hỗ trợ chi tiết.";
         }
 
         private object CreateRequestPayload(string prompt, List<GeminiMessage>? conversationHistory, string? systemPrompt = null)

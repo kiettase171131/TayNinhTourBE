@@ -27,7 +27,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                _logger.LogInformation("Getting available products for AI, maxResults: {MaxResults}", maxResults);
+                _logger.LogInformation("Getting available products for AI from DATABASE, maxResults: {MaxResults}", maxResults);
+
+                // Log that we're querying the real database
+                _logger.LogInformation("Executing query against TayNinhTourDb database for active products with stock > 0");
 
                 var products = await _unitOfWork.ProductRepository
                     .GetQueryable()
@@ -56,18 +59,30 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     SoldCount = p.SoldCount,
                     ShopName = !string.IsNullOrEmpty(p.Shop?.Name) ? 
                               p.Shop.Name : 
-                              p.SpecialtyShop?.ShopName ?? "Shop không xác ??nh",
+                              p.SpecialtyShop?.ShopName ?? "Shop không xác định",
                     AverageRating = p.ProductRatings.Any() ? 
                                   p.ProductRatings.Average(r => r.Rating) : null,
                     ReviewCount = p.ProductRatings.Count
                 }).ToList();
 
-                _logger.LogInformation("Found {Count} available products", productInfos.Count);
+                _logger.LogInformation("SUCCESS: Found {Count} REAL products from database (not fake data)", productInfos.Count);
+                
+                // Log sample product names to verify real data
+                if (productInfos.Any())
+                {
+                    var sampleNames = string.Join(", ", productInfos.Take(3).Select(p => p.Name));
+                    _logger.LogInformation("Sample product names from DB: {SampleNames}", sampleNames);
+                }
+                else
+                {
+                    _logger.LogWarning("No products found in database - check if Product table has active products with stock > 0");
+                }
+
                 return productInfos;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting available products for AI");
+                _logger.LogError(ex, "ERROR: Failed to get products from database - this might cause AI to generate fake data");
                 return new List<AIProductInfo>();
             }
         }
