@@ -805,7 +805,28 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Store original status for logic check
                 var originalStatus = existingDetail.Status;
 
-                // 5. Update timeline item fields if provided
+                // 5. NEW VALIDATION: Check specialty shop uniqueness (if SpecialtyShopId is being updated)
+                if (request.SpecialtyShopId.HasValue && request.SpecialtyShopId.Value != timelineItem.SpecialtyShopId)
+                {
+                    var isShopAlreadyUsed = await _unitOfWork.TimelineItemRepository
+                        .IsSpecialtyShopUsedInTimelineAsync(timelineItem.TourDetailsId, request.SpecialtyShopId.Value, timelineItemId);
+
+                    if (isShopAlreadyUsed)
+                    {
+                        // Get shop name for better error message
+                        var shop = await _unitOfWork.SpecialtyShopRepository.GetByIdAsync(request.SpecialtyShopId.Value);
+                        var shopName = shop?.ShopName ?? "Unknown";
+                        
+                        return new ResponseUpdateTourDetailDto
+                        {
+                            StatusCode = 400,
+                            Message = $"Shop '{shopName}' (ID: {request.SpecialtyShopId.Value}) đã được sử dụng trong timeline. Một shop chỉ được xuất hiện 1 lần trong timeline, vui lòng chọn shop khác.",
+                            success = false
+                        };
+                    }
+                }
+
+                // 6. Update timeline item fields if provided
                 if (!string.IsNullOrEmpty(request.Activity)
                     && request.Activity != timelineItem.Activity)
                 {
@@ -860,7 +881,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 timelineItem.UpdatedAt = DateTime.UtcNow;
                 timelineItem.UpdatedById = updatedById;
 
-                // 6. NEW: Validate time chronological order if time or sort order is being updated
+                // 7. Validate time chronological order if time or sort order is being updated
                 if (newCheckInTime.HasValue || request.SortOrder.HasValue)
                 {
                     // Get all other timeline items for validation
@@ -901,7 +922,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 7. BUSINESS RULE 2: Check TourDetails status and update if needed
+                // 8. BUSINESS RULE 2: Check TourDetails status and update if needed
                 bool tourDetailsStatusWillChange = false;
 
                 // If TourDetails status is AwaitingGuideAssignment (waiting for guide assignment) → send back to admin for approval
@@ -920,11 +941,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     await _unitOfWork.TourDetailsRepository.UpdateAsync(existingDetail);
                 }
 
-                // 8. Save timeline item changes
+                // 9. Save timeline item changes
                 await _unitOfWork.TimelineItemRepository.UpdateAsync(timelineItem);
                 await _unitOfWork.SaveChangesAsync();
 
-                // 9. Send notification if TourDetails status changed
+                // 10. Send notification if TourDetails status changed
                 if (tourDetailsStatusWillChange)
                 {
                     try
@@ -939,11 +960,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 10. Get updated TourDetails with relationships for response
+                // 11. Get updated TourDetails with relationships for response
                 var updatedDetail = await _unitOfWork.TourDetailsRepository.GetWithDetailsAsync(existingDetail.Id);
                 var tourDetailDto = _mapper.Map<TourDetailDto>(updatedDetail);
 
-                // 11. Prepare response message based on status change
+                // 12. Prepare response message based on status change
                 string message = "Cập nhật timeline item thành công";
                 if (tourDetailsStatusWillChange)
                 {
@@ -1120,11 +1141,32 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 5. Get existing timeline items for validation
+                // 5. NEW VALIDATION: Check specialty shop uniqueness
+                if (request.SpecialtyShopId.HasValue)
+                {
+                    var isShopAlreadyUsed = await _unitOfWork.TimelineItemRepository
+                        .IsSpecialtyShopUsedInTimelineAsync(request.TourDetailsId, request.SpecialtyShopId.Value);
+
+                    if (isShopAlreadyUsed)
+                    {
+                        // Get shop name for better error message
+                        var shop = await _unitOfWork.SpecialtyShopRepository.GetByIdAsync(request.SpecialtyShopId.Value);
+                        var shopName = shop?.ShopName ?? "Unknown";
+                        
+                        return new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = $"Shop '{shopName}' (ID: {request.SpecialtyShopId.Value}) đã được sử dụng trong timeline. Một shop chỉ được xuất hiện 1 lần trong timeline, vui lòng chọn shop khác.",
+                            success = false
+                        };
+                    }
+                }
+
+                // 6. Get existing timeline items for validation
                 var existingItems = await _unitOfWork.TimelineItemRepository.GetAllAsync(
                     t => t.TourDetailsId == request.TourDetailsId && !t.IsDeleted && t.IsActive);
 
-                // 6. NEW: Validate time chronological order based on sort order
+                // 7. Validate time chronological order based on sort order
                 int newSortOrder = request.SortOrder ?? await GetNextSortOrderAsync(request.TourDetailsId);
                 
                 // Check if there are existing items that would conflict with time order
@@ -1160,7 +1202,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Store original status for logic check
                 var originalStatus = tourDetails.Status;
 
-                // 7. Create new timeline item
+                // 8. Create new timeline item
                 var timelineItem = new TimelineItem
                 {
                     Id = Guid.NewGuid(),
@@ -1176,7 +1218,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 await _unitOfWork.TimelineItemRepository.AddAsync(timelineItem);
 
-                // 8. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
+                // 9. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
                 bool tourDetailsStatusChanged = false;
 
                 // Always set status to Pending when adding new timeline item (regardless of current status)
@@ -1192,10 +1234,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Update TourDetails in database
                 await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
 
-                // 9. Save all changes
+                // 10. Save all changes
                 await _unitOfWork.SaveChangesAsync();
 
-                // 10. Send notification if TourDetails status changed
+                // 11. Send notification if TourDetails status changed
                 if (tourDetailsStatusChanged)
                 {
                     try
@@ -1210,7 +1252,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 11. Prepare response message based on status change
+                // 12. Prepare response message based on status change
                 string message = "Tạo timeline item thành công";
                 if (tourDetailsStatusChanged)
                 {
@@ -1582,7 +1624,69 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // 6. NEW: Validate time chronological order based on sort order
+                // 6. NEW VALIDATION: Check specialty shop uniqueness
+                var shopValidationErrors = new List<string>();
+                
+                // Get already used specialty shops in the timeline
+                var usedShopIds = await _unitOfWork.TimelineItemRepository.GetUsedSpecialtyShopIdsAsync(request.TourDetailsId);
+                var usedShopIdsSet = usedShopIds.ToHashSet();
+
+                // Get specialty shops from the request
+                var requestShopIds = request.TimelineItems
+                    .Where(item => item.SpecialtyShopId.HasValue)
+                    .Select(item => item.SpecialtyShopId!.Value)
+                    .ToList();
+
+                // Check for duplicates within the request itself
+                var duplicateShopsInRequest = requestShopIds
+                    .GroupBy(x => x)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .ToList();
+
+                if (duplicateShopsInRequest.Any())
+                {
+                    // Get shop names for better error messages
+                    foreach (var shopId in duplicateShopsInRequest)
+                    {
+                        var shop = await _unitOfWork.SpecialtyShopRepository.GetByIdAsync(shopId);
+                        if (shop != null)
+                        {
+                            shopValidationErrors.Add($"Shop {shop.ShopName} (ID: {shopId}) bị trùng lặp trong request");
+                        }
+                    }
+                }
+
+                // Check for shops already used in existing timeline
+                var conflictingShops = requestShopIds
+                    .Where(shopId => usedShopIdsSet.Contains(shopId))
+                    .ToList();
+
+                if (conflictingShops.Any())
+                {
+                    // Get shop names for better error messages
+                    foreach (var shopId in conflictingShops)
+                    {
+                        var shop = await _unitOfWork.SpecialtyShopRepository.GetByIdAsync(shopId);
+                        if (shop != null)
+                        {
+                            shopValidationErrors.Add($"Shop {shop.ShopName} (ID: {shopId}) đã được sử dụng trong timeline");
+                        }
+                    }
+                }
+
+                if (shopValidationErrors.Any())
+                {
+                    return new ResponseCreateTimelineItemsDto
+                    {
+                        StatusCode = 400,
+                        Message = "Có lỗi về việc sử dụng specialty shop trong timeline",
+                        success = false,
+                        Errors = shopValidationErrors
+                    };
+                }
+
+                // 7. Validate time chronological order based on sort order
                 var timeValidationErrors = new List<string>();
                 
                 // Create a combined list of existing and new timeline items for validation
@@ -1659,7 +1763,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Store original status for logic check
                 var originalStatus = tourDetails.Status;
 
-                // 7. Create timeline items
+                // 8. Create timeline items
                 foreach (var itemRequest in request.TimelineItems)
                 {
                     try
@@ -1702,7 +1806,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 8. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
+                // 9. BUSINESS RULE: Auto-set status về Pending để admin duyệt lại
                 bool tourDetailsStatusChanged = false;
 
                 // Always set status to Pending when adding new timeline items (regardless of current status)
@@ -1718,13 +1822,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Update TourDetails in database
                 await _unitOfWork.TourDetailsRepository.UpdateAsync(tourDetails);
 
-                // 9. Save all changes
+                // 10. Save all changes
                 if (successCount > 0)
                 {
                     await _unitOfWork.SaveChangesAsync();
                 }
 
-                // 10. Send notification if TourDetails status changed
+                // 11. Send notification if TourDetails status changed
                 if (tourDetailsStatusChanged)
                 {
                     try
@@ -1739,7 +1843,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // 11. Prepare response message based on status change
+                // 12. Prepare response message based on status change
                 string message = $"Tạo thành công {successCount}/{request.TimelineItems.Count} timeline items";
                 if (tourDetailsStatusChanged)
                 {
