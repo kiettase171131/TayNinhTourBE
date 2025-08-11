@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourFeedback
 {
-    public class TourFeedbackDto
+    public class TourFeedbackDto 
     {
         public Guid Id { get; set; }
         public Guid BookingId { get; set; }

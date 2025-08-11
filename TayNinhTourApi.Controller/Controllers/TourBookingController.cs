@@ -1,8 +1,10 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+    using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Booking;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourFeedback;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Booking;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourFeedback;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
 
@@ -16,14 +18,17 @@ namespace TayNinhTourApi.Controller.Controllers
     public class TourBookingController : ControllerBase
     {
         private readonly ITourBookingService _tourBookingService;
+        private readonly ITourFeedbackService _tourFeedback;
         private readonly ILogger<TourBookingController> _logger;
 
         public TourBookingController(
             ITourBookingService tourBookingService,
-            ILogger<TourBookingController> logger)
+            ILogger<TourBookingController> logger,
+            ITourFeedbackService tourFeedback)
         {
             _tourBookingService = tourBookingService;
             _logger = logger;
+            _tourFeedback = tourFeedback;
         }
 
         /// <summary>
@@ -120,7 +125,7 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
                 var booking = await _tourBookingService.GetBookingByIdAsync(id, currentUser);
-                
+
                 if (booking == null)
                 {
                     return NotFound(new { message = "Booking không tồn tại hoặc bạn không có quyền xem" });
@@ -146,7 +151,7 @@ namespace TayNinhTourApi.Controller.Controllers
             try
             {
                 var booking = await _tourBookingService.GetBookingByCodeAsync(code);
-                
+
                 if (booking == null)
                 {
                     return NotFound(new { message = "Không tìm thấy booking với mã này" });
@@ -291,6 +296,21 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Error getting booking statistics for operation {OperationId}", operationId);
                 return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy thống kê booking" });
             }
+        }
+        [HttpGet("Feedback-by-slot/{slotId:guid}")]
+        public async Task<ActionResult<TourFeedbackResponse>> GetBySlot(Guid slotId, int? pageIndex, int? pageSize, int? minTourRating, int? maxTourRating, bool? onlyWithGuideRating)
+        {
+            var res = await _tourFeedback.GetTourFeedbacksBySlotAsync(slotId, pageIndex, pageSize, minTourRating, maxTourRating, onlyWithGuideRating);
+            return StatusCode(res.StatusCode, res);
+        }
+        [HttpPost("Feedback-Tour")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<ActionResult<TourFeedbackDto>> Create([FromBody] CreateTourFeedbackRequest request)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            if (currentUser is null || currentUser.UserId == Guid.Empty) return Unauthorized();
+            var res = await _tourFeedback.CreateAsync(currentUser.UserId, request);
+            return StatusCode(res.StatusCode, res);
         }
     }
 }

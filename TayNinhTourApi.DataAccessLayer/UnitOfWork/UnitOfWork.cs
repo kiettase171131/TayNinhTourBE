@@ -19,6 +19,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         private IImageRepository _imageRepository = null!;
         private ITourRepository _tourRepository = null!;
         private ITourTemplateRepository _tourTemplateRepository = null!;
+        private ITourFeedbackRepository _tourFeedbackRepository = null!;
         // TODO: Remove after Shop merge complete
         // private IShopRepository _shopRepository = null!
         private ISpecialtyShopRepository _specialtyShopRepository = null!;
@@ -310,6 +311,14 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
         /// </summary>
         public DbContext Context => _context;
 
+        public ITourFeedbackRepository TourFeedbackRepository
+        {
+            get
+            {
+                return _tourFeedbackRepository ??= new TourFeedbackRepository(_context);
+            }
+        }
+
         public IDbContextTransaction BeginTransaction()
         {
             return _context.Database.BeginTransaction();
@@ -355,5 +364,11 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork
                 _disposed = true;
             }
         }
+        public Task<T> ExecuteInStrategyAsync<T>(Func<Task<T>> operation)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return strategy.ExecuteAsync(operation);
+        }
+
     }
 }

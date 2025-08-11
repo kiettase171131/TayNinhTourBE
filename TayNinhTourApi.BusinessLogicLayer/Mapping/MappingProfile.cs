@@ -1,9 +1,9 @@
 ﻿using AutoMapper;
+using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Authentication;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Booking;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourFeedback;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
@@ -139,6 +139,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             CreateMap<SpecialtyShop, SpecialtyShopCmsDto>()
            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Name))
            .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User.Email));
+            CreateMap<ShopVisitQuery, ShopVisitDto>();
 
 
             // All Shop mappings removed - using SpecialtyShop only

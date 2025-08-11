@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourFeedback;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourFeedback;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
@@ -36,96 +37,115 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _invitationRepo = invitationRepo;
             _operationRepo = tourOperationRepository;
         }
-        public async Task<TourFeedbackDto> CreateAsync(Guid userId, Guid bookingId, int tourRating,string? tourComment,int? guideRating,string? guideComment)
+        public async Task<ResponseCreateFeedBackDto> CreateAsync(Guid userId, CreateTourFeedbackRequest req)
         {
-            await using var tx = await _unitOfWork.BeginTransactionAsync();
-            try
+            // Toàn bộ đơn vị công việc chạy trong execution strategy (retry-safe)
+            return await _unitOfWork.ExecuteInStrategyAsync(async () =>
             {
-                // 1) Lấy booking + slot + operation bằng repository
-                var booking = await _bookingRepo.GetAsync(
-                    b => b.Id == bookingId,
-                    include: new[] { nameof(TourBooking.TourSlot), nameof(TourBooking.TourOperation) }
-                ) ?? throw new InvalidOperationException("Booking không tồn tại.");
-
-                // 2) Các điều kiện nghiệp vụ
-                if (booking.UserId != userId)
-                    throw new UnauthorizedAccessException("Bạn không thể feedback booking của người khác.");
-
-                if (booking.TourSlotId == null)
-                    throw new InvalidOperationException("Booking chưa gắn slot, không thể feedback.");
-
-                if (booking.TourSlot!.Status != TourSlotStatus.Completed)
-                    throw new InvalidOperationException("Chỉ feedback khi slot đã hoàn thành.");
-
-                if (booking.Status != BookingStatus.Completed)
-                    throw new InvalidOperationException("Chỉ feedback khi booking đã hoàn thành.");
-
-                if (await _tourFeedback.ExistsForBookingAsync(booking.Id))
-                    throw new InvalidOperationException("Booking này đã được feedback.");
-
-                // 3) Xác định Guide để chấm (nếu có GuideRating)
-                Guid? tourGuideId = null;
-                if (guideRating.HasValue)
+                await using var tx = await _unitOfWork.BeginTransactionAsync();
+                try
                 {
-                    // Ưu tiên guide được assign ở Operation
-                    var assignedGuideId = booking.TourOperation?.TourGuideId;
+                    // 1) Lấy booking + include
+                    var booking = await _bookingRepo.GetAsync(
+                        b => b.Id == req.BookingId,
+                        include: new[] { nameof(TourBooking.TourSlot), nameof(TourBooking.TourOperation) }
+                    ) ?? throw new InvalidOperationException("Booking không tồn tại.");
 
-                    // Fallback: tìm invitation Accepted gần nhất theo TourDetails của slot
-                    if (assignedGuideId == null && booking.TourSlot?.TourDetailsId is Guid detailsId)
+                    // 2) Điều kiện nghiệp vụ
+                    if (booking.UserId != userId)
+                        throw new UnauthorizedAccessException("Bạn không thể feedback booking của người khác.");
+
+                    if (booking.TourSlotId == null)
+                        throw new InvalidOperationException("Booking chưa gắn slot, không thể feedback.");
+
+                    if (booking.TourSlot!.Status != TourSlotStatus.Completed)
+                        throw new InvalidOperationException("Chỉ feedback khi slot đã hoàn thành.");
+
+                    if (booking.Status != BookingStatus.Completed)
+                        throw new InvalidOperationException("Chỉ feedback khi booking đã hoàn thành.");
+
+                    if (await _tourFeedback.ExistsForBookingAsync(booking.Id))
+                        throw new InvalidOperationException("Booking này đã được feedback.");
+
+                    // 3) Xác định Guide nếu có GuideRating
+                    Guid? tourGuideId = null;
+                    if (req.GuideRating.HasValue)
                     {
-                        var accepted = await _invitationRepo.GetLatestAcceptedByTourDetailsIdAsync(detailsId);
-                        assignedGuideId = accepted?.GuideId;
+                        var assignedGuideId = booking.TourOperation?.TourGuideId;
+
+                        if (assignedGuideId == null && booking.TourSlot?.TourDetailsId is Guid detailsId)
+                        {
+                            var accepted = await _invitationRepo.GetLatestAcceptedByTourDetailsIdAsync(detailsId);
+                            assignedGuideId = accepted?.GuideId;
+                        }
+
+                        if (assignedGuideId == null)
+                        {
+                            // không ghi gì vào DB nên có thể return sớm; tx sẽ tự rollback khi dispose
+                            return new ResponseCreateFeedBackDto
+                            {
+                                StatusCode = 400,
+                                success = false,
+                                Message = "Không tìm thấy Tour Guide để chấm điểm."
+                            };
+                        }
+
+                        tourGuideId = assignedGuideId;
                     }
 
-                    if (assignedGuideId == null)
-                        throw new InvalidOperationException("Slot này không có tour guide để chấm.");
+                    // 4) Tạo feedback
+                    var feedback = new TourFeedback
+                    {
+                        Id = Guid.NewGuid(),
+                        TourBookingId = booking.Id,
+                        TourSlotId = booking.TourSlotId!.Value,
+                        UserId = userId,
+                        TourRating = req.TourRating,
+                        TourComment = req.TourComment,
+                        GuideRating = req.GuideRating,
+                        GuideComment = req.GuideComment,
+                        TourGuideId = tourGuideId,
+                        CreatedAt = DateTime.UtcNow,
+                        IsActive = true
+                    };
 
-                    tourGuideId = assignedGuideId;
+                    await _unitOfWork.TourFeedbackRepository.AddAsync(feedback);
+
+                    // 5) Cập nhật rating Guide (nếu có)
+                    if (tourGuideId.HasValue && req.GuideRating.HasValue)
+                    {
+                        var guide = await _unitOfWork.TourGuideRepository.GetByIdAsync(tourGuideId.Value, include: null)
+                                   ?? throw new InvalidOperationException("Tour guide không tồn tại.");
+
+                        var newCount = guide.RatingsCount + 1;
+                        guide.Rating = ((guide.Rating * guide.RatingsCount) + req.GuideRating.Value) / newCount;
+                        guide.RatingsCount = newCount;
+
+                        await _unitOfWork.TourGuideRepository.UpdateAsync(guide);
+                    }
+
+                    await _unitOfWork.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    return new ResponseCreateFeedBackDto
+                    {
+                        StatusCode = 200,
+                        FeedBackId = feedback.Id,
+                        BookingId = booking.Id,
+                        SlotId = booking.TourSlotId.Value,
+                        success = true,
+                        Message = "Feedback created successfully",
+                    };
                 }
-
-                // 4) Tạo feedback (repo)
-                var feedback = new TourFeedback
+                catch
                 {
-                    Id = Guid.NewGuid(),
-                    TourBookingId = booking.Id,
-                    TourSlotId = booking.TourSlotId!.Value,
-                    UserId = userId,
-                    TourRating = tourRating,
-                    TourComment = tourComment,
-                    GuideRating = guideRating,
-                    GuideComment = guideComment,
-                    TourGuideId = tourGuideId,
-                    CreatedAt = DateTime.UtcNow,
-                    IsActive = true
-                };
-
-                await _tourFeedback.AddAsync(feedback);
-                await _tourFeedback.SaveChangesAsync();
-
-                // 5) Cập nhật rating Guide (nếu có)
-                if (tourGuideId.HasValue && guideRating.HasValue)
-                {
-                    var guide = await _tourGuideRepository.GetByIdAsync(tourGuideId.Value, include: null)
-                               ?? throw new InvalidOperationException("Tour guide không tồn tại.");
-
-                    var newCount = guide.RatingsCount + 1;
-                    guide.Rating = ((guide.Rating * guide.RatingsCount) + guideRating.Value) / newCount;
-                    guide.RatingsCount = newCount;
-
-                    await _tourGuideRepository.UpdateAsync(guide);
+                    await tx.RollbackAsync();
+                    throw;
                 }
-
-                await _unitOfWork.SaveChangesAsync();
-                await tx.CommitAsync();
-
-                return _mapper.Map<TourFeedbackDto>(feedback);
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                throw;
-            }
+            });
         }
+
+
         // GET: feedback theo Slot
         public async Task<TourFeedbackResponse> GetTourFeedbacksBySlotAsync(Guid slotId,int? pageIndex, int? pageSize,int? minTourRating = null,int? maxTourRating = null,bool? onlyWithGuideRating = null)
         {

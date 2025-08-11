@@ -12,6 +12,7 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         IImageRepository ImageRepository { get; }
         ITourRepository TourRepository { get; }
         ITourTemplateRepository TourTemplateRepository { get; }
+        ITourFeedbackRepository TourFeedbackRepository { get; }
         // TODO: Remove after Shop merge complete
         // IShopRepository ShopRepository { get; }
         ISpecialtyShopRepository SpecialtyShopRepository { get; }
@@ -67,5 +68,6 @@ namespace TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface
         /// Gets the execution strategy for handling retry logic with transactions
         /// </summary>
         IExecutionStrategy GetExecutionStrategy();
+        Task<T> ExecuteInStrategyAsync<T>(Func<Task<T>> operation);
     }
 }

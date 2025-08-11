@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
 
@@ -270,5 +271,20 @@ namespace TayNinhTourApi.Controller.Controllers
         // CreateShopForTimeline endpoint removed
         // SpecialtyShops are created through the shop application approval process
         // Timeline integration only needs to read existing SpecialtyShops
+        [HttpGet("me/visitors")]
+        [Authorize(Roles = "Specialty Shop")]
+        [ProducesResponseType(typeof(ShopVisitorsResponse), StatusCodes.Status200OK)]
+        public async Task<ActionResult<ShopVisitorsResponse>> GetMyVisitors(
+         [FromQuery] int? pageIndex,
+         [FromQuery] int? pageSize,
+         [FromQuery] DateOnly? fromDate,
+         [FromQuery] DateOnly? toDate,
+         [FromQuery] bool onlyCompleted = true)
+        {
+            var me = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            if (me is null) return Unauthorized();
+            var res = await _specialtyShopService.GetVisitorsAsync(me, pageIndex, pageSize, fromDate, toDate, onlyCompleted);
+            return StatusCode(res.StatusCode, res);
+        }
     }
 }

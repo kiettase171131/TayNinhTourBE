@@ -20,7 +20,7 @@ namespace TayNinhTourApi.Controller.Controllers
     [ApiController]
     public class ProductController : ControllerBase
     {
-        private readonly IProductService _productService;
+        private readonly IProductService _productService;   
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IPayOsService _payOsService;
 

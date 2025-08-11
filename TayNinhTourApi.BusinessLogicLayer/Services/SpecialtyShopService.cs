@@ -1,5 +1,7 @@
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using LinqKit;
+using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
@@ -13,6 +15,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
@@ -26,11 +29,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     {
         private readonly ICurrentUserService _currentUserService;
         private readonly IVoucherRepository _voucherRepository;
+        private readonly ITourSlotTimelineProgressRepository _progressRepo;
+        private readonly ITimelineItemRepository _timelineRepo;
+        private readonly ITourSlotRepository _slotRepo;
+        private readonly ITourBookingRepository _bookingRepo;
+        private readonly IUserRepository _userRepo;
+        private readonly ITourDetailsRepository _detailsRepo;
+        private readonly ITourTemplateRepository _templateRepo;
 
-        public SpecialtyShopService(IMapper mapper, IUnitOfWork unitOfWork, ICurrentUserService currentUserService, IVoucherRepository voucherRepository) : base(mapper, unitOfWork)
+
+
+        public SpecialtyShopService(IMapper mapper, IUnitOfWork unitOfWork, 
+            ICurrentUserService currentUserService, IVoucherRepository voucherRepository, ITourSlotTimelineProgressRepository progressRepo, ITimelineItemRepository timelineRepo, ITourSlotRepository slotRepo, ITourBookingRepository bookingRepo, IUserRepository userRepo) : base(mapper, unitOfWork)
         {
             _currentUserService = currentUserService;
             _voucherRepository = voucherRepository;
+            _progressRepo = progressRepo;
+            _timelineRepo = timelineRepo;
+            _slotRepo = slotRepo;
+            _bookingRepo = bookingRepo;
+            _userRepo = userRepo;
         }
 
         /// <summary>
@@ -386,13 +404,125 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        
 
-        
-        
+        public async Task<ShopVisitorsResponse> GetVisitorsAsync(
+         CurrentUserObject currentUserObject,
+         int? pageIndex, int? pageSize,
+         DateOnly? fromDate, DateOnly? toDate,
+         bool onlyCompleted = true)
+        {
+
+            var pageIdx = Math.Max(1, pageIndex ?? Constants.PageIndexDefault);
+            var pageSz = Math.Max(1, pageSize ?? Constants.PageSizeDefault);
+
+            var tlQ = _timelineRepo.GetQueryable().AsNoTracking();
+            var prQ = _progressRepo.GetQueryable().AsNoTracking();
+            var slQ = _slotRepo.GetQueryable().AsNoTracking();
+            var bkQ = _bookingRepo.GetQueryable().AsNoTracking();
+            var usQ = _userRepo.GetQueryable().AsNoTracking();
+            var dtQ = _detailsRepo.GetQueryable().AsNoTracking();
+            var ttQ = _templateRepo.GetQueryable().AsNoTracking();
+
+            // join đầy đủ để có TourTemplate.Title
+            // join đầy đủ để có TourDetails.Title
+            var baseQ =
+                from tl in tlQ.Where(t => t.SpecialtyShopId == currentUserObject.Id)
+                join pr in prQ on tl.Id equals pr.TimelineItemId
+                join sl in slQ on pr.TourSlotId equals sl.Id
+                join bk in bkQ on sl.Id equals bk.TourSlotId
+                join us in usQ on bk.UserId equals us.Id
+                join dt in dtQ on sl.TourDetailsId equals dt.Id
+                where bk.Status == BookingStatus.Completed
+                select new
+                {
+                    tl,
+                    pr,
+                    sl,
+                    bk,
+                    us,
+                    dt // 👈 TourDetails
+                };
 
 
-       
+            if (onlyCompleted) baseQ = baseQ.Where(x => x.pr.IsCompleted);
+            if (fromDate.HasValue) baseQ = baseQ.Where(x => x.sl.TourDate >= fromDate.Value);
+            if (toDate.HasValue) baseQ = baseQ.Where(x => x.sl.TourDate <= toDate.Value);
+
+            // GỘP THEO BOOKING: chọn 1 timeline đại diện cho mỗi booking
+            // Quy ước: pick mốc có SortOrder nhỏ nhất (hoặc CompletedAt sớm nhất, bạn có thể đổi)
+            var groupedQ =
+                from row in baseQ
+                group row by row.bk.Id
+                into g
+                let chosen = g
+                    .OrderBy(r => r.tl.SortOrder)              // ưu tiên mốc nhỏ nhất
+                    .ThenBy(r => r.pr.CompletedAt ?? DateTime.MaxValue)
+                    .FirstOrDefault()
+                where chosen != null
+                select new ShopVisitQuery
+                {
+                    ShopId = currentUserObject.Id,
+
+                    BookingId = g.Key,
+                    UserId = chosen.us.Id,
+                    CustomerName = chosen.bk.ContactName ?? chosen.us.Name,
+                    CustomerPhone = chosen.bk.ContactPhone ?? chosen.us.PhoneNumber,
+                    CustomerEmail = chosen.bk.ContactEmail ?? chosen.us.Email,
+
+                    TourSlotId = chosen.sl.Id,
+                    TourDate = chosen.sl.TourDate,
+                    TourName = chosen.dt.Title,              // 👈 lấy Title từ TourTemplate
+
+                    TimelineItemId = chosen.tl.Id,
+                    Activity = chosen.tl.Activity,
+                    SortOrder = chosen.tl.SortOrder,
+
+                    PlannedCheckInTime = chosen.tl.CheckInTime,
+                    IsCompleted = chosen.pr.IsCompleted,
+                    ActualCompletedAt = chosen.pr.CompletedAt
+                };
+
+            // tổng số booking thỏa điều kiện
+            var total = await groupedQ.CountAsync();
+
+            // Sắp xếp & phân trang
+            var paged = groupedQ
+                .OrderByDescending(x => x.TourDate)
+                .ThenBy(x => x.SortOrder)
+                .Skip((pageIdx - 1) * pageSz)
+                .Take(pageSz);
+
+            // ProjectTo DTO
+            var list = await paged
+                .ProjectTo<ShopVisitDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            // Tính PlannedCheckInAtUtc sau khi đã materialize (ghép DateOnly + TimeSpan)
+            foreach (var item in list)
+            {
+                item.PlannedCheckInAtUtc = new DateTime(
+                    item.TourDate.Year, item.TourDate.Month, item.TourDate.Day,
+                    item.PlannedCheckInTime.Hours, item.PlannedCheckInTime.Minutes, item.PlannedCheckInTime.Seconds,
+                    DateTimeKind.Utc);
+            }
+
+            return new ShopVisitorsResponse
+            {
+                StatusCode = 200,
+                success = true,
+                Message = "OK",
+                Data = list,
+                TotalRecord = total,
+                TotalCount = total,
+                TotalPages = (int)Math.Ceiling((double)total / pageSz),
+                PageIndex = pageIdx,
+                PageSize = pageSz
+            };
+        }
+
+
+
+
 
         // CreateShopAsync removed - timeline integration only needs to read existing SpecialtyShops
         // New SpecialtyShops are created through the shop application approval process
