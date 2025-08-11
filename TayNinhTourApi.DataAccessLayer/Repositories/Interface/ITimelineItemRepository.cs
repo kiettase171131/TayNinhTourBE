@@ -1,4 +1,4 @@
-using TayNinhTourApi.DataAccessLayer.Entities;
+    using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
 {
