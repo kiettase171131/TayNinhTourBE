@@ -127,7 +127,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 // Get existing template
-                var existingTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, new[] { "Images" });
+                var existingTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, new[] { "Images", "TourDetails" });
                 if (existingTemplate == null || existingTemplate.IsDeleted)
                 {
                     return new ResponseUpdateTourTemplateDto
@@ -150,6 +150,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         success = false,
                         ValidationErrors = permissionCheck.ValidationErrors,
                         FieldErrors = permissionCheck.FieldErrors,
+                        Data = null
+                    };
+                }
+
+                // Check if template can be updated - prevent updates if it has public tours with bookings
+                var canUpdateCheck = await CanUpdateTourTemplateAsync(id);
+                if (!canUpdateCheck.CanUpdate)
+                {
+                    return new ResponseUpdateTourTemplateDto
+                    {
+                        StatusCode = 409,
+                        Message = canUpdateCheck.Reason,
+                        success = false,
+                        ValidationErrors = canUpdateCheck.BlockingReasons,
                         Data = null
                     };
                 }
@@ -240,40 +254,41 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, null);
+                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, new[] { "TourDetails" });
                 if (template == null || template.IsDeleted)
                 {
                     return new ResponseDeleteTourTemplateDto
                     {
                         StatusCode = 404,
                         Message = "Không tìm thấy tour template",
-                        Success = false
+                        success = false
                     };
                 }
 
-                // Check permission (temporarily disabled for debugging)
-                // var permissionCheck = TourTemplateValidator.ValidatePermission(template, deletedById, "xóa");
-                // if (!permissionCheck.IsValid)
-                // {
-                //     return new ResponseDeleteTourTemplateDto
-                //     {
-                //         StatusCode = permissionCheck.StatusCode,
-                //         Message = permissionCheck.Message,
-                //         Success = false
-                //     };
-                // }
+                // Check permission
+                var permissionCheck = TourTemplateValidator.ValidatePermission(template, deletedById, "xóa");
+                if (!permissionCheck.IsValid)
+                {
+                    return new ResponseDeleteTourTemplateDto
+                    {
+                        StatusCode = permissionCheck.StatusCode,
+                        Message = permissionCheck.Message,
+                        success = false
+                    };
+                }
 
-                // Check if template can be deleted (temporarily disabled for debugging)
-                // var canDeleteCheck = await CanDeleteTourTemplateAsync(id);
-                // if (!canDeleteCheck.CanDelete)
-                // {
-                //     return new ResponseDeleteTourTemplateDto
-                //     {
-                //         StatusCode = 400,
-                //         Message = canDeleteCheck.Reason,
-                //         Success = false
-                //     };
-                // }
+                // Check if template can be deleted - prevent deletion if it has public tours with bookings
+                var canDeleteCheck = await CanDeleteTourTemplateAsync(id);
+                if (!canDeleteCheck.CanDelete)
+                {
+                    return new ResponseDeleteTourTemplateDto
+                    {
+                        StatusCode = 409,
+                        Message = canDeleteCheck.Reason,
+                        success = false,
+                        BlockingReasons = canDeleteCheck.BlockingReasons
+                    };
+                }
 
                 // Soft delete
                 template.IsDeleted = true;
@@ -288,7 +303,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 200,
                     Message = "Xóa tour template thành công",
-                    Success = true
+                    success = true
                 };
             }
             catch (Exception ex)
@@ -297,7 +312,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = "Lỗi khi xóa tour template: " + ex.Message,
-                    Success = false
+                    success = false
                 };
             }
         }
@@ -466,207 +481,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         #endregion
 
-        #region Additional Required Methods (Delegate to existing implementation for now)
-
-        public async Task<TourTemplate?> GetTourTemplateWithDetailsAsync(Guid id)
-        {
-            return await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, new[] { "CreatedBy", "UpdatedBy", "Images", "TourDetails", "TourSlots" });
-        }
-
-        public async Task<IEnumerable<TourTemplate>> GetTourTemplatesByCreatedByAsync(Guid createdById, bool includeInactive = false)
-        {
-            var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
-                t.CreatedById == createdById &&
-                !t.IsDeleted &&
-                (includeInactive || t.IsActive));
-            return templates;
-        }
-
-        public async Task<IEnumerable<TourTemplate>> GetTourTemplatesByTypeAsync(TourTemplateType templateType, bool includeInactive = false)
-        {
-            var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
-                t.TemplateType == templateType &&
-                !t.IsDeleted &&
-                (includeInactive || t.IsActive));
-            return templates;
-        }
-
-        public async Task<IEnumerable<TourTemplate>> SearchTourTemplatesAsync(string keyword, bool includeInactive = false)
-        {
-            if (string.IsNullOrWhiteSpace(keyword))
-            {
-                return new List<TourTemplate>();
-            }
-
-            var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
-                (t.Title.Contains(keyword) || t.StartLocation.Contains(keyword)) &&
-                !t.IsDeleted &&
-                (includeInactive || t.IsActive));
-            return templates;
-        }
-
-        public async Task<ResponseGetTourTemplatesDto> GetTourTemplatesPaginatedAsync(
-            int pageIndex,
-            int pageSize,
-            TourTemplateType? templateType = null,
-            decimal? minPrice = null,
-            decimal? maxPrice = null,
-            string? startLocation = null,
-            bool includeInactive = false)
-        {
-            try
-            {
-                // Build query
-                var query = await _unitOfWork.TourTemplateRepository.GetAllAsync(t => !t.IsDeleted && (includeInactive || t.IsActive), new[] { "Images" });
-
-                // Apply filters
-                if (templateType.HasValue)
-                {
-                    query = query.Where(t => t.TemplateType == templateType.Value);
-                }
-
-                if (!string.IsNullOrWhiteSpace(startLocation))
-                {
-                    query = query.Where(t => t.StartLocation.Contains(startLocation));
-                }
-
-                var totalCount = query.Count();
-                var templates = query.Skip(pageIndex * pageSize).Take(pageSize).ToList();
-
-                var tourTemplateDtos = _mapper.Map<List<TourTemplateSummaryDto>>(templates);
-
-                // Add capacity information for each template
-                foreach (var dto in tourTemplateDtos)
-                {
-                    dto.CapacitySummary = await CalculateTemplateCapacityAsync(dto.Id);
-                }
-
-                return new ResponseGetTourTemplatesDto
-                {
-                    StatusCode = 200,
-                    Message = "Lấy danh sách tour templates thành công",
-                    Data = tourTemplateDtos,
-                    TotalRecord = totalCount,
-                    TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
-                };
-            }
-            catch (Exception ex)
-            {
-                return new ResponseGetTourTemplatesDto
-                {
-                    StatusCode = 500,
-                    Message = "Lỗi khi lấy danh sách tour templates",
-                    Data = new List<TourTemplateSummaryDto>(),
-                    TotalRecord = 0,
-                    TotalPages = 0
-                };
-            }
-        }
-
-        public async Task<IEnumerable<TourTemplate>> GetPopularTourTemplatesAsync(int top = 10)
-        {
-            // For now, return most recent active templates
-            // TODO: Implement proper popularity logic based on bookings
-            var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
-                !t.IsDeleted && t.IsActive);
-            return templates.OrderByDescending(t => t.CreatedAt).Take(top);
-        }
-
-        public async Task<ResponseSetActiveStatusDto> SetTourTemplateActiveStatusAsync(Guid id, bool isActive, Guid updatedById)
-        {
-            try
-            {
-                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, null);
-                if (template == null || template.IsDeleted)
-                {
-                    return new ResponseSetActiveStatusDto
-                    {
-                        StatusCode = 404,
-                        Message = "Không tìm thấy tour template",
-                        Success = false,
-                        NewStatus = false
-                    };
-                }
-
-                // Check permission
-                var permissionCheck = TourTemplateValidator.ValidatePermission(template, updatedById, "thay đổi trạng thái");
-                if (!permissionCheck.IsValid)
-                {
-                    return new ResponseSetActiveStatusDto
-                    {
-                        StatusCode = permissionCheck.StatusCode,
-                        Message = permissionCheck.Message,
-                        Success = false,
-                        NewStatus = template.IsActive
-                    };
-                }
-
-                template.IsActive = isActive;
-                template.UpdatedById = updatedById;
-                template.UpdatedAt = DateTime.UtcNow;
-
-                await _unitOfWork.TourTemplateRepository.Update(template);
-                await _unitOfWork.SaveChangesAsync();
-
-                return new ResponseSetActiveStatusDto
-                {
-                    StatusCode = 200,
-                    Message = $"Đã {(isActive ? "kích hoạt" : "vô hiệu hóa")} tour template thành công",
-                    Success = true,
-                    NewStatus = isActive
-                };
-            }
-            catch (Exception ex)
-            {
-                return new ResponseSetActiveStatusDto
-                {
-                    StatusCode = 500,
-                    Message = "Lỗi khi thay đổi trạng thái tour template",
-                    Success = false,
-                    NewStatus = false
-                };
-            }
-        }
-
-        public async Task<ResponseCanDeleteDto> CanDeleteTourTemplateAsync(Guid id)
-        {
-            try
-            {
-                // Simplified check - just verify template exists
-                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, null);
-                if (template == null || template.IsDeleted)
-                {
-                    return new ResponseCanDeleteDto
-                    {
-                        StatusCode = 404,
-                        Message = "Không tìm thấy tour template",
-                        CanDelete = false,
-                        Reason = "Tour template không tồn tại"
-                    };
-                }
-
-                // For now, allow deletion to test the basic flow
-                // TODO: Re-implement proper checks after fixing the core issue
-                return new ResponseCanDeleteDto
-                {
-                    StatusCode = 200,
-                    Message = "Có thể xóa tour template",
-                    CanDelete = true,
-                    Reason = string.Empty,
-                    BlockingReasons = new List<string>()
-                };
-            }
-            catch (Exception ex)
-            {
-                return new ResponseCanDeleteDto
-                {
-                    StatusCode = 500,
-                    Message = "Lỗi khi kiểm tra khả năng xóa tour template: " + ex.Message,
-                    CanDelete = false,
-                    Reason = "Lỗi hệ thống: " + ex.Message
-                };
-            }
-        }
+        #region Business Logic Implementation
 
         public async Task<ResponseTourTemplateStatisticsDto> GetTourTemplateStatisticsAsync(Guid? createdById = null)
         {
@@ -847,6 +662,174 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
         }
 
+        #endregion
+
+        #region Additional Required Methods
+
+        public async Task<TourTemplate?> GetTourTemplateWithDetailsAsync(Guid id)
+        {
+            return await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, new[] { "CreatedBy", "UpdatedBy", "Images", "TourDetails", "TourSlots" });
+        }
+
+        public async Task<IEnumerable<TourTemplate>> GetTourTemplatesByCreatedByAsync(Guid createdById, bool includeInactive = false)
+        {
+            var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
+                t.CreatedById == createdById &&
+                !t.IsDeleted &&
+                (includeInactive || t.IsActive));
+            return templates;
+        }
+
+        public async Task<IEnumerable<TourTemplate>> GetTourTemplatesByTypeAsync(TourTemplateType templateType, bool includeInactive = false)
+        {
+            var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
+                t.TemplateType == templateType &&
+                !t.IsDeleted &&
+                (includeInactive || t.IsActive));
+            return templates;
+        }
+
+        public async Task<IEnumerable<TourTemplate>> SearchTourTemplatesAsync(string keyword, bool includeInactive = false)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return new List<TourTemplate>();
+            }
+
+            var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
+                (t.Title.Contains(keyword) || t.StartLocation.Contains(keyword)) &&
+                !t.IsDeleted &&
+                (includeInactive || t.IsActive));
+            return templates;
+        }
+
+        public async Task<ResponseGetTourTemplatesDto> GetTourTemplatesPaginatedAsync(
+            int pageIndex,
+            int pageSize,
+            TourTemplateType? templateType = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null,
+            string? startLocation = null,
+            bool includeInactive = false)
+        {
+            try
+            {
+                // Build query
+                var query = await _unitOfWork.TourTemplateRepository.GetAllAsync(t => !t.IsDeleted && (includeInactive || t.IsActive), new[] { "Images" });
+
+                // Apply filters
+                if (templateType.HasValue)
+                {
+                    query = query.Where(t => t.TemplateType == templateType.Value);
+                }
+
+                if (!string.IsNullOrWhiteSpace(startLocation))
+                {
+                    query = query.Where(t => t.StartLocation.Contains(startLocation));
+                }
+
+                var totalCount = query.Count();
+                var templates = query.Skip(pageIndex * pageSize).Take(pageSize).ToList();
+
+                var tourTemplateDtos = _mapper.Map<List<TourTemplateSummaryDto>>(templates);
+
+                // Add capacity information for each template
+                foreach (var dto in tourTemplateDtos)
+                {
+                    dto.CapacitySummary = await CalculateTemplateCapacityAsync(dto.Id);
+                }
+
+                return new ResponseGetTourTemplatesDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy danh sách tour templates thành công",
+                    Data = tourTemplateDtos,
+                    TotalRecord = totalCount,
+                    TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResponseGetTourTemplatesDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi khi lấy danh sách tour templates",
+                    Data = new List<TourTemplateSummaryDto>(),
+                    TotalRecord = 0,
+                    TotalPages = 0
+                };
+            }
+        }
+
+        public async Task<IEnumerable<TourTemplate>> GetPopularTourTemplatesAsync(int top = 10)
+        {
+            // For now, return most recent active templates
+            // TODO: Implement proper popularity logic based on bookings
+            var templates = await _unitOfWork.TourTemplateRepository.GetAllAsync(t =>
+                !t.IsDeleted && t.IsActive);
+            return templates.OrderByDescending(t => t.CreatedAt).Take(top);
+        }
+
+        public async Task<ResponseSetActiveStatusDto> SetTourTemplateActiveStatusAsync(Guid id, bool isActive, Guid updatedById)
+        {
+            try
+            {
+                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, null);
+                if (template == null || template.IsDeleted)
+                {
+                    return new ResponseSetActiveStatusDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour template",
+                        success = false,
+                        NewStatus = false
+                    };
+                }
+
+                // Check permission
+                var permissionCheck = TourTemplateValidator.ValidatePermission(template, updatedById, "thay đổi trạng thái");
+                if (!permissionCheck.IsValid)
+                {
+                    return new ResponseSetActiveStatusDto
+                    {
+                        StatusCode = permissionCheck.StatusCode,
+                        Message = permissionCheck.Message,
+                        success = false,
+                        NewStatus = template.IsActive
+                    };
+                }
+
+                template.IsActive = isActive;
+                template.UpdatedById = updatedById;
+                template.UpdatedAt = DateTime.UtcNow;
+
+                await _unitOfWork.TourTemplateRepository.Update(template);
+                await _unitOfWork.SaveChangesAsync();
+
+                return new ResponseSetActiveStatusDto
+                {
+                    StatusCode = 200,
+                    Message = $"Đã {(isActive ? "kích hoạt" : "vô hiệu hóa")} tour template thành công",
+                    success = true,
+                    NewStatus = isActive
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResponseSetActiveStatusDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi khi thay đổi trạng thái tour template",
+                    success = false,
+                    NewStatus = false
+                };
+            }
+        }
+
+        #endregion
+
+        #region Private Methods
+
         /// <summary>
         /// Tính toán capacity summary cho template
         /// </summary>
@@ -922,6 +905,205 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 // Log error and return empty summary
                 return new TemplateCapacitySummaryDto();
+            }
+        }
+
+        public async Task<ResponseCanDeleteDto> CanDeleteTourTemplateAsync(Guid id)
+        {
+            try
+            {
+                // Get template with related data
+                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, new[] { "TourDetails" });
+                if (template == null || template.IsDeleted)
+                {
+                    return new ResponseCanDeleteDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour template",
+                        CanDelete = false,
+                        Reason = "Tour template không tồn tại"
+                    };
+                }
+
+                var blockingReasons = new List<string>();
+
+                // Check if template has tour details that are public (status = Public = 8)
+                var publicTourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
+                    td => td.TourTemplateId == id && 
+                          !td.IsDeleted && 
+                          td.Status == TourDetailsStatus.Public);
+
+                if (publicTourDetails.Any())
+                {
+                    blockingReasons.Add($"Có {publicTourDetails.Count()} tour details đang ở trạng thái Public và khách hàng có thể booking");
+
+                    // Check for active bookings on these public tour details
+                    var totalActiveBookings = 0;
+                    var totalConfirmedBookings = 0;
+                    var totalPendingBookings = 0;
+
+                    foreach (var tourDetail in publicTourDetails)
+                    {
+                        // Get tour operation for this tour detail
+                        var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetail.Id);
+                        if (operation != null)
+                        {
+                            // Get active bookings (Confirmed or Pending status)
+                            var bookings = await _unitOfWork.TourBookingRepository.GetAllAsync(
+                                b => b.TourOperationId == operation.Id && 
+                                     !b.IsDeleted && 
+                                     (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending));
+
+                            var confirmedBookings = bookings.Where(b => b.Status == BookingStatus.Confirmed).Count();
+                            var pendingBookings = bookings.Where(b => b.Status == BookingStatus.Pending).Count();
+
+                            totalActiveBookings += bookings.Count();
+                            totalConfirmedBookings += confirmedBookings;
+                            totalPendingBookings += pendingBookings;
+                        }
+                    }
+
+                    if (totalActiveBookings > 0)
+                    {
+                        if (totalConfirmedBookings > 0)
+                        {
+                            blockingReasons.Add($"Có {totalConfirmedBookings} booking đã được xác nhận từ khách hàng");
+                        }
+                        if (totalPendingBookings > 0)
+                        {
+                            blockingReasons.Add($"Có {totalPendingBookings} booking đang chờ xử lý từ khách hàng");
+                        }
+                    }
+                }
+
+                // Check for active tour slots
+                var activeSlots = await _unitOfWork.TourSlotRepository.GetAllAsync(
+                    s => s.TourTemplateId == id && 
+                         !s.IsDeleted && 
+                         s.IsActive && 
+                         s.TourDate > DateOnly.FromDateTime(DateTime.UtcNow));
+
+                if (activeSlots.Any())
+                {
+                    blockingReasons.Add($"Có {activeSlots.Count()} tour slots đang active và sắp diễn ra");
+                }
+
+                // Determine if can delete
+                bool canDelete = !blockingReasons.Any();
+
+                return new ResponseCanDeleteDto
+                {
+                    StatusCode = canDelete ? 200 : 409,
+                    Message = canDelete ? "Có thể xóa tour template" : "Không thể xóa tour template vì có ràng buộc dữ liệu",
+                    CanDelete = canDelete,
+                    Reason = canDelete ? string.Empty : "Tour template này đang được sử dụng và có khách hàng đã đặt tour",
+                    BlockingReasons = blockingReasons
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResponseCanDeleteDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi khi kiểm tra khả năng xóa tour template: " + ex.Message,
+                    CanDelete = false,
+                    Reason = "Lỗi hệ thống: " + ex.Message
+                };
+            }
+        }
+
+        /// <summary>
+        /// Check if tour template can be updated (prevent any updates if it has public tour details)
+        /// </summary>
+        public async Task<ResponseCanUpdateDto> CanUpdateTourTemplateAsync(Guid id)
+        {
+            try
+            {
+                // Get template with related data
+                var template = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, new[] { "TourDetails" });
+                if (template == null || template.IsDeleted)
+                {
+                    return new ResponseCanUpdateDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour template",
+                        CanUpdate = false,
+                        Reason = "Tour template không tồn tại"
+                    };
+                }
+
+                var blockingReasons = new List<string>();
+
+                // Check if template has tour details that are public (status = Public = 8)
+                var publicTourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
+                    td => td.TourTemplateId == id && 
+                          !td.IsDeleted && 
+                          td.Status == TourDetailsStatus.Public);
+
+                // NGĂN CHẶN NGAY KHI CÓ TOUR DETAILS Ở TRẠNG THÁI PUBLIC
+                // Không cần phải có booking mới ngăn cản
+                if (publicTourDetails.Any())
+                {
+                    blockingReasons.Add($"Có {publicTourDetails.Count()} tour details đang ở trạng thái Public");
+                    blockingReasons.Add("Tour template đã được public cho khách hàng, không thể chỉnh sửa");
+                    blockingReasons.Add("Vui lòng chuyển tour details về trạng thái khác trước khi cập nhật template");
+
+                    // Kiểm tra thêm về bookings để thông tin chi tiết hơn
+                    var totalConfirmedBookings = 0;
+                    var totalPendingBookings = 0;
+
+                    foreach (var tourDetail in publicTourDetails)
+                    {
+                        // Get tour operation for this tour detail
+                        var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetail.Id);
+                        if (operation != null)
+                        {
+                            // Get all active bookings
+                            var bookings = await _unitOfWork.TourBookingRepository.GetAllAsync(
+                                b => b.TourOperationId == operation.Id && 
+                                     !b.IsDeleted && 
+                                     (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending));
+
+                            var confirmedBookings = bookings.Where(b => b.Status == BookingStatus.Confirmed).Count();
+                            var pendingBookings = bookings.Where(b => b.Status == BookingStatus.Pending).Count();
+
+                            totalConfirmedBookings += confirmedBookings;
+                            totalPendingBookings += pendingBookings;
+                        }
+                    }
+
+                    // Thêm thông tin về bookings nếu có
+                    if (totalConfirmedBookings > 0)
+                    {
+                        blockingReasons.Add($"Đặc biệt nghiêm trọng: Có {totalConfirmedBookings} booking đã được khách hàng xác nhận");
+                    }
+                    if (totalPendingBookings > 0)
+                    {
+                        blockingReasons.Add($"Có {totalPendingBookings} booking đang chờ xác nhận từ khách hàng");
+                    }
+                }
+
+                // Determine if can update - FALSE nếu có bất kỳ public tour details nào
+                bool canUpdate = !blockingReasons.Any();
+
+                return new ResponseCanUpdateDto
+                {
+                    StatusCode = canUpdate ? 200 : 409,
+                    Message = canUpdate ? "Có thể cập nhật tour template" : "Không thể cập nhật tour template vì đã được public",
+                    CanUpdate = canUpdate,
+                    Reason = canUpdate ? string.Empty : "Tour template này đã có tour details được public cho khách hàng và không thể chỉnh sửa",
+                    BlockingReasons = blockingReasons
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResponseCanUpdateDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi khi kiểm tra khả năng cập nhật tour template: " + ex.Message,
+                    CanUpdate = false,
+                    Reason = "Lỗi hệ thống: " + ex.Message
+                };
             }
         }
 
