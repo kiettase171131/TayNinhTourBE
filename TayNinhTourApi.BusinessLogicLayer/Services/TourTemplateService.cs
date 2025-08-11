@@ -50,6 +50,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return null;
             }
 
+            // NEW LOGIC: Check if template has tour details - prevent update if it does
+            var existingTourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
+                td => td.TourTemplateId == id && !td.IsDeleted);
+            
+            if (existingTourDetails.Any())
+            {
+                // Cannot update template that has tour details
+                throw new InvalidOperationException($"Không thể cập nhật tour template vì có {existingTourDetails.Count()} tour details đang sử dụng template này");
+            }
+
             // Map updates
             _mapper.Map(request, existingTemplate);
 
@@ -205,8 +215,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<bool> CanDeleteTourTemplateAsync(Guid id)
         {
-            // Check if template is being used in any tour slots
-            return !await _unitOfWork.TourTemplateRepository.IsTemplateInUseAsync(id);
+            // NEW LOGIC: Chỉ ngăn cản xóa khi có tour details được tạo sử dụng template này
+            // Không quan tâm đến tour slots nữa - tour slots chỉ là dữ liệu phụ trợ
+            
+            // Kiểm tra xem có tour details nào được tạo từ template này không
+            var existingTourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
+                td => td.TourTemplateId == id && !td.IsDeleted);
+            
+            // Chỉ ngăn cản xóa nếu có tour details được tạo từ template này
+            // Tour slots không còn là yếu tố ngăn cản xóa
+            return !existingTourDetails.Any();
         }
 
         public async Task<object> GetTourTemplateStatisticsAsync(Guid? createdById = null)

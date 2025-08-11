@@ -927,76 +927,84 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 var blockingReasons = new List<string>();
 
-                // Check if template has tour details that are public (status = Public = 8)
-                var publicTourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
-                    td => td.TourTemplateId == id && 
-                          !td.IsDeleted && 
-                          td.Status == TourDetailsStatus.Public);
+                // NEW LOGIC: Chỉ ngăn cản xóa khi có tour details được tạo sử dụng template này
+                // Không quan tâm đến tour slots nữa - tour slots chỉ là dữ liệu phụ trợ
+                
+                // Kiểm tra xem có tour details nào được tạo từ template này không
+                var existingTourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
+                    td => td.TourTemplateId == id && !td.IsDeleted);
 
-                if (publicTourDetails.Any())
+                if (existingTourDetails.Any())
                 {
-                    blockingReasons.Add($"Có {publicTourDetails.Count()} tour details đang ở trạng thái Public và khách hàng có thể booking");
+                    blockingReasons.Add($"Có {existingTourDetails.Count()} tour details đã được tạo sử dụng template này");
+                    
+                    // Phân tích chi tiết hơn về các tour details
+                    var publicTourDetails = existingTourDetails.Where(td => td.Status == TourDetailsStatus.Public).ToList();
+                    var draftTourDetails = existingTourDetails.Where(td => td.Status != TourDetailsStatus.Public).ToList();
 
-                    // Check for active bookings on these public tour details
-                    var totalActiveBookings = 0;
-                    var totalConfirmedBookings = 0;
-                    var totalPendingBookings = 0;
-
-                    foreach (var tourDetail in publicTourDetails)
+                    if (publicTourDetails.Any())
                     {
-                        // Get tour operation for this tour detail
-                        var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetail.Id);
-                        if (operation != null)
+                        blockingReasons.Add($"Trong đó có {publicTourDetails.Count()} tour details đang ở trạng thái Public");
+                        
+                        // Kiểm tra bookings cho các tour details public
+                        var totalConfirmedBookings = 0;
+                        var totalPendingBookings = 0;
+
+                        foreach (var tourDetail in publicTourDetails)
                         {
-                            // Get active bookings (Confirmed or Pending status)
-                            var bookings = await _unitOfWork.TourBookingRepository.GetAllAsync(
-                                b => b.TourOperationId == operation.Id && 
-                                     !b.IsDeleted && 
-                                     (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending));
+                            // Get tour operation for this tour detail
+                            var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetail.Id);
+                            if (operation != null)
+                            {
+                                // Get active bookings (Confirmed or Pending status)
+                                var bookings = await _unitOfWork.TourBookingRepository.GetAllAsync(
+                                    b => b.TourOperationId == operation.Id && 
+                                         !b.IsDeleted && 
+                                         (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending));
 
-                            var confirmedBookings = bookings.Where(b => b.Status == BookingStatus.Confirmed).Count();
-                            var pendingBookings = bookings.Where(b => b.Status == BookingStatus.Pending).Count();
+                                var confirmedBookings = bookings.Where(b => b.Status == BookingStatus.Confirmed).Count();
+                                var pendingBookings = bookings.Where(b => b.Status == BookingStatus.Pending).Count();
 
-                            totalActiveBookings += bookings.Count();
-                            totalConfirmedBookings += confirmedBookings;
-                            totalPendingBookings += pendingBookings;
+                                totalConfirmedBookings += confirmedBookings;
+                                totalPendingBookings += pendingBookings;
+                            }
                         }
-                    }
 
-                    if (totalActiveBookings > 0)
-                    {
                         if (totalConfirmedBookings > 0)
                         {
-                            blockingReasons.Add($"Có {totalConfirmedBookings} booking đã được xác nhận từ khách hàng");
+                            blockingReasons.Add($"Có {totalConfirmedBookings} booking đã được khách hàng xác nhận");
                         }
                         if (totalPendingBookings > 0)
                         {
                             blockingReasons.Add($"Có {totalPendingBookings} booking đang chờ xử lý từ khách hàng");
                         }
                     }
+
+                    if (draftTourDetails.Any())
+                    {
+                        blockingReasons.Add($"Có {draftTourDetails.Count()} tour details đang ở trạng thái Draft/WaitToPublic");
+                    }
+
+                    // Đưa ra hướng dẫn cụ thể
+                    blockingReasons.Add("Vui lòng xóa tất cả tour details liên quan trước khi xóa template");
+                    blockingReasons.Add("Hoặc chuyển các tour details sang sử dụng template khác");
                 }
 
-                // Check for active tour slots
-                var activeSlots = await _unitOfWork.TourSlotRepository.GetAllAsync(
-                    s => s.TourTemplateId == id && 
-                         !s.IsDeleted && 
-                         s.IsActive && 
-                         s.TourDate > DateOnly.FromDateTime(DateTime.UtcNow));
+                // NOTE: Không còn kiểm tra tour slots nữa
+                // Tour slots là dữ liệu phụ trợ và có thể tồn tại mà không ảnh hưởng đến việc xóa template
+                // Chỉ khi có tour details (tour thực tế) thì mới ngăn cản xóa
 
-                if (activeSlots.Any())
-                {
-                    blockingReasons.Add($"Có {activeSlots.Count()} tour slots đang active và sắp diễn ra");
-                }
-
-                // Determine if can delete
+                // Determine if can delete - chỉ dựa trên tour details, không quan tâm đến slots
                 bool canDelete = !blockingReasons.Any();
 
                 return new ResponseCanDeleteDto
                 {
                     StatusCode = canDelete ? 200 : 409,
-                    Message = canDelete ? "Có thể xóa tour template" : "Không thể xóa tour template vì có ràng buộc dữ liệu",
+                    Message = canDelete ? "Có thể xóa tour template" : "Không thể xóa tour template vì có tour details đang sử dụng",
                     CanDelete = canDelete,
-                    Reason = canDelete ? string.Empty : "Tour template này đang được sử dụng và có khách hàng đã đặt tour",
+                    Reason = canDelete 
+                        ? "Template này chỉ có tour slots và có thể xóa an toàn" 
+                        : "Tour template này đang được sử dụng bởi các tour details và không thể xóa",
                     BlockingReasons = blockingReasons
                 };
             }
@@ -1013,7 +1021,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Check if tour template can be updated (prevent any updates if it has public tour details)
+        /// Check if tour template can be updated - prevent any updates if it has tour details using the template
         /// </summary>
         public async Task<ResponseCanUpdateDto> CanUpdateTourTemplateAsync(Guid id)
         {
@@ -1034,64 +1042,86 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 var blockingReasons = new List<string>();
 
-                // Check if template has tour details that are public (status = Public = 8)
-                var publicTourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
-                    td => td.TourTemplateId == id && 
-                          !td.IsDeleted && 
-                          td.Status == TourDetailsStatus.Public);
+                // NEW LOGIC: Ngăn cản cập nhật khi có bất kỳ tour details nào được tạo sử dụng template này
+                // Không chỉ riêng Public như trước đây - bất kỳ trạng thái nào cũng ngăn cản update
+                
+                // Kiểm tra xem có tour details nào được tạo từ template này không
+                var existingTourDetails = await _unitOfWork.TourDetailsRepository.GetAllAsync(
+                    td => td.TourTemplateId == id && !td.IsDeleted);
 
-                // NGĂN CHẶN NGAY KHI CÓ TOUR DETAILS Ở TRẠNG THÁI PUBLIC
-                // Không cần phải có booking mới ngăn cản
-                if (publicTourDetails.Any())
+                if (existingTourDetails.Any())
                 {
-                    blockingReasons.Add($"Có {publicTourDetails.Count()} tour details đang ở trạng thái Public");
-                    blockingReasons.Add("Tour template đã được public cho khách hàng, không thể chỉnh sửa");
-                    blockingReasons.Add("Vui lòng chuyển tour details về trạng thái khác trước khi cập nhật template");
+                    blockingReasons.Add($"Có {existingTourDetails.Count()} tour details đã được tạo sử dụng template này");
+                    
+                    // Phân tích chi tiết hơn về các tour details
+                    var publicTourDetails = existingTourDetails.Where(td => td.Status == TourDetailsStatus.Public).ToList();
+                    var draftTourDetails = existingTourDetails.Where(td => td.Status != TourDetailsStatus.Public).ToList();
 
-                    // Kiểm tra thêm về bookings để thông tin chi tiết hơn
-                    var totalConfirmedBookings = 0;
-                    var totalPendingBookings = 0;
-
-                    foreach (var tourDetail in publicTourDetails)
+                    if (publicTourDetails.Any())
                     {
-                        // Get tour operation for this tour detail
-                        var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetail.Id);
-                        if (operation != null)
+                        blockingReasons.Add($"Trong đó có {publicTourDetails.Count()} tour details đang ở trạng thái Public");
+                        
+                        // Kiểm tra bookings cho các tour details public
+                        var totalConfirmedBookings = 0;
+                        var totalPendingBookings = 0;
+
+                        foreach (var tourDetail in publicTourDetails)
                         {
-                            // Get all active bookings
-                            var bookings = await _unitOfWork.TourBookingRepository.GetAllAsync(
-                                b => b.TourOperationId == operation.Id && 
-                                     !b.IsDeleted && 
-                                     (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending));
+                            // Get tour operation for this tour detail
+                            var operation = await _unitOfWork.TourOperationRepository.GetByTourDetailsAsync(tourDetail.Id);
+                            if (operation != null)
+                            {
+                                // Get all active bookings
+                                var bookings = await _unitOfWork.TourBookingRepository.GetAllAsync(
+                                    b => b.TourOperationId == operation.Id && 
+                                         !b.IsDeleted && 
+                                         (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending));
 
-                            var confirmedBookings = bookings.Where(b => b.Status == BookingStatus.Confirmed).Count();
-                            var pendingBookings = bookings.Where(b => b.Status == BookingStatus.Pending).Count();
+                                var confirmedBookings = bookings.Where(b => b.Status == BookingStatus.Confirmed).Count();
+                                var pendingBookings = bookings.Where(b => b.Status == BookingStatus.Pending).Count();
 
-                            totalConfirmedBookings += confirmedBookings;
-                            totalPendingBookings += pendingBookings;
+                                totalConfirmedBookings += confirmedBookings;
+                                totalPendingBookings += pendingBookings;
+                            }
+                        }
+
+                        // Thêm thông tin về bookings nếu có
+                        if (totalConfirmedBookings > 0)
+                        {
+                            blockingReasons.Add($"Đặc biệt nghiêm trọng: Có {totalConfirmedBookings} booking đã được khách hàng xác nhận");
+                        }
+                        if (totalPendingBookings > 0)
+                        {
+                            blockingReasons.Add($"Có {totalPendingBookings} booking đang chờ xác nhận từ khách hàng");
                         }
                     }
 
-                    // Thêm thông tin về bookings nếu có
-                    if (totalConfirmedBookings > 0)
+                    if (draftTourDetails.Any())
                     {
-                        blockingReasons.Add($"Đặc biệt nghiêm trọng: Có {totalConfirmedBookings} booking đã được khách hàng xác nhận");
+                        blockingReasons.Add($"Có {draftTourDetails.Count()} tour details đang ở trạng thái Draft/WaitToPublic");
                     }
-                    if (totalPendingBookings > 0)
-                    {
-                        blockingReasons.Add($"Có {totalPendingBookings} booking đang chờ xác nhận từ khách hàng");
-                    }
+
+                    // Đưa ra hướng dẫn cụ thể
+                    blockingReasons.Add("Việc cập nhật template có thể ảnh hưởng đến các tour details đã được tạo");
+                    blockingReasons.Add("Vui lòng xóa tất cả tour details liên quan trước khi cập nhật template");
+                    blockingReasons.Add("Hoặc chuyển các tour details sang sử dụng template khác");
                 }
 
-                // Determine if can update - FALSE nếu có bất kỳ public tour details nào
+                // NOTE: Không còn kiểm tra tour slots nữa
+                // Tour slots là dữ liệu phụ trợ và không ngăn cản việc cập nhật template
+                // Chỉ khi có tour details (tour thực tế) thì mới ngăn cản cập nhật
+
+                // Determine if can update - chỉ dựa trên tour details, không quan tâm đến slots
                 bool canUpdate = !blockingReasons.Any();
 
                 return new ResponseCanUpdateDto
                 {
                     StatusCode = canUpdate ? 200 : 409,
-                    Message = canUpdate ? "Có thể cập nhật tour template" : "Không thể cập nhật tour template vì đã được public",
+                    Message = canUpdate ? "Có thể cập nhật tour template" : "Không thể cập nhật tour template vì có tour details đang sử dụng",
                     CanUpdate = canUpdate,
-                    Reason = canUpdate ? string.Empty : "Tour template này đã có tour details được public cho khách hàng và không thể chỉnh sửa",
+                    Reason = canUpdate 
+                        ? "Template này chỉ có tour slots và có thể cập nhật an toàn" 
+                        : "Tour template này đang được sử dụng bởi các tour details và không thể cập nhật",
                     BlockingReasons = blockingReasons
                 };
             }

@@ -277,6 +277,10 @@ POST /api/TourCompany/template
 
 Cập nhật tour template (partial update).
 
+**⚠️ LOGIC MỚI**: Từ phiên bản này, chỉ ngăn cản cập nhật tour template khi có **tour details được tạo** sử dụng template đó (bất kỳ trạng thái nào).
+- **✅ CÓ THỂ CẬP NHẬT**: Khi chỉ có tour slots (dữ liệu phụ trợ) 
+- **❌ KHÔNG THỂ CẬP NHẬT**: Khi có tour details đã được tạo từ template này
+
 ```http
 PATCH /api/TourCompany/template/{id}
 ```
@@ -327,11 +331,31 @@ PATCH /api/TourCompany/template/{id}
 }
 ```
 
-**Status Code**: `409 Conflict**
+**Status Code**: `409 Conflict` - Có tour details đang sử dụng template
 ```json
 {
   "statusCode": 409,
-  "message": "Không thể cập nhật tour template có slots đang active"
+  "message": "Không thể cập nhật tour template vì có tour details đang sử dụng",
+  "success": false,
+  "validationErrors": [
+    "Có 2 tour details đã được tạo sử dụng template này",
+    "Trong đó có 1 tour details đang ở trạng thái Public",
+    "Có 5 booking đã được khách hàng xác nhận",
+    "Có 1 tour details đang ở trạng thái Draft/WaitToPublic",
+    "Việc cập nhật template có thể ảnh hưởng đến các tour details đã được tạo",
+    "Vui lòng xóa tất cả tour details liên quan trước khi cập nhật template",
+    "Hoặc chuyển các tour details sang sử dụng template khác"
+  ]
+}
+```
+
+**Status Code**: `200 OK` - Template chỉ có tour slots (có thể cập nhật)
+```json
+{
+  "statusCode": 200,
+  "message": "Cập nhật tour template thành công",
+  "success": true,
+  "reason": "Template này chỉ có tour slots và có thể cập nhật an toàn"
 }
 ```
 
@@ -339,7 +363,11 @@ PATCH /api/TourCompany/template/{id}
 
 ### 5. Delete Tour Template
 
-Xóa tour template.
+Xóa tour template (soft delete).
+
+**⚠️ LOGIC MỚI**: Từ phiên bản này, chỉ ngăn cản xóa tour template khi có **tour details được tạo** sử dụng template đó. 
+- **✅ CÓ THỂ XÓA**: Khi chỉ có tour slots (dữ liệu phụ trợ)
+- **❌ KHÔNG THỂ XÓA**: Khi có tour details đã được tạo từ template này
 
 ```http
 DELETE /api/TourCompany/template/{id}
@@ -359,27 +387,36 @@ DELETE /api/TourCompany/template/{id}
 {
   "statusCode": 200,
   "message": "Xóa tour template thành công",
-  "data": {
-    "canDelete": true,
-    "blockingReasons": []
-  }
+  "success": true
 }
 ```
 
 #### Error Responses
 
-**Status Code**: `409 Conflict**
+**Status Code**: `409 Conflict` - Có tour details đang sử dụng template
 ```json
 {
   "statusCode": 409,
-  "message": "Không thể xóa tour template",
-  "data": {
-    "canDelete": false,
-    "blockingReasons": [
-      "Có 3 tour slots đang active",
-      "Có 2 bookings đang pending"
-    ]
-  }
+  "message": "Không thể xóa tour template vì có tour details đang sử dụng",
+  "success": false,
+  "blockingReasons": [
+    "Có 2 tour details đã được tạo sử dụng template này",
+    "Trong đó có 1 tour details đang ở trạng thái Public",
+    "Có 5 booking đã được khách hàng xác nhận",
+    "Có 1 tour details đang ở trạng thái Draft/WaitToPublic",
+    "Vui lòng xóa tất cả tour details liên quan trước khi xóa template",
+    "Hoặc chuyển các tour details sang sử dụng template khác"
+  ]
+}
+```
+
+**Status Code**: `200 OK` - Template chỉ có tour slots (có thể xóa)
+```json
+{
+  "statusCode": 200,
+  "message": "Xóa tour template thành công",
+  "success": true,
+  "reason": "Template này chỉ có tour slots và có thể xóa an toàn"
 }
 ```
 
