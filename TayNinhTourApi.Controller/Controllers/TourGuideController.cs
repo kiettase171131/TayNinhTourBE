@@ -97,6 +97,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         TourDetailsId = to.TourDetails.Id,
                         to.TourDetails.Title,
                         to.TourDetails.Description,
+                        to.TourDetails.ImageUrls,
                         StartDate = to.TourDetails.AssignedSlots.FirstOrDefault() != null ?
                                    to.TourDetails.AssignedSlots.FirstOrDefault()!.TourDate.ToDateTime(TimeOnly.MinValue) :
                                    DateTime.Today,
@@ -116,7 +117,18 @@ namespace TayNinhTourApi.Controller.Controllers
                             Description = to.TourDetails.Description ?? ""
                         },
                         BookingsCount = to.TourBookings.Count(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed),
-                        CheckedInCount = to.TourBookings.Count(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed && tb.IsCheckedIn)
+                        CheckedInCount = to.TourBookings.Count(tb => tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed && tb.IsCheckedIn),
+                        // Thông tin slot hiện tại
+                        CurrentSlot = to.TourDetails.AssignedSlots
+                            .Where(slot => slot.Status == DataAccessLayer.Enums.TourSlotStatus.InProgress)
+                            .Select(slot => new
+                            {
+                                slot.Id,
+                                slot.TourDate,
+                                slot.MaxGuests,
+                                slot.CurrentBookings,
+                                slot.Status
+                            }).FirstOrDefault()
                     })
                     .OrderBy(to => to.StartDate)
                     .ToListAsync();
@@ -317,7 +329,217 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Check-in khách hàng qua QR code
+        /// [NEW] Lấy danh sách TourSlots mà tour guide được assign
+        /// </summary>
+        /// <param name="fromDate">Lọc từ ngày (optional, default: hôm nay)</param>
+        /// <returns>Danh sách TourSlots</returns>
+        [HttpGet("my-tour-slots")]
+        public async Task<IActionResult> GetMyTourSlots([FromQuery] DateTime? fromDate = null)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserObject.UserId);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var query = _context.TourSlots
+                    .Include(ts => ts.TourDetails)
+                        .ThenInclude(td => td.TourOperation)
+                    .Include(ts => ts.TourDetails)
+                        .ThenInclude(td => td.TourTemplate)
+                    .Include(ts => ts.Bookings.Where(b => !b.IsDeleted &&
+                        b.Status == DataAccessLayer.Enums.BookingStatus.Confirmed))
+                    .Where(ts => ts.TourDetails != null &&
+                                ts.TourDetails.TourOperation != null &&
+                                ts.TourDetails.TourOperation.TourGuideId == tourGuide.Id &&
+                                ts.IsActive);
+
+                // Filter by date if provided
+                if (fromDate.HasValue)
+                {
+                    query = query.Where(ts => ts.TourDate >= DateOnly.FromDateTime(fromDate.Value));
+                }
+                else
+                {
+                    // Default: only future slots
+                    query = query.Where(ts => ts.TourDate >= DateOnly.FromDateTime(DateTime.Today));
+                }
+
+                var tourSlots = await query
+                    .OrderBy(ts => ts.TourDate)
+                    .Select(ts => new
+                    {
+                        ts.Id,
+                        ts.TourDate,
+                        ts.Status,
+                        TourDetails = new
+                        {
+                            ts.TourDetails.Id,
+                            ts.TourDetails.Title,
+                            ts.TourDetails.Description,
+                            StartLocation = ts.TourDetails.TourTemplate.StartLocation,
+                            EndLocation = ts.TourDetails.TourTemplate.EndLocation
+                        },
+                        BookingStats = new
+                        {
+                            TotalBookings = ts.Bookings.Count(),
+                            CheckedInCount = ts.Bookings.Count(b => b.IsCheckedIn),
+                            TotalGuests = ts.Bookings.Sum(b => b.NumberOfGuests)
+                        }
+                    })
+                    .ToListAsync();
+
+                return Ok(new ApiResponse<object>
+                {
+                    StatusCode = 200,
+                    Message = "Lấy danh sách tour slots thành công",
+                    Data = tourSlots,
+                    success = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tour slots for guide", ex);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi lấy danh sách tour slots"
+                });
+            }
+        }
+
+        /// <summary>
+        /// [NEW] Lấy danh sách bookings của TourSlot cụ thể cho tour guide
+        /// </summary>
+        /// <param name="tourSlotId">ID của TourSlot</param>
+        /// <returns>Danh sách bookings của TourSlot</returns>
+        [HttpGet("tour-slot/{tourSlotId:guid}/bookings")]
+        public async Task<IActionResult> GetTourSlotBookings(Guid tourSlotId)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                // Lấy thông tin tour guide hiện tại
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserObject.UserId);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                // Validate tour guide có quyền access TourSlot này không
+                var tourSlot = await _context.TourSlots
+                    .Include(ts => ts.TourDetails)
+                        .ThenInclude(td => td.TourOperation)
+                    .FirstOrDefaultAsync(ts => ts.Id == tourSlotId &&
+                                              ts.TourDetails != null &&
+                                              ts.TourDetails.TourOperation != null &&
+                                              ts.TourDetails.TourOperation.TourGuideId == tourGuide.Id);
+
+                if (tourSlot == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour slot hoặc bạn không có quyền truy cập"
+                    });
+                }
+
+                // Lấy danh sách bookings của TourSlot
+                var bookings = await _context.TourBookings
+                    .Include(tb => tb.User)
+                    .Where(tb => tb.TourSlotId == tourSlotId &&
+                                tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed)
+                    .Select(tb => new
+                    {
+                        tb.Id,
+                        tb.BookingCode,
+                        tb.ContactName,
+                        tb.ContactPhone,
+                        tb.ContactEmail,
+                        tb.NumberOfGuests,
+                        tb.TotalPrice,
+                        tb.IsCheckedIn,
+                        tb.CheckInTime,
+                        tb.CheckInNotes,
+                        tb.QRCodeData,
+                        CustomerName = tb.User.Name,
+                        TourSlotDate = tourSlot.TourDate,
+                        TourSlotId = tb.TourSlotId
+                    })
+                    .OrderBy(tb => tb.ContactName)
+                    .ToListAsync();
+
+                return Ok(new ApiResponse<object>
+                {
+                    StatusCode = 200,
+                    Message = "Lấy danh sách bookings theo tour slot thành công",
+                    Data = new
+                    {
+                        TourSlot = new
+                        {
+                            tourSlot.Id,
+                            tourSlot.TourDate,
+                            tourSlot.Status,
+                            TourTitle = tourSlot.TourDetails.Title
+                        },
+                        Bookings = bookings,
+                        Statistics = new
+                        {
+                            TotalBookings = bookings.Count,
+                            CheckedInCount = bookings.Count(b => b.IsCheckedIn),
+                            PendingCount = bookings.Count(b => !b.IsCheckedIn),
+                            TotalGuests = bookings.Sum(b => b.NumberOfGuests)
+                        }
+                    },
+                    success = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tour slot bookings for slot {TourSlotId}", tourSlotId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi lấy danh sách bookings"
+                });
+            }
+        }
+
+        /// <summary>
+        /// [UPDATED] Check-in khách hàng với validation theo TourSlot
         /// </summary>
         /// <param name="bookingId">ID của TourBooking</param>
         /// <param name="request">Thông tin check-in</param>
@@ -337,7 +559,6 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                // Verify HDV có quyền check-in booking này không
                 var tourGuide = await _context.TourGuides
                     .FirstOrDefaultAsync(tg => tg.UserId == currentUserObject.UserId);
 
@@ -350,10 +571,17 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
+                // ✅ MỚI: Validate booking thuộc TourSlot mà tour guide phụ trách
                 var booking = await _context.TourBookings
-                    .Include(tb => tb.TourOperation)
+                    .Include(tb => tb.TourSlot)
+                        .ThenInclude(ts => ts.TourDetails)
+                            .ThenInclude(td => td.TourOperation)
+                    .Include(tb => tb.User)
                     .FirstOrDefaultAsync(tb => tb.Id == bookingId &&
-                                              tb.TourOperation.TourGuideId == tourGuide.Id &&
+                                              tb.TourSlot != null &&
+                                              tb.TourSlot.TourDetails != null &&
+                                              tb.TourSlot.TourDetails.TourOperation != null &&
+                                              tb.TourSlot.TourDetails.TourOperation.TourGuideId == tourGuide.Id &&
                                               tb.Status == DataAccessLayer.Enums.BookingStatus.Confirmed);
 
                 if (booking == null)
@@ -361,7 +589,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     return NotFound(new BaseResposeDto
                     {
                         StatusCode = 404,
-                        Message = "Không tìm thấy booking hoặc HDV không có quyền truy cập"
+                        Message = "Không tìm thấy booking hoặc booking không thuộc tour slot của bạn"
                     });
                 }
 
@@ -371,11 +599,11 @@ namespace TayNinhTourApi.Controller.Controllers
                     return BadRequest(new BaseResposeDto
                     {
                         StatusCode = 400,
-                        Message = "Khách hàng đã check-in trước đó"
+                        Message = "Khách hàng đã được check-in trước đó"
                     });
                 }
 
-                // Validate QR code nếu có
+                // ✅ Validate QR code nếu có
                 if (!string.IsNullOrEmpty(request.QRCodeData) && !string.IsNullOrEmpty(booking.QRCodeData))
                 {
                     if (request.QRCodeData != booking.QRCodeData)
@@ -383,12 +611,25 @@ namespace TayNinhTourApi.Controller.Controllers
                         return BadRequest(new BaseResposeDto
                         {
                             StatusCode = 400,
-                            Message = "QR code không hợp lệ"
+                            Message = "QR code không hợp lệ cho tour slot này"
                         });
                     }
                 }
 
-                // Update check-in status
+                // ✅ Kiểm tra ngày tour (chỉ cho phép checkin trong ngày hoặc 1 ngày trước)
+                var tourDate = booking.TourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+                var today = DateTime.Today;
+
+                if (tourDate < today.AddDays(-1) || tourDate > today.AddDays(1))
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = $"Chỉ có thể check-in trong khoảng thời gian tour (ngày tour: {booking.TourSlot.TourDate:dd/MM/yyyy})"
+                    });
+                }
+
+                // Thực hiện check-in
                 booking.IsCheckedIn = true;
                 booking.CheckInTime = DateTime.UtcNow;
                 booking.CheckInNotes = request.Notes;
@@ -400,7 +641,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return Ok(new ApiResponse<object>
                 {
                     StatusCode = 200,
-                    Message = "Check-in thành công",
+                    Message = $"Check-in thành công cho {booking.ContactName ?? booking.User.Name}",
                     Data = new
                     {
                         booking.Id,
@@ -408,7 +649,8 @@ namespace TayNinhTourApi.Controller.Controllers
                         booking.ContactName,
                         booking.IsCheckedIn,
                         booking.CheckInTime,
-                        booking.CheckInNotes
+                        booking.CheckInNotes,
+                        TourSlotDate = booking.TourSlot.TourDate
                     },
                     success = true
                 });
@@ -420,6 +662,169 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     StatusCode = 500,
                     Message = "Lỗi server khi check-in khách"
+                });
+            }
+        }
+
+        /// <summary>
+        /// [NEW] Check-in khách hàng với khả năng override thời gian
+        /// Cho phép HDV check-in sớm trước thời gian tour bắt đầu
+        /// </summary>
+        /// <param name="bookingId">ID của TourBooking</param>
+        /// <param name="request">Thông tin check-in với override</param>
+        /// <returns>Kết quả check-in</returns>
+        [HttpPost("checkin-override/{bookingId:guid}")]
+        public async Task<IActionResult> CheckInGuestWithOverride(Guid bookingId, [FromBody] CheckInGuestWithOverrideRequest request)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserObject.UserId);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                // Validate override reason if override is requested
+                if (request.OverrideTimeRestriction && string.IsNullOrWhiteSpace(request.OverrideReason))
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Lý do override thời gian là bắt buộc khi sử dụng tính năng check-in sớm"
+                    });
+                }
+
+                // Lấy booking với thông tin tour slot
+                var booking = await _context.TourBookings
+                    .Include(tb => tb.TourSlot)
+                        .ThenInclude(ts => ts.TourDetails)
+                    .Include(tb => tb.TourOperation)
+                    .Include(tb => tb.User)
+                    .FirstOrDefaultAsync(tb => tb.Id == bookingId
+                        && tb.TourOperation.TourGuideId == tourGuide.Id
+                        && tb.Status == BookingStatus.Confirmed);
+
+                if (booking == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy booking hoặc booking không thuộc tour slot của bạn"
+                    });
+                }
+
+                // Kiểm tra đã check-in chưa
+                if (booking.IsCheckedIn)
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Khách hàng đã được check-in trước đó"
+                    });
+                }
+
+                // ✅ Validate QR code nếu có
+                if (!string.IsNullOrEmpty(request.QRCodeData) && !string.IsNullOrEmpty(booking.QRCodeData))
+                {
+                    if (request.QRCodeData != booking.QRCodeData)
+                    {
+                        return BadRequest(new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = "QR code không hợp lệ cho tour slot này"
+                        });
+                    }
+                }
+
+                // ✅ Kiểm tra thời gian tour (chỉ skip nếu có override)
+                var tourDate = booking.TourSlot.TourDate;
+                var currentTime = DateTime.UtcNow;
+                var tourStartTime = tourDate.ToDateTime(TimeOnly.MinValue);
+
+                if (!request.OverrideTimeRestriction)
+                {
+                    // Kiểm tra thời gian bình thường (cho phép check-in từ 30 phút trước)
+                    var allowedCheckInTime = tourStartTime.AddMinutes(-30);
+
+                    if (currentTime < allowedCheckInTime)
+                    {
+                        return BadRequest(new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = $"Chưa đến thời gian check-in. Có thể check-in từ {allowedCheckInTime.AddHours(7):HH:mm dd/MM/yyyy} (30 phút trước tour bắt đầu)"
+                        });
+                    }
+                }
+
+                // Thực hiện check-in
+                booking.IsCheckedIn = true;
+                booking.CheckInTime = DateTime.UtcNow;
+
+                // Ghi chú bao gồm thông tin override nếu có
+                var checkInNotes = request.Notes ?? "";
+                if (request.OverrideTimeRestriction)
+                {
+                    var overrideInfo = $"[OVERRIDE] Check-in sớm lúc {DateTime.UtcNow.AddHours(7):HH:mm dd/MM/yyyy}. Lý do: {request.OverrideReason}";
+                    checkInNotes = string.IsNullOrEmpty(checkInNotes) ? overrideInfo : $"{checkInNotes}\n{overrideInfo}";
+                }
+
+                booking.CheckInNotes = checkInNotes;
+                booking.UpdatedAt = DateTime.UtcNow;
+                booking.UpdatedById = currentUserObject.UserId;
+
+                await _context.SaveChangesAsync();
+
+                // Log override action for audit
+                if (request.OverrideTimeRestriction)
+                {
+                    _logger.LogWarning("Tour guide {TourGuideId} performed early check-in override for booking {BookingId}. Reason: {Reason}",
+                        tourGuide.Id, bookingId, request.OverrideReason);
+                }
+
+                return Ok(new ApiResponse<object>
+                {
+                    StatusCode = 200,
+                    Message = request.OverrideTimeRestriction
+                        ? $"Check-in sớm thành công cho {booking.ContactName ?? booking.User.Name}"
+                        : $"Check-in thành công cho {booking.ContactName ?? booking.User.Name}",
+                    Data = new
+                    {
+                        booking.Id,
+                        booking.BookingCode,
+                        booking.ContactName,
+                        booking.IsCheckedIn,
+                        booking.CheckInTime,
+                        booking.CheckInNotes,
+                        TourSlotDate = booking.TourSlot.TourDate,
+                        IsEarlyCheckIn = request.OverrideTimeRestriction,
+                        OverrideReason = request.OverrideTimeRestriction ? request.OverrideReason : null
+                    },
+                    success = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking in guest with override for booking {BookingId}", bookingId);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi check-in khách hàng"
                 });
             }
         }
@@ -1443,6 +1848,23 @@ namespace TayNinhTourApi.Controller.Controllers
     {
         public string? QRCodeData { get; set; }
         public string? Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Request model cho check-in guest với override thời gian
+    /// </summary>
+    public class CheckInGuestWithOverrideRequest
+    {
+        public string? QRCodeData { get; set; }
+        public string? Notes { get; set; }
+        /// <summary>
+        /// Cho phép check-in sớm bỏ qua kiểm tra thời gian
+        /// </summary>
+        public bool OverrideTimeRestriction { get; set; } = false;
+        /// <summary>
+        /// Lý do override thời gian (bắt buộc nếu OverrideTimeRestriction = true)
+        /// </summary>
+        public string? OverrideReason { get; set; }
     }
 
 
