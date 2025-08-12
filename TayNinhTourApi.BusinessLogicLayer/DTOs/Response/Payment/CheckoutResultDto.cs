@@ -13,6 +13,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment
         public decimal TotalOriginal { get; set; }
         public decimal DiscountAmount { get; set; }
         public decimal TotalAfterDiscount { get; set; }
+        // 👇 thêm danh sách thông báo khuyến mãi
+        public List<string> PromotionMessages { get; set; } = new();
     }
 
 }

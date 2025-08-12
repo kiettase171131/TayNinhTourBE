@@ -109,7 +109,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<ApiResponse<SpecialtyShopResponseDto>> GetShopByIdForTimelineAsync(Guid id);
         Task<ShopVisitorsResponse> GetVisitorsAsync(CurrentUserObject currentUserObject,int? pageIndex, int? pageSize,DateOnly? fromDate, DateOnly? toDate);
         Task<ShopCustomerStatusDto> CheckAndUpdateCustomerVisitAsync(CurrentUserObject me, Guid customerUserId);
-        Task<(bool eligible, DateOnly? date, TimeSpan? time, Guid? tlId, string? activity)> CheckShopVisitEligibilityAsync(Guid shopId, Guid userId);
+        Task<(bool eligible, DateOnly? date, TimeSpan? time, Guid? tlId, string? activity, string? tourName)> CheckShopVisitEligibilityAsync(Guid shopId, Guid userId);
 
     }
 

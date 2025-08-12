@@ -6,25 +6,26 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Notification;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Notification;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Payment;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 using TayNinhTourApi.DataAccessLayer.Utilities;
-using TayNinhTourApi.BusinessLogicLayer.Utilities;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -757,6 +758,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             // ====== NEW: Giảm 10% cho item thuộc shop mà user đủ điều kiện IsShop ======
             // Gom theo shop để gọi eligibility 1 lần / shop
+            var promotionMessages = new List<string>();
             var productsByShop = cartItems
                 .Where(ci => ci.Product != null)
                 .GroupBy(ci => ci.Product!.SpecialtyShopId)
@@ -766,9 +768,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 var shopId = grp.Key;
                 if (shopId == Guid.Empty) continue;
+                // Lấy tên shop
+                var shopName = await _specialtyShop
+                    .GetQueryable()
+                    .Where(s => s.Id == shopId)
+                    .Select(s => s.ShopName)
+                    .FirstOrDefaultAsync() ?? "Shop";
 
                 // Kiểm tra eligibility (đã từng Paid + có tour tương lai ghé shop)
-                var (eligible, _, _, _, _) = await _specialtyShopService
+                var (eligible, nextDate, nextTime, _, activity, tourName) = await _specialtyShopService
                     .CheckShopVisitEligibilityAsync(shopId, currentUser.Id);
 
                 if (!eligible) continue;
@@ -779,6 +787,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 discountAmount += shopDiscount;
                 totalAfterDiscount -= shopDiscount;
+                // Tạo thông báo
+                var dateText = nextDate.HasValue ? nextDate.Value.ToString("dd/MM/yyyy") : "sắp tới";
+                var timeText = nextTime.HasValue ? nextTime.Value.ToString(@"hh\:mm") : "";
+                var timePart = string.IsNullOrWhiteSpace(timeText) ? "" : $" lúc {timeText}";
+                var activityPart = string.IsNullOrWhiteSpace(activity) ? "" : $" (mốc: {activity})";
+                var tourText = string.IsNullOrWhiteSpace(tourName) ? "tour sắp tới" : $"tour {tourName}";
+
+                promotionMessages.Add(
+                    $"🎉 Chúc mừng! Bạn được giảm 10% vì đã mua hàng lần nữa tại **{shopName}** khi sẽ ghé trong {tourText} vào {dateText}{timePart}{activityPart}."
+                );
             }
             // ====== END NEW ======
 

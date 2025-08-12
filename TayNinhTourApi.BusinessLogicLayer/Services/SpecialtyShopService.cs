@@ -589,7 +589,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Kiểm tra điều kiện: user đã từng Paid ở shop + có tour tương lai ghé shop.
         /// </summary>
-        public async Task<(bool eligible, DateOnly? date, TimeSpan? time, Guid? tlId, string? activity)> CheckShopVisitEligibilityAsync(Guid shopId, Guid userId)
+        public async Task<(bool eligible, DateOnly? date, TimeSpan? time, Guid? tlId, string? activity, string? tourName)> CheckShopVisitEligibilityAsync(Guid shopId, Guid userId)
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -599,25 +599,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 .AnyAsync(o => o.OrderDetails.Any(od => od.Product.SpecialtyShopId == shopId));
 
             if (!boughtBefore)
-                return (false, null, null, null, null);
+                return (false, null, null, null, null,null);
 
             // Điều kiện 2: có tour tương lai ghé shop (Confirmed)
             var visit = await (
                 from b in _bookingRepo.GetQueryable().AsNoTracking()
                 join s in _slotRepo.GetQueryable().AsNoTracking() on b.TourSlotId equals s.Id
                 join t in _timelineRepo.GetQueryable().AsNoTracking() on s.TourDetailsId equals t.TourDetailsId
+                join dt in _detailsRepo.GetQueryable().AsNoTracking() on s.TourDetailsId equals dt.Id
                 where b.UserId == userId
                       && s.TourDate >= today
                       && t.SpecialtyShopId == shopId
                       && b.Status == BookingStatus.Confirmed
                 orderby s.TourDate, t.SortOrder
-                select new { s.TourDate, t.CheckInTime, t.Id, t.Activity }
+                select new { s.TourDate, t.CheckInTime, t.Id, t.Activity ,TourName = dt.Title }
             ).FirstOrDefaultAsync();
 
             if (visit == null)
-                return (false, null, null, null, null);
+                return (false, null, null, null, null, null);
 
-            return (true, visit.TourDate, visit.CheckInTime, visit.Id, visit.Activity);
+            return (true, visit.TourDate, visit.CheckInTime, visit.Id, visit.Activity, visit.TourName);
         }
 
         /// <summary>
@@ -629,7 +630,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                        ?? throw new InvalidOperationException("Tài khoản không sở hữu Specialty Shop.");
             var shopId = shop.Id;
 
-            var (eligible, date, time, tlId, activity) =
+            var (eligible, date, time, tlId, activity,tourname) =
                 await CheckShopVisitEligibilityAsync(shopId, customerUserId);
 
             var status = await _shopCustomerStatusRepo
