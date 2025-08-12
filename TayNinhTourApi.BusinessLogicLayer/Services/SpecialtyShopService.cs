@@ -665,7 +665,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _shopCustomerStatusRepo.UpdateAsync(status);
             }
 
-            await _unitOfWork.SaveChangesAsync();
+            await _shopCustomerStatusRepo.SaveChangesAsync();
 
             return new ShopCustomerStatusDto
             {
