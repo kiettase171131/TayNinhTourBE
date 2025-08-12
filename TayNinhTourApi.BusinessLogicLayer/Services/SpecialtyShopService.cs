@@ -431,51 +431,54 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
      CurrentUserObject currentUserObject,
      int? pageIndex, int? pageSize,
      DateOnly? fromDate, DateOnly? toDate
-     )
+ )
         {
             var pageIdx = Math.Max(1, pageIndex ?? Constants.PageIndexDefault);
             var pageSz = Math.Max(1, pageSize ?? Constants.PageSizeDefault);
 
-            // 1) Shop của user hiện tại (lookup DB)
+            // 1) Shop của user hiện tại
             var shop = await _shopRepo.GetFirstOrDefaultAsync(s => s.UserId == currentUserObject.UserId);
             if (shop == null)
-                return new ShopVisitorsResponse { StatusCode = 403, success = false, Message = "Tài khoản hiện tại không sở hữu Specialty Shop." };
+                return new ShopVisitorsResponse
+                {
+                    StatusCode = 403,
+                    success = false,
+                    Message = "Tài khoản hiện tại không sở hữu Specialty Shop."
+                };
             var shopId = shop.Id;
 
-            // 2) Nguồn dữ liệu kế hoạch (không dùng progress)
-            var tlQ = _timelineRepo.GetQueryable().AsNoTracking();   // TimelineItem
-            var slQ = _slotRepo.GetQueryable().AsNoTracking();       // TourSlot
-            var bkQ = _bookingRepo.GetQueryable().AsNoTracking();    // TourBooking
-            var usQ = _userRepo.GetQueryable().AsNoTracking();       // User
-            var dtQ = _detailsRepo.GetQueryable().AsNoTracking();    // TourDetails
+            // 2) Repo queryables
+            var tlQ = _timelineRepo.GetQueryable().AsNoTracking();
+            var slQ = _slotRepo.GetQueryable().AsNoTracking();
+            var bkQ = _bookingRepo.GetQueryable().AsNoTracking();
+            var usQ = _userRepo.GetQueryable().AsNoTracking();
+            var dtQ = _detailsRepo.GetQueryable().AsNoTracking();
 
-            // 3) Order/OrderDetail/Product để lọc "đã mua tại shop" + nạp sản phẩm
             var ordQ = _orderRepo.GetQueryable().AsNoTracking();
             var odQ = _orderDetailRepo.GetQueryable().AsNoTracking();
             var prQ = _productRepo.GetQueryable().AsNoTracking();
 
-            // 4) Khách đã đi tour (booking Completed) + tour có shop trong timeline
-            //    + khách này có ÍT NHẤT 1 đơn Paid tại shop → nếu không, loại
+            // 3) Base query: Khách đi tour có shop này trong timeline + có ít nhất 1 đơn Paid tại shop
             var baseQ =
                 from tl in tlQ.Where(t => t.SpecialtyShopId == shopId)
                 join sl in slQ on tl.TourDetailsId equals sl.TourDetailsId
                 join bk in bkQ on sl.Id equals bk.TourSlotId
                 join us in usQ on bk.UserId equals us.Id
                 join dt in dtQ on sl.TourDetailsId equals dt.Id
-                where bk.Status == BookingStatus.Completed
+                where bk.Status == BookingStatus.Confirmed
                       && (from o in ordQ
                           join od in odQ on o.Id equals od.OrderId
                           join p in prQ on od.ProductId equals p.Id
                           where p.SpecialtyShopId == shopId
                                 && o.UserId == us.Id
-                                && o.Status == OrderStatus.Paid   // ✅ chỉ khách có đơn Paid
+                                && o.Status == OrderStatus.Paid
                           select 1).Any()
                 select new { tl, sl, bk, us, dt };
 
             if (fromDate.HasValue) baseQ = baseQ.Where(x => x.sl.TourDate >= fromDate.Value);
             if (toDate.HasValue) baseQ = baseQ.Where(x => x.sl.TourDate <= toDate.Value);
 
-            // 5) Chọn mốc shop đầu tiên per booking (Min SortOrder) → join ngược (dịch được SQL)
+            // 4) Chọn mốc shop đầu tiên per booking
             var picks =
                 from row in baseQ
                 group row by row.bk.Id into g
@@ -497,21 +500,45 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     TourSlotId = row.sl.Id,
                     TourDate = row.sl.TourDate,
-                    TourName = row.dt.Title,          // lấy từ TourDetails
+                    TourName = row.dt.Title,
 
                     TimelineItemId = row.tl.Id,
                     Activity = row.tl.Activity,
                     SortOrder = row.tl.SortOrder,
                     PlannedCheckInTime = row.tl.CheckInTime,
 
-                    // Không dùng progress
                     IsCompleted = false,
                     ActualCompletedAt = null
                 };
 
-            // 6) Đếm + phân trang
+            // --- FILTER NGÀY (tùy chọn) ---
+            if (fromDate.HasValue && toDate.HasValue && fromDate > toDate)
+            {
+                // nếu client gửi ngược thì hoán đổi cho thân thiện
+                var tmp = fromDate; fromDate = toDate; toDate = tmp;
+            }
+            if (fromDate.HasValue) chosenQ = chosenQ.Where(x => x.TourDate >= fromDate.Value);
+            if (toDate.HasValue) chosenQ = chosenQ.Where(x => x.TourDate <= toDate.Value);
+
+            // --- ĐẾM SAU KHI FILTER, PHÂN TRANG ---
             var total = await chosenQ.CountAsync();
 
+            if (total == 0)
+            {
+                // ✅ Không có dữ liệu vẫn trả 200 với mảng rỗng
+                return new ShopVisitorsResponse
+                {
+                    StatusCode = 200,
+                    success = true,
+                    Message = "OK (không có dữ liệu theo điều kiện lọc).",
+                    Data = new List<ShopVisitDto>(),
+                    TotalRecord = 0,
+                    TotalCount = 0,
+                    TotalPages = 0,
+                    PageIndex = Math.Max(1, pageIndex ?? Constants.PageIndexDefault),
+                    PageSize = Math.Max(1, pageSize ?? Constants.PageSizeDefault)
+                };
+            }
             var page = await chosenQ
                 .OrderByDescending(x => x.TourDate)
                 .ThenBy(x => x.SortOrder)
@@ -520,11 +547,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 .ProjectTo<ShopVisitDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
 
-            // 7) Nạp danh sách sản phẩm đã MUA (Paid) tại shop này cho các user trong trang
+            // 6) Lấy Products đã mua Paid
             var userIds = page.Select(x => x.UserId).Distinct().ToList();
-
             var purchasedFlat =
-                from o in ordQ.Where(o => userIds.Contains(o.UserId) && o.Status == OrderStatus.Paid) // ✅ Paid
+                from o in ordQ.Where(o => userIds.Contains(o.UserId) && o.Status == OrderStatus.Paid)
                 join od in odQ on o.Id equals od.OrderId
                 join p in prQ on od.ProductId equals p.Id
                 where p.SpecialtyShopId == shopId
@@ -537,7 +563,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     od.UnitPrice
                 };
 
-            // (tuỳ): gộp theo sản phẩm để cộng quantity
             var purchasedByUser = await purchasedFlat
                 .GroupBy(x => new { x.UserId, x.ProductId, x.ProductName, x.UnitPrice })
                 .Select(g => new
@@ -553,14 +578,53 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 })
                 .ToListAsync();
 
-            var dict = purchasedByUser
+            var dictProducts = purchasedByUser
                 .GroupBy(x => x.UserId)
                 .ToDictionary(
                     g => g.Key,
                     g => g.Select(z => z.Item).ToList()
                 );
 
-            // 8) Bổ sung PlannedCheckInAtUtc + products
+            // 7) Lấy tất cả đơn Paid của shop này + PayOsOrderCode + IsChecked
+            var paidOrdersFlat =
+                from o in ordQ.Where(o => userIds.Contains(o.UserId) && o.Status == OrderStatus.Paid)
+                join od in odQ on o.Id equals od.OrderId
+                join p in prQ on od.ProductId equals p.Id
+                where p.SpecialtyShopId == shopId
+                select new
+                {
+                    o.UserId,
+                    o.Id,
+                    o.PayOsOrderCode,
+                    o.IsChecked,
+                    o.CreatedAt
+                };
+
+            var paidOrdersDistinct = await paidOrdersFlat
+                .GroupBy(x => new { x.UserId, x.Id, x.PayOsOrderCode, x.IsChecked, x.CreatedAt })
+                .Select(g => new
+                {
+                    g.Key.UserId,
+                    Order = new OrderBriefDto
+                    {
+                        OrderId = g.Key.Id,
+                        PayOsOrderCode = g.Key.PayOsOrderCode,
+                        IsChecked = g.Key.IsChecked,
+                        CreatedAt = g.Key.CreatedAt
+                    }
+                })
+                .ToListAsync();
+
+            var paidOrdersByUser = paidOrdersDistinct
+                .GroupBy(x => x.UserId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.Order)
+                          .OrderByDescending(o => o.CreatedAt)
+                          .ToList()
+                );
+
+            // 8) Gán PlannedCheckInAtUtc + Products + PaidOrders
             foreach (var item in page)
             {
                 item.PlannedCheckInAtUtc = new DateTime(
@@ -568,15 +632,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     item.PlannedCheckInTime.Hours, item.PlannedCheckInTime.Minutes, item.PlannedCheckInTime.Seconds,
                     DateTimeKind.Utc);
 
-                if (dict.TryGetValue(item.UserId, out var products))
+                if (dictProducts.TryGetValue(item.UserId, out var products))
                     item.Products = products;
+
+                if (paidOrdersByUser.TryGetValue(item.UserId, out var orders))
+                    item.PaidOrders = orders;
             }
 
             return new ShopVisitorsResponse
             {
                 StatusCode = 200,
                 success = true,
-                Message = "Get Customer Successfully",
+                Message = "Get Successfully",
                 Data = page,
                 TotalRecord = total,
                 TotalCount = total,
@@ -586,33 +653,32 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             };
         }
 
-        /// <summary>
-        /// Kiểm tra điều kiện: user đã từng Paid ở shop + có tour tương lai ghé shop.
-        /// </summary>
-        public async Task<(bool eligible, DateOnly? date, TimeSpan? time, Guid? tlId, string? activity, string? tourName)> CheckShopVisitEligibilityAsync(Guid shopId, Guid userId)
+
+        // Public để tái dùng ở nhiều nơi
+        public async Task<(bool eligible, DateOnly? date, TimeSpan? time, Guid? tlId, string? activity, string? tourName)>
+            CheckUpcomingVisitForShopAsync(Guid shopId, Guid userId)
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            // Điều kiện 1: user đã từng mua sản phẩm của shop (Paid)
-            bool boughtBefore = await _orderRepo.GetQueryable()
-                .Where(o => o.UserId == userId && o.Status == OrderStatus.Paid)
-                .AnyAsync(o => o.OrderDetails.Any(od => od.Product.SpecialtyShopId == shopId));
-
-            if (!boughtBefore)
-                return (false, null, null, null, null,null);
-
-            // Điều kiện 2: có tour tương lai ghé shop (Confirmed)
+            // ✅ Chỉ check: có tour tương lai (Confirmed) ghé shop hay không
             var visit = await (
                 from b in _bookingRepo.GetQueryable().AsNoTracking()
                 join s in _slotRepo.GetQueryable().AsNoTracking() on b.TourSlotId equals s.Id
-                join t in _timelineRepo.GetQueryable().AsNoTracking() on s.TourDetailsId equals t.TourDetailsId
+                join tl in _timelineRepo.GetQueryable().AsNoTracking() on s.TourDetailsId equals tl.TourDetailsId
                 join dt in _detailsRepo.GetQueryable().AsNoTracking() on s.TourDetailsId equals dt.Id
                 where b.UserId == userId
-                      && s.TourDate >= today
-                      && t.SpecialtyShopId == shopId
                       && b.Status == BookingStatus.Confirmed
-                orderby s.TourDate, t.SortOrder
-                select new { s.TourDate, t.CheckInTime, t.Id, t.Activity ,TourName = dt.Title }
+                      && s.TourDate >= today
+                      && tl.SpecialtyShopId == shopId
+                orderby s.TourDate, tl.SortOrder
+                select new
+                {
+                    s.TourDate,
+                    tl.CheckInTime,
+                    tl.Id,
+                    tl.Activity,
+                    TourName = dt.Title
+                }
             ).FirstOrDefaultAsync();
 
             if (visit == null)
@@ -621,66 +687,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return (true, visit.TourDate, visit.CheckInTime, visit.Id, visit.Activity, visit.TourName);
         }
 
-        /// <summary>
-        /// Shop tự check 1 khách và cập nhật cờ IsUpcomingVisitor (isshop).
-        /// </summary>
-        public async Task<ShopCustomerStatusDto> CheckAndUpdateCustomerVisitAsync(CurrentUserObject me, Guid customerUserId)
-        {
-            var shop = await _shopRepo.GetFirstOrDefaultAsync(s => s.UserId == me.UserId)
-                       ?? throw new InvalidOperationException("Tài khoản không sở hữu Specialty Shop.");
-            var shopId = shop.Id;
 
-            var (eligible, date, time, tlId, activity,tourname) =
-                await CheckShopVisitEligibilityAsync(shopId, customerUserId);
-
-            var status = await _shopCustomerStatusRepo
-                .GetFirstOrDefaultAsync(x => x.SpecialtyShopId == shopId && x.CustomerUserId == customerUserId);
-
-            if (status == null)
-            {
-                status = new ShopCustomerStatus
-                {
-                    Id = Guid.NewGuid(),
-                    SpecialtyShopId = shopId,
-                    CustomerUserId = customerUserId,
-                    IsUpcomingVisitor = eligible,
-                    NextTourDate = date,
-                    PlannedCheckInTime = time,
-                    TimelineItemId = tlId,
-                    Activity = activity,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedById = me.UserId
-                };
-                await _shopCustomerStatusRepo.AddAsync(status);
-            }
-            else
-            {
-                status.IsUpcomingVisitor = eligible;
-                status.NextTourDate = date;
-                status.PlannedCheckInTime = time;
-                status.TimelineItemId = tlId;
-                status.Activity = activity;
-                status.UpdatedAt = DateTime.UtcNow;
-                status.UpdatedById = me.UserId;
-                await _shopCustomerStatusRepo.UpdateAsync(status);
-            }
-
-            await _shopCustomerStatusRepo.SaveChangesAsync();
-
-            return new ShopCustomerStatusDto
-            {
-                StatusCode = 200,
-                Message = "Kiểm tra và cập nhật trạng thái khách hàng thành công",
-                SpecialtyShopId = shopId,
-                CustomerUserId = customerUserId,
-                IsShop = status.IsUpcomingVisitor, // field bạn yêu cầu
-                NextTourDate = status.NextTourDate,
-                PlannedCheckInTime = status.PlannedCheckInTime,
-                TimelineItemId = status.TimelineItemId,
-                Activity = status.Activity
-            };
-        }
+      
 
 
 

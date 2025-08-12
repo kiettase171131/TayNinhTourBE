@@ -29,6 +29,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop
         //public bool IsCompleted { get; set; }
         //public DateTime? ActualCompletedAt { get; set; }
         public List<PurchasedProductDto> Products { get; set; } = new();
+        public List<OrderBriefDto>? PaidOrders { get; set; }
 
     }
 }

@@ -285,15 +285,6 @@ namespace TayNinhTourApi.Controller.Controllers
             var res = await _specialtyShopService.GetVisitorsAsync(me, pageIndex, pageSize, fromDate, toDate);
             return StatusCode(res.StatusCode, res);
         }
-        [HttpGet("Check/{customerId:guid}/future-visit")]
-        [Authorize(Roles = "Specialty Shop")]
-        public async Task<ActionResult<ShopCustomerStatusDto>> CheckCustomerFutureVisit(Guid customerId)
-        {
-            var me = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            if (me is null) return Unauthorized();
-
-            var dto = await _specialtyShopService.CheckAndUpdateCustomerVisitAsync(me, customerId);
-            return StatusCode(dto.StatusCode, dto);
-        }
+       
     }
 }

@@ -759,6 +759,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // ====== NEW: Giảm 10% cho item thuộc shop mà user đủ điều kiện IsShop ======
             // Gom theo shop để gọi eligibility 1 lần / shop
             var promotionMessages = new List<string>();
+            // Gom theo shop để xét ưu đãi
             var productsByShop = cartItems
                 .Where(ci => ci.Product != null)
                 .GroupBy(ci => ci.Product!.SpecialtyShopId)
@@ -768,26 +769,28 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 var shopId = grp.Key;
                 if (shopId == Guid.Empty) continue;
-                // Lấy tên shop
+
+                // Lấy tên shop để in thông báo
                 var shopName = await _specialtyShop
                     .GetQueryable()
                     .Where(s => s.Id == shopId)
                     .Select(s => s.ShopName)
                     .FirstOrDefaultAsync() ?? "Shop";
 
-                // Kiểm tra eligibility (đã từng Paid + có tour tương lai ghé shop)
-                var (eligible, nextDate, nextTime, _, activity, tourName) = await _specialtyShopService
-                    .CheckShopVisitEligibilityAsync(shopId, currentUser.Id);
+                // ❗ Luật mới: chỉ cần user có tour sắp tới ghé shop này là đủ
+                var (eligible, nextDate, nextTime, _, activity, tourName) =
+                    await _specialtyShopService.CheckUpcomingVisitForShopAsync(shopId, currentUser.Id);
 
                 if (!eligible) continue;
 
-                // Áp dụng giảm 10% cho các item thuộc shop này
+                // Giảm 10% phần tiền của các item thuộc shop này
                 var shopSubtotal = grp.Sum(ci => ci.Product!.Price * ci.Quantity);
                 var shopDiscount = Math.Round(shopSubtotal * 0.10m, 2);
 
                 discountAmount += shopDiscount;
                 totalAfterDiscount -= shopDiscount;
-                // Tạo thông báo
+
+                // Thông báo
                 var dateText = nextDate.HasValue ? nextDate.Value.ToString("dd/MM/yyyy") : "sắp tới";
                 var timeText = nextTime.HasValue ? nextTime.Value.ToString(@"hh\:mm") : "";
                 var timePart = string.IsNullOrWhiteSpace(timeText) ? "" : $" lúc {timeText}";
@@ -795,7 +798,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var tourText = string.IsNullOrWhiteSpace(tourName) ? "tour sắp tới" : $"tour {tourName}";
 
                 promotionMessages.Add(
-                    $"🎉 Chúc mừng! Bạn được giảm 10% vì đã mua hàng lần nữa tại **{shopName}** khi sẽ ghé trong {tourText} vào {dateText}{timePart}{activityPart}."
+                    $"🎉 Chúc mừng! Bạn được giảm 10% vì đã mua hàng tại **{shopName}**, nơi bạn sẽ ghé trong {tourText} vào {dateText}{timePart}{activityPart}."
                 );
             }
             // ====== END NEW ======
