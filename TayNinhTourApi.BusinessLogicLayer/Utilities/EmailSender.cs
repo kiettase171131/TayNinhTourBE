@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using MimeKit;
 using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.DataAccessLayer.Entities;
 using static System.Net.WebRequestMethods;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Utilities
@@ -52,23 +53,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
                 // Log the error với thông tin chi tiết
                 var toEmail = message.To.FirstOrDefault()?.ToString() ?? "Unknown";
                 var subject = message.Subject ?? "No subject";
-                
+
                 Console.WriteLine($"=== EMAIL SENDING FAILED ===");
                 Console.WriteLine($"To: {toEmail}");
                 Console.WriteLine($"Subject: {subject}");
                 Console.WriteLine($"Error: {ex.Message}");
                 Console.WriteLine($"Exception Type: {ex.GetType().Name}");
-                
+
                 // Log SMTP settings (nhưng không log password)
                 Console.WriteLine($"SMTP Server: {_emailSettings.SmtpServer}:{_emailSettings.SmtpPort}");
                 Console.WriteLine($"Username: {_emailSettings.Username}");
                 Console.WriteLine($"Sender: {_emailSettings.SenderName} <{_emailSettings.SenderEmail}>");
-                
+
                 if (ex.InnerException != null)
                 {
                     Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
                 }
-                
+
                 Console.WriteLine($"Stack Trace: {ex.StackTrace}");
                 Console.WriteLine("=== END EMAIL ERROR ===");
 
@@ -668,7 +669,121 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
         }
 
         /// <summary>
+        /// Send individual guest booking confirmation email with personal QR code
+        /// NEW: For individual guest QR system
+        /// </summary>
+        public async Task SendIndividualGuestBookingConfirmationAsync(
+            TourBookingGuest guest,
+            TourBooking booking,
+            string tourTitle,
+            DateTime tourDate,
+            byte[] qrCodeImage)
+        {
+            // ✅ Validation
+            if (guest == null) throw new ArgumentNullException(nameof(guest));
+            if (booking == null) throw new ArgumentNullException(nameof(booking));
+            if (string.IsNullOrWhiteSpace(guest.GuestEmail)) throw new ArgumentException("Guest email is required", nameof(guest));
+            if (qrCodeImage == null || qrCodeImage.Length == 0) throw new ArgumentException("QR code image is required", nameof(qrCodeImage));
+
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(guest.GuestName ?? "Guest", guest.GuestEmail));
+            message.Subject = $"Tour Booking Confirmed - Personal QR Ticket for {guest.GuestName ?? "Guest"}";
+
+            var bodyBuilder = new BodyBuilder();
+
+            // Add QR code as embedded image
+            var qrCodeAttachment = bodyBuilder.Attachments.Add("personal-qr-code.png", qrCodeImage, new ContentType("image", "png"));
+            qrCodeAttachment.ContentDisposition = new ContentDisposition(ContentDisposition.Inline);
+            qrCodeAttachment.ContentId = "personal-qr-code";
+
+            bodyBuilder.HtmlBody = $@"
+            <div style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"">
+                <div style=""text-align: center; margin-bottom: 30px;"">
+                    <h1 style=""color: #2c3e50; margin-bottom: 10px;"">🎉 Personal Tour Ticket!</h1>
+                    <p style=""color: #7f8c8d; font-size: 16px;"">Your individual QR code for Tay Ninh Tour</p>
+                </div>
+
+                <div style=""background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;"">
+                    <h2 style=""color: #2c3e50; margin-top: 0;"">Personal Ticket Details</h2>
+                    <table style=""width: 100%; border-collapse: collapse;"">
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #34495e;"">Guest Name:</td>
+                            <td style=""padding: 8px 0; color: #2c3e50;"">{guest.GuestName}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #34495e;"">Email:</td>
+                            <td style=""padding: 8px 0; color: #2c3e50;"">{guest.GuestEmail}</td>
+                        </tr>
+                        {(string.IsNullOrWhiteSpace(guest.GuestPhone) ? "" : $@"
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #34495e;"">Phone:</td>
+                            <td style=""padding: 8px 0; color: #2c3e50;"">{guest.GuestPhone}</td>
+                        </tr>")}
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #34495e;"">Booking Code:</td>
+                            <td style=""padding: 8px 0; color: #2c3e50;"">{booking.BookingCode}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #34495e;"">Tour:</td>
+                            <td style=""padding: 8px 0; color: #2c3e50;"">{tourTitle}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #34495e;"">Date:</td>
+                            <td style=""padding: 8px 0; color: #2c3e50;"">{tourDate:dd/MM/yyyy HH:mm}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #34495e;"">Total Guests:</td>
+                            <td style=""padding: 8px 0; color: #2c3e50;"">{booking.NumberOfGuests} people</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #34495e;"">Total Price:</td>
+                            <td style=""padding: 8px 0; color: #e74c3c; font-weight: bold;"">{booking.TotalPrice:N0} VND</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style=""text-align: center; margin: 30px 0;"">
+                    <h3 style=""color: #2c3e50; margin-bottom: 15px;"">🎫 Your Personal QR Code</h3>
+                    <p style=""color: #7f8c8d; margin-bottom: 20px;"">Show this QR code to the tour guide for check-in</p>
+                    <img src=""cid:personal-qr-code"" alt=""Personal QR Code"" style=""max-width: 250px; border: 2px solid #ecf0f1; border-radius: 8px;"" />
+                </div>
+
+                <div style=""background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #27ae60; margin: 20px 0;"">
+                    <h4 style=""color: #27ae60; margin-top: 0;"">📱 Important Instructions</h4>
+                    <ul style=""color: #2c3e50; margin: 10px 0;"">
+                        <li>This QR code is <strong>personal</strong> and unique to you</li>
+                        <li>Present this QR code to the tour guide for individual check-in</li>
+                        <li>Each guest in your group has their own QR code</li>
+                        <li>Keep this email accessible on your mobile device</li>
+                        <li>Arrive 15 minutes before tour start time</li>
+                    </ul>
+                </div>
+
+                <div style=""background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;"">
+                    <h4 style=""color: #856404; margin-top: 0;"">📞 Contact Information</h4>
+                    <p style=""color: #856404; margin: 5px 0;"">
+                        <strong>Booking Contact:</strong> {booking.ContactPhone ?? "N/A"}<br>
+                        <strong>Support:</strong> +84 123 456 789<br>
+                        <strong>Email:</strong> support@tayninhtour.com
+                    </p>
+                </div>
+
+                <div style=""text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ecf0f1;"">
+                    <p style=""color: #7f8c8d; font-size: 14px;"">
+                        Thank you for choosing Tay Ninh Tour!<br>
+                        We look forward to providing you with an amazing experience.
+                    </p>
+                </div>
+            </div>";
+
+            message.Body = bodyBuilder.ToMessageBody();
+            await SendEmailAsync(message);
+        }
+
+        /// <summary>
         /// Send tour booking confirmation email with QR code
+        /// LEGACY: For backward compatibility with single QR system
         /// </summary>
         public async Task SendTourBookingConfirmationAsync(
             string toEmail,

@@ -34,7 +34,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating QR code image for booking {BookingId}", booking.Id);
-                
+
                 // Return a simple fallback QR code if generation fails
                 try
                 {
@@ -61,7 +61,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Generate QR code using QRCoder
                 using var qrGenerator = new QRCodeGenerator();
                 using var qrCodeData = qrGenerator.CreateQrCode(qrData, QRCodeGenerator.ECCLevel.M);
-                
+
                 // Use PngByteQRCode for direct PNG generation (more compatible)
                 var qrCode = new PngByteQRCode(qrCodeData);
                 var qrCodeBytes = qrCode.GetGraphic(20);
@@ -75,20 +75,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating QR code image from data");
-                
+
                 // Try alternative method using BitmapByteQRCode
                 try
                 {
                     _logger.LogInformation("Attempting alternative QR code generation method");
-                    
+
                     using var qrGenerator = new QRCodeGenerator();
                     using var qrCodeData = qrGenerator.CreateQrCode(qrData, QRCodeGenerator.ECCLevel.M);
-                    
+
                     var qrCode = new BitmapByteQRCode(qrCodeData);
                     var qrCodeBytes = qrCode.GetGraphic(20);
-                    
+
                     _logger.LogInformation("Alternative QR code generation successful with {ByteCount} bytes", qrCodeBytes.Length);
-                    
+
                     return Task.FromResult(qrCodeBytes);
                 }
                 catch (Exception altEx)
@@ -108,7 +108,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 _logger.LogWarning("Generating fallback QR code for booking code: {BookingCode}", bookingCode);
-                
+
                 var fallbackData = new
                 {
                     BookingCode = bookingCode,
@@ -124,12 +124,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 using var qrGenerator = new QRCodeGenerator();
                 using var qrCodeData = qrGenerator.CreateQrCode(fallbackJson, QRCodeGenerator.ECCLevel.M);
-                
+
                 var qrCode = new PngByteQRCode(qrCodeData);
                 var qrCodeBytes = qrCode.GetGraphic(20);
-                
+
                 _logger.LogInformation("Fallback QR code generated successfully with {ByteCount} bytes", qrCodeBytes.Length);
-                
+
                 return qrCodeBytes;
             }
             catch (Exception ex)
@@ -154,24 +154,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UserId = booking.UserId,
                     TourOperationId = booking.TourOperationId,
                     NumberOfGuests = booking.NumberOfGuests,
-                    
+
                     // PRICING INFORMATION - Enhanced to show both original and final prices
-                    OriginalPrice = booking.OriginalPrice, // Giá g?c (tr??c discount)
-                    DiscountPercent = booking.DiscountPercent, // % gi?m giá
-                    TotalPrice = booking.TotalPrice, // Giá cu?i cùng (sau discount)
+                    OriginalPrice = booking.OriginalPrice, // Giï¿½ g?c (tr??c discount)
+                    DiscountPercent = booking.DiscountPercent, // % gi?m giï¿½
+                    TotalPrice = booking.TotalPrice, // Giï¿½ cu?i cï¿½ng (sau discount)
                     PriceType = booking.DiscountPercent > 0 ? "Early Bird" : "Standard",
-                    
+
                     BookingDate = booking.BookingDate,
                     ConfirmedDate = booking.ConfirmedDate,
                     Status = booking.Status.ToString(),
                     ContactName = booking.ContactName,
                     ContactPhone = booking.ContactPhone,
                     ContactEmail = booking.ContactEmail,
-                    
+
                     // Add tour information if available
                     TourTitle = booking.TourOperation?.TourDetails?.Title,
                     TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
-                    
+
                     // Add verification timestamp
                     GeneratedAt = DateTime.UtcNow,
                     Version = "2.1" // Updated version to reflect server-compatible implementation
@@ -187,6 +187,91 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogError(ex, "Error generating QR code data for booking {BookingId}", booking.Id);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Generate individual QR code data for specific guest
+        /// Contains guest-specific info + booking context for tour guide check-in
+        /// </summary>
+        public string GenerateGuestQRCodeData(TourBookingGuest guest, TourBooking booking)
+        {
+            try
+            {
+                var qrData = new
+                {
+                    // Guest-specific information
+                    GuestId = guest.Id,
+                    GuestName = guest.GuestName,
+                    GuestEmail = guest.GuestEmail,
+                    GuestPhone = guest.GuestPhone,
+
+                    // Booking context
+                    BookingId = booking.Id,
+                    BookingCode = booking.BookingCode,
+                    TourOperationId = booking.TourOperationId,
+                    TourSlotId = booking.TourSlotId,
+
+                    // Pricing information (shared across all guests)
+                    TotalBookingPrice = booking.TotalPrice,
+                    NumberOfGuests = booking.NumberOfGuests,
+                    OriginalPrice = booking.OriginalPrice,
+                    DiscountPercent = booking.DiscountPercent,
+
+                    // Tour information
+                    TourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience",
+                    TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.UtcNow,
+
+                    // Check-in status
+                    IsCheckedIn = guest.IsCheckedIn,
+                    CheckInTime = guest.CheckInTime,
+
+                    // Metadata
+                    GeneratedAt = DateTime.UtcNow,
+                    QRType = "IndividualGuest",
+                    Version = "3.0" // New version for individual guest QR codes
+                };
+
+                return JsonSerializer.Serialize(qrData, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = false
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating guest QR code data for guest {GuestId} in booking {BookingId}",
+                    guest.Id, booking.Id);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Generate QR code image for individual guest
+        /// </summary>
+        public async Task<byte[]> GenerateGuestQRCodeImageAsync(TourBookingGuest guest, TourBooking booking, int size = 300)
+        {
+            try
+            {
+                var qrData = GenerateGuestQRCodeData(guest, booking);
+                return await GenerateQRCodeImageFromDataAsync(qrData, size);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating guest QR code image for guest {GuestId} in booking {BookingId}",
+                    guest.Id, booking.Id);
+
+                // Fallback: generate simple QR with guest name and booking code
+                try
+                {
+                    var fallbackData = $"Guest: {guest.GuestName}, Booking: {booking.BookingCode}, ID: {guest.Id}";
+                    return await GenerateQRCodeImageFromDataAsync(fallbackData, size);
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogError(fallbackEx, "Error generating fallback guest QR code for guest {GuestId}", guest.Id);
+                    throw new InvalidOperationException($"Unable to generate QR code for guest {guest.Id}", ex);
+                }
             }
         }
 

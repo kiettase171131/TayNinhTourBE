@@ -170,9 +170,10 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     var errors = ModelState
                         .Where(x => x.Value.Errors.Count > 0)
-                        .Select(x => new { 
-                            Field = x.Key, 
-                            Errors = x.Value.Errors.Select(e => e.ErrorMessage) 
+                        .Select(x => new
+                        {
+                            Field = x.Key,
+                            Errors = x.Value.Errors.Select(e => e.ErrorMessage)
                         })
                         .ToList();
 
@@ -384,7 +385,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 try
                 {
                     var result = await _userTourBookingService.CreateBookingAsync(request, userId);
-                    
+
                     debugInfo.Add($"Step 3: Service call result - Success: {result.Success}");
                     debugInfo.Add($"Step 4: Service call message - {result.Message}");
 
@@ -405,7 +406,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     debugInfo.Add($"Step 3 ERROR: Service exception - {serviceEx.Message}");
                     debugInfo.Add($"Step 3 STACK: {serviceEx.StackTrace}");
-                    
+
                     return StatusCode(500, new
                     {
                         success = false,
@@ -439,11 +440,11 @@ namespace TayNinhTourApi.Controller.Controllers
                 var debugInfo = new List<string>();
 
                 debugInfo.Add($"Step 1: Generate booking code and PayOS order code");
-                
+
                 // Test generating codes
                 var bookingCode = $"TB{VietnamTimeZoneUtility.GetVietnamNow():yyyyMMdd}{new Random().Next(100000, 999999)}";
                 var payOsOrderCode = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
-                
+
                 debugInfo.Add($"Step 2: Booking Code = {bookingCode}");
                 debugInfo.Add($"Step 3: PayOS Order Code = {payOsOrderCode}");
 
@@ -507,7 +508,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     debugInfo.Add($"Step 5 ERROR: PayOS service error - {payOsEx.Message}");
                     debugInfo.Add($"Step 5 STACK: {payOsEx.StackTrace}");
-                    
+
                     return StatusCode(500, new
                     {
                         success = false,
@@ -546,7 +547,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     if (tourSlotService != null)
                     {
                         debugInfo.Add($"Step 2: TourSlotService found - {tourSlotService.GetType().Name}");
-                        
+
                         // Test getting slot details
                         var slotDetails = await tourSlotService.GetSlotByIdAsync(tourSlotId);
                         if (slotDetails != null)
@@ -554,11 +555,11 @@ namespace TayNinhTourApi.Controller.Controllers
                             debugInfo.Add($"Step 3: TourSlot found - IsActive: {slotDetails.IsActive}, Status: {slotDetails.Status}");
                             debugInfo.Add($"Step 4: Capacity - MaxGuests: {slotDetails.MaxGuests}, CurrentBookings: {slotDetails.CurrentBookings}");
                             debugInfo.Add($"Step 5: TourDetailsId: {slotDetails.TourDetailsId}");
-                            
+
                             // Check if slot can be booked
                             var canBook = await tourSlotService.CanBookSlotAsync(tourSlotId, 1);
                             debugInfo.Add($"Step 6: Can book 1 guest: {canBook}");
-                            
+
                             return Ok(new
                             {
                                 success = true,
@@ -630,11 +631,11 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     // Get available tours first
                     var availableTours = await _userTourBookingService.GetAvailableToursAsync(1, 5);
-                    
+
                     if (availableTours.Items.Any())
                     {
                         debugInfo.Add($"Step 2: Found {availableTours.Items.Count} available tours");
-						
+
                         foreach (var tour in availableTours.Items.Take(3))
                         {
                             try
@@ -723,7 +724,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     if (payOsService != null)
                     {
                         debugInfo.Add($"Step 2: PayOsService found - {payOsService.GetType().Name}");
-                        
+
                         // Check configuration
                         var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
                         var clientId = configuration["PayOS:ClientId"];
@@ -743,7 +744,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         try
                         {
                             debugInfo.Add("Step 9: Testing PayOS payment link creation");
-                            
+
                             var testRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
                             {
                                 OrderId = null,
@@ -753,12 +754,12 @@ namespace TayNinhTourApi.Controller.Controllers
                             };
 
                             var paymentTransaction = await payOsService.CreatePaymentLinkAsync(testRequest);
-                            
+
                             debugInfo.Add("Step 10: PayOS payment link created successfully");
                             debugInfo.Add($"Step 11: Transaction ID: {paymentTransaction.Id}");
                             debugInfo.Add($"Step 12: PayOS Order Code: {paymentTransaction.PayOsOrderCode}");
                             debugInfo.Add($"Step 13: Checkout URL: {paymentTransaction.CheckoutUrl}");
-                            
+
                             return Ok(new
                             {
                                 success = true,
@@ -786,7 +787,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         {
                             debugInfo.Add($"Step 9 ERROR: PayOS test failed - {payOsTestEx.Message}");
                             debugInfo.Add($"Step 9 STACK: {payOsTestEx.StackTrace}");
-                            
+
                             // Check if it's configuration issue
                             if (payOsTestEx.Message.Contains("configuration") || payOsTestEx.Message.Contains("incomplete"))
                             {
@@ -799,7 +800,7 @@ namespace TayNinhTourApi.Controller.Controllers
                                     suggestion = "Please check appsettings.json for PayOS:ClientId, PayOS:ApiKey, and PayOS:ChecksumKey"
                                 });
                             }
-                            
+
                             return StatusCode(500, new
                             {
                                 success = false,
@@ -886,14 +887,14 @@ namespace TayNinhTourApi.Controller.Controllers
                 debugInfo.Add($"  - ReturnUrl: {returnUrl ?? "❌ NOT SET"}");
 
                 // Check if all required configs are present
-                var configComplete = !string.IsNullOrEmpty(clientId) && 
-                                   !string.IsNullOrEmpty(apiKey) && 
+                var configComplete = !string.IsNullOrEmpty(clientId) &&
+                                   !string.IsNullOrEmpty(apiKey) &&
                                    !string.IsNullOrEmpty(checksumKey);
 
                 if (!configComplete)
                 {
                     debugInfo.Add("Step 4: ❌ Configuration INCOMPLETE - Missing required PayOS settings");
-                    
+
                     return Ok(new
                     {
                         success = false,
@@ -911,7 +912,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         requiredSettings = new[]
                         {
                             "PayOS:ClientId",
-                            "PayOS:ApiKey", 
+                            "PayOS:ApiKey",
                             "PayOS:ChecksumKey",
                             "PayOS:CancelUrl (optional)",
                             "PayOS:ReturnUrl (optional)"
@@ -986,7 +987,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     // 1. Test TourSlot exists
                     debugLog.Add("Step 3: Testing TourSlot existence...");
                     var unitOfWork = HttpContext.RequestServices.GetRequiredService<IUnitOfWork>();
-                    
+
                     var tourSlot = await unitOfWork.TourSlotRepository.GetQueryable()
                         .Where(ts => ts.Id == request.TourSlotId && ts.IsActive && !ts.IsDeleted)
                         .Include(ts => ts.TourDetails)
@@ -1007,7 +1008,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     // 2. Test TourOperation validation
                     debugLog.Add("Step 4: Testing TourOperation validation...");
                     var tourOperation = tourSlot.TourDetails.TourOperation;
-                    
+
                     if (!tourOperation.IsActive || tourOperation.IsDeleted)
                     {
                         debugLog.Add("❌ Step 4 FAILED: TourOperation not active");
@@ -1115,14 +1116,14 @@ namespace TayNinhTourApi.Controller.Controllers
                         var payOsChecksumKey = configuration["PayOS:ChecksumKey"];
 
                         var payOS = new PayOS(payOsClientId!, payOsApiKey!, payOsChecksumKey!);
-                        
+
                         // Test PayOS connection by creating a minimal payment data object (without saving to database)
                         var testItem = new ItemData("Test Item", 1, (int)totalPrice);
                         var testItems = new List<ItemData> { testItem };
-                        
+
                         var testOrderCode = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                         var testDescription = "Test";
-                        
+
                         var testPaymentData = new PaymentData(
                             orderCode: testOrderCode,
                             amount: (int)totalPrice,
@@ -1137,7 +1138,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         debugLog.Add($"   - Test payment data created: OrderCode={testOrderCode}");
                         debugLog.Add($"   - Amount: {totalPrice:N0} VND");
                         debugLog.Add("   - PayOS API connection would be successful");
-                        
+
                         debugLog.Add("✅ Step 11 PASSED: PayOS integration is properly configured and ready");
 
                         return Ok(new
@@ -1167,7 +1168,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         debugLog.Add($"❌ Step 11 FAILED: PayOS error - {payOsEx.Message}");
                         debugLog.Add($"   - PayOS Exception Type: {payOsEx.GetType().Name}");
                         debugLog.Add($"   - PayOS Stack Trace: {payOsEx.StackTrace}");
-                        
+
                         if (payOsEx.InnerException != null)
                         {
                             debugLog.Add($"   - Inner Exception: {payOsEx.InnerException.Message}");
@@ -1239,7 +1240,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 try
                 {
                     var unitOfWork = HttpContext.RequestServices.GetRequiredService<IUnitOfWork>();
-                    
+
                     debugLog.Add("Step 3: Testing TourSlot query...");
                     var tourSlot = await unitOfWork.TourSlotRepository.GetQueryable()
                         .Where(ts => ts.Id == request.TourSlotId && ts.IsActive && !ts.IsDeleted)
@@ -1276,9 +1277,9 @@ namespace TayNinhTourApi.Controller.Controllers
                         BookingCode = bookingCode,
                         PayOsOrderCode = payOsOrderCode,
                         BookingDate = DateTime.UtcNow,
-                        ContactName = request.ContactName,
+                        ContactName = request.Guests.FirstOrDefault()?.GuestName,
                         ContactPhone = request.ContactPhone,
-                        ContactEmail = request.ContactEmail,
+                        ContactEmail = request.Guests.FirstOrDefault()?.GuestEmail,
                         CustomerNotes = request.SpecialRequests,
                         IsCheckedIn = false, // ✅ Set check-in status
                         IsActive = true,
@@ -1321,7 +1322,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         debugLog.Add($"❌ Database error: {dbEx.Message}");
                         debugLog.Add($"   - Exception type: {dbEx.GetType().Name}");
                         debugLog.Add($"   - Stack trace: {dbEx.StackTrace}");
-                        
+
                         if (dbEx.InnerException != null)
                         {
                             debugLog.Add($"   - Inner exception: {dbEx.InnerException.Message}");
