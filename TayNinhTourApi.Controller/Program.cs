@@ -253,6 +253,7 @@ builder.Services.AddScoped<ITourOperationRepository, TourOperationRepository>();
 builder.Services.AddScoped<ITourSlotTimelineProgressRepository, TourSlotTimelineProgressRepository>();
 builder.Services.AddScoped<ITourBookingRepository, TourBookingRepository>();
 builder.Services.AddScoped<ITourCompanyRepository, TourCompanyRepository>();
+
 builder.Services.AddScoped<ITimelineItemRepository, TimelineItemRepository>();
 builder.Services.AddScoped<ISupportTicketRepository, SupportTicketRepository>();
 builder.Services.AddScoped<ISupportTicketCommentRepository, SupportTicketCommentRepository>();
@@ -277,6 +278,7 @@ builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
 builder.Services.AddScoped<IVoucherCodeRepository, VoucherCodeRepository>();
 builder.Services.AddScoped<IOrderDetailRepository, OrderDetailRepository>();
+builder.Services.AddScoped<IShopCustomerStatusRepository, ShopCustomerStatusRepository>();
 
 // Notification Repository
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();

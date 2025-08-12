@@ -22,7 +22,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
                 new Claim("Id", user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email ?? ""), // Optional nếu cần
                 new Claim(ClaimTypes.Name, user.Name ?? ""),    // Optional nếu cần
-                new Claim("Phone", user.PhoneNumber ?? "")
+                new Claim("Phone", user.PhoneNumber ?? ""),
+                
+
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));

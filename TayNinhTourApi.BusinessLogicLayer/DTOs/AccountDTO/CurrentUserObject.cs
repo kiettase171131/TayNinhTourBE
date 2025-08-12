@@ -14,6 +14,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO
         public string Email { get; set; } = null!;
         public Guid RoleId { get; set; }
         public string PhoneNumber { get; set; } = null!;
+        
 
     }
 }

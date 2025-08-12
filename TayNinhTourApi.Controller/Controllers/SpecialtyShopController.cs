@@ -271,20 +271,29 @@ namespace TayNinhTourApi.Controller.Controllers
         // CreateShopForTimeline endpoint removed
         // SpecialtyShops are created through the shop application approval process
         // Timeline integration only needs to read existing SpecialtyShops
-        [HttpGet("me/visitors")]
+        [HttpGet("Visitors-Buy-Product")]
         [Authorize(Roles = "Specialty Shop")]
-        [ProducesResponseType(typeof(ShopVisitorsResponse), StatusCodes.Status200OK)]
         public async Task<ActionResult<ShopVisitorsResponse>> GetMyVisitors(
          [FromQuery] int? pageIndex,
          [FromQuery] int? pageSize,
          [FromQuery] DateOnly? fromDate,
-         [FromQuery] DateOnly? toDate,
-         [FromQuery] bool onlyCompleted = true)
+         [FromQuery] DateOnly? toDate)
+         //[FromQuery] bool onlyCompleted = true)
         {
             var me = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             if (me is null) return Unauthorized();
-            var res = await _specialtyShopService.GetVisitorsAsync(me, pageIndex, pageSize, fromDate, toDate, onlyCompleted);
+            var res = await _specialtyShopService.GetVisitorsAsync(me, pageIndex, pageSize, fromDate, toDate);
             return StatusCode(res.StatusCode, res);
+        }
+        [HttpGet("Check/{customerId:guid}/future-visit")]
+        [Authorize(Roles = "Specialty Shop")]
+        public async Task<ActionResult<ShopCustomerStatusDto>> CheckCustomerFutureVisit(Guid customerId)
+        {
+            var me = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            if (me is null) return Unauthorized();
+
+            var dto = await _specialtyShopService.CheckAndUpdateCustomerVisitAsync(me, customerId);
+            return StatusCode(dto.StatusCode, dto);
         }
     }
 }

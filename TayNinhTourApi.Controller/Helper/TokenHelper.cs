@@ -40,6 +40,7 @@ namespace TayNinhTourApi.Controller.Helper
                 currentUser.Email = httpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value ?? string.Empty;
                 currentUser.Name = httpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value ?? string.Empty;
                 currentUser.PhoneNumber = httpContext.User.Claims.FirstOrDefault(c => c.Type == "Phone")?.Value ?? string.Empty;
+               
                 return currentUser;
             }
             else

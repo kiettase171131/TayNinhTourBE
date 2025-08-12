@@ -46,8 +46,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly INotificationService _notificationService;
         private readonly IUserRepository _userRepository;
         private readonly ISpecialtyShopRepository _specialtyShop;
+        private readonly ISpecialtyShopService _specialtyShopService;
 
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository, ISpecialtyShopRepository specialtyShop)
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository, ISpecialtyShopRepository specialtyShop, ISpecialtyShopService specialtyShopService)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -65,6 +66,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _notificationService = notificationService;
             _userRepository = userRepository;
             _specialtyShop = specialtyShop;
+            _specialtyShopService = specialtyShopService;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount)
         {
@@ -752,6 +754,33 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             decimal discountAmount = 0m;
             decimal totalAfterDiscount = total;
             Guid? finalVoucherId = null;
+
+            // ====== NEW: Giảm 10% cho item thuộc shop mà user đủ điều kiện IsShop ======
+            // Gom theo shop để gọi eligibility 1 lần / shop
+            var productsByShop = cartItems
+                .Where(ci => ci.Product != null)
+                .GroupBy(ci => ci.Product!.SpecialtyShopId)
+                .ToList();
+
+            foreach (var grp in productsByShop)
+            {
+                var shopId = grp.Key;
+                if (shopId == Guid.Empty) continue;
+
+                // Kiểm tra eligibility (đã từng Paid + có tour tương lai ghé shop)
+                var (eligible, _, _, _, _) = await _specialtyShopService
+                    .CheckShopVisitEligibilityAsync(shopId, currentUser.Id);
+
+                if (!eligible) continue;
+
+                // Áp dụng giảm 10% cho các item thuộc shop này
+                var shopSubtotal = grp.Sum(ci => ci.Product!.Price * ci.Quantity);
+                var shopDiscount = Math.Round(shopSubtotal * 0.10m, 2);
+
+                discountAmount += shopDiscount;
+                totalAfterDiscount -= shopDiscount;
+            }
+            // ====== END NEW ======
 
             // Áp dụng voucher nếu được chọn
             if (voucherId.HasValue)

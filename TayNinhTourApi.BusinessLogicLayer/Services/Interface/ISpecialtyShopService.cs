@@ -107,7 +107,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="id">ID của SpecialtyShop</param>
         /// <returns>Thông tin chi tiết SpecialtyShop</returns>
         Task<ApiResponse<SpecialtyShopResponseDto>> GetShopByIdForTimelineAsync(Guid id);
-        Task<ShopVisitorsResponse> GetVisitorsAsync(CurrentUserObject currentUserObject,int? pageIndex, int? pageSize,DateOnly? fromDate, DateOnly? toDate, bool onlyCompleted = true);
+        Task<ShopVisitorsResponse> GetVisitorsAsync(CurrentUserObject currentUserObject,int? pageIndex, int? pageSize,DateOnly? fromDate, DateOnly? toDate);
+        Task<ShopCustomerStatusDto> CheckAndUpdateCustomerVisitAsync(CurrentUserObject me, Guid customerUserId);
+        Task<(bool eligible, DateOnly? date, TimeSpan? time, Guid? tlId, string? activity)> CheckShopVisitEligibilityAsync(Guid shopId, Guid userId);
 
     }
 
