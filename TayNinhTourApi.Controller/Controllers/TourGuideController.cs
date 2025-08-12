@@ -178,7 +178,11 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (tourOperation == null)
                 {
-                    return Forbid("HDV không có quyền truy cập tour này");
+                    return StatusCode(403, new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "HDV không có quyền truy cập tour này"
+                    });
                 }
 
                 // Lấy danh sách bookings
@@ -263,7 +267,11 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (tourOperation == null)
                 {
-                    return Forbid("HDV không có quyền truy cập tour này");
+                    return StatusCode(403, new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "HDV không có quyền truy cập tour này"
+                    });
                 }
 
                 // Lấy timeline items
@@ -684,7 +692,11 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return StatusCode(403, new BaseResposeDto
+                {
+                    StatusCode = 403,
+                    Message = ex.Message
+                });
             }
             catch (InvalidOperationException ex)
             {
@@ -804,7 +816,11 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return StatusCode(403, new BaseResposeDto
+                {
+                    StatusCode = 403,
+                    Message = ex.Message
+                });
             }
             catch (InvalidOperationException ex)
             {
@@ -903,7 +919,11 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return StatusCode(403, new BaseResposeDto
+                {
+                    StatusCode = 403,
+                    Message = ex.Message
+                });
             }
             catch (Exception ex)
             {
@@ -954,7 +974,11 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (tourOperation == null)
                 {
-                    return Forbid("HDV không có quyền báo cáo sự cố cho tour này");
+                    return StatusCode(403, new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "HDV không có quyền báo cáo sự cố cho tour này"
+                    });
                 }
 
                 // Tạo TourIncident record
@@ -1240,7 +1264,11 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (tourOperation == null)
                 {
-                    return Forbid("HDV không có quyền gửi thông báo cho tour này");
+                    return StatusCode(403, new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "HDV không có quyền gửi thông báo cho tour này"
+                    });
                 }
 
                 // Lấy danh sách guests đã check-in

@@ -6,6 +6,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourGuide;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Contexts;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -137,13 +138,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ImageUrls = tourSlot.TourDetails.ImageUrls?.ToList() ?? new List<string>()
                 };
 
+                // Check if timeline can be modified based on tour slot status
+                var canModifyProgress = await ValidateTourSlotStatusForUpdateAsync(tourSlotId);
+
                 var response = new TimelineProgressResponse
                 {
                     Timeline = timelineWithProgress,
                     Summary = summary,
                     TourSlot = tourSlotInfo,
                     TourDetails = tourDetailsInfo,
-                    CanModifyProgress = true,
+                    CanModifyProgress = canModifyProgress,
                     LastUpdated = DateTime.UtcNow
                 };
 
@@ -181,70 +185,88 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     throw new UnauthorizedAccessException("Tour guide không có quyền truy cập tour slot này");
                 }
 
+                // Validate tour slot status - only allow updates when status is InProgress
+                _logger.LogInformation("About to validate tour slot status for updates: {TourSlotId}", tourSlotId);
+                var canUpdate = await ValidateTourSlotStatusForUpdateAsync(tourSlotId);
+                _logger.LogInformation("Tour slot status validation result: {CanUpdate} for slot {TourSlotId}", canUpdate, tourSlotId);
+
+                if (!canUpdate)
+                {
+                    _logger.LogWarning("Timeline update blocked due to tour slot status for slot {TourSlotId}", tourSlotId);
+                    throw new InvalidOperationException("Chỉ có thể cập nhật timeline khi tour slot đang trong trạng thái 'Đang thực hiện'. Hiện tại chỉ có thể xem timeline.");
+                }
+
                 // Check if item can be completed (sequential validation)
                 if (!await CanCompleteTimelineItemAsync(tourSlotId, timelineItemId, userId))
                 {
                     throw new InvalidOperationException("Timeline item này chưa thể hoàn thành. Vui lòng hoàn thành các item trước đó theo thứ tự.");
                 }
 
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
+                // Use execution strategy to handle transactions properly with MySQL
+                var strategy = _context.Database.CreateExecutionStrategy();
+                CompleteTimelineResponse response = null;
+
+                await strategy.ExecuteAsync(async () =>
                 {
-                    // Get or create progress record
-                    var progress = await _context.TourSlotTimelineProgress
-                        .FirstOrDefaultAsync(tp => tp.TourSlotId == tourSlotId && tp.TimelineItemId == timelineItemId);
-
-                    if (progress == null)
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
                     {
-                        progress = TourSlotTimelineProgress.Create(tourSlotId, timelineItemId, userId);
-                        _context.TourSlotTimelineProgress.Add(progress);
+                        // Get or create progress record
+                        var progress = await _context.TourSlotTimelineProgress
+                            .FirstOrDefaultAsync(tp => tp.TourSlotId == tourSlotId && tp.TimelineItemId == timelineItemId);
+
+                        if (progress == null)
+                        {
+                            progress = TourSlotTimelineProgress.Create(tourSlotId, timelineItemId, userId);
+                            _context.TourSlotTimelineProgress.Add(progress);
+                        }
+
+                        // Mark as completed
+                        progress.MarkAsCompleted(userId, request.Notes);
+
+                        await _context.SaveChangesAsync();
+
+                        // Get updated timeline item with progress
+                        var completedItem = await GetTimelineItemWithProgressAsync(tourSlotId, timelineItemId, userId);
+
+                        // Get updated summary
+                        var summary = await GetProgressSummaryAsync(tourSlotId, userId);
+
+                        // Get next item
+                        var nextItem = await GetNextTimelineItemAsync(tourSlotId, userId);
+
+                        // Send notifications to guests
+                        var notificationCount = await NotifyGuestsAboutProgressAsync(tourSlotId, timelineItemId, userId);
+
+                        await transaction.CommitAsync();
+
+                        response = new CompleteTimelineResponse
+                        {
+                            Success = true,
+                            Message = "Timeline item đã được hoàn thành thành công",
+                            CompletedItem = completedItem,
+                            Summary = summary,
+                            NextItem = nextItem,
+                            IsTimelineCompleted = summary.IsFullyCompleted,
+                            CompletedAt = progress.CompletedAt ?? DateTime.UtcNow
+                        };
+
+                        if (notificationCount > 0)
+                        {
+                            response.Warnings.Add($"Đã gửi thông báo cho {notificationCount} khách hàng");
+                        }
                     }
-
-                    // Mark as completed
-                    progress.MarkAsCompleted(userId, request.Notes);
-
-                    await _context.SaveChangesAsync();
-
-                    // Get updated timeline item with progress
-                    var completedItem = await GetTimelineItemWithProgressAsync(tourSlotId, timelineItemId);
-
-                    // Get updated summary
-                    var summary = await GetProgressSummaryAsync(tourSlotId, userId);
-
-                    // Get next item
-                    var nextItem = await GetNextTimelineItemAsync(tourSlotId, userId);
-
-                    // Send notifications to guests
-                    var notificationCount = await NotifyGuestsAboutProgressAsync(tourSlotId, timelineItemId, userId);
-
-                    await transaction.CommitAsync();
-
-                    var response = new CompleteTimelineResponse
+                    catch (Exception)
                     {
-                        Success = true,
-                        Message = "Timeline item đã được hoàn thành thành công",
-                        CompletedItem = completedItem,
-                        Summary = summary,
-                        NextItem = nextItem,
-                        IsTimelineCompleted = summary.IsFullyCompleted,
-                        CompletedAt = progress.CompletedAt ?? DateTime.UtcNow
-                    };
-
-                    if (notificationCount > 0)
-                    {
-                        response.Warnings.Add($"Đã gửi thông báo cho {notificationCount} khách hàng");
+                        await transaction.RollbackAsync();
+                        throw;
                     }
+                });
 
-                    _logger.LogInformation("Successfully completed timeline item {TimelineItemId} for tour slot {TourSlotId}",
-                        timelineItemId, tourSlotId);
+                _logger.LogInformation("Successfully completed timeline item {TimelineItemId} for tour slot {TourSlotId}",
+                    timelineItemId, tourSlotId);
 
-                    return response;
-                }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                return response;
             }
             catch (Exception ex)
             {
@@ -282,6 +304,40 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 _logger.LogError(ex, "Error validating tour guide access for tour slot {TourSlotId} and user {UserId}",
                     tourSlotId, userId);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Validate if tour slot status allows timeline progress updates
+        /// Only InProgress status allows updates, other statuses are read-only
+        /// </summary>
+        /// <param name="tourSlotId">Tour slot ID to validate</param>
+        /// <returns>True if updates are allowed, false if read-only</returns>
+        public async Task<bool> ValidateTourSlotStatusForUpdateAsync(Guid tourSlotId)
+        {
+            try
+            {
+                var tourSlot = await _context.TourSlots
+                    .FirstOrDefaultAsync(ts => ts.Id == tourSlotId && ts.IsActive);
+
+                if (tourSlot == null)
+                {
+                    _logger.LogWarning("Tour slot not found: {TourSlotId}", tourSlotId);
+                    return false;
+                }
+
+                // Only allow updates when tour slot status is InProgress
+                var canUpdate = tourSlot.Status == TourSlotStatus.InProgress;
+
+                _logger.LogInformation("Tour slot {TourSlotId} status validation: Status={Status}, CanUpdate={CanUpdate}",
+                    tourSlotId, tourSlot.Status, canUpdate);
+
+                return canUpdate;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating tour slot status for updates: {TourSlotId}", tourSlotId);
                 return false;
             }
         }
@@ -527,6 +583,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     throw new UnauthorizedAccessException("Tour guide không có quyền truy cập tour slot này");
                 }
 
+                // Validate tour slot status - only allow updates when status is InProgress
+                if (!await ValidateTourSlotStatusForUpdateAsync(tourSlotId))
+                {
+                    throw new InvalidOperationException("Chỉ có thể cập nhật timeline khi tour slot đang trong trạng thái 'Đang thực hiện'. Hiện tại chỉ có thể xem timeline.");
+                }
+
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
@@ -569,7 +631,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     await transaction.CommitAsync();
 
                     // Get updated item and summary
-                    var resetItem = await GetTimelineItemWithProgressAsync(tourSlotId, timelineItemId);
+                    var resetItem = await GetTimelineItemWithProgressAsync(tourSlotId, timelineItemId, userId);
                     var summary = await GetProgressSummaryAsync(tourSlotId, userId);
                     var nextItem = await GetNextTimelineItemAsync(tourSlotId, userId);
 
@@ -649,12 +711,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     if (slowestRecord != null)
                     {
-                        statistics.SlowestItem = await GetTimelineItemWithProgressAsync(tourSlotId, slowestRecord.TimelineItemId);
+                        statistics.SlowestItem = await GetTimelineItemWithProgressAsync(tourSlotId, slowestRecord.TimelineItemId, userId);
                     }
 
                     if (fastestRecord != null)
                     {
-                        statistics.FastestItem = await GetTimelineItemWithProgressAsync(tourSlotId, fastestRecord.TimelineItemId);
+                        statistics.FastestItem = await GetTimelineItemWithProgressAsync(tourSlotId, fastestRecord.TimelineItemId, userId);
                     }
 
                     // Build completion trend
@@ -760,9 +822,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         // Helper method to get timeline item with progress
-        private async Task<TimelineWithProgressDto?> GetTimelineItemWithProgressAsync(Guid tourSlotId, Guid timelineItemId)
+        private async Task<TimelineWithProgressDto?> GetTimelineItemWithProgressAsync(Guid tourSlotId, Guid timelineItemId, Guid userId)
         {
-            var timelineResponse = await GetTimelineWithProgressAsync(tourSlotId, Guid.Empty, false, true);
+            var timelineResponse = await GetTimelineWithProgressAsync(tourSlotId, userId, false, true);
             return timelineResponse.Timeline.FirstOrDefault(t => t.Id == timelineItemId);
         }
     }

@@ -54,11 +54,11 @@ namespace TayNinhTourApi.Controller.Controllers
             try
             {
                 var slots = await _tourSlotService.GetSlotsAsync(
-                    tourTemplateId, 
-                    tourDetailsId, 
-                    fromDate, 
-                    toDate, 
-                    scheduleDay, 
+                    tourTemplateId,
+                    tourDetailsId,
+                    fromDate,
+                    toDate,
+                    scheduleDay,
                     includeInactive);
 
                 return Ok(new
@@ -80,9 +80,9 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting tour slots with filters: TourTemplateId={TourTemplateId}, TourDetailsId={TourDetailsId}", 
+                _logger.LogError(ex, "Error getting tour slots with filters: TourTemplateId={TourTemplateId}, TourDetailsId={TourDetailsId}",
                     tourTemplateId, tourDetailsId);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -103,7 +103,7 @@ namespace TayNinhTourApi.Controller.Controllers
             try
             {
                 var slot = await _tourSlotService.GetSlotByIdAsync(id);
-                
+
                 if (slot == null)
                 {
                     return NotFound(new
@@ -123,7 +123,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting tour slot by ID: {SlotId}", id);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -157,7 +157,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting tour slots for TourDetails: {TourDetailsId}", tourDetailsId);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -176,14 +176,14 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <returns>Danh sách TourSlots của TourTemplate</returns>
         [HttpGet("tour-template/{tourTemplateId}")]
         public async Task<IActionResult> GetSlotsByTourTemplate(
-            Guid tourTemplateId, 
+            Guid tourTemplateId,
             [FromQuery] bool onlyUnassigned = false,
             [FromQuery] bool includeInactive = false)
         {
             try
             {
                 IEnumerable<TourSlotDto> slots;
-                
+
                 if (onlyUnassigned)
                 {
                     // Chỉ lấy slots chưa có tour details
@@ -193,7 +193,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     // Lấy tất cả slots của template
                     slots = await _tourSlotService.GetSlotsByTourTemplateAsync(tourTemplateId);
-                    
+
                     if (!includeInactive)
                     {
                         slots = slots.Where(s => s.IsActive);
@@ -203,7 +203,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return Ok(new
                 {
                     success = true,
-                    message = onlyUnassigned 
+                    message = onlyUnassigned
                         ? "Lấy danh sách tour slots chưa có tour details thành công"
                         : "Lấy danh sách tour slots của tour template thành công",
                     data = slots,
@@ -215,7 +215,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting tour slots for TourTemplate: {TourTemplateId}", tourTemplateId);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -252,7 +252,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting unassigned template slots for TourTemplate: {TourTemplateId}", tourTemplateId);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -290,7 +290,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting debug capacity info for slot: {SlotId}", id);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -338,7 +338,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking if slot can be booked: {SlotId}, Guests: {Guests}", id, requestedGuests);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -359,7 +359,7 @@ namespace TayNinhTourApi.Controller.Controllers
             try
             {
                 var result = await _tourSlotService.GetSlotWithTourDetailsAndBookingsAsync(id);
-                
+
                 if (result == null)
                 {
                     return NotFound(new
@@ -379,7 +379,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting slot with tour details and bookings: {SlotId}", id);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -447,7 +447,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error cancelling public tour slot: {SlotId}", slotId);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -475,9 +475,9 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 if (!ModelState.IsValid)
                 {
-                    _logger.LogWarning("ModelState is invalid: {Errors}", 
+                    _logger.LogWarning("ModelState is invalid: {Errors}",
                         string.Join(", ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage)));
-                    
+
                     return BadRequest(new
                     {
                         success = false,
@@ -494,14 +494,14 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 // Get current user ID
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("Id")?.Value;
-                _logger.LogInformation("User claims: NameIdentifier={NameId}, Id={Id}", 
+                _logger.LogInformation("User claims: NameIdentifier={NameId}, Id={Id}",
                     User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                     User.FindFirst("Id")?.Value);
 
                 if (!Guid.TryParse(userIdClaim, out var tourCompanyUserId))
                 {
                     _logger.LogError("Cannot parse user ID from claims: {UserIdClaim}", userIdClaim);
-                    
+
                     return Unauthorized(new
                     {
                         success = false,
@@ -522,13 +522,13 @@ namespace TayNinhTourApi.Controller.Controllers
                 var (success, message, customersNotified) = await _tourSlotService.CancelPublicTourSlotAsync(
                     slotId, request.Reason, tourCompanyUserId);
 
-                _logger.LogInformation("Service call completed - Success: {Success}, Message: {Message}, CustomersNotified: {CustomersNotified}", 
+                _logger.LogInformation("Service call completed - Success: {Success}, Message: {Message}, CustomersNotified: {CustomersNotified}",
                     success, message, customersNotified);
 
                 if (!success)
                 {
                     _logger.LogWarning("Service returned failure: {Message}", message);
-                    
+
                     return BadRequest(new
                     {
                         success = false,
@@ -562,7 +562,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 _logger.LogError(ex, "Controller exception in debug cancel - SlotId: {SlotId}", slotId);
                 _logger.LogError("Exception details: Type={Type}, Message={Message}", ex.GetType().Name, ex.Message);
                 _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,
@@ -660,7 +660,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     .Include(s => s.TourDetails)
                         .ThenInclude(td => td!.TourOperation)
                     .Include(s => s.TourTemplate)
-                    .Include(s => s.Bookings.Where(b => !b.IsDeleted && 
+                    .Include(s => s.Bookings.Where(b => !b.IsDeleted &&
                         (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)))
                         .ThenInclude(b => b.User)
                     .FirstOrDefaultAsync(s => s.Id == slotId && !s.IsDeleted);
@@ -680,7 +680,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                var affectedBookings = slot.Bookings.Where(b => !b.IsDeleted && 
+                var affectedBookings = slot.Bookings.Where(b => !b.IsDeleted &&
                     (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)).ToList();
 
                 var debugInfo = new
@@ -776,7 +776,7 @@ namespace TayNinhTourApi.Controller.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting debug cancel info for slot: {SlotId}", slotId);
-                
+
                 return StatusCode(500, new
                 {
                     success = false,

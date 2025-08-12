@@ -130,5 +130,40 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .ThenBy(ti => ti.SortOrder)
                 .ToListAsync();
         }
+
+        public async Task<bool> IsSpecialtyShopUsedInTimelineAsync(Guid tourDetailsId, Guid specialtyShopId, Guid? excludeTimelineItemId = null)
+        {
+            var query = _context.TimelineItems
+                .Where(ti => ti.TourDetailsId == tourDetailsId &&
+                            ti.SpecialtyShopId == specialtyShopId &&
+                            ti.IsActive &&
+                            !ti.IsDeleted);
+
+            if (excludeTimelineItemId.HasValue)
+            {
+                query = query.Where(ti => ti.Id != excludeTimelineItemId.Value);
+            }
+
+            return await query.AnyAsync();
+        }
+
+        public async Task<IEnumerable<Guid>> GetUsedSpecialtyShopIdsAsync(Guid tourDetailsId, Guid? excludeTimelineItemId = null)
+        {
+            var query = _context.TimelineItems
+                .Where(ti => ti.TourDetailsId == tourDetailsId &&
+                            ti.SpecialtyShopId.HasValue &&
+                            ti.IsActive &&
+                            !ti.IsDeleted);
+
+            if (excludeTimelineItemId.HasValue)
+            {
+                query = query.Where(ti => ti.Id != excludeTimelineItemId.Value);
+            }
+
+            return await query
+                .Select(ti => ti.SpecialtyShopId!.Value)
+                .Distinct()
+                .ToListAsync();
+        }
     }
 }

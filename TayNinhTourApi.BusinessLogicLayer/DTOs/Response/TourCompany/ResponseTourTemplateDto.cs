@@ -31,7 +31,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     /// </summary>
     public class ResponseDeleteTourTemplateDto : BaseResposeDto
     {
-        public bool Success { get; set; }
+        public List<string>? BlockingReasons { get; set; }
     }
 
     /// <summary>
@@ -47,7 +47,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     /// </summary>
     public class ResponseSetActiveStatusDto : BaseResposeDto
     {
-        public bool Success { get; set; }
         public bool NewStatus { get; set; }
     }
 
@@ -110,6 +109,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     public class ResponseCanDeleteDto : BaseResposeDto
     {
         public bool CanDelete { get; set; }
+        public string Reason { get; set; } = string.Empty;
+        public List<string> BlockingReasons { get; set; } = new List<string>();
+    }
+
+    /// <summary>
+    /// Response DTO cho check update capability
+    /// </summary>
+    public class ResponseCanUpdateDto : BaseResposeDto
+    {
+        public bool CanUpdate { get; set; }
         public string Reason { get; set; } = string.Empty;
         public List<string> BlockingReasons { get; set; } = new List<string>();
     }

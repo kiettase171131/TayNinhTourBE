@@ -63,5 +63,22 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="includeInactive">Có bao gồm items không active không</param>
         /// <returns>Danh sách timeline items phù hợp</returns>
         Task<IEnumerable<TimelineItem>> SearchAsync(string keyword, Guid? tourDetailsId = null, bool includeInactive = false);
+
+        /// <summary>
+        /// Kiểm tra xem SpecialtyShop đã được sử dụng trong timeline của TourDetails chưa
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="specialtyShopId">ID của SpecialtyShop cần kiểm tra</param>
+        /// <param name="excludeTimelineItemId">ID của timeline item cần loại trừ khỏi kiểm tra (cho trường hợp update)</param>
+        /// <returns>True nếu shop đã được sử dụng, False nếu chưa</returns>
+        Task<bool> IsSpecialtyShopUsedInTimelineAsync(Guid tourDetailsId, Guid specialtyShopId, Guid? excludeTimelineItemId = null);
+
+        /// <summary>
+        /// Lấy danh sách SpecialtyShop IDs đã được sử dụng trong timeline của TourDetails
+        /// </summary>
+        /// <param name="tourDetailsId">ID của TourDetails</param>
+        /// <param name="excludeTimelineItemId">ID của timeline item cần loại trừ khỏi danh sách (cho trường hợp update)</param>
+        /// <returns>Danh sách SpecialtyShop IDs đã được sử dụng</returns>
+        Task<IEnumerable<Guid>> GetUsedSpecialtyShopIdsAsync(Guid tourDetailsId, Guid? excludeTimelineItemId = null);
     }
 }
