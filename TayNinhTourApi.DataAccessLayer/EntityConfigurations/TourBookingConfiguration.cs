@@ -111,14 +111,50 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false)
                 .HasComment("QR code data cho khách hàng");
 
-            builder.Property(tb => tb.ReservedUntil)
+            builder.Property(tb => tb.GroupQRCodeData)
                 .IsRequired(false)
-                .HasComment("Thời gian hết hạn reservation để tự động release slot nếu không thanh toán");
+                .HasComment("QR code data cho nhóm booking");
 
-            builder.Property(tb => tb.RowVersion)
+            // NEW: Add configurations for new fields
+            builder.Property(tb => tb.BookingType)
                 .IsRequired()
-                .IsRowVersion()
-                .HasComment("Row version cho optimistic concurrency control");
+                .HasMaxLength(50)
+                .HasDefaultValue("Individual")
+                .HasComment("Loại booking: Individual hoặc GroupRepresentative");
+
+            builder.Property(tb => tb.GroupName)
+                .HasMaxLength(200)
+                .IsRequired(false)
+                .HasComment("Tên nhóm cho booking loại GroupRepresentative");
+
+            builder.Property(tb => tb.GroupDescription)
+                .HasMaxLength(500)
+                .IsRequired(false)
+                .HasComment("Mô tả nhóm cho booking loại GroupRepresentative");
+
+            builder.Property(tb => tb.RevenueHold)
+                .IsRequired()
+                .HasPrecision(18, 2)
+                .HasDefaultValue(0)
+                .HasComment("Số tiền giữ lại từ booking này");
+
+            builder.Property(tb => tb.RevenueTransferredDate)
+                .IsRequired(false)
+                .HasComment("Ngày chuyển tiền từ revenue hold sang wallet");
+
+            builder.Property(tb => tb.IsCheckedIn)
+                .IsRequired()
+                .HasDefaultValue(false)
+                .HasComment("Trạng thái check-in của khách hàng");
+
+            builder.Property(tb => tb.CheckInTime)
+                .IsRequired(false)
+                .HasComment("Thời gian check-in thực tế");
+
+            builder.Property(tb => tb.CheckInNotes)
+                .HasMaxLength(500)
+                .IsRequired(false)
+                .HasComment("Ghi chú bổ sung khi check-in");
 
             // Foreign Key Relationships
             builder.HasOne(tb => tb.TourOperation)

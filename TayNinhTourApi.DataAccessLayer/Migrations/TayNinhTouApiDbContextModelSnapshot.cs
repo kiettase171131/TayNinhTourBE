@@ -1843,8 +1843,11 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<string>("BookingType")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                        .HasColumnType("varchar(50)")
+                        .HasDefaultValue("Individual")
+                        .HasComment("Loại booking: Individual hoặc GroupRepresentative");
 
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(500)
@@ -1857,10 +1860,12 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<string>("CheckInNotes")
                         .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Ghi chú bổ sung khi check-in");
 
                     b.Property<DateTime?>("CheckInTime")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime(6)")
+                        .HasComment("Thời gian check-in thực tế");
 
                     b.Property<DateTime?>("ConfirmedDate")
                         .HasColumnType("datetime(6)")
@@ -1904,20 +1909,26 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
                     b.Property<string>("GroupDescription")
                         .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasComment("Mô tả nhóm cho booking loại GroupRepresentative");
 
                     b.Property<string>("GroupName")
                         .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasColumnType("varchar(200)")
+                        .HasComment("Tên nhóm cho booking loại GroupRepresentative");
 
                     b.Property<string>("GroupQRCodeData")
-                        .HasColumnType("longtext");
+                        .HasColumnType("longtext")
+                        .HasComment("QR code data cho nhóm booking");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsCheckedIn")
-                        .HasColumnType("tinyint(1)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasComment("Trạng thái check-in của khách hàng");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
@@ -1941,20 +1952,23 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasComment("QR code data cho khách hàng");
 
                     b.Property<DateTime?>("ReservedUntil")
-                        .HasColumnType("datetime(6)")
-                        .HasComment("Thời gian hết hạn reservation để tự động release slot nếu không thanh toán");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<decimal>("RevenueHold")
-                        .HasColumnType("decimal(18,2)");
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasComment("Số tiền giữ lại từ booking này");
 
                     b.Property<DateTime?>("RevenueTransferredDate")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime(6)")
+                        .HasComment("Ngày chuyển tiền từ revenue hold sang wallet");
 
                     b.Property<DateTime>("RowVersion")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("timestamp(6)")
-                        .HasComment("Row version cho optimistic concurrency control");
+                        .HasColumnType("timestamp(6)");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
@@ -2075,7 +2089,10 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("IsGroupRepresentative")
-                        .HasColumnType("tinyint(1)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasComment("Đánh dấu khách hàng này là người đại diện nhóm");
 
                     b.Property<string>("QRCodeData")
                         .HasColumnType("varchar(255)")
@@ -2411,6 +2428,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .HasComment("Mô tả về lịch trình này");
 
                     b.Property<string>("ImageUrls")
+                        .IsRequired()
                         .HasColumnType("JSON")
                         .HasComment("Danh sách URL hình ảnh cho tour details này (JSON array)");
 

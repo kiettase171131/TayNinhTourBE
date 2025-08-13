@@ -713,7 +713,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             return new CreateBookingResultDto
                             {
                                 Success = false,
-                                Message = "Không thể tạo link thanh toán. Vui lòng thử lại."
+                                Message = "Não foi possível criar o link de pagamento. Por favor, tente novamente."
                             };
                         }
 
@@ -775,7 +775,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         OriginalPrice = tourOperation.Price * request.NumberOfGuests,
                         DiscountPercent = discountPercent,
                         FinalPrice = totalPrice,
-                        PricingType = pricingType,
+                        PricingType = pricingType, // Fix: Use pricingType variable instead of pricingInfo.PricingType
                         BookingDate = bookingDate,
                         TourStartDate = tourStartDate
                     };
@@ -953,6 +953,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Error canceling tour booking. UserId: {UserId}, BookingId: {BookingId}",
+                        userId, bookingId);
                     return new BaseResposeDto
                     {
                         StatusCode = 500,
@@ -988,291 +990,346 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Xử lý callback thanh toán thành công
         /// Enhanced logic: Xử lý slot, revenue hold, QR code generation và gửi email
+        /// FIXED: Proper MySQL execution strategy usage
         /// </summary>
         public async Task<BaseResposeDto> HandlePaymentSuccessAsync(string payOsOrderCode)
         {
-            // Sử dụng execution strategy thay vì manual transaction để tránh conflict với retry strategy
-            var strategy = _unitOfWork.GetExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
+            try
             {
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
+                _logger.LogInformation("Processing payment success for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+
+                // Step 1: Find booking with minimal query to avoid tracking issues
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (booking == null)
                 {
-                    var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
-                        .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
-                        .Include(b => b.TourOperation)
-                            .ThenInclude(to => to.TourDetails)
-                                .ThenInclude(td => td.CreatedBy) // Include TourCompany user
-                        .Include(b => b.TourSlot)
-                        .Include(b => b.User) // Include customer info
-                        .FirstOrDefaultAsync();
-
-                    if (booking == null)
+                    _logger.LogWarning("Booking not found for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                    return new BaseResposeDto
                     {
-                        return new BaseResposeDto
-                        {
-                            StatusCode = 404,
-                            Message = "Không tìm thấy booking với mã thanh toán này"
-                        };
-                    }
+                        StatusCode = 404,
+                        Message = "Không tìm thấy booking với mã thanh toán này"
+                    };
+                }
 
-                    if (booking.Status == BookingStatus.Confirmed)
-                    {
-                        return new BaseResposeDto
-                        {
-                            StatusCode = 200,
-                            Message = "Booking đã được xác nhận trước đó",
-                            success = true
-                        };
-                    }
-
-                    _logger.LogInformation("Processing payment success for booking {BookingCode}, TotalPrice: {TotalPrice}, OriginalPrice: {OriginalPrice}, DiscountPercent: {DiscountPercent}%",
-                        booking.BookingCode, booking.TotalPrice, booking.OriginalPrice, booking.DiscountPercent);
-
-                    // 1. Update booking status và generate QR code
-                    booking.Status = BookingStatus.Confirmed;
-                    booking.ConfirmedDate = DateTime.UtcNow;
-                    booking.UpdatedAt = DateTime.UtcNow;
-                    booking.ReservedUntil = null; // Clear reservation timeout since payment is confirmed
-
-                    // ✅ UPDATED: Generate QR codes based on booking type
-                    var guests = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
-
-                    if (booking.BookingType == "GroupRepresentative")
-                    {
-                        // For GroupRepresentative: Generate ONE group QR code for the entire booking
-                        // This QR contains all booking info and can check-in all guests at once
-                        booking.QRCodeData = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeData(booking) 
-                            ?? _qrCodeService.GenerateQRCodeData(booking);
-                        
-                        _logger.LogInformation("Generated GROUP QR code for booking {BookingCode} with {GuestCount} guests",
-                            booking.BookingCode, booking.NumberOfGuests);
-                            
-                        // No individual QR codes for guests in group booking
-                        // The representative will use the group QR to check-in everyone
-                    }
-                    else
-                    {
-                        // For Individual: Generate personal QR codes for each guest
-                        foreach (var guest in guests)
-                        {
-                            guest.QRCodeData = _qrCodeService.GenerateGuestQRCodeData(guest, booking);
-                            await _unitOfWork.TourBookingGuestRepository.UpdateAsync(guest);
-                        }
-                        
-                        // Also keep booking QR for backward compatibility
-                        booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
-                        
-                        _logger.LogInformation("Generated INDIVIDUAL QR codes for {GuestCount} guests in booking {BookingCode}",
-                            guests.Count, booking.BookingCode);
-                    }
-
-                    // ✅ CRITICAL: Save QR codes to database before sending emails
-                    await _unitOfWork.SaveChangesAsync();
-
-                    _logger.LogInformation("Generated and saved individual QR codes for {GuestCount} guests in booking {BookingCode} with pricing data - OriginalPrice: {OriginalPrice}, TotalPrice: {TotalPrice}, DiscountPercent: {DiscountPercent}%",
-                        guests.Count, booking.BookingCode, booking.OriginalPrice, booking.TotalPrice, booking.DiscountPercent);
-
-                    // 2. Calculate và set revenue hold (100% của total price, không trừ commission)
-                    // UPDATED: Giữ đủ 100% số tiền khách thanh toán, chỉ trừ commission khi chuyển tiền cho TourCompany
-                    booking.RevenueHold = booking.TotalPrice; // Giữ đủ 100% số tiền
-
-                    _logger.LogInformation("Setting revenue hold in booking {BookingCode}: {RevenueHold} (100% of {TotalPrice})",
-                        booking.BookingCode, booking.RevenueHold, booking.TotalPrice);
-
-                    await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
-
-                    // 3. ✅ Cộng TourOperation.CurrentBookings KHI THANH TOÁN THÀNH CÔNG
-                    if (booking.TourOperation != null)
-                    {
-                        booking.TourOperation.CurrentBookings += booking.NumberOfGuests;
-                        await _unitOfWork.TourOperationRepository.UpdateAsync(booking.TourOperation);
-
-                        _logger.LogInformation("Updated TourOperation.CurrentBookings (+{Guests}) for booking {BookingCode}",
-                            booking.NumberOfGuests, booking.BookingCode);
-                    }
-
-                    // 4. ✅ CẬP NHẬT TourSlot capacity - Xóa slots available dựa theo số khách mua
-                    if (booking.TourSlotId.HasValue)
-                    {
-                        var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
-                        var confirmSuccess = await tourSlotService.ConfirmSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
-
-                        if (confirmSuccess)
-                        {
-                            _logger.LogInformation("Updated TourSlot capacity: -{Guests} available slots for booking {BookingCode}",
-                                booking.NumberOfGuests, booking.BookingCode);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Failed to update TourSlot capacity for booking {BookingCode}. Slot may be unavailable.",
-                                booking.BookingCode);
-                        }
-                    }
-
-                    // 5. Commit transaction trước khi gửi email (để đảm bảo data integrity)
-                    await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    _logger.LogInformation("Payment success processed successfully for booking {BookingCode}. Revenue hold: {RevenueHold}",
-                        booking.BookingCode, booking.RevenueHold);
-
-                    // 6. ✅ UPDATED: Send confirmation emails based on booking type
-                    string emailStatus = "Email xác nhận đã được gửi";
-                    bool emailSent = false;
-
-                    try
-                    {
-                        var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience";
-                        var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
-
-                        if (booking.BookingType == "GroupRepresentative")
-                        {
-                            // For group booking: Send ONE email to representative with GROUP QR
-                            var representativeEmail = booking.ContactEmail ?? booking.User?.Email;
-                            var representativeName = booking.ContactName ?? booking.User?.Name ?? "Customer";
-                            
-                            if (!string.IsNullOrWhiteSpace(representativeEmail) && IsValidEmail(representativeEmail))
-                            {
-                                // Generate group QR code image
-                                var qrCodeImage = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeImageAsync(booking, 300).Result
-                                    ?? await _qrCodeService.GenerateQRCodeImageAsync(booking, 300);
-                                
-                                // Send group booking confirmation email
-                                await _emailSender.SendGroupBookingConfirmationAsync(
-                                    booking, representativeName, representativeEmail, tourTitle, tourDate, qrCodeImage);
-                                
-                                emailSent = true;
-                                _logger.LogInformation("GROUP booking confirmation email sent to {Email} for booking {BookingCode} with {GuestCount} guests",
-                                    representativeEmail, booking.BookingCode, booking.NumberOfGuests);
-                                emailStatus = "Email xác nhận nhóm đã được gửi cho người đại diện";
-                            }
-                            else
-                            {
-                                _logger.LogWarning("Invalid email for group representative in booking {BookingId}", booking.Id);
-                                emailStatus = "Không thể gửi email - địa chỉ email người đại diện không hợp lệ";
-                            }
-                        }
-                        else
-                        {
-                            // For individual booking: Send personal emails to each guest
-                            var guestsWithQR = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
-                            
-                            if (!guestsWithQR.Any())
-                            {
-                                _logger.LogWarning("No guests found for booking {BookingId} - cannot send individual emails", booking.Id);
-                                emailStatus = "Không tìm thấy thông tin khách hàng để gửi email";
-                            }
-                            else
-                            {
-                                await SendIndividualGuestEmailsAsync(booking, guestsWithQR, tourTitle, tourDate);
-                                emailSent = true;
-                                _logger.LogInformation("INDIVIDUAL confirmation emails sent successfully for {GuestCount} guests in booking {BookingCode}",
-                                    guestsWithQR.Count, booking.BookingCode);
-                                emailStatus = "Email xác nhận cá nhân đã được gửi cho từng khách";
-                            }
-                        }
-                    }
-                    catch (Exception emailEx)
-                    {
-                        _logger.LogError(emailEx, "Failed to send booking confirmation email for booking {BookingId}", booking.Id);
-                        emailStatus = $"Gửi email thất bại: {emailEx.Message}";
-
-                        // Schedule retry in background for individual emails
-                        _ = Task.Run(async () =>
-                        {
-                            await Task.Delay(30000); // Wait 30 seconds before retry
-                            try
-                            {
-                                _logger.LogInformation("Retrying individual email send for booking {BookingCode}", booking.BookingCode);
-
-                                var retryGuests = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
-                                var retryTourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience";
-                                var retryTourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
-
-                                await SendIndividualGuestEmailsAsync(booking, retryGuests, retryTourTitle, retryTourDate);
-                                _logger.LogInformation("Individual email retry successful for booking {BookingCode}", booking.BookingCode);
-                            }
-                            catch (Exception retryEx)
-                            {
-                                _logger.LogError(retryEx, "Individual email retry also failed for booking {BookingId}", booking.Id);
-                            }
-                        });
-                    }
-
-                    // 7. ✅ Send notification to TourCompany về booking mới (in background)
-                    if (booking.TourOperation?.TourDetails?.CreatedById != null)
-                    {
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                var tourCompanyNotificationService = _serviceProvider.GetRequiredService<ITourCompanyNotificationService>();
-                                var bookingDto = await MapToBookingDto(booking);
-                                await tourCompanyNotificationService.NotifyNewBookingAsync(booking.TourOperation.TourDetails.CreatedById, bookingDto);
-                                _logger.LogInformation("TourCompany notification sent for new booking {BookingCode}", booking.BookingCode);
-                            }
-                            catch (Exception notifEx)
-                            {
-                                _logger.LogError(notifEx, "Failed to send TourCompany notification for booking {BookingId}", booking.Id);
-                            }
-                        });
-                    }
-
+                if (booking.Status == BookingStatus.Confirmed)
+                {
+                    _logger.LogInformation("Booking {BookingCode} already confirmed", booking.BookingCode);
                     return new BaseResposeDto
                     {
                         StatusCode = 200,
-                        Message = emailSent
-                            ? "Thanh toán thành công - Booking đã được xác nhận, QR code đã được tạo và email xác nhận đã được gửi"
-                            : $"Thanh toán thành công - Booking đã được xác nhận, QR code đã được tạo. {emailStatus}",
+                        Message = "Booking đã được xác nhận trước đó",
                         success = true
                     };
                 }
-                catch (Exception ex)
+
+                _logger.LogInformation("Processing payment success for booking {BookingCode}, TotalPrice: {TotalPrice}, OriginalPrice: {OriginalPrice}, DiscountPercent: {DiscountPercent}%",
+                    booking.BookingCode, booking.TotalPrice, booking.OriginalPrice, booking.DiscountPercent);
+
+                // Step 2: Use execution strategy to handle the transaction properly with MySQL
+                var strategy = _unitOfWork.GetExecutionStrategy();
+                string emailStatus = "";
+
+                await strategy.ExecuteAsync(async () =>
                 {
-                    await transaction.RollbackAsync();
-                    _logger.LogError(ex, "Error processing payment success for booking with PayOS code: {PayOsOrderCode}", payOsOrderCode);
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        // Update booking fields
+                        booking.Status = BookingStatus.Confirmed;
+                        booking.ConfirmedDate = DateTime.UtcNow;
+                        booking.UpdatedAt = DateTime.UtcNow;
+                        booking.ReservedUntil = null;
+                        booking.RevenueHold = booking.TotalPrice;
+
+                        // Generate main booking QR code
+                        booking.QRCodeData = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeData(booking) 
+                            ?? _qrCodeService.GenerateQRCodeData(booking);
+
+                        // Save booking first
+                        await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
+
+                        // Handle individual guest QR codes if needed
+                        if (booking.BookingType != "GroupRepresentative")
+                        {
+                            var guests = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
+                            foreach (var guest in guests)
+                            {
+                                guest.QRCodeData = _qrCodeService.GenerateGuestQRCodeData(guest, booking);
+                                await _unitOfWork.TourBookingGuestRepository.UpdateAsync(guest);
+                            }
+                            _logger.LogInformation("Generated INDIVIDUAL QR codes for {GuestCount} guests in booking {BookingCode}",
+                                guests.Count, booking.BookingCode);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Generated GROUP QR code for booking {BookingCode} with {GuestCount} guests",
+                                booking.BookingCode, booking.NumberOfGuests);
+                        }
+
+                        // Save all changes
+                        await _unitOfWork.SaveChangesAsync();
+
+                        // Update TourOperation.CurrentBookings with fresh entity
+                        if (booking.TourOperationId != Guid.Empty)
+                        {
+                            var tourOperation = await _unitOfWork.TourOperationRepository.GetByIdAsync(booking.TourOperationId);
+                            if (tourOperation != null)
+                            {
+                                tourOperation.CurrentBookings += booking.NumberOfGuests;
+                                await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
+                                await _unitOfWork.SaveChangesAsync();
+                                _logger.LogInformation("Updated TourOperation.CurrentBookings (+{Guests}) for booking {BookingCode}",
+                                    booking.NumberOfGuests, booking.BookingCode);
+                            }
+                        }
+
+                        // Update TourSlot capacity if applicable
+                        if (booking.TourSlotId.HasValue)
+                        {
+                            var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                            var confirmSuccess = await tourSlotService.ConfirmSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
+
+                            if (confirmSuccess)
+                            {
+                                _logger.LogInformation("Updated TourSlot capacity: -{Guests} available slots for booking {BookingCode}",
+                                    booking.NumberOfGuests, booking.BookingCode);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Failed to update TourSlot capacity for booking {BookingCode}. Continuing...",
+                                    booking.BookingCode);
+                            }
+                        }
+
+                        await transaction.CommitAsync();
+                        _logger.LogInformation("Payment success transaction completed for booking {BookingCode}. Revenue hold: {RevenueHold}",
+                            booking.BookingCode, booking.RevenueHold);
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError(ex, "Transaction failed during payment success processing for booking {BookingCode}", booking.BookingCode);
+                        throw;
+                    }
+                });
+
+                // Step 3: Send confirmation emails (outside transaction to avoid holding locks)
+                try
+                {
+                    emailStatus = await SendConfirmationEmailsAsync(booking);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "Failed to send confirmation emails for booking {BookingCode}", booking.BookingCode);
+                    emailStatus = "Email sending failed but payment was processed successfully";
+                }
+
+                // Step 4: Send notification to TourCompany (background task)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        // Get tour company user ID with fresh query
+                        var tourOperation = await _unitOfWork.TourOperationRepository.GetQueryable()
+                            .Where(to => to.Id == booking.TourOperationId)
+                            .Include(to => to.TourDetails)
+                                .ThenInclude(td => td.CreatedBy)
+                            .FirstOrDefaultAsync();
+
+                        if (tourOperation?.TourDetails?.CreatedById != null)
+                        {
+                            var tourCompanyNotificationService = _serviceProvider.GetRequiredService<ITourCompanyNotificationService>();
+                            var bookingDto = await MapToBookingDto(booking);
+                            await tourCompanyNotificationService.NotifyNewBookingAsync(tourOperation.TourDetails.CreatedById, bookingDto);
+                            _logger.LogInformation("TourCompany notification sent for new booking {BookingCode}", booking.BookingCode);
+                        }
+                    }
+                    catch (Exception notifEx)
+                    {
+                        _logger.LogError(notifEx, "Failed to send TourCompany notification for booking {BookingId}", booking.Id);
+                    }
+                });
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = $"Thanh toán thành công - Booking đã được xác nhận, QR code đã được tạo. {emailStatus}",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing payment success for PayOS order code: {PayOsOrderCode}. Error: {ErrorMessage}", payOsOrderCode, ex.Message);
+                
+                // Try simple fallback method if main method fails due to execution strategy issues
+                if (ex.Message.Contains("execution strategy") || ex.Message.Contains("MySqlRetryingExecutionStrategy"))
+                {
+                    _logger.LogInformation("Attempting simple payment success method for {PayOsOrderCode} due to execution strategy conflict", payOsOrderCode);
+                    return await HandlePaymentSuccessSimpleAsync(payOsOrderCode);
+                }
+                
+                // Try standard fallback method for other issues
+                try
+                {
+                    _logger.LogInformation("Attempting standard fallback payment success method for {PayOsOrderCode}", payOsOrderCode);
+                    return await HandlePaymentSuccessFallback(payOsOrderCode);
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogError(fallbackEx, "All fallback methods failed for {PayOsOrderCode}", payOsOrderCode);
                     return new BaseResposeDto
                     {
                         StatusCode = 500,
                         Message = $"Lỗi khi xử lý thanh toán thành công: {ex.Message}"
                     };
                 }
-            });
+            }
         }
 
         /// <summary>
-        /// Validate email address format
+        /// Fallback payment success handler using simpler operations
+        /// Used when the main method encounters database update exceptions
+        /// FIXED: Avoid execution strategy conflicts
         /// </summary>
-        private bool IsValidEmail(string email)
+        private async Task<BaseResposeDto> HandlePaymentSuccessFallback(string payOsOrderCode)
         {
             try
             {
-                var addr = new System.Net.Mail.MailAddress(email);
-                return addr.Address == email;
+                _logger.LogInformation("Using fallback payment success handler for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+
+                // Get fresh booking entity
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (booking == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Booking not found in fallback handler"
+                    };
+                }
+
+                // Simple status update without complex entity operations and without execution strategy
+                booking.Status = BookingStatus.Confirmed;
+                booking.ConfirmedDate = DateTime.UtcNow;
+                booking.UpdatedAt = DateTime.UtcNow;
+                booking.RevenueHold = booking.TotalPrice;
+                booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
+
+                await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
+                await _unitOfWork.SaveChangesAsync();
+
+                _logger.LogInformation("Fallback payment success completed for booking {BookingCode}", booking.BookingCode);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Thanh toán thành công (fallback method) - Booking đã được xác nhận",
+                    success = true
+                };
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                _logger.LogError(ex, "Fallback payment success handler also failed for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi nghiêm trọng khi xử lý thanh toán: {ex.Message}"
+                };
             }
         }
 
         /// <summary>
-        /// Get booking status name in Vietnamese
+        /// Xử lý callback thanh toán hủy
+        /// FIXED: Proper MySQL execution strategy usage
         /// </summary>
-        private string GetBookingStatusName(BookingStatus status)
+        public async Task<BaseResposeDto> HandlePaymentCancelAsync(string payOsOrderCode)
         {
-            return status switch
+            try
             {
-                BookingStatus.Pending => "Chờ thanh toán",
-                BookingStatus.Confirmed => "Đã xác nhận",
-                BookingStatus.CancelledByCustomer => "Đã hủy bởi khách hàng",
-                BookingStatus.CancelledByCompany => "Đã hủy bởi công ty",
-                BookingStatus.Completed => "Đã hoàn thành",
-                BookingStatus.NoShow => "Không xuất hiện",
-                BookingStatus.Refunded => "Đã hoàn tiền",
-                _ => "Không xác định"
-            };
+                _logger.LogInformation("Processing payment cancel for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (booking == null)
+                {
+                    _logger.LogWarning("Booking not found for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy booking với mã thanh toán này"
+                    };
+                }
+
+                if (booking.Status != BookingStatus.Pending)
+                {
+                    _logger.LogInformation("Booking {BookingCode} is not in pending status: {Status}", 
+                        booking.BookingCode, booking.Status);
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Booking không ở trạng thái chờ thanh toán"
+                    };
+                }
+
+                // Use execution strategy for MySQL transaction handling
+                var strategy = _unitOfWork.GetExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        // Cancel booking and release capacity
+                        booking.Status = BookingStatus.CancelledByCustomer;
+                        booking.CancelledDate = DateTime.UtcNow;
+                        booking.CancellationReason = "Hủy thanh toán";
+                        booking.UpdatedAt = DateTime.UtcNow;
+                        booking.ReservedUntil = null;
+
+                        await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
+
+                        // Release capacity from TourSlot
+                        if (booking.TourSlotId.HasValue)
+                        {
+                            var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                            await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
+                        }
+
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        _logger.LogInformation("Payment cancel processed successfully for booking {BookingCode}", booking.BookingCode);
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        _logger.LogError(ex, "Transaction failed during payment cancel processing for booking {BookingCode}", booking.BookingCode);
+                        throw;
+                    }
+                });
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Đã hủy booking do không thanh toán",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing payment cancel for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi khi xử lý hủy thanh toán: {ex.Message}"
+                };
+            }
         }
 
         /// <summary>
@@ -1333,7 +1390,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // Send the confirmation email
-                await SendBookingConfirmationEmailAsync(booking);
+                var emailStatus = await SendConfirmationEmailsAsync(booking);
 
                 _logger.LogInformation("QR ticket email resent successfully for booking {BookingCode} to {Email}",
                     booking.BookingCode, customerEmail);
@@ -1341,7 +1398,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = "Email vé QR đã được gửi lại thành công",
+                    Message = $"Email vé QR đã được gửi lại thành công. {emailStatus}",
                     success = true
                 };
             }
@@ -1357,209 +1414,192 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Xử lý callback thanh toán hủy
+        /// Generate QR codes for booking based on booking type
+        /// Separated into its own method for better maintainability
+        /// FIXED: Remove entity updates to avoid tracking conflicts
         /// </summary>
-        public async Task<BaseResposeDto> HandlePaymentCancelAsync(string payOsOrderCode)
+        private async Task GenerateQRCodesForBooking(TourBooking booking)
         {
-            // Sử dụng execution strategy thay vì manual transaction để tránh conflict với retry strategy
-            var strategy = _unitOfWork.GetExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
+            try
             {
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                var guests = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
+
+                if (booking.BookingType == "GroupRepresentative")
+                {
+                    // For GroupRepresentative: Generate ONE group QR code for the entire booking
+                    booking.QRCodeData = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeData(booking) 
+                        ?? _qrCodeService.GenerateQRCodeData(booking);
+                    
+                    _logger.LogInformation("Generated GROUP QR code for booking {BookingCode} with {GuestCount} guests",
+                        booking.BookingCode, booking.NumberOfGuests);
+                }
+                else
+                {
+                    // For Individual: Generate personal QR codes for each guest
+                    foreach (var guest in guests)
+                    {
+                        guest.QRCodeData = _qrCodeService.GenerateGuestQRCodeData(guest, booking);
+                        // REMOVED: await _unitOfWork.TourBookingGuestRepository.UpdateAsync(guest);
+                        // These will be saved when the main transaction commits
+                    }
+                    
+                    // Also keep booking QR for backward compatibility
+                    booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
+                    
+                    _logger.LogInformation("Generated INDIVIDUAL QR codes for {GuestCount} guests in booking {BookingCode}",
+                        guests.Count, booking.BookingCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating QR codes for booking {BookingId}", booking.Id);
+                // Don't throw - QR code generation failure shouldn't fail the payment processing
+                booking.QRCodeData = $"FALLBACK-{booking.BookingCode}"; // Fallback QR data
+            }
+        }
+
+        /// <summary>
+        /// Send confirmation emails based on booking type
+        /// Separated into its own method for better maintainability
+        /// </summary>
+        private async Task<string> SendConfirmationEmailsAsync(TourBooking booking)
+        {
+            try
+            {
+                // Get tour details for email
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetQueryable()
+                    .Where(to => to.Id == booking.TourOperationId)
+                    .Include(to => to.TourDetails)
+                    .FirstOrDefaultAsync();
+
+                var tourSlot = booking.TourSlotId.HasValue
+                    ? await _unitOfWork.TourSlotRepository.GetByIdAsync(booking.TourSlotId.Value)
+                    : null;
+
+                var tourTitle = tourOperation?.TourDetails?.Title ?? "Tour Experience";
+                var tourDate = tourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
+
+                if (booking.BookingType == "GroupRepresentative")
+                {
+                    // For group booking: Send ONE email to representative with GROUP QR
+                    var representativeEmail = booking.ContactEmail;
+                    var representativeName = booking.ContactName ?? "Customer";
+                    
+                    if (!string.IsNullOrWhiteSpace(representativeEmail) && IsValidEmail(representativeEmail))
+                    {
+                        // Generate group QR code image
+                        var qrCodeImage = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeImageAsync(booking, 300).Result
+                            ?? await _qrCodeService.GenerateQRCodeImageAsync(booking, 300);
+                        
+                        // Send group booking confirmation email
+                        await _emailSender.SendGroupBookingConfirmationAsync(
+                            booking, representativeName, representativeEmail, tourTitle, tourDate, qrCodeImage);
+                        
+                        _logger.LogInformation("GROUP booking confirmation email sent to {Email} for booking {BookingCode} with {GuestCount} guests",
+                            representativeEmail, booking.BookingCode, booking.NumberOfGuests);
+                        return "Email xác nhận nhóm đã được gửi cho người đại diện";
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Invalid email for group representative in booking {BookingId}", booking.Id);
+                        return "Không thể gửi email - địa chỉ email người đại diện không hợp lệ";
+                    }
+                }
+                else
+                {
+                    // For individual booking: Send personal emails to each guest
+                    var guestsWithQR = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
+                    
+                    if (!guestsWithQR.Any())
+                    {
+                        _logger.LogWarning("No guests found for booking {BookingId} - cannot send individual emails", booking.Id);
+                        return "Không tìm thấy thông tin khách hàng để gửi email";
+                    }
+
+                    await SendIndividualGuestEmailsAsync(booking, guestsWithQR, tourTitle, tourDate);
+                    _logger.LogInformation("INDIVIDUAL confirmation emails sent successfully for {GuestCount} guests in booking {BookingCode}",
+                        guestsWithQR.Count, booking.BookingCode);
+                    return "Email xác nhận cá nhân đã được gửi cho từng khách";
+                }
+            }
+            catch (Exception emailEx)
+            {
+                _logger.LogError(emailEx, "Failed to send booking confirmation email for booking {BookingId}", booking.Id);
+                return $"Gửi email thất bại: {emailEx.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Validate email address format
+        /// </summary>
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Get booking status name in Vietnamese
+        /// </summary>
+        private string GetBookingStatusName(BookingStatus status)
+        {
+            return status switch
+            {
+                BookingStatus.Pending => "Chờ thanh toán",
+                BookingStatus.Confirmed => "Đã xác nhận",
+                BookingStatus.CancelledByCustomer => "Đã hủy bởi khách hàng",
+                BookingStatus.CancelledByCompany => "Đã hủy bởi công ty",
+                BookingStatus.Completed => "Đã hoàn thành",
+                BookingStatus.NoShow => "Không xuất hiện",
+                BookingStatus.Refunded => "Đã hoàn tiền",
+                _ => "Không xác định"
+            };
+        }
+
+        /// <summary>
+        /// Send individual emails to each guest with their personal QR codes
+        /// NEW: For individual guest QR system
+        /// </summary>
+        private async Task SendIndividualGuestEmailsAsync(TourBooking booking, List<TourBookingGuest> guests, string tourTitle, DateTime tourDate)
+        {
+            var emailTasks = guests.Select(async guest =>
+            {
                 try
                 {
-                    var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
-                        .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
-                        .Include(b => b.TourOperation)
-                        .Include(b => b.TourSlot)
-                        .FirstOrDefaultAsync();
-
-                    if (booking == null)
+                    // Validate guest email
+                    if (string.IsNullOrWhiteSpace(guest.GuestEmail) || !IsValidEmail(guest.GuestEmail))
                     {
-                        return new BaseResposeDto
-                        {
-                            StatusCode = 404,
-                            Message = "Không tìm thấy booking với mã thanh toán này"
-                        };
+                        _logger.LogWarning("Invalid email for guest {GuestId} ({GuestName}): {Email}",
+                            guest.Id, guest.GuestName, guest.GuestEmail);
+                        return;
                     }
 
-                    if (booking.Status != BookingStatus.Pending)
-                    {
-                        return new BaseResposeDto
-                        {
-                            StatusCode = 400,
-                            Message = "Booking không ở trạng thái chờ thanh toán"
-                        };
-                    }
+                    // Generate individual QR code image
+                    var qrCodeImage = await _qrCodeService.GenerateGuestQRCodeImageAsync(guest, booking, 300);
 
-                    // Cancel booking and release capacity
-                    booking.Status = BookingStatus.CancelledByCustomer;
-                    booking.CancelledDate = DateTime.UtcNow;
-                    booking.CancellationReason = "Hủy thanh toán";
-                    booking.UpdatedAt = DateTime.UtcNow;
-                    booking.ReservedUntil = null; // Clear reservation timeout since booking is cancelled
+                    // Send individual email
+                    await _emailSender.SendIndividualGuestBookingConfirmationAsync(
+                        guest, booking, tourTitle, tourDate, qrCodeImage);
 
-                    await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
-
-                    // Release capacity from TourSlot
-                    if (booking.TourSlotId.HasValue)
-                    {
-                        var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
-                        await tourSlotService.ReleaseSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
-                    }
-
-                    await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return new BaseResposeDto
-                    {
-                        StatusCode = 200,
-                        Message = "Đã hủy booking do không thanh toán",
-                        success = true
-                    };
+                    _logger.LogInformation("Sent individual email to guest {GuestName} ({GuestEmail}) for booking {BookingCode}",
+                        guest.GuestName, guest.GuestEmail, booking.BookingCode);
                 }
                 catch (Exception ex)
                 {
-                    await transaction.RollbackAsync();
-                    return new BaseResposeDto
-                    {
-                        StatusCode = 500,
-                        Message = $"Lỗi khi xử lý hủy thanh toán: {ex.Message}"
-                    };
+                    _logger.LogError(ex, "Failed to send email to guest {GuestName} ({GuestEmail}) for booking {BookingCode}",
+                        guest.GuestName, guest.GuestEmail, booking.BookingCode);
                 }
             });
-        }
 
-        /// <summary>
-        /// Send booking confirmation email with QR code
-        /// UPDATED: Now uses individual guest QR system instead of single booking QR
-        /// </summary>
-        private async Task SendBookingConfirmationEmailAsync(TourBooking booking)
-        {
-            try
-            {
-                // Get guests for this booking
-                var guests = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
-
-                if (!guests.Any())
-                {
-                    _logger.LogWarning("No guests found for booking {BookingId} - cannot send confirmation emails", booking.Id);
-                    return;
-                }
-
-                // Prepare email data
-                var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience";
-                var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
-
-                // Send individual emails to each guest
-                await SendIndividualGuestEmailsAsync(booking, guests, tourTitle, tourDate);
-
-                _logger.LogInformation("Individual booking confirmation emails sent successfully for {GuestCount} guests in booking {BookingCode}",
-                    guests.Count, booking.BookingCode);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send individual guest confirmation emails for booking {BookingId}", booking.Id);
-                throw; // Re-throw original exception for caller to handle
-            }
-        }
-
-        /// <summary>
-        /// Send booking confirmation email without QR code as fallback
-        /// Used when QR code generation fails
-        /// </summary>
-        private async Task SendBookingConfirmationEmailWithoutQRAsync(
-            TourBooking booking,
-            string customerEmail,
-            string customerName,
-            string tourTitle,
-            DateTime tourDate)
-        {
-            try
-            {
-                var subject = "Tour Booking Confirmed - Important Booking Information";
-                var htmlBody = $@"
-                <div style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"">
-                    <div style=""text-align: center; margin-bottom: 30px;"">
-                        <h1 style=""color: #2c3e50; margin-bottom: 10px;"">🎉 Booking Confirmed!</h1>
-                        <p style=""color: #7f8c8d; font-size: 16px;"">Thank you for choosing Tay Ninh Tour</p>
-                    </div>
-
-                    <div style=""background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;"">
-                        <h2 style=""color: #155724; margin-top: 0; text-align: center;"">Your Tour Booking Details</h2>
-
-                        <table style=""width: 100%; border-collapse: collapse; margin-top: 15px;"">
-                            <tr>
-                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Booking Code:</td>
-                                <td style=""padding: 8px 0; color: #155724;"">{booking.BookingCode}</td>
-                            </tr>
-                            <tr>
-                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Tour:</td>
-                                <td style=""padding: 8px 0; color: #155724;"">{tourTitle}</td>
-                            </tr>
-                            <tr>
-                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Date:</td>
-                                <td style=""padding: 8px 0; color: #155724;"">{tourDate:dd/MM/yyyy}</td>
-                            </tr>
-                            <tr>
-                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Number of Guests:</td>
-                                <td style=""padding: 8px 0; color: #155724;"">{booking.NumberOfGuests}</td>
-                            </tr>
-                            <tr>
-                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Total Price:</td>
-                                <td style=""padding: 8px 0; color: #155724; font-weight: bold;"">{booking.TotalPrice:N0} VND</td>
-                            </tr>
-                            <tr>
-                                <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Contact Phone:</td>
-                                <td style=""padding: 8px 0; color: #155724;"">{booking.ContactPhone ?? booking.User?.PhoneNumber ?? "N/A"}</td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <div style=""background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;"">
-                        <h4 style=""color: #856404; margin-top: 0;"">📋 Important Information:</h4>
-                        <ul style=""color: #856404; margin: 10px 0; padding-left: 20px;"">
-                            <li>Please arrive 15 minutes before the tour start time</li>
-                            <li>Bring a valid ID for verification</li>
-                            <li>Present your booking code <strong>{booking.BookingCode}</strong> to the tour guide</li>
-                            <li>Contact us if you need to make any changes to your booking</li>
-                        </ul>
-                    </div>
-
-                    <div style=""background-color: #f8d7da; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;"">
-                        <h4 style=""color: #721c24; margin-top: 0;"">⚠️ Note about QR Code:</h4>
-                        <p style=""color: #721c24; margin: 0;"">
-                            Due to technical issues, your QR code ticket could not be generated at this time. 
-                            Please save this email and present your <strong>Booking Code: {booking.BookingCode}</strong> to the tour guide instead.
-                            We apologize for any inconvenience.
-                        </p>
-                    </div>
-
-                    <div style=""text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;"">
-                        <h4 style=""color: #2c3e50; margin-bottom: 15px;"">Need Help?</h4>
-                        <p style=""color: #6c757d; margin: 5px 0;"">📞 Phone: +84 123 456 789</p>
-                        <p style=""color: #6c757d; margin: 5px 0;"">📧 Email: support@tayninhtravel.com</p>
-                        <p style=""color: #6c757d; margin: 5px 0;"">🌐 Website: www.tayninhtravel.com</p>
-                    </div>
-
-                    <div style=""text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;"">
-                        <p style=""color: #6c757d; font-size: 14px;"">We look forward to providing you with an amazing tour experience!</p>
-                        <br/>
-                        <p style=""color: #2c3e50; font-weight: bold;"">Best regards,</p>
-                        <p style=""color: #2c3e50; font-weight: bold;"">The Tay Ninh Tour Team</p>
-                    </div>
-                </div>";
-
-                await _emailSender.SendEmailAsync(customerEmail, customerName, subject, htmlBody);
-
-                _logger.LogInformation("Fallback booking confirmation email (without QR) sent to {Email} for booking {BookingId}",
-                    customerEmail, booking.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send fallback booking confirmation email for booking {BookingId}", booking.Id);
-                throw;
-            }
+            // Wait for all emails to complete
+            await Task.WhenAll(emailTasks);
         }
 
         /// <summary>
@@ -1613,45 +1653,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PhoneNumber = booking.User.PhoneNumber
                 } : null!
             };
-        }
-
-        /// <summary>
-        /// Send individual emails to each guest with their personal QR codes
-        /// NEW: For individual guest QR system
-        /// </summary>
-        private async Task SendIndividualGuestEmailsAsync(TourBooking booking, List<TourBookingGuest> guests, string tourTitle, DateTime tourDate)
-        {
-            var emailTasks = guests.Select(async guest =>
-            {
-                try
-                {
-                    // Validate guest email
-                    if (string.IsNullOrWhiteSpace(guest.GuestEmail) || !IsValidEmail(guest.GuestEmail))
-                    {
-                        _logger.LogWarning("Invalid email for guest {GuestId} ({GuestName}): {Email}",
-                            guest.Id, guest.GuestName, guest.GuestEmail);
-                        return;
-                    }
-
-                    // Generate individual QR code image
-                    var qrCodeImage = await _qrCodeService.GenerateGuestQRCodeImageAsync(guest, booking, 300);
-
-                    // Send individual email
-                    await _emailSender.SendIndividualGuestBookingConfirmationAsync(
-                        guest, booking, tourTitle, tourDate, qrCodeImage);
-
-                    _logger.LogInformation("Sent individual email to guest {GuestName} ({GuestEmail}) for booking {BookingCode}",
-                        guest.GuestName, guest.GuestEmail, booking.BookingCode);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send email to guest {GuestName} ({GuestEmail}) for booking {BookingCode}",
-                        guest.GuestName, guest.GuestEmail, booking.BookingCode);
-                }
-            });
-
-            // Wait for all emails to complete
-            await Task.WhenAll(emailTasks);
         }
 
         /// <summary>
@@ -1724,6 +1725,135 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PhoneNumber = booking.User.PhoneNumber
                 } : null!
             };
+        }
+
+        /// <summary>
+        /// Alternative payment success handler that avoids execution strategy completely
+        /// Uses simple database operations without complex transactions
+        /// </summary>
+        public async Task<BaseResposeDto> HandlePaymentSuccessSimpleAsync(string payOsOrderCode)
+        {
+            try
+            {
+                _logger.LogInformation("Processing payment success (simple method) for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+
+                // Step 1: Find and validate booking
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(b => b.PayOsOrderCode == payOsOrderCode && !b.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (booking == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy booking với mã thanh toán này"
+                    };
+                }
+
+                if (booking.Status == BookingStatus.Confirmed)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 200,
+                        Message = "Booking đã được xác nhận trước đó",
+                        success = true
+                    };
+                }
+
+                // Step 2: Update booking status (simple update, no transaction)
+                booking.Status = BookingStatus.Confirmed;
+                booking.ConfirmedDate = DateTime.UtcNow;
+                booking.UpdatedAt = DateTime.UtcNow;
+                booking.RevenueHold = booking.TotalPrice;
+                booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
+
+                await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
+                await _unitOfWork.SaveChangesAsync();
+
+                // Step 3: Update TourOperation capacity (separate operation)
+                try
+                {
+                    if (booking.TourOperationId != Guid.Empty)
+                    {
+                        var tourOperation = await _unitOfWork.TourOperationRepository.GetByIdAsync(booking.TourOperationId);
+                        if (tourOperation != null)
+                        {
+                            tourOperation.CurrentBookings += booking.NumberOfGuests;
+                            await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
+                            await _unitOfWork.SaveChangesAsync();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to update TourOperation capacity for booking {BookingCode}, but booking was confirmed", booking.BookingCode);
+                }
+
+                // Step 4: Update TourSlot capacity (separate operation)
+                try
+                {
+                    if (booking.TourSlotId.HasValue)
+                    {
+                        var tourSlotService = _serviceProvider.GetRequiredService<ITourSlotService>();
+                        await tourSlotService.ConfirmSlotCapacityAsync(booking.TourSlotId.Value, booking.NumberOfGuests);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to update TourSlot capacity for booking {BookingCode}, but booking was confirmed", booking.BookingCode);
+                }
+
+                // Step 5: Handle guest QR codes (separate operation)
+                try
+                {
+                    if (booking.BookingType != "GroupRepresentative")
+                    {
+                        var guests = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
+                        foreach (var guest in guests)
+                        {
+                            guest.QRCodeData = _qrCodeService.GenerateGuestQRCodeData(guest, booking);
+                            await _unitOfWork.TourBookingGuestRepository.UpdateAsync(guest);
+                        }
+                        await _unitOfWork.SaveChangesAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to generate guest QR codes for booking {BookingCode}, but booking was confirmed", booking.BookingCode);
+                }
+
+                // Step 6: Send emails (background task)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await SendConfirmationEmailsAsync(booking);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send confirmation emails for booking {BookingCode}", booking.BookingCode);
+                    }
+                });
+
+                _logger.LogInformation("Payment success processed successfully (simple method) for booking {BookingCode}", booking.BookingCode);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Thanh toán thành công - Booking đã được xác nhận",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in simple payment success handler for PayOS order code: {PayOsOrderCode}", payOsOrderCode);
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Lỗi khi xử lý thanh toán: {ex.Message}"
+                };
+            }
         }
     }
 }

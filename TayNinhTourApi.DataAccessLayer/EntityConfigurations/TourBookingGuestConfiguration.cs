@@ -46,6 +46,11 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                 .IsRequired(false)
                 .HasComment("QR code data riêng cho khách hàng này");
 
+            builder.Property(g => g.IsGroupRepresentative)
+                .IsRequired()
+                .HasDefaultValue(false)
+                .HasComment("Đánh dấu khách hàng này là người đại diện nhóm");
+
             builder.Property(g => g.IsCheckedIn)
                 .IsRequired()
                 .HasDefaultValue(false)

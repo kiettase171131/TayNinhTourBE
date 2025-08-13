@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TayNinhTourApi.DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -1168,7 +1168,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     SkillsRequired = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Kỹ năng yêu cầu cho hướng dẫn viên (comma-separated)")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ImageUrls = table.Column<string>(type: "JSON", nullable: true, comment: "Danh sách URL hình ảnh cho tour details này (JSON array)")
+                    ImageUrls = table.Column<string>(type: "JSON", nullable: false, comment: "Danh sách URL hình ảnh cho tour details này (JSON array)")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
@@ -1715,8 +1715,8 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     OriginalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Giá gốc trước khi áp dụng discount"),
                     DiscountPercent = table.Column<decimal>(type: "decimal(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m, comment: "Phần trăm giảm giá được áp dụng"),
                     TotalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, comment: "Tổng giá tiền của booking sau discount"),
-                    RevenueHold = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    RevenueTransferredDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    RevenueHold = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m, comment: "Số tiền giữ lại từ booking này"),
+                    RevenueTransferredDate = table.Column<DateTime>(type: "datetime(6)", nullable: true, comment: "Ngày chuyển tiền từ revenue hold sang wallet"),
                     Status = table.Column<int>(type: "int", nullable: false, defaultValue: 0, comment: "Trạng thái của booking"),
                     BookingDate = table.Column<DateTime>(type: "datetime(6)", nullable: false, comment: "Ngày tạo booking"),
                     ConfirmedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true, comment: "Ngày xác nhận booking"),
@@ -1731,18 +1731,26 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ContactEmail = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true, comment: "Email liên hệ")
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    BookingType = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false, defaultValue: "Individual", comment: "Loại booking: Individual hoặc GroupRepresentative")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    GroupName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true, comment: "Tên nhóm cho booking loại GroupRepresentative")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    GroupDescription = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Mô tả nhóm cho booking loại GroupRepresentative")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    GroupQRCodeData = table.Column<string>(type: "longtext", nullable: true, comment: "QR code data cho nhóm booking")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     BookingCode = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, comment: "Mã booking duy nhất")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     PayOsOrderCode = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true, comment: "PayOS order code cho thanh toán")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     QRCodeData = table.Column<string>(type: "longtext", nullable: true, comment: "QR code data cho khách hàng")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ReservedUntil = table.Column<DateTime>(type: "datetime(6)", nullable: true, comment: "Thời gian hết hạn reservation để tự động release slot nếu không thanh toán"),
-                    IsCheckedIn = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    CheckInTime = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    CheckInNotes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                    ReservedUntil = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsCheckedIn = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false, comment: "Trạng thái check-in của khách hàng"),
+                    CheckInTime = table.Column<DateTime>(type: "datetime(6)", nullable: true, comment: "Thời gian check-in thực tế"),
+                    CheckInNotes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true, comment: "Ghi chú bổ sung khi check-in")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    RowVersion = table.Column<DateTime>(type: "timestamp(6)", rowVersion: true, nullable: false, comment: "Row version cho optimistic concurrency control"),
+                    RowVersion = table.Column<DateTime>(type: "timestamp(6)", rowVersion: true, nullable: false),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
@@ -1900,6 +1908,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     GuestPhone = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true, comment: "Số điện thoại của khách hàng (tùy chọn)")
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsGroupRepresentative = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false, comment: "Đánh dấu khách hàng này là người đại diện nhóm"),
                     QRCodeData = table.Column<string>(type: "varchar(255)", nullable: true, comment: "QR code data riêng cho khách hàng này")
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsCheckedIn = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false, comment: "Trạng thái check-in của khách hàng"),
