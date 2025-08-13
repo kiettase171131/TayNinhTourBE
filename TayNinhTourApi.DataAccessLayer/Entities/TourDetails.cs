@@ -52,6 +52,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// Danh sách URL hình ảnh cho tour details này
         /// Lưu dưới dạng JSON array trong database
         /// </summary>
+        [Required]
         public List<string> ImageUrls { get; set; } = new List<string>();
 
         // Navigation Properties

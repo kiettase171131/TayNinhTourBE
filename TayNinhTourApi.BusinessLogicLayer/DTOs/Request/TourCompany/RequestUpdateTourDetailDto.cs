@@ -25,6 +25,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany
         /// <summary>
         /// Danh sách URL hình ảnh cho tour details này
         /// </summary>
+        [MinLength(1, ErrorMessage = "Nếu cung cấp ImageUrls, phải có ít nhất một hình ảnh")]
         public List<string>? ImageUrls { get; set; }
 
         /// <summary>

@@ -53,7 +53,7 @@ namespace TayNinhTourApi.DataAccessLayer.EntityConfigurations
                     v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
                     v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new List<string>())
                 .HasColumnType("JSON")
-                .IsRequired(false)
+                .IsRequired(true)
                 .HasComment("Danh sách URL hình ảnh cho tour details này (JSON array)");
 
             // Foreign Key Relationships
