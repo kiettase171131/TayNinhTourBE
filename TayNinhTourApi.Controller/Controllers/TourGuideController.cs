@@ -673,15 +673,40 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
-                // ✅ NEW: Tìm guest theo QR code thay vì booking
-                var guest = await _context.TourBookingGuests
-                    .Include(g => g.TourBooking)
-                        .ThenInclude(b => b.TourSlot)
-                    .Include(g => g.TourBooking)
-                        .ThenInclude(b => b.TourOperation)
-                    .Include(g => g.TourBooking)
-                        .ThenInclude(b => b.User)
-                    .FirstOrDefaultAsync(g => g.QRCodeData == request.QRCodeData && !g.IsDeleted);
+                // ✅ NEW: Parse QR code to get guest ID
+                Guid? guestId = null;
+                try
+                {
+                    // Try to parse QR code as JSON to get guestId
+                    var qrData = System.Text.Json.JsonDocument.Parse(request.QRCodeData);
+                    if (qrData.RootElement.TryGetProperty("guestId", out var guestIdElement))
+                    {
+                        guestId = Guid.Parse(guestIdElement.GetString());
+                    }
+                }
+                catch (Exception parseEx)
+                {
+                    _logger.LogWarning(parseEx, "Could not parse QR code as JSON, trying direct match");
+                }
+
+                // Find guest by ID from QR code or direct QR data match
+                var guest = guestId != null
+                    ? await _context.TourBookingGuests
+                        .Include(g => g.TourBooking)
+                            .ThenInclude(b => b.TourSlot)
+                        .Include(g => g.TourBooking)
+                            .ThenInclude(b => b.TourOperation)
+                        .Include(g => g.TourBooking)
+                            .ThenInclude(b => b.User)
+                        .FirstOrDefaultAsync(g => g.Id == guestId && !g.IsDeleted)
+                    : await _context.TourBookingGuests
+                        .Include(g => g.TourBooking)
+                            .ThenInclude(b => b.TourSlot)
+                        .Include(g => g.TourBooking)
+                            .ThenInclude(b => b.TourOperation)
+                        .Include(g => g.TourBooking)
+                            .ThenInclude(b => b.User)
+                        .FirstOrDefaultAsync(g => g.QRCodeData == request.QRCodeData && !g.IsDeleted);
 
                 if (guest == null)
                 {
