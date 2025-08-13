@@ -523,3 +523,6 @@ TayNinhTourApi.Controller/wwwroot/uploads/*
 
 #Ignore vscode AI rules
 .github\copilot-instructions.md
+
+# Crush AI assistant directory
+.crush/

@@ -490,6 +490,88 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
 
+        /// <summary>
+        /// DEBUG: Check TourBookings with PayOsOrderCode
+        /// </summary>
+        [HttpGet("debug/tour-bookings")]
+        public async Task<IActionResult> DebugTourBookings()
+        {
+            try
+            {
+                var bookings = await _tourBookingRepository.GetAllAsync(
+                    b => b.PayOsOrderCode != null,
+                    include: new[] { "TourOperation", "TourSlot", "User" }
+                );
+                
+                var bookingsList = bookings.Select(b => new
+                {
+                    b.Id,
+                    b.PayOsOrderCode,
+                    PayOsOrderCodeLength = b.PayOsOrderCode?.Length,
+                    b.Status,
+                    b.IsDeleted,
+                    b.TotalPrice,
+                    b.CreatedAt,
+                    TourOperationId = b.TourOperationId,
+                    TourSlotId = b.TourSlotId,
+                    UserId = b.UserId
+                }).ToList();
+                
+                return Ok(new
+                {
+                    totalBookings = bookingsList.Count,
+                    bookings = bookingsList.Take(20),
+                    searchingFor = "TNDT2469671853",
+                    exactMatch = bookingsList.Any(b => b.PayOsOrderCode == "TNDT2469671853"),
+                    containsMatch = bookingsList.Any(b => b.PayOsOrderCode?.Contains("2469671853") == true)
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+        
+        /// <summary>
+        /// DEBUG: Find specific tour booking by PayOsOrderCode
+        /// </summary>
+        [HttpGet("debug/find-booking/{orderCode}")]
+        public async Task<IActionResult> DebugFindBooking(string orderCode)
+        {
+            try
+            {
+                // Method 1: Direct query
+                var booking1 = await _tourBookingRepository.GetFirstOrDefaultAsync(
+                    b => b.PayOsOrderCode == orderCode && !b.IsDeleted
+                );
+                
+                // Method 2: GetByPayOsOrderCodeAsync
+                var booking2 = await _tourBookingRepository.GetByPayOsOrderCodeAsync(orderCode);
+                
+                // Method 3: Get all and filter in memory
+                var allBookings = await _tourBookingRepository.GetAllAsync(b => true);
+                var booking3 = allBookings.FirstOrDefault(b => b.PayOsOrderCode == orderCode && !b.IsDeleted);
+                
+                return Ok(new
+                {
+                    searchCode = orderCode,
+                    searchCodeLength = orderCode.Length,
+                    method1_directQuery = booking1 != null ? new { booking1.Id, booking1.PayOsOrderCode } : null,
+                    method2_repository = booking2 != null ? new { booking2.Id, booking2.PayOsOrderCode } : null,
+                    method3_inMemory = booking3 != null ? new { booking3.Id, booking3.PayOsOrderCode } : null,
+                    allBookingsCount = allBookings.Count(),
+                    similarCodes = allBookings
+                        .Where(b => b.PayOsOrderCode != null && b.PayOsOrderCode.Contains("2469671853"))
+                        .Select(b => new { b.Id, b.PayOsOrderCode, b.IsDeleted })
+                        .ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
 
     }
 

@@ -29,6 +29,27 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking
         public string? ContactPhone { get; set; }
         public string? ContactEmail { get; set; }
         public string? SpecialRequests { get; set; }
+        
+        /// <summary>
+        /// Loại booking: Individual hoặc GroupRepresentative
+        /// </summary>
+        public string BookingType { get; set; } = "Individual";
+        
+        /// <summary>
+        /// Tên nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        public string? GroupName { get; set; }
+        
+        /// <summary>
+        /// Mô tả nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        public string? GroupDescription { get; set; }
+        
+        /// <summary>
+        /// QR code data cho cả nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        public string? GroupQRCodeData { get; set; }
+        
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 

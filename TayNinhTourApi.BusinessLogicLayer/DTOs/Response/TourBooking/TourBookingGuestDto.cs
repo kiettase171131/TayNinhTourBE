@@ -31,6 +31,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking
         public string? GuestPhone { get; set; }
 
         /// <summary>
+        /// Đánh dấu khách hàng này là người đại diện nhóm
+        /// </summary>
+        public bool IsGroupRepresentative { get; set; }
+
+        /// <summary>
         /// QR code data riêng cho khách hàng này
         /// Chỉ hiển thị cho owner của booking hoặc admin
         /// </summary>

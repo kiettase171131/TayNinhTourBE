@@ -782,6 +782,154 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
         }
 
         /// <summary>
+        /// Send group booking confirmation email with group QR code
+        /// NEW: For group representative booking
+        /// </summary>
+        public async Task SendGroupBookingConfirmationAsync(
+            TourBooking booking,
+            string representativeName,
+            string representativeEmail,
+            string tourTitle,
+            DateTime tourDate,
+            byte[] qrCodeImage)
+        {
+            // ✅ Validation
+            if (booking == null) throw new ArgumentNullException(nameof(booking));
+            if (string.IsNullOrWhiteSpace(representativeEmail)) throw new ArgumentException("Representative email is required", nameof(representativeEmail));
+            if (qrCodeImage == null || qrCodeImage.Length == 0) throw new ArgumentException("QR code image is required", nameof(qrCodeImage));
+
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.SenderName, _emailSettings.SenderEmail));
+            message.To.Add(new MailboxAddress(representativeName ?? "Group Representative", representativeEmail));
+            message.Subject = $"Group Tour Booking Confirmed - {booking.NumberOfGuests} Guests";
+
+            var bodyBuilder = new BodyBuilder();
+
+            // Add QR code as embedded image
+            var qrCodeAttachment = bodyBuilder.Attachments.Add("group-qr-code.png", qrCodeImage, new ContentType("image", "png"));
+            qrCodeAttachment.ContentDisposition = new ContentDisposition(ContentDisposition.Inline);
+            qrCodeAttachment.ContentId = "group-qr-code";
+
+            bodyBuilder.HtmlBody = $@"
+            <div style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"">
+                <div style=""text-align: center; margin-bottom: 30px;"">
+                    <h1 style=""color: #2c3e50; margin-bottom: 10px;"">👥 Group Booking Confirmed!</h1>
+                    <p style=""color: #7f8c8d; font-size: 16px;"">Group QR Code for All {booking.NumberOfGuests} Guests</p>
+                </div>
+
+                <div style=""background-color: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #28a745;"">
+                    <h2 style=""color: #155724; margin-top: 0; text-align: center;"">Group Tour Details</h2>
+
+                    <table style=""width: 100%; border-collapse: collapse; margin-top: 15px;"">
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Booking Type:</td>
+                            <td style=""padding: 8px 0; color: #155724;""><strong>Group Representative</strong></td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Group Name:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{booking.GroupName ?? $"Nhóm {representativeName}"}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Representative:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{representativeName}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Booking Code:</td>
+                            <td style=""padding: 8px 0; color: #155724; font-size: 18px;""><strong>{booking.BookingCode}</strong></td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Tour:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{tourTitle}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Date:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{tourDate:dd/MM/yyyy HH:mm}</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Total Guests:</td>
+                            <td style=""padding: 8px 0; color: #155724; font-size: 18px;""><strong>{booking.NumberOfGuests} people</strong></td>
+                        </tr>
+                        {(booking.DiscountPercent > 0 ? $@"
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Original Price:</td>
+                            <td style=""padding: 8px 0; color: #6c757d; text-decoration: line-through;"">{booking.OriginalPrice:N0} VND</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Discount:</td>
+                            <td style=""padding: 8px 0; color: #28a745; font-weight: bold;"">{booking.DiscountPercent}% (Early Bird)</td>
+                        </tr>" : "")}
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Total Price:</td>
+                            <td style=""padding: 8px 0; color: #e74c3c; font-weight: bold; font-size: 20px;"">{booking.TotalPrice:N0} VND</td>
+                        </tr>
+                        <tr>
+                            <td style=""padding: 8px 0; font-weight: bold; color: #155724;"">Contact Phone:</td>
+                            <td style=""padding: 8px 0; color: #155724;"">{booking.ContactPhone ?? "N/A"}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style=""text-align: center; margin: 30px 0;"">
+                    <h3 style=""color: #2c3e50; margin-bottom: 15px;"">👥 Group QR Code</h3>
+                    <p style=""color: #e74c3c; margin-bottom: 20px; font-weight: bold;"">This QR code checks in ALL {booking.NumberOfGuests} guests at once!</p>
+                    <img src=""cid:group-qr-code"" alt=""Group QR Code"" style=""max-width: 300px; border: 4px solid #28a745; border-radius: 8px; padding: 10px; background: #f8f9fa;"" />
+                </div>
+
+                <div style=""background-color: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #27ae60; margin: 20px 0;"">
+                    <h4 style=""color: #27ae60; margin-top: 0;"">👥 Group Booking Benefits</h4>
+                    <ul style=""color: #2c3e50; margin: 10px 0;"">
+                        <li><strong>One QR code for the entire group</strong> - No need for individual check-ins</li>
+                        <li>Present this single QR code to check in all {booking.NumberOfGuests} guests</li>
+                        <li>Faster check-in process for your group</li>
+                        <li>Group representative manages the entire booking</li>
+                        <li>All guests are checked in together</li>
+                    </ul>
+                </div>
+
+                <div style=""background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0;"">
+                    <h4 style=""color: #856404; margin-top: 0;"">📋 Important Instructions</h4>
+                    <ul style=""color: #856404; margin: 10px 0;"">
+                        <li>As the group representative, please ensure all {booking.NumberOfGuests} guests arrive on time</li>
+                        <li>Present this QR code to the tour guide to check in your entire group</li>
+                        <li>Keep this email accessible on your mobile device</li>
+                        <li>Arrive 15 minutes before tour start time</li>
+                        <li>You are responsible for communicating tour details to all group members</li>
+                    </ul>
+                </div>
+
+                <div style=""background-color: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545; margin: 20px 0;"">
+                    <h4 style=""color: #721c24; margin-top: 0;"">⚠️ Group Representative Responsibilities</h4>
+                    <p style=""color: #721c24; margin: 5px 0;"">
+                        As the group representative, you are responsible for:<br>
+                        • Ensuring all {booking.NumberOfGuests} guests are present at tour start<br>
+                        • Communicating tour details to all group members<br>
+                        • Managing any special requests for the group<br>
+                        • Being the primary contact for the tour guide
+                    </p>
+                </div>
+
+                <div style=""text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;"">
+                    <h4 style=""color: #2c3e50; margin-bottom: 15px;"">📞 Contact Information</h4>
+                    <p style=""color: #6c757d; margin: 5px 0;"">
+                        <strong>Support Hotline:</strong> +84 123 456 789<br>
+                        <strong>Email:</strong> support@tayninhtour.com<br>
+                        <strong>Website:</strong> www.tayninhtour.com
+                    </p>
+                </div>
+
+                <div style=""text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;"">
+                    <p style=""color: #7f8c8d; font-size: 14px;"">
+                        Thank you for choosing Tay Ninh Tour for your group!<br>
+                        We look forward to providing your group with an amazing experience.
+                    </p>
+                </div>
+            </div>";
+
+            message.Body = bodyBuilder.ToMessageBody();
+            await SendEmailAsync(message);
+        }
+
+        /// <summary>
         /// Send tour booking confirmation email with QR code
         /// LEGACY: For backward compatibility with single QR system
         /// </summary>

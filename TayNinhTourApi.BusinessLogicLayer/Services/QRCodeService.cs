@@ -276,6 +276,89 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
+        /// Generate QR code data for group representative booking
+        /// Contains all necessary information for tour guide to check-in entire group at once
+        /// </summary>
+        public string GenerateGroupQRCodeData(TourBooking booking)
+        {
+            try
+            {
+                var qrData = new
+                {
+                    // Booking information
+                    BookingId = booking.Id,
+                    BookingCode = booking.BookingCode,
+                    BookingType = "GroupRepresentative",
+                    
+                    // Group information
+                    GroupName = booking.GroupName,
+                    GroupDescription = booking.GroupDescription,
+                    NumberOfGuests = booking.NumberOfGuests,
+                    
+                    // Tour information
+                    TourOperationId = booking.TourOperationId,
+                    TourSlotId = booking.TourSlotId?.ToString() ?? "", // ✅ Ensure TourSlotId is always included as string
+                    TourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience",
+                    TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd") ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    
+                    // Representative information
+                    ContactName = booking.ContactName,
+                    ContactEmail = booking.ContactEmail,
+                    ContactPhone = booking.ContactPhone,
+                    
+                    // Pricing information
+                    TotalPrice = booking.TotalPrice,
+                    OriginalPrice = booking.OriginalPrice,
+                    DiscountPercent = booking.DiscountPercent,
+                    
+                    // Metadata
+                    GeneratedAt = DateTime.UtcNow,
+                    QRType = "GroupBooking",
+                    Version = "1.0" // Version 1.0 for group QR codes
+                };
+
+                return JsonSerializer.Serialize(qrData, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = false
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating group QR code data for booking {BookingId}", booking.Id);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Generate QR code image for group booking
+        /// </summary>
+        public async Task<byte[]> GenerateGroupQRCodeImageAsync(TourBooking booking, int size = 300)
+        {
+            try
+            {
+                var qrData = GenerateGroupQRCodeData(booking);
+                return await GenerateQRCodeImageFromDataAsync(qrData, size);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating group QR code image for booking {BookingId}", booking.Id);
+
+                // Fallback: generate simple QR with group name and booking code
+                try
+                {
+                    var fallbackData = $"Group: {booking.GroupName ?? "Nhóm"}, Booking: {booking.BookingCode}, Guests: {booking.NumberOfGuests}";
+                    return await GenerateQRCodeImageFromDataAsync(fallbackData, size);
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogError(fallbackEx, "Error generating fallback group QR code for booking {BookingId}", booking.Id);
+                    throw new InvalidOperationException($"Unable to generate QR code for booking {booking.Id}", ex);
+                }
+            }
+        }
+
+        /// <summary>
         /// Validate QR code data format
         /// ENHANCED: Updated to handle version 2.1 QR codes with server-compatible generation
         /// </summary>

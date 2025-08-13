@@ -40,13 +40,36 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking
         public string? SpecialRequests { get; set; }
 
         /// <summary>
+        /// Loại booking: Individual (mỗi khách có QR riêng) hoặc GroupRepresentative (1 QR cho cả nhóm)
+        /// Default: Individual
+        /// </summary>
+        [StringLength(50)]
+        public string BookingType { get; set; } = "Individual";
+
+        /// <summary>
+        /// Tên nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        [StringLength(200, ErrorMessage = "Tên nhóm không quá 200 ký tự")]
+        public string? GroupName { get; set; }
+
+        /// <summary>
+        /// Mô tả nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        [StringLength(500, ErrorMessage = "Mô tả nhóm không quá 500 ký tự")]
+        public string? GroupDescription { get; set; }
+
+        /// <summary>
+        /// Thông tin người đại diện nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        public GuestInfoRequest? GroupRepresentative { get; set; }
+
+        /// <summary>
         /// Danh sách thông tin từng khách hàng trong booking
         /// Số lượng phải khớp với NumberOfGuests
         /// Email của từng guest phải unique trong cùng booking
+        /// Lưu ý: Với BookingType = GroupRepresentative, field này có thể null hoặc empty
         /// </summary>
-        [Required(ErrorMessage = "Thông tin khách hàng là bắt buộc")]
-        [MinLength(1, ErrorMessage = "Phải có ít nhất 1 khách hàng")]
         [GuestListValidation]
-        public List<GuestInfoRequest> Guests { get; set; } = new();
+        public List<GuestInfoRequest>? Guests { get; set; } = new();
     }
 }

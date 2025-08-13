@@ -59,8 +59,13 @@ namespace TayNinhTourApi.Controller.Controllers
                 Order? order = null;
 
                 // Try to find by PayOsOrderCode first (now string with TNDT format)
-                Console.WriteLine($"Looking for order with PayOsOrderCode: {orderCode}");
-                order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == orderCode, includes: new[] { "OrderDetails" });
+                Console.WriteLine($"Looking for order with PayOsOrderCode: '{orderCode}', Length: {orderCode.Length}");
+                
+                // Trim any whitespace and ensure clean comparison
+                var cleanOrderCode = orderCode.Trim();
+                Console.WriteLine($"Clean order code: '{cleanOrderCode}', Length: {cleanOrderCode.Length}");
+                
+                order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == cleanOrderCode && !x.IsDeleted, includes: new[] { "OrderDetails" });
 
                 // If not found, try parse as GUID Order.Id
                 if (order == null && Guid.TryParse(orderCode, out Guid orderGuid))
@@ -198,8 +203,13 @@ namespace TayNinhTourApi.Controller.Controllers
                 Order? order = null;
 
                 // Try to find by PayOsOrderCode first (now string with TNDT format)
-                Console.WriteLine($"Looking for order with PayOsOrderCode: {orderCode}");
-                order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == orderCode);
+                Console.WriteLine($"Looking for order with PayOsOrderCode: '{orderCode}', Length: {orderCode.Length}");
+                
+                // Trim any whitespace and ensure clean comparison
+                var cleanOrderCode = orderCode.Trim();
+                Console.WriteLine($"Clean order code: '{cleanOrderCode}', Length: {cleanOrderCode.Length}");
+                
+                order = await _orderRepository.GetFirstOrDefaultAsync(x => x.PayOsOrderCode == cleanOrderCode && !x.IsDeleted);
 
                 // If not found, try parse as GUID Order.Id
                 if (order == null && Guid.TryParse(orderCode, out Guid orderGuid))
@@ -270,7 +280,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                Console.WriteLine($"Frontend Product Payment Success callback received for orderCode: {orderCode}");
+                Console.WriteLine($"Frontend Product Payment Success callback received for orderCode: '{orderCode}', Length: {orderCode.Length}");
 
                 if (string.IsNullOrEmpty(orderCode))
                 {
@@ -282,8 +292,13 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
+                // Trim any whitespace and ensure clean comparison
+                var cleanOrderCode = orderCode.Trim();
+                Console.WriteLine($"Clean order code: '{cleanOrderCode}', Length: {cleanOrderCode.Length}");
+
                 // Tìm order theo PayOsOrderCode hoặc Order.Id
-                var order = await _orderRepository.GetByPayOsOrderCodeAsync(orderCode);
+                Console.WriteLine($"[HandleProductPaymentSuccess/Cancel] Using raw SQL to search for order with cleanCode: '{cleanOrderCode}'");
+                var order = await _orderRepository.GetByPayOsOrderCodeRawSqlAsync(cleanOrderCode);
                 if (order == null)
                 {
                     // Thử tìm theo GUID nếu không tìm thấy theo PayOsOrderCode
@@ -408,7 +423,7 @@ namespace TayNinhTourApi.Controller.Controllers
         {
             try
             {
-                Console.WriteLine($"Frontend Product Payment Cancel callback received for orderCode: {orderCode}");
+                Console.WriteLine($"Frontend Product Payment Cancel callback received for orderCode: '{orderCode}', Length: {orderCode.Length}");
 
                 if (string.IsNullOrEmpty(orderCode))
                 {
@@ -420,8 +435,13 @@ namespace TayNinhTourApi.Controller.Controllers
                     });
                 }
 
+                // Trim any whitespace and ensure clean comparison
+                var cleanOrderCode = orderCode.Trim();
+                Console.WriteLine($"Clean order code: '{cleanOrderCode}', Length: {cleanOrderCode.Length}");
+
                 // Tìm order theo PayOsOrderCode hoặc Order.Id
-                var order = await _orderRepository.GetByPayOsOrderCodeAsync(orderCode);
+                Console.WriteLine($"[HandleProductPaymentSuccess/Cancel] Using raw SQL to search for order with cleanCode: '{cleanOrderCode}'");
+                var order = await _orderRepository.GetByPayOsOrderCodeRawSqlAsync(cleanOrderCode);
                 if (order == null)
                 {
                     // Thử tìm theo GUID nếu không tìm thấy theo PayOsOrderCode
@@ -500,6 +520,184 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     success = false,
                     message = "Có lỗi xảy ra khi xử lý hủy thanh toán: " + ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Test endpoint to list all orders with PayOsOrderCode
+        /// </summary>
+        [HttpGet("debug/list-orders")]
+        public async Task<IActionResult> DebugListOrders()
+        {
+            try
+            {
+                var allOrders = await _orderRepository.GetAllAsync(
+                    o => o.PayOsOrderCode != null,
+                    include: new[] { "OrderDetails" }
+                );
+
+                var ordersList = allOrders.Select(o => new
+                {
+                    o.Id,
+                    o.PayOsOrderCode,
+                    PayOsOrderCodeLength = o.PayOsOrderCode?.Length,
+                    o.Status,
+                    o.IsDeleted,
+                    o.CreatedAt,
+                    o.TotalAmount,
+                    OrderDetailsCount = o.OrderDetails.Count
+                }).ToList();
+
+                return Ok(new
+                {
+                    totalOrders = ordersList.Count,
+                    orders = ordersList.Take(20), // Show first 20 orders
+                    searchingFor = "TNDT2469671853",
+                    exactMatch = ordersList.Any(o => o.PayOsOrderCode == "TNDT2469671853"),
+                    trimmedMatch = ordersList.Any(o => o.PayOsOrderCode?.Trim() == "TNDT2469671853"),
+                    containsMatch = ordersList.Any(o => o.PayOsOrderCode?.Contains("TNDT2469671853") == true),
+                    message = "DEBUG: List of orders with PayOsOrderCode"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Test raw SQL to check column names and values
+        /// </summary>
+        [HttpGet("debug/raw-sql")]
+        public async Task<IActionResult> DebugRawSql()
+        {
+            try
+            {
+                using var command = _orderRepository.GetDbConnection().CreateCommand();
+                command.CommandText = @"
+                    SELECT Id, PayOsOrderCode, IsDeleted, Status, TotalAmount 
+                    FROM Orders 
+                    WHERE PayOsOrderCode IS NOT NULL 
+                    LIMIT 10";
+                
+                await _orderRepository.GetDbConnection().OpenAsync();
+                
+                var orders = new List<object>();
+                using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    orders.Add(new
+                    {
+                        Id = reader.GetGuid(0),
+                        PayOsOrderCode = reader.IsDBNull(1) ? null : reader.GetString(1),
+                        PayOsOrderCodeHex = reader.IsDBNull(1) ? null : BitConverter.ToString(System.Text.Encoding.UTF8.GetBytes(reader.GetString(1))),
+                        IsDeleted = reader.GetBoolean(2),
+                        Status = reader.GetInt32(3),
+                        TotalAmount = reader.GetDecimal(4)
+                    });
+                }
+                
+                await _orderRepository.GetDbConnection().CloseAsync();
+                
+                // Also check for the specific order
+                command.CommandText = @"
+                    SELECT COUNT(*) 
+                    FROM Orders 
+                    WHERE PayOsOrderCode = 'TNDT2469671853'";
+                
+                await _orderRepository.GetDbConnection().OpenAsync();
+                var count = await command.ExecuteScalarAsync();
+                await _orderRepository.GetDbConnection().CloseAsync();
+                
+                // Check with LIKE
+                command.CommandText = @"
+                    SELECT Id, PayOsOrderCode 
+                    FROM Orders 
+                    WHERE PayOsOrderCode LIKE '%2469671853%'";
+                
+                await _orderRepository.GetDbConnection().OpenAsync();
+                var similarOrders = new List<object>();
+                using var reader2 = await command.ExecuteReaderAsync();
+                while (await reader2.ReadAsync())
+                {
+                    similarOrders.Add(new
+                    {
+                        Id = reader2.GetGuid(0),
+                        PayOsOrderCode = reader2.IsDBNull(1) ? null : reader2.GetString(1)
+                    });
+                }
+                await _orderRepository.GetDbConnection().CloseAsync();
+                
+                return Ok(new
+                {
+                    databaseName = "tayninhtourdb_local",
+                    ordersInDatabase = orders,
+                    countWithExactCode = count,
+                    ordersWithSimilarCode = similarOrders,
+                    searchingFor = "TNDT2469671853"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Test direct database query
+        /// </summary>
+        [HttpGet("debug/find-order/{orderCode}")]
+        public async Task<IActionResult> DebugFindOrder(string orderCode)
+        {
+            try
+            {
+                Console.WriteLine($"[DEBUG] Searching for orderCode: '{orderCode}'");
+                
+                // Method 1: Direct LINQ query
+                var order1 = await _orderRepository.GetFirstOrDefaultAsync(
+                    o => o.PayOsOrderCode == orderCode && !o.IsDeleted
+                );
+                
+                // Method 2: GetByPayOsOrderCodeAsync
+                var order2 = await _orderRepository.GetByPayOsOrderCodeAsync(orderCode);
+                
+                // Method 3: Raw SQL
+                var order3 = await _orderRepository.GetByPayOsOrderCodeRawSqlAsync(orderCode);
+                
+                // Method 4: Get all and filter in memory
+                var allOrders = await _orderRepository.GetAllAsync(o => true);
+                var order4 = allOrders.FirstOrDefault(o => o.PayOsOrderCode == orderCode && !o.IsDeleted);
+                
+                return Ok(new
+                {
+                    searchCode = orderCode,
+                    searchCodeLength = orderCode.Length,
+                    method1_directLinq = order1 != null ? new { order1.Id, order1.PayOsOrderCode } : null,
+                    method2_repository = order2 != null ? new { order2.Id, order2.PayOsOrderCode } : null,
+                    method3_rawSql = order3 != null ? new { order3.Id, order3.PayOsOrderCode } : null,
+                    method4_inMemory = order4 != null ? new { order4.Id, order4.PayOsOrderCode } : null,
+                    allOrdersCount = allOrders.Count(),
+                    similarCodes = allOrders
+                        .Where(o => o.PayOsOrderCode != null && o.PayOsOrderCode.Contains("2469671853"))
+                        .Select(o => new { o.Id, o.PayOsOrderCode, PayOsOrderCodeLength = o.PayOsOrderCode?.Length, o.IsDeleted })
+                        .ToList()
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
                 });
             }
         }

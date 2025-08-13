@@ -38,6 +38,11 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string? GuestPhone { get; set; }
 
         /// <summary>
+        /// Đánh dấu khách hàng này là người đại diện nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        public bool IsGroupRepresentative { get; set; } = false;
+
+        /// <summary>
         /// QR code data riêng cho khách hàng này
         /// Chứa thông tin cá nhân và thông tin booking để tour guide check-in
         /// </summary>
