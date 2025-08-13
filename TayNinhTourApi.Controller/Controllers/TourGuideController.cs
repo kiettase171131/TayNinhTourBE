@@ -895,6 +895,213 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// [NEW] Check-in cả nhóm bằng Group QR Code
+        /// Dành cho booking loại GroupRepresentative
+        /// </summary>
+        /// <param name="request">Thông tin Group QR code</param>
+        /// <returns>Kết quả check-in nhóm</returns>
+        [HttpPost("check-in-group")]
+        public async Task<IActionResult> CheckInGroupByQR([FromBody] CheckInGroupRequest request)
+        {
+            try
+            {
+                var currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUserObject?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                var tourGuide = await _context.TourGuides
+                    .FirstOrDefaultAsync(tg => tg.UserId == currentUserObject.UserId);
+
+                if (tourGuide == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin HDV"
+                    });
+                }
+
+                // Parse QR code data to get booking information
+                System.Text.Json.JsonDocument qrDocument;
+                try
+                {
+                    qrDocument = System.Text.Json.JsonDocument.Parse(request.QrCodeData);
+                }
+                catch (Exception parseEx)
+                {
+                    _logger.LogError(parseEx, "Failed to parse QR code data");
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "QR code không hợp lệ"
+                    });
+                }
+
+                // Get booking ID from QR data
+                Guid bookingId;
+                try
+                {
+                    if (!qrDocument.RootElement.TryGetProperty("bookingId", out var bookingIdElement))
+                    {
+                        return BadRequest(new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = "Không tìm thấy thông tin booking trong QR code"
+                        });
+                    }
+
+                    var bookingIdString = bookingIdElement.GetString();
+                    if (!Guid.TryParse(bookingIdString, out bookingId))
+                    {
+                        return BadRequest(new BaseResposeDto
+                        {
+                            StatusCode = 400,
+                            Message = "Booking ID không hợp lệ trong QR code"
+                        });
+                    }
+                }
+                finally
+                {
+                    qrDocument.Dispose();
+                }
+
+                // Load booking with all related data
+                var booking = await _context.TourBookings
+                    .Include(b => b.Guests)
+                    .Include(b => b.TourOperation)
+                    .Include(b => b.TourSlot)
+                        .ThenInclude(ts => ts.TourDetails)
+                            .ThenInclude(td => td.TourOperation)
+                    .FirstOrDefaultAsync(b => b.Id == bookingId && !b.IsDeleted);
+
+                if (booking == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy booking với QR code này"
+                    });
+                }
+
+                // Validate this is a group booking
+                if (booking.BookingType != "GroupRepresentative")
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "QR code này không phải cho booking nhóm. Vui lòng sử dụng QR code cá nhân."
+                    });
+                }
+
+                // Validate tour guide permission
+                if (booking.TourOperation?.TourGuideId != tourGuide.Id)
+                {
+                    return StatusCode(403, new BaseResposeDto
+                    {
+                        StatusCode = 403,
+                        Message = "Bạn không có quyền check-in cho tour này"
+                    });
+                }
+
+                // Validate booking status
+                if (booking.Status != BookingStatus.Confirmed)
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Booking chưa được xác nhận"
+                    });
+                }
+
+                // Check-in all guests or specific guests
+                var guestsToCheckIn = booking.Guests.AsQueryable();
+                
+                if (request.SpecificGuestIds != null && request.SpecificGuestIds.Any())
+                {
+                    guestsToCheckIn = guestsToCheckIn.Where(g => request.SpecificGuestIds.Contains(g.Id));
+                }
+
+                if (!request.AllowPartialCheckIn && guestsToCheckIn.Count() < booking.NumberOfGuests)
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = $"Yêu cầu check-in đủ {booking.NumberOfGuests} khách"
+                    });
+                }
+
+                var checkedInGuests = new List<CheckedInGuestInfo>();
+                var previouslyCheckedIn = 0;
+                var newlyCheckedIn = 0;
+
+                foreach (var guest in guestsToCheckIn)
+                {
+                    if (guest.IsCheckedIn)
+                    {
+                        previouslyCheckedIn++;
+                    }
+                    else
+                    {
+                        guest.IsCheckedIn = true;
+                        guest.CheckInTime = DateTime.UtcNow;
+                        guest.CheckInNotes = request.CheckInNotes;
+                        guest.UpdatedAt = DateTime.UtcNow;
+                        guest.UpdatedById = currentUserObject.UserId;
+                        newlyCheckedIn++;
+                    }
+
+                    checkedInGuests.Add(new CheckedInGuestInfo
+                    {
+                        GuestId = guest.Id,
+                        GuestName = guest.GuestName,
+                        GuestEmail = guest.GuestEmail,
+                        IsGroupRepresentative = guest.IsGroupRepresentative,
+                        CheckInTime = guest.CheckInTime ?? DateTime.UtcNow
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+
+                var response = new CheckInGroupResponse
+                {
+                    BookingId = booking.Id,
+                    BookingCode = booking.BookingCode,
+                    GroupName = booking.GroupName,
+                    TotalGuests = booking.NumberOfGuests,
+                    CheckedInCount = newlyCheckedIn,
+                    PreviouslyCheckedInCount = previouslyCheckedIn,
+                    CheckInTime = DateTime.UtcNow,
+                    CheckedInGuests = checkedInGuests,
+                    Message = $"Check-in thành công cho {newlyCheckedIn} khách",
+                    IsCompleteCheckIn = (newlyCheckedIn + previouslyCheckedIn) == booking.NumberOfGuests
+                };
+
+                return Ok(new ApiResponse<CheckInGroupResponse>
+                {
+                    StatusCode = 200,
+                    Message = response.Message,
+                    Data = response,
+                    success = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking in group with QR: {QRCode}", request.QrCodeData);
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi check-in nhóm"
+                });
+            }
+        }
+
+        /// <summary>
         /// [LEGACY] Check-in khách hàng với validation theo TourSlot
         /// Giữ lại cho backward compatibility
         /// </summary>

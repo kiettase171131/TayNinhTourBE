@@ -568,9 +568,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         BookingCode = bookingCode,
                         PayOsOrderCode = payOsOrderCode,
                         BookingDate = bookingDate,
-                        ContactName = request.Guests.FirstOrDefault()?.GuestName ?? "Guest",
+                        BookingType = request.BookingType ?? "Individual", // New field for booking type
+                        GroupName = request.GroupName, // New field for group name
+                        GroupDescription = request.GroupDescription, // New field for group description
+                        ContactName = request.BookingType == "GroupRepresentative" && request.GroupRepresentative != null 
+                            ? request.GroupRepresentative.GuestName 
+                            : request.Guests?.FirstOrDefault()?.GuestName ?? "Guest",
                         ContactPhone = request.ContactPhone,
-                        ContactEmail = request.Guests.FirstOrDefault()?.GuestEmail ?? "",
+                        ContactEmail = request.BookingType == "GroupRepresentative" && request.GroupRepresentative != null
+                            ? request.GroupRepresentative.GuestEmail
+                            : request.Guests?.FirstOrDefault()?.GuestEmail ?? "",
                         CustomerNotes = request.SpecialRequests,
                         IsCheckedIn = false, // ✅ Default check-in status
                         ReservedUntil = VietnamTimeZoneUtility.GetVietnamNow().AddMinutes(30), // Reserve slot for 30 minutes
@@ -588,30 +595,86 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     _logger.LogInformation("Tour booking saved to database. BookingCode: {BookingCode}, BookingId: {BookingId}",
                         bookingCode, booking.Id);
 
-                    // 10. Create TourBookingGuest records for each guest
-                    foreach (var guestInfo in request.Guests)
+                    // 10. Create TourBookingGuest records based on booking type
+                    if (request.BookingType == "GroupRepresentative")
                     {
-                        var guest = new TourBookingGuest
+                        // For group bookings, create one record for the representative
+                        if (request.GroupRepresentative != null)
                         {
-                            Id = Guid.NewGuid(),
-                            TourBookingId = booking.Id,
-                            GuestName = guestInfo.GuestName.Trim(),
-                            GuestEmail = guestInfo.GuestEmail.Trim().ToLowerInvariant(),
-                            GuestPhone = string.IsNullOrWhiteSpace(guestInfo.GuestPhone) ? null : guestInfo.GuestPhone.Trim(),
-                            IsCheckedIn = false,
-                            IsActive = true,
-                            IsDeleted = false,
-                            CreatedAt = bookingDate,
-                            CreatedById = userId
-                        };
+                            var representativeGuest = new TourBookingGuest
+                            {
+                                Id = Guid.NewGuid(),
+                                TourBookingId = booking.Id,
+                                GuestName = request.GroupRepresentative.GuestName.Trim(),
+                                GuestEmail = request.GroupRepresentative.GuestEmail.Trim().ToLowerInvariant(),
+                                GuestPhone = string.IsNullOrWhiteSpace(request.GroupRepresentative.GuestPhone) 
+                                    ? null : request.GroupRepresentative.GuestPhone.Trim(),
+                                IsGroupRepresentative = true, // Mark as group representative
+                                IsCheckedIn = false,
+                                IsActive = true,
+                                IsDeleted = false,
+                                CreatedAt = bookingDate,
+                                CreatedById = userId
+                            };
 
-                        await _unitOfWork.TourBookingGuestRepository.AddAsync(guest);
+                            await _unitOfWork.TourBookingGuestRepository.AddAsync(representativeGuest);
+
+                            // Create placeholder records for other guests in the group
+                            for (int i = 1; i < request.NumberOfGuests; i++)
+                            {
+                                var placeholderGuest = new TourBookingGuest
+                                {
+                                    Id = Guid.NewGuid(),
+                                    TourBookingId = booking.Id,
+                                    GuestName = $"Khách {i + 1} - {request.GroupName ?? "Nhóm"}",
+                                    GuestEmail = $"guest{i + 1}_{booking.BookingCode}@placeholder.com",
+                                    GuestPhone = null,
+                                    IsGroupRepresentative = false,
+                                    IsCheckedIn = false,
+                                    IsActive = true,
+                                    IsDeleted = false,
+                                    CreatedAt = bookingDate,
+                                    CreatedById = userId
+                                };
+
+                                await _unitOfWork.TourBookingGuestRepository.AddAsync(placeholderGuest);
+                            }
+                        }
+
+                        _logger.LogInformation("Created group booking with representative for {GuestCount} guests, booking {BookingCode}",
+                            request.NumberOfGuests, bookingCode);
+                    }
+                    else
+                    {
+                        // For individual bookings, create records for each guest
+                        if (request.Guests != null && request.Guests.Any())
+                        {
+                            foreach (var guestInfo in request.Guests)
+                            {
+                                var guest = new TourBookingGuest
+                                {
+                                    Id = Guid.NewGuid(),
+                                    TourBookingId = booking.Id,
+                                    GuestName = guestInfo.GuestName.Trim(),
+                                    GuestEmail = guestInfo.GuestEmail.Trim().ToLowerInvariant(),
+                                    GuestPhone = string.IsNullOrWhiteSpace(guestInfo.GuestPhone) ? null : guestInfo.GuestPhone.Trim(),
+                                    IsGroupRepresentative = false,
+                                    IsCheckedIn = false,
+                                    IsActive = true,
+                                    IsDeleted = false,
+                                    CreatedAt = bookingDate,
+                                    CreatedById = userId
+                                };
+
+                                await _unitOfWork.TourBookingGuestRepository.AddAsync(guest);
+                            }
+
+                            _logger.LogInformation("Created {GuestCount} individual guest records for booking {BookingCode}",
+                                request.Guests.Count, bookingCode);
+                        }
                     }
 
                     await _unitOfWork.SaveChangesAsync();
-
-                    _logger.LogInformation("Created {GuestCount} guest records for booking {BookingCode}",
-                        request.Guests.Count, bookingCode);
 
                     // 10. Create PayOS payment link (now that booking exists in DB)
                     if (_payOsService == null)
@@ -972,17 +1035,37 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     booking.UpdatedAt = DateTime.UtcNow;
                     booking.ReservedUntil = null; // Clear reservation timeout since payment is confirmed
 
-                    // ✅ NEW: Generate individual QR codes for each guest
+                    // ✅ UPDATED: Generate QR codes based on booking type
                     var guests = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
 
-                    foreach (var guest in guests)
+                    if (booking.BookingType == "GroupRepresentative")
                     {
-                        guest.QRCodeData = _qrCodeService.GenerateGuestQRCodeData(guest, booking);
-                        await _unitOfWork.TourBookingGuestRepository.UpdateAsync(guest);
+                        // For GroupRepresentative: Generate ONE group QR code for the entire booking
+                        // This QR contains all booking info and can check-in all guests at once
+                        booking.QRCodeData = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeData(booking) 
+                            ?? _qrCodeService.GenerateQRCodeData(booking);
+                        
+                        _logger.LogInformation("Generated GROUP QR code for booking {BookingCode} with {GuestCount} guests",
+                            booking.BookingCode, booking.NumberOfGuests);
+                            
+                        // No individual QR codes for guests in group booking
+                        // The representative will use the group QR to check-in everyone
                     }
-
-                    // ✅ LEGACY: Keep booking QR for backward compatibility (marked as obsolete)
-                    booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
+                    else
+                    {
+                        // For Individual: Generate personal QR codes for each guest
+                        foreach (var guest in guests)
+                        {
+                            guest.QRCodeData = _qrCodeService.GenerateGuestQRCodeData(guest, booking);
+                            await _unitOfWork.TourBookingGuestRepository.UpdateAsync(guest);
+                        }
+                        
+                        // Also keep booking QR for backward compatibility
+                        booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
+                        
+                        _logger.LogInformation("Generated INDIVIDUAL QR codes for {GuestCount} guests in booking {BookingCode}",
+                            guests.Count, booking.BookingCode);
+                    }
 
                     // ✅ CRITICAL: Save QR codes to database before sending emails
                     await _unitOfWork.SaveChangesAsync();
@@ -1034,29 +1117,60 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     _logger.LogInformation("Payment success processed successfully for booking {BookingCode}. Revenue hold: {RevenueHold}",
                         booking.BookingCode, booking.RevenueHold);
 
-                    // 6. ✅ NEW: Send individual confirmation emails with personal QR codes
-                    string emailStatus = "Email xác nhận cá nhân đã được gửi";
+                    // 6. ✅ UPDATED: Send confirmation emails based on booking type
+                    string emailStatus = "Email xác nhận đã được gửi";
                     bool emailSent = false;
 
                     try
                     {
-                        // Get fresh guest data with QR codes
-                        var guestsWithQR = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
                         var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour Experience";
                         var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
 
-                        if (!guestsWithQR.Any())
+                        if (booking.BookingType == "GroupRepresentative")
                         {
-                            _logger.LogWarning("No guests found for booking {BookingId} - cannot send individual emails", booking.Id);
-                            emailStatus = "Không tìm thấy thông tin khách hàng để gửi email";
+                            // For group booking: Send ONE email to representative with GROUP QR
+                            var representativeEmail = booking.ContactEmail ?? booking.User?.Email;
+                            var representativeName = booking.ContactName ?? booking.User?.Name ?? "Customer";
+                            
+                            if (!string.IsNullOrWhiteSpace(representativeEmail) && IsValidEmail(representativeEmail))
+                            {
+                                // Generate group QR code image
+                                var qrCodeImage = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeImageAsync(booking, 300).Result
+                                    ?? await _qrCodeService.GenerateQRCodeImageAsync(booking, 300);
+                                
+                                // Send group booking confirmation email
+                                await _emailSender.SendGroupBookingConfirmationAsync(
+                                    booking, representativeName, representativeEmail, tourTitle, tourDate, qrCodeImage);
+                                
+                                emailSent = true;
+                                _logger.LogInformation("GROUP booking confirmation email sent to {Email} for booking {BookingCode} with {GuestCount} guests",
+                                    representativeEmail, booking.BookingCode, booking.NumberOfGuests);
+                                emailStatus = "Email xác nhận nhóm đã được gửi cho người đại diện";
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Invalid email for group representative in booking {BookingId}", booking.Id);
+                                emailStatus = "Không thể gửi email - địa chỉ email người đại diện không hợp lệ";
+                            }
                         }
                         else
                         {
-                            // Send individual emails to each guest
-                            await SendIndividualGuestEmailsAsync(booking, guestsWithQR, tourTitle, tourDate);
-                            emailSent = true;
-                            _logger.LogInformation("Individual confirmation emails sent successfully for {GuestCount} guests in booking {BookingCode}",
-                                guestsWithQR.Count, booking.BookingCode);
+                            // For individual booking: Send personal emails to each guest
+                            var guestsWithQR = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
+                            
+                            if (!guestsWithQR.Any())
+                            {
+                                _logger.LogWarning("No guests found for booking {BookingId} - cannot send individual emails", booking.Id);
+                                emailStatus = "Không tìm thấy thông tin khách hàng để gửi email";
+                            }
+                            else
+                            {
+                                await SendIndividualGuestEmailsAsync(booking, guestsWithQR, tourTitle, tourDate);
+                                emailSent = true;
+                                _logger.LogInformation("INDIVIDUAL confirmation emails sent successfully for {GuestCount} guests in booking {BookingCode}",
+                                    guestsWithQR.Count, booking.BookingCode);
+                                emailStatus = "Email xác nhận cá nhân đã được gửi cho từng khách";
+                            }
                         }
                     }
                     catch (Exception emailEx)

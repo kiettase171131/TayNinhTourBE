@@ -120,6 +120,30 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         public string? ContactEmail { get; set; }
 
         /// <summary>
+        /// Loại booking: Individual (mỗi khách có QR riêng) hoặc GroupRepresentative (1 QR cho cả nhóm)
+        /// </summary>
+        [Required]
+        [StringLength(50)]
+        public string BookingType { get; set; } = "Individual";
+
+        /// <summary>
+        /// Tên nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        [StringLength(200, ErrorMessage = "Tên nhóm không quá 200 ký tự")]
+        public string? GroupName { get; set; }
+
+        /// <summary>
+        /// Mô tả nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        [StringLength(500, ErrorMessage = "Mô tả nhóm không quá 500 ký tự")]
+        public string? GroupDescription { get; set; }
+
+        /// <summary>
+        /// QR code data cho cả nhóm (chỉ áp dụng cho booking loại GroupRepresentative)
+        /// </summary>
+        public string? GroupQRCodeData { get; set; }
+
+        /// <summary>
         /// Mã booking duy nhất cho khách hàng
         /// Format: TB + YYYYMMDD + 6 số random
         /// </summary>

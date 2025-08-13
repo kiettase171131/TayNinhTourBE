@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,5 +11,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
     public interface IOrderRepository : IGenericRepository<Order>
     {
         Task<Order?> GetByPayOsOrderCodeAsync(string payOsOrderCode);
+        Task<Order?> GetByPayOsOrderCodeRawSqlAsync(string payOsOrderCode);
+        DbConnection GetDbConnection();
     }
 }
