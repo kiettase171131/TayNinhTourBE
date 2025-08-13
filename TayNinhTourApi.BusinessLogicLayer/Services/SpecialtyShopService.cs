@@ -10,6 +10,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
@@ -428,10 +429,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
 
         public async Task<ShopVisitorsResponse> GetVisitorsAsync(
-     CurrentUserObject currentUserObject,
-     int? pageIndex, int? pageSize,
-     DateOnly? fromDate, DateOnly? toDate
- )
+    CurrentUserObject currentUserObject,
+    int? pageIndex, int? pageSize,
+    DateOnly? fromDate, DateOnly? toDate
+)
         {
             var pageIdx = Math.Max(1, pageIndex ?? Constants.PageIndexDefault);
             var pageSz = Math.Max(1, pageSize ?? Constants.PageSizeDefault);
@@ -447,7 +448,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             var shopId = shop.Id;
 
-            // 2) Repo queryables
+            // 2) Queryables
             var tlQ = _timelineRepo.GetQueryable().AsNoTracking();
             var slQ = _slotRepo.GetQueryable().AsNoTracking();
             var bkQ = _bookingRepo.GetQueryable().AsNoTracking();
@@ -458,7 +459,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var odQ = _orderDetailRepo.GetQueryable().AsNoTracking();
             var prQ = _productRepo.GetQueryable().AsNoTracking();
 
-            // 3) Base query: Khách đi tour có shop này trong timeline + có ít nhất 1 đơn Paid tại shop
+            // 3) Base: khách có booking Confirmed + timeline có shop + có ÍT NHẤT 1 đơn Paid ở shop
             var baseQ =
                 from tl in tlQ.Where(t => t.SpecialtyShopId == shopId)
                 join sl in slQ on tl.TourDetailsId equals sl.TourDetailsId
@@ -475,10 +476,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                           select 1).Any()
                 select new { tl, sl, bk, us, dt };
 
+            if (fromDate.HasValue && toDate.HasValue && fromDate > toDate)
+            {
+                var tmp = fromDate; fromDate = toDate; toDate = tmp;
+            }
             if (fromDate.HasValue) baseQ = baseQ.Where(x => x.sl.TourDate >= fromDate.Value);
             if (toDate.HasValue) baseQ = baseQ.Where(x => x.sl.TourDate <= toDate.Value);
 
-            // 4) Chọn mốc shop đầu tiên per booking
+            // 4) Pick mốc đầu tiên per booking (dịch tốt sang SQL)
             var picks =
                 from row in baseQ
                 group row by row.bk.Id into g
@@ -494,9 +499,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ShopId = shopId,
                     BookingId = row.bk.Id,
                     UserId = row.us.Id,
-                    CustomerName = row.bk.ContactName ?? row.us.Name,
-                    CustomerPhone = row.bk.ContactPhone ?? row.us.PhoneNumber,
-                    CustomerEmail = row.bk.ContactEmail ?? row.us.Email,
+                    CustomerName =  row.us.Name,
+                    CustomerPhone =  row.us.PhoneNumber,
+                    CustomerEmail =  row.us.Email,
 
                     TourSlotId = row.sl.Id,
                     TourDate = row.sl.TourDate,
@@ -511,21 +516,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ActualCompletedAt = null
                 };
 
-            // --- FILTER NGÀY (tùy chọn) ---
-            if (fromDate.HasValue && toDate.HasValue && fromDate > toDate)
-            {
-                // nếu client gửi ngược thì hoán đổi cho thân thiện
-                var tmp = fromDate; fromDate = toDate; toDate = tmp;
-            }
-            if (fromDate.HasValue) chosenQ = chosenQ.Where(x => x.TourDate >= fromDate.Value);
-            if (toDate.HasValue) chosenQ = chosenQ.Where(x => x.TourDate <= toDate.Value);
-
-            // --- ĐẾM SAU KHI FILTER, PHÂN TRANG ---
+            // 5) Count + trả rỗng = 200
             var total = await chosenQ.CountAsync();
-
             if (total == 0)
             {
-                // ✅ Không có dữ liệu vẫn trả 200 với mảng rỗng
                 return new ShopVisitorsResponse
                 {
                     StatusCode = 200,
@@ -535,10 +529,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TotalRecord = 0,
                     TotalCount = 0,
                     TotalPages = 0,
-                    PageIndex = Math.Max(1, pageIndex ?? Constants.PageIndexDefault),
-                    PageSize = Math.Max(1, pageSize ?? Constants.PageSizeDefault)
+                    PageIndex = pageIdx,
+                    PageSize = pageSz
                 };
             }
+
+            // 6) Trang
             var page = await chosenQ
                 .OrderByDescending(x => x.TourDate)
                 .ThenBy(x => x.SortOrder)
@@ -547,9 +543,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 .ProjectTo<ShopVisitDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
 
-            // 6) Lấy Products đã mua Paid
+            // 7) Build PaidOrdersFull (đủ Order + Detail + Product) cho các user hiển thị
             var userIds = page.Select(x => x.UserId).Distinct().ToList();
-            var purchasedFlat =
+
+            var ordersJoin = await (
                 from o in ordQ.Where(o => userIds.Contains(o.UserId) && o.Status == OrderStatus.Paid)
                 join od in odQ on o.Id equals od.OrderId
                 join p in prQ on od.ProductId equals p.Id
@@ -557,74 +554,82 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 select new
                 {
                     o.UserId,
-                    ProductId = p.Id,
-                    ProductName = p.Name,
-                    od.Quantity,
-                    od.UnitPrice
-                };
-
-            var purchasedByUser = await purchasedFlat
-                .GroupBy(x => new { x.UserId, x.ProductId, x.ProductName, x.UnitPrice })
-                .Select(g => new
-                {
-                    g.Key.UserId,
-                    Item = new PurchasedProductDto
-                    {
-                        ProductId = g.Key.ProductId,
-                        ProductName = g.Key.ProductName,
-                        UnitPrice = g.Key.UnitPrice,
-                        Quantity = g.Sum(s => s.Quantity)
-                    }
-                })
-                .ToListAsync();
-
-            var dictProducts = purchasedByUser
-                .GroupBy(x => x.UserId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.Select(z => z.Item).ToList()
-                );
-
-            // 7) Lấy tất cả đơn Paid của shop này + PayOsOrderCode + IsChecked
-            var paidOrdersFlat =
-                from o in ordQ.Where(o => userIds.Contains(o.UserId) && o.Status == OrderStatus.Paid)
-                join od in odQ on o.Id equals od.OrderId
-                join p in prQ on od.ProductId equals p.Id
-                where p.SpecialtyShopId == shopId
-                select new
-                {
-                    o.UserId,
-                    o.Id,
+                    OrderId = o.Id,
                     o.PayOsOrderCode,
                     o.IsChecked,
-                    o.CreatedAt
-                };
+                    o.CreatedAt,
+                    o.TotalAmount,
+                    o.DiscountAmount,
+                    o.TotalAfterDiscount,
+                    o.Status,
+                    o.VoucherId,
+                    o.CheckedAt,
+                    o.CheckedByShopId,
 
-            var paidOrdersDistinct = await paidOrdersFlat
-                .GroupBy(x => new { x.UserId, x.Id, x.PayOsOrderCode, x.IsChecked, x.CreatedAt })
+                    OrderDetailId = od.Id,
+                    ProductId = p.Id,
+                    ProductName = p.Name,
+                    ProductImage = p.ImageUrl,
+                    Quantity = od.Quantity,
+                    UnitPrice = od.UnitPrice
+                }
+            ).ToListAsync();
+
+            var ordersFullByUser = ordersJoin
+                .GroupBy(x => new
+                {
+                    x.UserId,
+                    x.OrderId,
+                    x.PayOsOrderCode,
+                    x.IsChecked,
+                    x.CreatedAt,
+                    x.TotalAmount,
+                    x.DiscountAmount,
+                    x.TotalAfterDiscount,
+                    x.Status,
+                    x.VoucherId,
+                    x.CheckedAt,
+                    x.CheckedByShopId
+                })
                 .Select(g => new
                 {
                     g.Key.UserId,
-                    Order = new OrderBriefDto
+                    Order = new OrderFullDto
                     {
-                        OrderId = g.Key.Id,
+                        OrderId = g.Key.OrderId,
                         PayOsOrderCode = g.Key.PayOsOrderCode,
                         IsChecked = g.Key.IsChecked,
-                        CreatedAt = g.Key.CreatedAt
+                        CreatedAt = g.Key.CreatedAt,
+                        TotalAmount = g.Key.TotalAmount,
+                        DiscountAmount = g.Key.DiscountAmount,
+                        TotalAfterDiscount = g.Key.TotalAfterDiscount,
+                        Status = g.Key.Status,
+                        VoucherId = g.Key.VoucherId,
+                        CheckedAt = g.Key.CheckedAt,
+                        CheckedByShopId = g.Key.CheckedByShopId,
+                        Details = g.Select(d => new OrderDetailDto1
+                        {
+                            OrderDetailId = d.OrderDetailId,
+                            ProductId = d.ProductId,
+                            ProductName = d.ProductName,
+                            ProductImageUrl = d.ProductImage,
+                            Quantity = d.Quantity,
+                            UnitPrice = d.UnitPrice
+                        }).ToList()
                     }
                 })
-                .ToListAsync();
+                .ToList();
 
-            var paidOrdersByUser = paidOrdersDistinct
+            var ordersFullDict = ordersFullByUser
                 .GroupBy(x => x.UserId)
                 .ToDictionary(
                     g => g.Key,
-                    g => g.Select(x => x.Order)
+                    g => g.Select(z => z.Order)
                           .OrderByDescending(o => o.CreatedAt)
                           .ToList()
                 );
 
-            // 8) Gán PlannedCheckInAtUtc + Products + PaidOrders
+            // 8) Hoàn thiện item
             foreach (var item in page)
             {
                 item.PlannedCheckInAtUtc = new DateTime(
@@ -632,13 +637,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     item.PlannedCheckInTime.Hours, item.PlannedCheckInTime.Minutes, item.PlannedCheckInTime.Seconds,
                     DateTimeKind.Utc);
 
-                if (dictProducts.TryGetValue(item.UserId, out var products))
-                    item.Products = products;
-
-                if (paidOrdersByUser.TryGetValue(item.UserId, out var orders))
-                    item.PaidOrders = orders;
+                if (ordersFullDict.TryGetValue(item.UserId, out var fullOrders))
+                    item.PaidOrdersFull = fullOrders;
             }
 
+            // 9) Trả về
             return new ShopVisitorsResponse
             {
                 StatusCode = 200,
@@ -652,6 +655,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 PageSize = pageSz
             };
         }
+
 
 
         // Public để tái dùng ở nhiều nơi

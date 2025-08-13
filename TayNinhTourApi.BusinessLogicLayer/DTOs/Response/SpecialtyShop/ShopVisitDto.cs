@@ -25,11 +25,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop
         public int SortOrder { get; set; }
 
         public TimeSpan PlannedCheckInTime { get; set; }
-        public DateTime PlannedCheckInAtUtc { get; set; }   // sẽ tính sau khi ProjectTo
-        //public bool IsCompleted { get; set; }
-        //public DateTime? ActualCompletedAt { get; set; }
-        public List<PurchasedProductDto> Products { get; set; } = new();
-        public List<OrderBriefDto>? PaidOrders { get; set; }
+        public DateTime PlannedCheckInAtUtc { get; set; }   
+
+        public List<OrderFullDto>? PaidOrdersFull { get; set; }
 
     }
 }
