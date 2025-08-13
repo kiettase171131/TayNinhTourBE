@@ -31,6 +31,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         string GenerateQRCodeData(TourBooking booking);
 
         /// <summary>
+        /// Generate individual QR code data for specific guest
+        /// </summary>
+        /// <param name="guest">Tour booking guest entity</param>
+        /// <param name="booking">Parent tour booking entity</param>
+        /// <returns>JSON string containing guest-specific information</returns>
+        string GenerateGuestQRCodeData(TourBookingGuest guest, TourBooking booking);
+
+        /// <summary>
+        /// Generate QR code image for individual guest
+        /// </summary>
+        /// <param name="guest">Tour booking guest entity</param>
+        /// <param name="booking">Parent tour booking entity</param>
+        /// <param name="size">QR code size in pixels (default: 300)</param>
+        /// <returns>QR code image as PNG byte array</returns>
+        Task<byte[]> GenerateGuestQRCodeImageAsync(TourBookingGuest guest, TourBooking booking, int size = 300);
+
+        /// <summary>
         /// Validate QR code data format
         /// </summary>
         /// <param name="qrData">QR code data to validate</param>

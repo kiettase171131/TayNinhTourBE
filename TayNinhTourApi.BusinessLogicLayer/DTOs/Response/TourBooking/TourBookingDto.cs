@@ -18,6 +18,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking
         public string StatusName { get; set; } = string.Empty;
         public string BookingCode { get; set; } = string.Empty;
         public string? PayOsOrderCode { get; set; }
+        [Obsolete("Use Guests collection instead. Will be removed in future version.")]
         public string? QRCodeData { get; set; }
         public DateTime BookingDate { get; set; }
         public DateTime? ConfirmedDate { get; set; }
@@ -30,6 +31,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking
         public string? SpecialRequests { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        /// <summary>
+        /// Danh sách khách hàng trong booking này
+        /// Mỗi guest có thông tin riêng và QR code riêng
+        /// </summary>
+        public List<TourBookingGuestDto> Guests { get; set; } = new();
 
         // Navigation properties
         public TourOperationSummaryDto? TourOperation { get; set; }

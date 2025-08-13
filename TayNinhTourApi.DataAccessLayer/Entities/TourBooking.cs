@@ -136,7 +136,10 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         /// <summary>
         /// QR code data cho khách hàng (để HDV quét ngày tour)
+        /// DEPRECATED: Sử dụng TourBookingGuest.QRCodeData thay thế
+        /// Sẽ được remove trong version tương lai
         /// </summary>
+        [Obsolete("Use TourBookingGuest.QRCodeData instead. Will be removed in future version.")]
         public string? QRCodeData { get; set; }
 
         /// <summary>
@@ -185,6 +188,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// User thực hiện booking
         /// </summary>
         public virtual User User { get; set; } = null!;
+
+        /// <summary>
+        /// Danh sách khách hàng trong booking này
+        /// Mỗi guest có thông tin riêng và QR code riêng
+        /// </summary>
+        public virtual ICollection<TourBookingGuest> Guests { get; set; } = new List<TourBookingGuest>();
 
         /// <summary>
         /// Refund request for this booking (1:1 relationship, optional)

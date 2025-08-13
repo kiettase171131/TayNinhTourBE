@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using TayNinhTourApi.BusinessLogicLayer.Validations;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking
 {
@@ -27,28 +28,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourBooking
         public int NumberOfGuests { get; set; }
 
         /// <summary>
-        /// Tên người liên hệ
-        /// </summary>
-        [StringLength(100, ErrorMessage = "Tên liên hệ không quá 100 ký tự")]
-        public string? ContactName { get; set; }
-
-        /// <summary>
-        /// Số điện thoại liên hệ
+        /// Số điện thoại liên hệ của người đặt tour
         /// </summary>
         [StringLength(20, ErrorMessage = "Số điện thoại không quá 20 ký tự")]
         public string? ContactPhone { get; set; }
-
-        /// <summary>
-        /// Email liên hệ
-        /// </summary>
-        [StringLength(100, ErrorMessage = "Email không quá 100 ký tự")]
-        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
-        public string? ContactEmail { get; set; }
 
         /// <summary>
         /// Ghi chú đặc biệt từ khách hàng
         /// </summary>
         [StringLength(500, ErrorMessage = "Ghi chú không quá 500 ký tự")]
         public string? SpecialRequests { get; set; }
+
+        /// <summary>
+        /// Danh sách thông tin từng khách hàng trong booking
+        /// Số lượng phải khớp với NumberOfGuests
+        /// Email của từng guest phải unique trong cùng booking
+        /// </summary>
+        [Required(ErrorMessage = "Thông tin khách hàng là bắt buộc")]
+        [MinLength(1, ErrorMessage = "Phải có ít nhất 1 khách hàng")]
+        [GuestListValidation]
+        public List<GuestInfoRequest> Guests { get; set; } = new();
     }
 }
