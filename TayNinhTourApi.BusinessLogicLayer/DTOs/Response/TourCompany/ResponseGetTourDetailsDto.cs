@@ -56,9 +56,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
     public class ResponseGetTourDetailsPaginatedDto : BaseResposeDto
     {
         /// <summary>
-        /// Danh sách tour details
+        /// Danh sách enriched tour details với thông tin đầy đủ (như UserTourSearch)
         /// </summary>
-        public List<TourDetailDto> Data { get; set; } = new List<TourDetailDto>();
+        public List<EnrichedTourDetailDto> Data { get; set; } = new List<EnrichedTourDetailDto>();
 
         /// <summary>
         /// Tổng số records
@@ -79,6 +79,109 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany
         /// Tổng số trang
         /// </summary>
         public int TotalPages { get; set; }
+
+        /// <summary>
+        /// Có trang tiếp theo không
+        /// </summary>
+        public bool HasNextPage { get; set; }
+
+        /// <summary>
+        /// Có trang trước đó không
+        /// </summary>
+        public bool HasPreviousPage { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho tour detail với thông tin đầy đủ (tương tự TourSearchResultDto trong UserTourSearch)
+    /// </summary>
+    public class EnrichedTourDetailDto
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? SkillsRequired { get; set; }
+        public List<string> ImageUrls { get; set; } = new List<string>();
+        public DateTime CreatedAt { get; set; }
+        
+        /// <summary>
+        /// Thông tin TourTemplate
+        /// </summary>
+        public TourTemplateBasicDto TourTemplate { get; set; } = new TourTemplateBasicDto();
+        
+        /// <summary>
+        /// Thông tin TourOperation (nếu có)
+        /// </summary>
+        public TourOperationBasicDto? TourOperation { get; set; }
+        
+        /// <summary>
+        /// Các slots có sẵn
+        /// </summary>
+        public List<AvailableSlotDto> AvailableSlots { get; set; } = new List<AvailableSlotDto>();
+    }
+
+    /// <summary>
+    /// DTO cho thông tin cơ bản TourTemplate
+    /// </summary>
+    public class TourTemplateBasicDto
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string TemplateType { get; set; } = string.Empty;
+        public string ScheduleDays { get; set; } = string.Empty;
+        public string ScheduleDaysVietnamese { get; set; } = string.Empty;
+        public string StartLocation { get; set; } = string.Empty;
+        public string EndLocation { get; set; } = string.Empty;
+        public int Month { get; set; }
+        public int Year { get; set; }
+        public List<ImageDto> Images { get; set; } = new List<ImageDto>();
+        public CreatedByDto CreatedBy { get; set; } = new CreatedByDto();
+    }
+
+    /// <summary>
+    /// DTO cho thông tin cơ bản TourOperation
+    /// </summary>
+    public class TourOperationBasicDto
+    {
+        public Guid Id { get; set; }
+        public decimal Price { get; set; }
+        public int MaxGuests { get; set; }
+        public string? Description { get; set; }
+        public string? Notes { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public int CurrentBookings { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho slot có sẵn
+    /// </summary>
+    public class AvailableSlotDto
+    {
+        public Guid Id { get; set; }
+        public DateOnly TourDate { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public int MaxGuests { get; set; }
+        public int CurrentBookings { get; set; }
+        public int AvailableSpots { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho thông tin người tạo
+    /// </summary>
+    public class CreatedByDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// DTO cho hình ảnh
+    /// </summary>
+    public class ImageDto
+    {
+        public Guid Id { get; set; }
+        public string Url { get; set; } = string.Empty;
     }
 
     /// <summary>

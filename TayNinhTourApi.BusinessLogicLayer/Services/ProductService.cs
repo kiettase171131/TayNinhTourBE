@@ -724,168 +724,168 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
-        public async Task<CheckoutResultDto?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, Guid? voucherId = null)
-        {
-            if (cartItemIds == null || !cartItemIds.Any())
-                throw new ArgumentException("Danh sách sản phẩm không được để trống.");
-
-            if (currentUser == null)
-                throw new ArgumentException("Thông tin người dùng không hợp lệ.");
-
-            var include = new[] { nameof(CartItem.Product) };
-
-            var cartItems = await _cartRepository.GetAllAsync(
-                x => cartItemIds.Contains(x.Id) && x.UserId == currentUser.Id && !x.IsDeleted,
-                include);
-
-            cartItems = cartItems
-                .Where(x => x.Product != null && !x.Product.IsDeleted && x.Product.IsActive)
-                .ToList();
-
-            if (!cartItems.Any())
-                throw new InvalidOperationException("Không tìm thấy sản phẩm hợp lệ trong giỏ hàng.");
-
-            foreach (var item in cartItems)
+            public async Task<CheckoutResultDto ?> CheckoutCartAsync(List<Guid> cartItemIds, CurrentUserObject currentUser, Guid? voucherId = null)
             {
-                if (item.Quantity > item.Product.QuantityInStock)
-                    throw new InvalidOperationException($"Sản phẩm '{item.Product.Name}' chỉ còn {item.Product.QuantityInStock} trong kho.");
-            }
+                if (cartItemIds == null || !cartItemIds.Any())
+                    throw new ArgumentException("Danh sách sản phẩm không được để trống.");
 
-            var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
-            decimal discountAmount = 0m;
-            decimal totalAfterDiscount = total;
-            Guid? finalVoucherId = null;
+                if (currentUser == null)
+                    throw new ArgumentException("Thông tin người dùng không hợp lệ.");
 
-            // ====== NEW: Giảm 10% cho item thuộc shop mà user đủ điều kiện IsShop ======
-            // Gom theo shop để gọi eligibility 1 lần / shop
-            var promotionMessages = new List<string>();
-            // Gom theo shop để xét ưu đãi
-            var productsByShop = cartItems
-                .Where(ci => ci.Product != null)
-                .GroupBy(ci => ci.Product!.SpecialtyShopId)
-                .ToList();
+                var include = new[] { nameof(CartItem.Product) };
 
-            foreach (var grp in productsByShop)
-            {
-                var shopId = grp.Key;
-                if (shopId == Guid.Empty) continue;
+                var cartItems = await _cartRepository.GetAllAsync(
+                    x => cartItemIds.Contains(x.Id) && x.UserId == currentUser.Id && !x.IsDeleted,
+                    include);
 
-                // Lấy tên shop để in thông báo
-                var shopName = await _specialtyShop
-                    .GetQueryable()
-                    .Where(s => s.Id == shopId)
-                    .Select(s => s.ShopName)
-                    .FirstOrDefaultAsync() ?? "Shop";
+                cartItems = cartItems
+                    .Where(x => x.Product != null && !x.Product.IsDeleted && x.Product.IsActive)
+                    .ToList();
 
-                // ❗ Luật mới: chỉ cần user có tour sắp tới ghé shop này là đủ
-                var (eligible, nextDate, nextTime, _, activity, tourName) =
-                    await _specialtyShopService.CheckUpcomingVisitForShopAsync(shopId, currentUser.Id);
+                if (!cartItems.Any())
+                    throw new InvalidOperationException("Không tìm thấy sản phẩm hợp lệ trong giỏ hàng.");
 
-                if (!eligible) continue;
+                foreach (var item in cartItems)
+                {
+                    if (item.Quantity > item.Product.QuantityInStock)
+                        throw new InvalidOperationException($"Sản phẩm '{item.Product.Name}' chỉ còn {item.Product.QuantityInStock} trong kho.");
+                }
 
-                // Giảm 10% phần tiền của các item thuộc shop này
-                var shopSubtotal = grp.Sum(ci => ci.Product!.Price * ci.Quantity);
-                var shopDiscount = Math.Round(shopSubtotal * 0.10m, 2);
+                var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
+                decimal discountAmount = 0m;
+                decimal totalAfterDiscount = total;
+                Guid? finalVoucherId = null;
 
-                discountAmount += shopDiscount;
-                totalAfterDiscount -= shopDiscount;
+                // ====== NEW: Giảm 10% cho item thuộc shop mà user đủ điều kiện IsShop ======
+                // Gom theo shop để gọi eligibility 1 lần / shop
+                var promotionMessages = new List<string>();
+                // Gom theo shop để xét ưu đãi
+                var productsByShop = cartItems
+                    .Where(ci => ci.Product != null)
+                    .GroupBy(ci => ci.Product!.SpecialtyShopId)
+                    .ToList();
 
-                // Thông báo
-                var dateText = nextDate.HasValue ? nextDate.Value.ToString("dd/MM/yyyy") : "sắp tới";
-                var timeText = nextTime.HasValue ? nextTime.Value.ToString(@"hh\:mm") : "";
-                var timePart = string.IsNullOrWhiteSpace(timeText) ? "" : $" lúc {timeText}";
-                var activityPart = string.IsNullOrWhiteSpace(activity) ? "" : $" (mốc: {activity})";
-                var tourText = string.IsNullOrWhiteSpace(tourName) ? "tour sắp tới" : $"tour {tourName}";
+                foreach (var grp in productsByShop)
+                {
+                    var shopId = grp.Key;
+                    if (shopId == Guid.Empty) continue;
 
-                promotionMessages.Add(
-                    $"🎉 Chúc mừng! Bạn được giảm 10% vì đã mua hàng tại **{shopName}**, nơi bạn sẽ ghé trong {tourText} vào {dateText}{timePart}{activityPart}."
-                );
-            }
+                    // Lấy tên shop để in thông báo
+                    var shopName = await _specialtyShop
+                        .GetQueryable()
+                        .Where(s => s.Id == shopId)
+                        .Select(s => s.ShopName)
+                        .FirstOrDefaultAsync() ?? "Shop";
+
+                    // ❗ Luật mới: chỉ cần user có tour sắp tới ghé shop này là đủ
+                    var (eligible, nextDate, nextTime, _, activity, tourName) =
+                        await _specialtyShopService.CheckUpcomingVisitForShopAsync(shopId, currentUser.Id);
+
+                    if (!eligible) continue;
+
+                    // Giảm 10% phần tiền của các item thuộc shop này
+                    var shopSubtotal = grp.Sum(ci => ci.Product!.Price * ci.Quantity);
+                    var shopDiscount = Math.Round(shopSubtotal * 0.10m, 2);
+
+                    discountAmount += shopDiscount;
+                    totalAfterDiscount -= shopDiscount;
+
+                    // Thông báo
+                    var dateText = nextDate.HasValue ? nextDate.Value.ToString("dd/MM/yyyy") : "sắp tới";
+                    var timeText = nextTime.HasValue ? nextTime.Value.ToString(@"hh\:mm") : "";
+                    var timePart = string.IsNullOrWhiteSpace(timeText) ? "" : $" lúc {timeText}";
+                    var activityPart = string.IsNullOrWhiteSpace(activity) ? "" : $" (mốc: {activity})";
+                    var tourText = string.IsNullOrWhiteSpace(tourName) ? "tour sắp tới" : $"tour {tourName}";
+
+                    promotionMessages.Add(
+                        $"🎉 Chúc mừng! Bạn được giảm 10% vì đã mua hàng tại **{shopName}**, nơi bạn sẽ ghé trong {tourText} vào {dateText}{timePart}{activityPart}."
+                    );
+                }
             // ====== END NEW ======
 
             // Áp dụng voucher nếu được chọn
+            // ===== Voucher: CỘNG THÊM, tính trên totalAfterDiscount hiện tại =====
             if (voucherId.HasValue)
             {
-                var voucher = await _voucherRepository.GetByIdAsync(voucherId.Value);
+                var voucher = await _voucherRepository.GetByIdAsync(voucherId.Value)
+                              ?? throw new InvalidOperationException("Voucher không tồn tại hoặc không khả dụng.");
+                if (!voucher.IsAvailable)
+                    throw new InvalidOperationException("Voucher không khả dụng.");
 
-                if (voucher == null || !voucher.IsAvailable)
-                {
-                    throw new InvalidOperationException("Voucher không tồn tại hoặc không khả dụng.");
-                }
-
-                // Kiểm tra sản phẩm có đang sale không
+                // Không cho áp voucher nếu có item đang sale (như bạn đang làm)
                 foreach (var item in cartItems)
-                {
                     if (item.Product.IsSale)
-                    {
-                        throw new InvalidOperationException($"Sản phẩm \"{item.Product.Name}\" đang được giảm giá, không thể áp dụng voucher.");
-                    }
-                }
+                        throw new InvalidOperationException($"Sản phẩm \"{item.Product.Name}\" đang giảm giá, không thể áp dụng voucher.");
 
-                // Tính discount
+                // 🔑 TÍNH TRÊN totalAfterDiscount (đÃ trừ 10% shop nếu có)
+                decimal voucherDiscount = 0m;
                 if (voucher.DiscountAmount > 0)
-                    discountAmount = voucher.DiscountAmount;
+                    voucherDiscount = voucher.DiscountAmount;
                 else if (voucher.DiscountPercent.HasValue)
-                    discountAmount = total * voucher.DiscountPercent.Value / 100m;
+                    voucherDiscount = Math.Round(totalAfterDiscount * voucher.DiscountPercent.Value / 100m, 2);
 
-                if (discountAmount > total)
-                    discountAmount = total;
+                // Không vượt quá phần còn lại
+                if (voucherDiscount > totalAfterDiscount)
+                    voucherDiscount = totalAfterDiscount;
 
-                totalAfterDiscount = total - discountAmount;
+                // ✅ CỘNG THÊM, KHÔNG GHI ĐÈ
+                discountAmount += voucherDiscount;
+                totalAfterDiscount -= voucherDiscount;
                 finalVoucherId = voucherId;
             }
 
             if (totalAfterDiscount <= 0)
-                throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
+                    throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
 
-            // Tạo PayOsOrderCode với format TNDT + 10 số sử dụng utility
-            var payOsOrderCodeString = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
+                // Tạo PayOsOrderCode với format TNDT + 10 số sử dụng utility
+                var payOsOrderCodeString = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
 
-            // Lưu vào DB dưới dạng string thay vì long
-            var order = new Order
-            {
-                UserId = currentUser.Id,
-                TotalAmount = total,
-                DiscountAmount = discountAmount,
-                TotalAfterDiscount = totalAfterDiscount,
-                Status = OrderStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
-                CreatedById = currentUser.Id,
-                VoucherId = finalVoucherId,
-                PayOsOrderCode = payOsOrderCodeString, // Lưu string với prefix TNDT
-                OrderDetails = cartItems.Select(x => new OrderDetail
+                // Lưu vào DB dưới dạng string thay vì long
+                var order = new Order
                 {
-                    ProductId = x.ProductId,
-                    Quantity = x.Quantity,
-                    UnitPrice = x.Product.Price,
+                    UserId = currentUser.Id,
+                    TotalAmount = total,
+                    DiscountAmount = discountAmount,
+                    TotalAfterDiscount = totalAfterDiscount,
+                    Status = OrderStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
-                    CreatedById = currentUser.Id
-                }).ToList()
-            };
+                    CreatedById = currentUser.Id,
+                    VoucherId = finalVoucherId,
+                    PayOsOrderCode = payOsOrderCodeString, // Lưu string với prefix TNDT
+                    OrderDetails = cartItems.Select(x => new OrderDetail
+                    {
+                        ProductId = x.ProductId,
+                        Quantity = x.Quantity,
+                        UnitPrice = x.Product.Price,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedById = currentUser.Id
+                    }).ToList()
+                };
 
-            await _orderRepository.AddAsync(order);
-            await _orderRepository.SaveChangesAsync();
+                await _orderRepository.AddAsync(order);
+                await _orderRepository.SaveChangesAsync();
 
-            // === ENHANCED PAYOS: Use new PaymentTransaction system ===
-            var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
-            {
-                OrderId = order.Id, // Link to Order (Product Payment)
-                TourBookingId = null, // NULL for product payments
-                Amount = totalAfterDiscount,
-                Description = $"Product Order {payOsOrderCodeString}"
-            };
+                // === ENHANCED PAYOS: Use new PaymentTransaction system ===
+                var paymentRequest = new TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Payment.CreatePaymentRequestDto
+                {
+                    OrderId = order.Id, // Link to Order (Product Payment)
+                    TourBookingId = null, // NULL for product payments
+                    Amount = totalAfterDiscount,
+                    Description = $"Product Order {payOsOrderCodeString}"
+                };
 
-            var paymentTransaction = await _payOsService.CreatePaymentLinkAsync(paymentRequest);
+                var paymentTransaction = await _payOsService.CreatePaymentLinkAsync(paymentRequest);
 
-            return new CheckoutResultDto
-            {
-                CheckoutUrl = paymentTransaction.CheckoutUrl ?? "",
-                OrderId = order.Id,
-                TotalOriginal = total,
-                DiscountAmount = discountAmount,
-                TotalAfterDiscount = totalAfterDiscount
-            };
-        }
+                return new CheckoutResultDto    
+                {
+                    CheckoutUrl = paymentTransaction.CheckoutUrl ?? "",
+                    OrderId = order.Id,
+                    TotalOriginal = total,
+                    DiscountAmount = discountAmount,
+                    TotalAfterDiscount = totalAfterDiscount,
+                    PromotionMessages = promotionMessages
+                };
+            }
 
 
         public async Task<OrderStatus> GetOrderPaymentStatusAsync(Guid orderId)

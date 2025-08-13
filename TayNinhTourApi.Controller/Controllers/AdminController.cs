@@ -486,7 +486,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                         if (validStatuses.Any())
                         {
-                            allTourDetails = allTourDetails.Where(td => validStatuses.Contains(td.Status));
+                            allTourDetails = allTourDetails.Where(td => validStatuses.Any(vs => vs.ToString() == td.Status));
                             _logger.LogInformation("Applied status filter '{Status}': {Count} TourDetails found", 
                                 string.Join(", ", validStatuses), allTourDetails.Count());
                         }
