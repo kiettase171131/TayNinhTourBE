@@ -1071,17 +1071,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         // Save all changes
                         await _unitOfWork.SaveChangesAsync();
 
-                        // Update TourOperation.CurrentBookings with fresh entity
+                        // ✅ FIXED: Check TourOperation capacity constraint before updating
                         if (booking.TourOperationId != Guid.Empty)
                         {
                             var tourOperation = await _unitOfWork.TourOperationRepository.GetByIdAsync(booking.TourOperationId);
                             if (tourOperation != null)
                             {
-                                tourOperation.CurrentBookings += booking.NumberOfGuests;
-                                await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
-                                await _unitOfWork.SaveChangesAsync();
-                                _logger.LogInformation("Updated TourOperation.CurrentBookings (+{Guests}) for booking {BookingCode}",
-                                    booking.NumberOfGuests, booking.BookingCode);
+                                var newCurrentBookings = tourOperation.CurrentBookings + booking.NumberOfGuests;
+                                
+                                // ✅ Check constraint before update to avoid database constraint violation
+                                if (newCurrentBookings <= tourOperation.MaxGuests)
+                                {
+                                    tourOperation.CurrentBookings = newCurrentBookings;
+                                    await _unitOfWork.TourOperationRepository.UpdateAsync(tourOperation);
+                                    await _unitOfWork.SaveChangesAsync();
+                                    _logger.LogInformation("Updated TourOperation.CurrentBookings (+{Guests}) for booking {BookingCode} - New total: {NewTotal}/{MaxGuests}",
+                                        booking.NumberOfGuests, booking.BookingCode, newCurrentBookings, tourOperation.MaxGuests);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Skipping TourOperation.CurrentBookings update for booking {BookingCode} - Would exceed MaxGuests ({NewTotal} > {MaxGuests}). Using slot-specific capacity only.",
+                                        booking.BookingCode, newCurrentBookings, tourOperation.MaxGuests);
+                                    
+                                    // ✅ Note: TourSlot capacity is still updated correctly above
+                                    // This is just to avoid breaking the constraint while maintaining slot independence
+                                }
                             }
                         }
 

@@ -113,6 +113,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         /// <summary>
         /// Atomic reserve capacity for a slot using database-level concurrency control
         /// CHỈ dùng khi thanh toán thành công - CỘNG CurrentBookings
+        /// ✅ FIXED: Only set FullyBooked when actually full (CurrentBookings = MaxGuests)
         /// </summary>
         public async Task<bool> AtomicReserveCapacityAsync(Guid slotId, int guestsToReserve)
         {
@@ -122,14 +123,14 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     CurrentBookings = CurrentBookings + @guestsToReserve,
                     UpdatedAt = @updateTime,
                     Status = CASE 
-                        WHEN (CurrentBookings + @guestsToReserve) >= MaxGuests THEN @fullyBookedStatus
+                        WHEN (CurrentBookings + @guestsToReserve) = MaxGuests THEN @fullyBookedStatus
+                        WHEN (CurrentBookings + @guestsToReserve) < MaxGuests THEN @availableStatus
                         ELSE Status 
                     END
                 WHERE 
                     Id = @slotId 
                     AND IsDeleted = 0 
                     AND IsActive = 1 
-                    AND Status = @availableStatus
                     AND (CurrentBookings + @guestsToReserve) <= MaxGuests";
 
             var parameters = new[]

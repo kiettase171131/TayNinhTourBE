@@ -169,7 +169,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             .Include(s => s.TourDetails)
                                 .ThenInclude(td => td!.TourOperation)
                             .Include(s => s.TourTemplate)
-                            .Include(s => s.Bookings.Where(b => !b.IsDeleted && 
+                            .Include(s => s.Bookings.Where(b => !b.IsDeleted &&
                                 (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)))
                                 .ThenInclude(b => b.User)
                             .FirstOrDefaultAsync(s => s.Id == slotId && !s.IsDeleted);
@@ -180,7 +180,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             return (false, "Không tìm thấy tour slot", 0);
                         }
 
-                        _logger.LogInformation("Step 1 SUCCESS: Found slot - ID: {SlotId}, IsActive: {IsActive}, TourDetailsId: {TourDetailsId}", 
+                        _logger.LogInformation("Step 1 SUCCESS: Found slot - ID: {SlotId}, IsActive: {IsActive}, TourDetailsId: {TourDetailsId}",
                             slot.Id, slot.IsActive, slot.TourDetailsId);
 
                         // 2. Validate business rules
@@ -194,28 +194,28 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                         if (slot.TourDetails == null)
                         {
-                            _logger.LogError("Step 2 FAILED: TourDetails is null despite TourDetailsId being set - SlotId: {SlotId}, TourDetailsId: {TourDetailsId}", 
+                            _logger.LogError("Step 2 FAILED: TourDetails is null despite TourDetailsId being set - SlotId: {SlotId}, TourDetailsId: {TourDetailsId}",
                                 slotId, slot.TourDetailsId);
                             return (false, "Không thể truy cập thông tin tour details", 0);
                         }
 
-                        _logger.LogInformation("Step 2: TourDetails loaded - ID: {TourDetailsId}, Status: {Status}, CreatedById: {CreatedById}", 
+                        _logger.LogInformation("Step 2: TourDetails loaded - ID: {TourDetailsId}, Status: {Status}, CreatedById: {CreatedById}",
                             slot.TourDetails.Id, slot.TourDetails.Status, slot.TourDetails.CreatedById);
 
                         if (slot.TourDetails.Status != TourDetailsStatus.Public)
                         {
-                            _logger.LogWarning("Step 2 FAILED: TourDetails is not public - SlotId: {SlotId}, Status: {Status}", 
+                            _logger.LogWarning("Step 2 FAILED: TourDetails is not public - SlotId: {SlotId}, Status: {Status}",
                                 slotId, slot.TourDetails.Status);
                             return (false, "Chỉ có thể hủy tour đang ở trạng thái Public", 0);
                         }
 
                         // 3. Kiểm tra quyền sở hữu tour
-                        _logger.LogInformation("Step 3: Checking ownership - TourDetailsCreatedById: {CreatedById}, CurrentUserId: {UserId}", 
+                        _logger.LogInformation("Step 3: Checking ownership - TourDetailsCreatedById: {CreatedById}, CurrentUserId: {UserId}",
                             slot.TourDetails.CreatedById, tourCompanyUserId);
 
                         if (slot.TourDetails.CreatedById != tourCompanyUserId)
                         {
-                            _logger.LogWarning("Step 3 FAILED: User does not own this TourDetails - SlotId: {SlotId}, TourDetailsCreatedById: {CreatedById}, CurrentUserId: {UserId}", 
+                            _logger.LogWarning("Step 3 FAILED: User does not own this TourDetails - SlotId: {SlotId}, TourDetailsCreatedById: {CreatedById}, CurrentUserId: {UserId}",
                                 slotId, slot.TourDetails.CreatedById, tourCompanyUserId);
                             return (false, "Bạn không có quyền hủy tour này", 0);
                         }
@@ -230,7 +230,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                         // 4. Lấy danh sách bookings cần xử lý
                         _logger.LogInformation("Step 4: Processing bookings...");
-                        var affectedBookings = slot.Bookings.Where(b => !b.IsDeleted && 
+                        var affectedBookings = slot.Bookings.Where(b => !b.IsDeleted &&
                             (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)).ToList();
 
                         _logger.LogInformation("Step 4: Found {BookingCount} affected bookings for slot {SlotId}", affectedBookings.Count, slotId);
@@ -286,13 +286,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             var totalGuestsToRelease = affectedBookings.Sum(b => b.NumberOfGuests);
                             var oldCurrentBookings = slot.TourDetails.TourOperation.CurrentBookings;
-                            
-                            slot.TourDetails.TourOperation.CurrentBookings = Math.Max(0, 
+
+                            slot.TourDetails.TourOperation.CurrentBookings = Math.Max(0,
                                 slot.TourDetails.TourOperation.CurrentBookings - totalGuestsToRelease);
-                            
+
                             await _unitOfWork.TourOperationRepository.UpdateAsync(slot.TourDetails.TourOperation);
-                            
-                            _logger.LogInformation("Step 7 SUCCESS: Released {GuestCount} guests - CurrentBookings: {Old} -> {New}", 
+
+                            _logger.LogInformation("Step 7 SUCCESS: Released {GuestCount} guests - CurrentBookings: {Old} -> {New}",
                                 totalGuestsToRelease, oldCurrentBookings, slot.TourDetails.TourOperation.CurrentBookings);
                         }
                         else
@@ -309,7 +309,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         // 9. Gửi email thông báo cho khách hàng (OUTSIDE transaction - non-blocking)
                         _logger.LogInformation("Step 9: Sending customer emails (post-transaction)...");
                         int customersNotified = 0;
-                        
+
                         if (_emailSender == null)
                         {
                             _logger.LogWarning("Step 9 SKIPPED: EmailSender service is null");
@@ -352,11 +352,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         }
 
                         _logger.LogInformation("=== CANCEL TOUR SLOT COMPLETED SUCCESSFULLY ===");
-                        _logger.LogInformation("Final result - SlotId: {SlotId}, AffectedBookings: {BookingCount}, CustomersNotified: {CustomersNotified}", 
+                        _logger.LogInformation("Final result - SlotId: {SlotId}, AffectedBookings: {BookingCount}, CustomersNotified: {CustomersNotified}",
                             slotId, affectedBookings.Count, customersNotified);
 
                         // Tạo message phù hợp dựa trên việc gửi email có thành công không
-                        var successMessage = customersNotified > 0 
+                        var successMessage = customersNotified > 0
                             ? $"Hủy tour thành công. Đã thông báo email cho {customersNotified}/{affectedCustomers.Count} khách hàng và xử lý {affectedBookings.Count} booking."
                             : $"Hủy tour thành công. Đã xử lý {affectedBookings.Count} booking. (Email thông báo có thể gửi chậm do sự cố kỹ thuật)";
 
@@ -365,7 +365,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     catch (Exception ex)
                     {
                         _logger.LogError("Transaction failed, rolling back - Exception: {ExceptionType}: {ExceptionMessage}", ex.GetType().Name, ex.Message);
-                        
+
                         try
                         {
                             await transaction.RollbackAsync();
@@ -375,7 +375,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         {
                             _logger.LogError(rollbackEx, "CRITICAL: Error during transaction rollback - RollbackException: {RollbackError}", rollbackEx.Message);
                         }
-                        
+
                         // Re-throw để execution strategy có thể handle
                         throw;
                     }
@@ -388,13 +388,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 _logger.LogError("Exception type: {ExceptionType}", ex.GetType().Name);
                 _logger.LogError("Exception message: {ExceptionMessage}", ex.Message);
                 _logger.LogError("Inner exception: {InnerException}", ex.InnerException?.Message ?? "None");
-                
+
                 // Log stack trace chỉ khi cần thiết (không phải lỗi business logic)
                 if (!(ex is InvalidOperationException || ex is ArgumentException))
                 {
                     _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
                 }
-                
+
                 return (false, $"Có lỗi xảy ra khi hủy tour: {ex.Message}", 0);
             }
         }
@@ -403,9 +403,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// Gửi email thông báo hủy tour cho khách hàng
         /// </summary>
         private async Task<int> SendCancellationEmailsToCustomersAsync(
-            List<AffectedCustomerInfo> affectedCustomers, 
-            string tourTitle, 
-            DateOnly tourDate, 
+            List<AffectedCustomerInfo> affectedCustomers,
+            string tourTitle,
+            DateOnly tourDate,
             string reason)
         {
             int successCount = 0;
@@ -417,7 +417,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     // Kiểm tra email hợp lệ trước khi gửi
                     if (string.IsNullOrEmpty(customer.CustomerEmail) || !IsValidEmail(customer.CustomerEmail))
                     {
-                        _logger.LogWarning("Invalid email address for customer {CustomerName} with booking {BookingCode}: {Email}", 
+                        _logger.LogWarning("Invalid email address for customer {CustomerName} with booking {BookingCode}: {Email}",
                             customer.CustomerName, customer.BookingCode, customer.CustomerEmail);
                         customer.EmailSent = false;
                         continue;
@@ -513,13 +513,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     await _emailSender.SendEmailAsync(customer.CustomerEmail, customer.CustomerName, subject, htmlBody);
                     customer.EmailSent = true;
                     successCount++;
-                    
-                    _logger.LogInformation("Cancellation email sent successfully to {CustomerEmail} for booking {BookingCode}", 
+
+                    _logger.LogInformation("Cancellation email sent successfully to {CustomerEmail} for booking {BookingCode}",
                         customer.CustomerEmail, customer.BookingCode);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send cancellation email to customer {CustomerEmail} for booking {BookingCode}", 
+                    _logger.LogError(ex, "Failed to send cancellation email to customer {CustomerEmail} for booking {BookingCode}",
                         customer.CustomerEmail, customer.BookingCode);
                     customer.EmailSent = false;
                 }
@@ -548,10 +548,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// Gửi thông báo cho tour company về việc hủy tour
         /// </summary>
         private async Task NotifyTourCompanyAboutCancellationAsync(
-            Guid tourCompanyUserId, 
-            string tourTitle, 
-            DateOnly tourDate, 
-            int affectedBookingsCount, 
+            Guid tourCompanyUserId,
+            string tourTitle,
+            DateOnly tourDate,
+            int affectedBookingsCount,
             string reason)
         {
             try
@@ -636,7 +636,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Kiểm tra các điều kiện cơ bản
                 if (!slot.IsActive || slot.Status != TourSlotStatus.Available)
                 {
-                    _logger.LogDebug("TourSlot {SlotId} is not available. IsActive: {IsActive}, Status: {Status}", 
+                    _logger.LogDebug("TourSlot {SlotId} is not available. IsActive: {IsActive}, Status: {Status}",
                         slotId, slot.IsActive, slot.Status);
                     return false;
                 }
@@ -644,7 +644,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Kiểm tra ngày tour
                 if (slot.TourDate <= DateOnly.FromDateTime(DateTime.UtcNow))
                 {
-                    _logger.LogDebug("TourSlot {SlotId} is in the past. TourDate: {TourDate}", 
+                    _logger.LogDebug("TourSlot {SlotId} is in the past. TourDate: {TourDate}",
                         slotId, slot.TourDate);
                     return false;
                 }
@@ -652,10 +652,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Kiểm tra capacity
                 var availableSpots = slot.AvailableSpots;
                 var canBook = availableSpots >= requestedGuests;
-                
-                _logger.LogDebug("Capacity check for slot {SlotId}: Available={Available}, Requested={Requested}, CanBook={CanBook}", 
+
+                _logger.LogDebug("Capacity check for slot {SlotId}: Available={Available}, Requested={Requested}, CanBook={CanBook}",
                     slotId, availableSpots, requestedGuests, canBook);
-                
+
                 return canBook;
             }
             catch (Exception ex)
@@ -672,15 +672,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // ✅ KHÔNG dùng AtomicReserveCapacityAsync nữa vì nó cộng CurrentBookings
                 // CHỈ check capacity, không cộng CurrentBookings khi tạo booking
                 var success = await _tourSlotRepository.CheckSlotCapacityAsync(slotId, guestsToReserve);
-                
+
                 if (success)
                 {
-                    _logger.LogInformation("Capacity check passed for {Guests} guests in slot {SlotId} - NO CurrentBookings updated yet (pending payment)", 
+                    _logger.LogInformation("Capacity check passed for {Guests} guests in slot {SlotId} - NO CurrentBookings updated yet (pending payment)",
                         guestsToReserve, slotId);
                 }
                 else
                 {
-                    _logger.LogWarning("Capacity check failed for {Guests} guests in slot {SlotId}. Slot may be unavailable, fully booked, or insufficient capacity.", 
+                    _logger.LogWarning("Capacity check failed for {Guests} guests in slot {SlotId}. Slot may be unavailable, fully booked, or insufficient capacity.",
                         guestsToReserve, slotId);
                 }
 
@@ -702,15 +702,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 // ✅ Dùng AtomicReserveCapacityAsync để CẬP NHẬT CurrentBookings
                 var success = await _tourSlotRepository.AtomicReserveCapacityAsync(slotId, guestsToConfirm);
-                
+
                 if (success)
                 {
-                    _logger.LogInformation("Successfully updated CurrentBookings (+{Guests}) for slot {SlotId} after payment confirmation", 
+                    _logger.LogInformation("Successfully updated CurrentBookings (+{Guests}) for slot {SlotId} after payment confirmation",
                         guestsToConfirm, slotId);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to update CurrentBookings for {Guests} guests in slot {SlotId}.", 
+                    _logger.LogWarning("Failed to update CurrentBookings for {Guests} guests in slot {SlotId}.",
                         guestsToConfirm, slotId);
                 }
 
@@ -738,20 +738,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // Update current bookings
+                var oldCurrentBookings = slot.CurrentBookings;
                 slot.CurrentBookings = Math.Max(0, slot.CurrentBookings - guestsToRelease);
                 slot.UpdatedAt = DateTime.UtcNow;
 
-                // Update status if no longer fully booked
-                if (slot.Status == TourSlotStatus.FullyBooked && slot.AvailableSpots > 0)
+                // ✅ FIXED: Update status based on NEW available spots calculation
+                var newAvailableSpots = slot.MaxGuests - slot.CurrentBookings;
+                
+                if (newAvailableSpots > 0 && slot.Status == TourSlotStatus.FullyBooked)
                 {
                     slot.Status = TourSlotStatus.Available;
+                    _logger.LogInformation("Updated slot {SlotId} status from FullyBooked to Available - AvailableSpots: {AvailableSpots}",
+                        slotId, newAvailableSpots);
+                }
+                else if (newAvailableSpots <= 0 && slot.Status == TourSlotStatus.Available)
+                {
+                    slot.Status = TourSlotStatus.FullyBooked;
+                    _logger.LogInformation("Updated slot {SlotId} status from Available to FullyBooked - AvailableSpots: {AvailableSpots}",
+                        slotId, newAvailableSpots);
                 }
 
                 await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
                 // ✅ Không gọi SaveChanges ở đây - để caller quyết định khi nào save
 
-                _logger.LogInformation("Released {Guests} guests for slot {SlotId}. New capacity: {Current}/{Max}",
-                    guestsToRelease, slotId, slot.CurrentBookings, slot.MaxGuests);
+                _logger.LogInformation("Released {Guests} guests for slot {SlotId}. Capacity: {Old} -> {New}/{Max}, Status: {Status}, AvailableSpots: {Available}",
+                    guestsToRelease, slotId, oldCurrentBookings, slot.CurrentBookings, slot.MaxGuests, slot.Status, newAvailableSpots);
 
                 return true;
             }
@@ -824,7 +835,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Updated capacity for slot {SlotId} to {MaxGuests}. Current bookings: {Current}", 
+                _logger.LogInformation("Updated capacity for slot {SlotId} to {MaxGuests}. Current bookings: {Current}",
                     slotId, maxGuests, slot.CurrentBookings);
 
                 return true;
@@ -919,8 +930,8 @@ Slot Debug Info for {slotId}:
 - TourOperation CurrentBookings: {slot.TourDetails?.TourOperation?.CurrentBookings}
 - TourOperation MaxGuests: {slot.TourDetails?.TourOperation?.MaxGuests}";
 
-                var isValid = slot.IsActive && 
-                             slot.Status == TourSlotStatus.Available && 
+                var isValid = slot.IsActive &&
+                             slot.Status == TourSlotStatus.Available &&
                              slot.TourDate > DateOnly.FromDateTime(DateTime.UtcNow) &&
                              slot.AvailableSpots > 0;
 
@@ -934,22 +945,35 @@ Slot Debug Info for {slotId}:
 
         /// <summary>
         /// Map TourSlot entity to DTO
+        /// ✅ FIXED: Each TourSlot has independent capacity (not shared with TourOperation)
         /// </summary>
         private TourSlotDto MapToDto(DataAccessLayer.Entities.TourSlot slot)
         {
-            // Determine capacity info
-            // MaxGuests: Use TourOperation.MaxGuests if available (shared capacity for all slots)
-            // CurrentBookings: Always use slot.CurrentBookings (specific to this slot)
+            // ✅ FIX: Each TourSlot has independent capacity - use slot's own data
             int maxGuests = slot.MaxGuests;
             int currentBookings = slot.CurrentBookings;
-
-            if (slot.TourDetails?.TourOperation != null)
+            
+            // ✅ If TourSlot.MaxGuests is not set (0), sync from TourOperation as fallback
+            if (maxGuests <= 0 && slot.TourDetails?.TourOperation != null)
             {
                 maxGuests = slot.TourDetails.TourOperation.MaxGuests;
-                // Keep currentBookings from slot (slot-specific bookings)
+                _logger.LogWarning("TourSlot {SlotId} has MaxGuests = 0, using TourOperation.MaxGuests = {MaxGuests} as fallback. This slot needs capacity initialization.", 
+                    slot.Id, maxGuests);
             }
-
-            int availableSpots = maxGuests - currentBookings;
+            
+            // ✅ If still 0, use reasonable default
+            if (maxGuests <= 0)
+            {
+                maxGuests = 20; // Default capacity
+                _logger.LogError("TourSlot {SlotId} has no capacity information. Using default {DefaultCapacity}. Please check slot setup.", 
+                    slot.Id, maxGuests);
+            }
+            
+            int availableSpots = Math.Max(0, maxGuests - currentBookings);
+            
+            // ✅ Log detailed capacity info for debugging
+            _logger.LogDebug("Slot {SlotId} capacity: MaxGuests={MaxGuests}, CurrentBookings={CurrentBookings}, AvailableSpots={AvailableSpots}, Status={Status}, IsActive={IsActive}", 
+                slot.Id, maxGuests, currentBookings, availableSpots, slot.Status, slot.IsActive);
 
             var dto = new TourSlotDto
             {
@@ -1107,7 +1131,7 @@ Slot Debug Info for {slotId}:
                         Title = slot.TourDetails.Title,
                         Description = slot.TourDetails.Description ?? string.Empty,
                         ImageUrls = slot.TourDetails.ImageUrls ?? new List<string>(),
-                        SkillsRequired = !string.IsNullOrEmpty(slot.TourDetails.SkillsRequired) 
+                        SkillsRequired = !string.IsNullOrEmpty(slot.TourDetails.SkillsRequired)
                             ? slot.TourDetails.SkillsRequired.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList()
                             : new List<string>(),
                         Status = slot.TourDetails.Status,
@@ -1120,7 +1144,7 @@ Slot Debug Info for {slotId}:
 
                 // Map booked users
                 var bookings = slot.Bookings.Where(b => !b.IsDeleted).ToList();
-                
+
                 foreach (var booking in bookings)
                 {
                     var bookedUser = new BookedUserInfo
@@ -1151,7 +1175,7 @@ Slot Debug Info for {slotId}:
                 result.Statistics = CalculateBookingStatistics(bookings, slot.MaxGuests);
 
                 _logger.LogInformation("Retrieved slot {SlotId} with {BookingCount} bookings", slotId, bookings.Count);
-                
+
                 return result;
             }
             catch (Exception ex)
@@ -1196,7 +1220,7 @@ Slot Debug Info for {slotId}:
             stats.ConfirmedBookings = bookings.Count(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed);
             stats.PendingBookings = bookings.Count(b => b.Status == BookingStatus.Pending);
             stats.CancelledBookings = bookings.Count(b => b.Status == BookingStatus.CancelledByCustomer || b.Status == BookingStatus.CancelledByCompany);
-            
+
             stats.TotalRevenue = bookings.Sum(b => b.TotalPrice);
             stats.ConfirmedRevenue = bookings
                 .Where(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed)
