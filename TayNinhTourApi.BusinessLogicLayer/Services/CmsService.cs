@@ -31,7 +31,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IBlogReactionRepository _blogReactionRepository;
         private readonly ISpecialtyShopRepository _shopRepository;
         private readonly ITourGuideRepository _tourGuideRepository;
-        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository,ITourGuideRepository tourGuideRepository  )
+        private readonly IAdminSettingDiscountRepository _adminSetting;
+        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository,ITourGuideRepository tourGuideRepository,IAdminSettingDiscountRepository adminSetting )
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
@@ -43,6 +44,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _bcryptUtility = bcryptUtility;
             _shopRepository = shopRepository;
             _tourGuideRepository = tourGuideRepository;
+            _adminSetting = adminSetting;
         }
 
         public async Task<BaseResposeDto> DeleteUserAsync(Guid id)
@@ -586,6 +588,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalPages = totalPages
             };
         }
+        public async Task<decimal> GetTourDiscountPercentAsync()
+        => await _adminSetting.GetTourDiscountPercentAsync();
 
+        public async Task UpdateTourDiscountPercentAsync(decimal newPercent)
+            => await _adminSetting.UpdateTourDiscountPercentAsync(newPercent);
     }
 }

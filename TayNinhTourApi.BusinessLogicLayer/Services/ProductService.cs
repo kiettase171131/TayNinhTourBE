@@ -48,8 +48,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IUserRepository _userRepository;
         private readonly ISpecialtyShopRepository _specialtyShop;
         private readonly ISpecialtyShopService _specialtyShopService;
+        private readonly IAdminSettingDiscountRepository _adminsetting;
 
-        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository, ISpecialtyShopRepository specialtyShop, ISpecialtyShopService specialtyShopService)
+        public ProductService(IProductRepository productRepository, IMapper mapper, IHostingEnvironment env, IHttpContextAccessor httpContextAccessor, IProductImageRepository productImageRepository, ICartRepository cartRepository, IPayOsService payOsService, IOrderRepository orderRepository, IProductReviewRepository productReview, IProductRatingRepository productRating, IVoucherRepository voucherRepository, IVoucherCodeRepository voucherCodeRepository, IOrderDetailRepository orderDetailRepository, INotificationService notificationService, IUserRepository userRepository, ISpecialtyShopRepository specialtyShop, ISpecialtyShopService specialtyShopService, IAdminSettingDiscountRepository adminsetting)
         {
             _productRepository = productRepository;
             _mapper = mapper;
@@ -68,6 +69,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _userRepository = userRepository;
             _specialtyShop = specialtyShop;
             _specialtyShopService = specialtyShopService;
+            _adminsetting = adminsetting;
         }
         public async Task<ResponseGetProductsDto> GetProductsAsync(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount)
         {
@@ -752,15 +754,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 var total = cartItems.Sum(x => x.Product.Price * x.Quantity);
-                decimal discountAmount = 0m;
+            decimal taxAmount = cartItems.Sum(x => x.Product.Price * x.Quantity * 0.10m); // ✅ 10% thuế từ giá gốc
+            decimal discountAmount = 0m;
                 decimal totalAfterDiscount = total;
                 Guid? finalVoucherId = null;
 
-                // ====== NEW: Giảm 10% cho item thuộc shop mà user đủ điều kiện IsShop ======
+               
                 // Gom theo shop để gọi eligibility 1 lần / shop
                 var promotionMessages = new List<string>();
-                // Gom theo shop để xét ưu đãi
-                var productsByShop = cartItems
+            // ✅ Lấy phần trăm giảm do admin cấu hình từ SystemSettings
+            var tourDiscountPercent = await _adminsetting.GetTourDiscountPercentAsync();
+            // Gom theo shop để xét ưu đãi
+            var productsByShop = cartItems
                     .Where(ci => ci.Product != null)
                     .GroupBy(ci => ci.Product!.SpecialtyShopId)
                     .ToList();
@@ -781,13 +786,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var (eligible, nextDate, nextTime, _, activity, tourName) =
                         await _specialtyShopService.CheckUpcomingVisitForShopAsync(shopId, currentUser.Id);
 
-                    if (!eligible) continue;
+                if (!eligible || tourDiscountPercent <= 0) continue;
 
-                    // Giảm 10% phần tiền của các item thuộc shop này
-                    var shopSubtotal = grp.Sum(ci => ci.Product!.Price * ci.Quantity);
-                    var shopDiscount = Math.Round(shopSubtotal * 0.10m, 2);
+                var shopSubtotal = grp.Sum(ci => ci.Product!.Price * ci.Quantity);
+                var shopDiscount = Math.Round(shopSubtotal * (tourDiscountPercent / 100m), 2);
 
-                    discountAmount += shopDiscount;
+                discountAmount += shopDiscount;
                     totalAfterDiscount -= shopDiscount;
 
                     // Thông báo
@@ -798,10 +802,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var tourText = string.IsNullOrWhiteSpace(tourName) ? "tour sắp tới" : $"tour {tourName}";
 
                     promotionMessages.Add(
-                        $"🎉 Chúc mừng! Bạn được giảm 10% vì đã mua hàng tại **{shopName}**, nơi bạn sẽ ghé trong {tourText} vào {dateText}{timePart}{activityPart}."
+                        $"🎉 Chúc mừng! Bạn được giảm {tourDiscountPercent}% vì đã mua hàng tại **{shopName}**, nơi bạn sẽ ghé trong {tourText} vào {dateText}{timePart}{activityPart}."
                     );
                 }
-            // ====== END NEW ======
+            
 
             // Áp dụng voucher nếu được chọn
             // ===== Voucher: CỘNG THÊM, tính trên totalAfterDiscount hiện tại =====
@@ -836,9 +840,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             if (totalAfterDiscount <= 0)
                     throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
+            // ✅ Tổng thanh toán cuối cùng sau giảm + thuế
+            var totalPayable = totalAfterDiscount + taxAmount;
 
-                // Tạo PayOsOrderCode với format TNDT + 10 số sử dụng utility
-                var payOsOrderCodeString = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
+            // Tạo PayOsOrderCode với format TNDT + 10 số sử dụng utility
+            var payOsOrderCodeString = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
 
                 // Lưu vào DB dưới dạng string thay vì long
                 var order = new Order
@@ -846,7 +852,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UserId = currentUser.Id,
                     TotalAmount = total,
                     DiscountAmount = discountAmount,
-                    TotalAfterDiscount = totalAfterDiscount,
+                    TotalAfterDiscount = totalPayable,
+                    TaxAmount = taxAmount,
                     Status = OrderStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
                     CreatedById = currentUser.Id,
@@ -870,7 +877,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     OrderId = order.Id, // Link to Order (Product Payment)
                     TourBookingId = null, // NULL for product payments
-                    Amount = totalAfterDiscount,
+                    Amount = totalPayable,
                     Description = $"Product Order {payOsOrderCodeString}"
                 };
 
@@ -882,7 +889,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     OrderId = order.Id,
                     TotalOriginal = total,
                     DiscountAmount = discountAmount,
-                    TotalAfterDiscount = totalAfterDiscount,
+                    TaxAmount = taxAmount,
+                    TotalAfterDiscount = totalPayable,
                     PromotionMessages = promotionMessages
                 };
             }

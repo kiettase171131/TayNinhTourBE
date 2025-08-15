@@ -304,6 +304,22 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _cmsService.GetTourGuidesAsync(pageIndex, pageSize, textSearch, Active, isAvailable);
             return StatusCode(result.StatusCode, result);
         }
+        [HttpGet("discount-for-visitor")]
+        public async Task<IActionResult> GetTourDiscount()
+        {
+            var percent = await _cmsService.GetTourDiscountPercentAsync();
+            return Ok(new { discountPercent = percent });
+        }
+
+        [HttpPut("discount-visitor")]
+        public async Task<IActionResult> UpdateTourDiscount([FromBody] UpdateTourDiscountRequest request)
+        {
+            if (request.DiscountPercent < 0 || request.DiscountPercent > 100)
+                return BadRequest("Phần trăm giảm phải từ 0 đến 100.");
+
+            await _cmsService.UpdateTourDiscountPercentAsync(request.DiscountPercent);
+            return Ok(new { message = "Cập nhật thành công", newValue = request.DiscountPercent });
+        }
     }
 }
 
