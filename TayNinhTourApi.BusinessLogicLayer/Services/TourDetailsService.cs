@@ -742,7 +742,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var errors = new List<string>();
 
             // Kiểm tra có ít nhất một field để update
-            if (string.IsNullOrEmpty(request.Title) && request.Description == null)
+            if (string.IsNullOrEmpty(request.Title) && request.Description == null && 
+                request.ImageUrls == null && request.ImageUrl == null)
             {
                 errors.Add("Cần có ít nhất một thông tin để cập nhật");
             }
@@ -751,6 +752,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (!string.IsNullOrEmpty(request.Title) && string.IsNullOrWhiteSpace(request.Title))
             {
                 errors.Add("Tiêu đề lịch trình không được để trống");
+            }
+
+            // NEW VALIDATION: Kiểm tra phải có ít nhất 1 timeline item
+            var timelineItems = await _unitOfWork.TimelineItemRepository
+                .GetAllAsync(t => t.TourDetailsId == existingDetail.Id && !t.IsDeleted && t.IsActive);
+
+            if (!timelineItems.Any())
+            {
+                errors.Add("Lịch trình phải có ít nhất 1 timeline item. Vui lòng thêm timeline item trước khi cập nhật tour details.");
             }
 
             return (errors.Count == 0, errors);
@@ -1291,7 +1301,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     // If new item has a lower sort order, its time must be < existing item's time
                     if (newSortOrder < existingItem.SortOrder && checkInTime >= existingItem.CheckInTime)
                     {
-                        return new BaseResposeDto
+                        return new ResponseCreateTimelineItemDto
                         {
                             StatusCode = 400,
                             Message = $"Thời gian không hợp lệ: Hoạt động '{request.Activity}' (SortOrder {newSortOrder}) có thời gian {checkInTime:hh\\:mm} " +
@@ -1304,7 +1314,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     // If new item has a higher sort order, its time must be > existing item's time
                     if (newSortOrder > existingItem.SortOrder && checkInTime <= existingItem.CheckInTime)
                     {
-                        return new BaseResposeDto
+                        return new ResponseCreateTimelineItemDto
                         {
                             StatusCode = 400,
                             Message = $"Thời gian không hợp lệ: Hoạt động '{request.Activity}' (SortOrder {newSortOrder}) có thời gian {checkInTime:hh\\:mm} " +
@@ -1375,7 +1385,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     message += ". Tour đã được chuyển về trạng thái 'Chờ duyệt' để admin xem xét lại.";
                 }
 
-                return new BaseResposeDto
+                return new ResponseCreateTimelineItemDto
                 {
                     StatusCode = 201,
                     Message = message,
@@ -1385,7 +1395,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating timeline item for TourDetails {TourDetailsId}", request.TourDetailsId);
-                return new BaseResposeDto
+                return new ResponseCreateTimelineItemDto
                 {
                     StatusCode = 500,
                     Message = "Có lỗi xảy ra khi tạo timeline item",
