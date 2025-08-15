@@ -161,5 +161,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <returns>Response với thông tin slots đã tạo</returns>
         Task<(bool success, string Message, int CreatedSlotsCount)> GenerateSlotsForTemplateAsync(
             Guid templateId, int month, int year, bool overwriteExisting = false, bool autoActivate = true);
+
+        /// <summary>
+        /// Tạo tour template ngày lễ với ngày cụ thể
+        /// Tạo template và tự động tạo 1 slot duy nhất cho ngày được chọn
+        /// </summary>
+        /// <param name="request">Request chứa thông tin holiday template</param>
+        /// <param name="createdById">ID của user tạo template</param>
+        /// <returns>Response với thông tin template và slot đã tạo</returns>
+        Task<ResponseCreateTourTemplateDto> CreateHolidayTourTemplateAsync(RequestCreateHolidayTourTemplateDto request, Guid createdById);
     }
 }
