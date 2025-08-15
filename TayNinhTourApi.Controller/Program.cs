@@ -278,7 +278,7 @@ builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
 builder.Services.AddScoped<IVoucherCodeRepository, VoucherCodeRepository>();
 builder.Services.AddScoped<IOrderDetailRepository, OrderDetailRepository>();
-builder.Services.AddScoped<IShopCustomerStatusRepository, ShopCustomerStatusRepository>();
+
 
 // Notification Repository
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
