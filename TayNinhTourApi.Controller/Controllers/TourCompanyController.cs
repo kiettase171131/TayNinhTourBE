@@ -1,5 +1,4 @@
-﻿
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -172,6 +171,22 @@ namespace TayNinhTourApi.Controller.Controllers
                 }
             }
 
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [HttpPost("template/holiday")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<ActionResult<ResponseCreateTourTemplateDto>> CreateHolidayTourTemplate(RequestCreateHolidayTourTemplateDto request)
+        {
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
+
+            if (userId == Guid.Empty)
+            {
+                return BadRequest("User ID not found in authentication context.");
+            }
+
+            var response = await _tourTemplateService.CreateHolidayTourTemplateAsync(request, userId);
             return StatusCode(response.StatusCode, response);
         }
 
