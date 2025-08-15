@@ -61,7 +61,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     od.Order.Status == OrderStatus.Paid &&
                     od.Order.CreatedAt >= startDate &&
                     od.Order.CreatedAt < endDate)
-                .GroupBy(od => od.Product.ShopId)
+                .GroupBy(od => od.Product.SpecialtyShopId)
                 .Select(g => new ValueTuple<Guid, decimal>(
                     g.Key,
                     g.Sum(x => x.Order.TotalAfterDiscount)

@@ -282,6 +282,7 @@ builder.Services.AddScoped<IShopCustomerStatusRepository, ShopCustomerStatusRepo
 
 // Notification Repository
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<IAdminSettingDiscountRepository, AdminSettingDiscountRepository>();
 
 // AI Chat Repositories
 builder.Services.AddScoped<IAIChatSessionRepository, AIChatSessionRepository>();

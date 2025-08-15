@@ -66,7 +66,8 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
         // Payment system entities
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
         public DbSet<TourFeedback> TourFeedbacks { get; set; } = null!;
-        public DbSet<ShopCustomerStatus> ShopCustomerStatuses { get; set; } = null!;
+        
+        public DbSet<AdminSettingDiscount> AdminSettingDiscounts { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -116,9 +117,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
                 e.HasIndex(f => new { f.TourGuideId });
                 e.HasIndex(f => f.UserId);
             });
-            modelBuilder.Entity<ShopCustomerStatus>()
-            .HasIndex(x => new { x.SpecialtyShopId, x.CustomerUserId })
-            .IsUnique();
+           
 
         }
 

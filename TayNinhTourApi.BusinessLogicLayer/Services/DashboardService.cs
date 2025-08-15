@@ -47,6 +47,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 .Select(r => new ShopRevenueDto
                 {
                     ShopId = r.ShopId,
+                   
                     TotalRevenue = r.Revenue
                 })
                 .ToList();
