@@ -7,7 +7,9 @@ using TayNinhTourApi.DataAccessLayer.Entities;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
 {
-    public interface IShopCustomerStatusRepository : IGenericRepository<ShopCustomerStatus>
+    public interface IAdminSettingDiscountRepository : IGenericRepository<AdminSettingDiscount>
     {
+        Task<decimal> GetTourDiscountPercentAsync();
+        Task UpdateTourDiscountPercentAsync(decimal newPercent);
     }
 }
