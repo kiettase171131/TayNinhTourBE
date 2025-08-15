@@ -2,9 +2,11 @@
 
 ## T?ng quan
 
-API m?i ???c t?o ?? h? tr? vi?c t?o tour template cho các ngày l? ??c bi?t. Khác v?i tour template thông th??ng (t?o slots cho c? tháng d?a trên schedule days), holiday template cho phép t?o 1 slot duy nh?t cho ngày c? th? ???c ch?n.
+API m?i ???c t?o ?? h? tr? vi?c t?o tour template cho các ngày l? ??c bi?t. Khác v?i tour template th??ng th??ng (t?o slots cho c? tháng d?a trên schedule days), holiday template cho phép t?o 1 slot duy nh?t cho ngày c? th? ???c ch?n.
 
 **?? VALIDATION QUAN TR?NG**: Holiday template áp d?ng **cùng quy t?c 30 ngày** nh? tour template bình th??ng ?? ??m b?o Tour Company có ?? th?i gian chu?n b?.
+
+**? ??C BI?T M?I**: Holiday template s? d?ng validator riêng `HolidayTourTemplateValidator` cho phép ch?n **b?t k? ngày nào trong tu?n** (Monday-Sunday), không b? gi?i h?n Saturday/Sunday nh? regular template.
 
 ## Endpoint M?i
 
@@ -12,8 +14,7 @@ API m?i ???c t?o ?? h? tr? vi?c t?o tour template cho các ngày l? ??c bi?t. Khác
 POST /api/TourCompany/template/holiday
 **Authorization**: Bearer Token (Role: "Tour Company")
 
-#### Request Body
-{
+#### Request Body{
   "title": "Tour Núi Bà ?en - Ngày L? 30/4",
   "startLocation": "TP.HCM",
   "endLocation": "Tây Ninh",
@@ -43,15 +44,16 @@ POST /api/TourCompany/template/holiday
 - Không quá 2 n?m t? ngày hi?n t?i
 - N?m ph?i t? 2024-2030
 
-**3. Linh ho?t v? ngày trong tu?n**:
-- Holiday template có th? ch?n **b?t k? ngày nào** trong tu?n (không ch? Saturday/Sunday)
+**3. ? Linh ho?t v? ngày trong tu?n** (K? KHÁC BI?T CHÍNH):
+- Holiday template có th? ch?n **b?t k? ngày nào** trong tu?n (Monday-Sunday)
+- **KHÔNG** b? gi?i h?n Saturday/Sunday nh? regular template
+- S? d?ng `HolidayTourTemplateValidator` thay vì `TourTemplateScheduleValidator`
 
 #### Response
 
-**Status Code**: `201 Created`
-{
+**Status Code**: `201 Created`{
   "statusCode": 201,
-  "message": "T?o tour template ngày l? thành công và ?ã t?o slot cho ngày 30/04/2025 (sau 105 ngày t? ngày t?o)",
+  "message": "T?o tour template ngày l? thành công và ?ã t?o slot cho ngày 30/04/2025 (Th? t?) - sau 105 ngày t? ngày t?o",
   "success": true,
   "data": {
     "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -79,7 +81,8 @@ POST /api/TourCompany/template/holiday
     "• Ngày s?m nh?t: 14/02/2025 (sau 30 ngày)",
     "• Ngày mu?n nh?t: 15/01/2027 (t?i ?a 2 n?m)",
     "• Ví d? JSON h?p l?: {\"tourDate\": \"2025-02-21\"}",
-    "• Khác template th??ng: Holiday template có th? ch?n b?t k? ngày nào trong tu?n"
+    "• ? ??C BI?T: Holiday template có th? ch?n b?t k? ngày nào trong tu?n (Monday-Sunday)",
+    "• ? Khác v?i template th??ng ch? cho phép Saturday/Sunday"
   ],
   "fieldErrors": {
     "tourDate": ["Ngày tour ph?i sau ít nh?t 30 ngày t? ngày t?o (15/01/2025). Ngày s?m nh?t có th?: 14/02/2025. G?i ý: Ch?n ngày 21/02/2025 ho?c mu?n h?n. Ví d? JSON h?p l?: \"tourDate\": \"2025-02-21\""]
@@ -100,34 +103,42 @@ POST /api/TourCompany/template/holiday
 - ? **Quy t?c n?m**: 2024-2030
 - ? **Quy t?c th?i gian t?i ?a**: Không quá 2 n?m t? hi?n t?i
 
-### 2. **T? ??ng xác ??nh Schedule Day**
+### 2. **?? Validator riêng bi?t - ?i?m khác bi?t chính**
+- ? **HolidayTourTemplateValidator**: Cho phép t?t c? ngày trong tu?n
+- ? **TourTemplateScheduleValidator**: Ch? cho phép Saturday/Sunday
+- ? **T? ??ng xác ??nh Schedule Day**: D?a trên ngày ???c ch?n
+- ? **Linh ho?t hoàn toàn**: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
+
+### 3. **T? ??ng xác ??nh Schedule Day**
 - H? th?ng t? ??ng xác ??nh th? trong tu?n d?a trên ngày ???c ch?n
 - Ví d?: Ch?n ngày 30/4/2025 (Th? 4) ? `scheduleDays = "Wednesday"`
 - **Linh ho?t**: Có th? ch?n b?t k? ngày nào trong tu?n (không ch? Saturday/Sunday)
 
-### 3. **T?o 1 slot duy nh?t**
-- Khác v?i template thông th??ng (t?o 4 slots/tháng), holiday template ch? t?o 1 slot cho ngày c? th?
+### 4. **T?o 1 slot duy nh?t**
+- Khác v?i template th??ng th??ng (t?o 4 slots/tháng), holiday template ch? t?o 1 slot cho ngày c? th?
 - Slot ???c t?o v?i:
   - `tourDate`: Ngày ???c ch?n
   - `scheduleDay`: Th? t??ng ?ng
   - `status`: Available
   - `isActive`: true
 
-### 4. **Validation t?ng c??ng**
+### 5. **Validation t?ng c??ng**
 - Áp d?ng c? validation c? b?n và business rules
-- Ki?m tra c? `ValidateFirstSlotDate` ?? ??m b?o tuân th? quy t?c 30 ngày
+- Ki?m tra c? `ValidateHolidaySlotDate` ?? ??m b?o tuân th? quy t?c 30 ngày
 
-## So sánh v?i Tour Template thông th??ng
+## So sánh v?i Tour Template th??ng th??ng
 
 | Aspect | Regular Template | Holiday Template |
 |--------|------------------|------------------|
 | **Input** | Month, Year, ScheduleDays | TourDate |
+| **Validator** | TourTemplateScheduleValidator | **HolidayTourTemplateValidator** |
 | **Slots Created** | 4 slots/tháng theo schedule | 1 slot cho ngày c? th? |
 | **Use Case** | Tour ??nh k? hàng tu?n | Tour ??c bi?t cho ngày l? |
 | **ScheduleDays** | User ch?n (Saturday/Sunday) | T? ??ng t? tourDate |
 | **30-day Rule** | ? Áp d?ng | ? Áp d?ng |
 | **Year Range** | ? 2024-2030 | ? 2024-2030 |
-| **Weekend Only** | ? Saturday/Sunday | ? B?t k? ngày nào |
+| **Weekend Only** | ? Saturday/Sunday | ? **B?t k? ngày nào** |
+| **Validation Logic** | `ValidateScheduleDay()` v?i restrict | `ValidateHolidayBusinessRules()` không restrict |
 
 ## Workflow s? d?ng
 
@@ -155,18 +166,41 @@ curl -X POST "/api/TourCompany/template/holiday" \
 
 ## Business Rules
 
-1. **?? 30-Day Rule**: Ngày tour ph?i sau ít nh?t 30 ngày t? ngày t?o template
-2. **?? Date Validation**: Ngày tour ph?i trong t??ng lai và không quá 2 n?m
-3. **?? Year Range**: N?m ph?i t? 2024-2030
-4. **?? Single Slot**: Ch? t?o 1 slot duy nh?t cho ngày ???c ch?n
+1. **? 30-Day Rule**: Ngày tour ph?i sau ít nh?t 30 ngày t? ngày t?o template
+2. **? Date Validation**: Ngày tour ph?i trong t??ng lai và không quá 2 n?m
+3. **? Year Range**: N?m ph?i t? 2024-2030
+4. **? Single Slot**: Ch? t?o 1 slot duy nh?t cho ngày ???c ch?n
 5. **? Auto Schedule**: T? ??ng xác ??nh scheduleDays t? ngày ???c ch?n
-6. **?? Standard Permissions**: C?n role "Tour Company" ?? t?o
+6. **? Standard Permissions**: C?n role "Tour Company" ?? t?o
 7. **?? Any Day**: Có th? ch?n b?t k? ngày nào trong tu?n (khác regular template)
+8. **?? Separate Validator**: S? d?ng `HolidayTourTemplateValidator` riêng bi?t
 
+## Technical Implementation
+
+### Key Classes
+- **HolidayTourTemplateValidator**: Validator riêng cho holiday template
+- **EnhancedTourTemplateService.CreateHolidayTourTemplateAsync()**: Service method chính
+- **RequestCreateHolidayTourTemplateDto**: Request DTO riêng bi?t
+
+### Validator Logic Difference// Regular Template (TourTemplateScheduleValidator)
+if (scheduleDay != ScheduleDay.Saturday && scheduleDay != ScheduleDay.Sunday)
+{
+    return new ScheduleValidationResult
+    {
+        IsValid = false,
+        ErrorMessage = "Ch? ???c ch?n Th? 7 (Saturday) ho?c Ch? nh?t (Sunday) cho tour template"
+    };
+}
+
+// Holiday Template (HolidayTourTemplateValidator)
+if (!Enum.IsDefined(typeof(ScheduleDay), template.ScheduleDays))
+{
+    AddFieldError(result, "ScheduleDays", "Ngày trong tu?n không h?p l?");
+}
+// NO restriction on Saturday/Sunday only - all days are allowed
 ## Examples
 
-### ? Ví d? thành công
-// Hôm nay: 15/01/2025, ngày s?m nh?t: 14/02/2025
+### ? Ví d? thành công// Hôm nay: 15/01/2025, ngày s?m nh?t: 14/02/2025
 {
   "title": "Tour Tây Ninh - T?t Nguyên ?án 2025",
   "startLocation": "TP.HCM",
@@ -174,8 +208,7 @@ curl -X POST "/api/TourCompany/template/holiday" \
   "templateType": "FreeScenic",
   "tourDate": "2025-02-21"  // ? Sau 30 ngày
 }
-### ? Ví d? l?i vi ph?m 30 ngày
-// Hôm nay: 15/01/2025
+### ? Ví d? l?i vi ph?m 30 ngày// Hôm nay: 15/01/2025
 {
   "title": "Tour Quá S?m",
   "startLocation": "TP.HCM",
@@ -183,13 +216,19 @@ curl -X POST "/api/TourCompany/template/holiday" \
   "templateType": "FreeScenic", 
   "tourDate": "2025-02-01"  // ? Ch? sau 17 ngày
 }
-### ? Ví d? tour cu?i tu?n
-{
+### ? Ví d? tour cu?i tu?n - B?T K? NGÀY NÀO{
   "title": "Tour Qu?c Khánh 2/9",
   "startLocation": "TP.HCM",
   "endLocation": "Tây Ninh",
   "templateType": "PaidAttraction", 
-  "tourDate": "2025-09-02"  // ? Th? 3 c?ng ???c
+  "tourDate": "2025-09-02"  // ? Th? 3 c?ng ???c!
+}
+### ? Ví d? tour gi?a tu?n{
+  "title": "Tour L? ??c L?p 30/4",
+  "startLocation": "TP.HCM",
+  "endLocation": "Tây Ninh",
+  "templateType": "FreeScenic", 
+  "tourDate": "2025-04-30"  // ? Th? 4 hoàn toàn OK!
 }
 ## Implementation Details
 
@@ -197,21 +236,25 @@ curl -X POST "/api/TourCompany/template/holiday" \
 
 1. **Basic Validation** ? Title, Locations, Template Type
 2. **Date Validation** ? Future date, 30-day rule, max 2 years  
-3. **Business Rules** ? ValidateBusinessRules()
-4. **Slot Validation** ? ValidateFirstSlotDate()
+3. **Holiday Business Rules** ? `HolidayTourTemplateValidator.ValidateHolidayBusinessRules()`
+4. **Slot Validation** ? `HolidayTourTemplateValidator.ValidateHolidaySlotDate()`
 5. **Image Validation** ? Validate image URLs (if provided)
 
-### Key Validation Methods
-// Ki?m tra quy t?c 30 ngày
-TourTemplateValidator.ValidateFirstSlotDate(createdAt, month, year)
+### Key Validation Methods// Ki?m tra quy t?c 30 ngày cho holiday template
+HolidayTourTemplateValidator.ValidateHolidaySlotDate(createdAt, tourDate)
 
-// Validation t?ng th? business rules
-TourTemplateValidator.ValidateBusinessRules(tourTemplate)
+// Validation t?ng th? business rules cho holiday
+HolidayTourTemplateValidator.ValidateHolidayBusinessRules(tourTemplate)
 
-// Validation c? b?n holiday template
-ValidateHolidayTemplateRequest(request)
+// Validation c? b?n holiday template request
+HolidayTourTemplateValidator.ValidateCreateRequest(request)
+
+// Get schedule day t? date (cho phép t?t c? ngày)
+HolidayTourTemplateValidator.GetScheduleDayFromDate(tourDate)
 ---
 
-**Ngày t?o**: 15/01/2025  
-**Version**: 2.0 (Thêm quy t?c 30 ngày)  
+**Ngày c?p nh?t**: 15/01/2025  
+**Version**: 3.0 (Thêm HolidayTourTemplateValidator riêng bi?t)  
 **Contact**: ??i phát tri?n TayNinhTour
+
+**?? THAY ??I QUAN TR?NG**: Holiday template hi?n s? d?ng validator riêng bi?t, cho phép ch?n b?t k? ngày nào trong tu?n thay vì ch? Saturday/Sunday.
