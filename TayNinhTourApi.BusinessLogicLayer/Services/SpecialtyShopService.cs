@@ -42,7 +42,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IOrderRepository _orderRepo;
         private readonly IOrderDetailRepository _orderDetailRepo;
         private readonly IProductRepository _productRepo;
-        private readonly IShopCustomerStatusRepository _shopCustomerStatusRepo;
+        
 
 
 
@@ -53,7 +53,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             ITourBookingRepository bookingRepo, IUserRepository userRepo,ISpecialtyShopRepository specialtyShop,
             ITourDetailsRepository tourDetailsRepository,ITourTemplateRepository tourTemplateRepository,
             IOrderDetailRepository orderDetailRepository,IOrderRepository orderRepository,IProductRepository productRepository
-            ,IShopCustomerStatusRepository shopCustomerStatusRepository) : base(mapper, unitOfWork)
+            ) : base(mapper, unitOfWork)
         {
             _currentUserService = currentUserService;
             _voucherRepository = voucherRepository;
@@ -68,7 +68,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _orderRepo = orderRepository;
             _orderDetailRepo = orderDetailRepository;
             _productRepo = productRepository;
-            _shopCustomerStatusRepo = shopCustomerStatusRepository;
+           
 
 
 

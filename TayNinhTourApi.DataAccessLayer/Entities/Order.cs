@@ -14,6 +14,8 @@
             public decimal TotalAmount { get; set; }
             public decimal TotalAfterDiscount { get; set; } 
             public decimal DiscountAmount { get; set; }
+            public decimal TaxAmount { get; set; }
+
             public OrderStatus Status { get; set; }
 
             /// <summary>
