@@ -27,7 +27,7 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
             if (string.IsNullOrEmpty(connectionString))
             {
                 // Fallback connection string với timeout được tăng
-                connectionString = "Server=103.216.119.189;Port=3306;Database=TayNinhTourDb;Uid=TayNinhTour;Pwd=App@123456;SslMode=none;AllowPublicKeyRetrieval=true;Connection Timeout=120;Command Timeout=300;";
+                connectionString = "Server=localhost;Port=3306;Database=tayninhtourdb_local;Uid=root;Pwd=;SslMode=none;AllowPublicKeyRetrieval=true;Connection Timeout=120;Command Timeout=300;";
             }
 
             // Configure DbContext options with retry policy and extended timeouts
