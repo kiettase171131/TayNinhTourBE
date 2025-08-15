@@ -170,5 +170,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="createdById">ID của user tạo template</param>
         /// <returns>Response với thông tin template và slot đã tạo</returns>
         Task<ResponseCreateTourTemplateDto> CreateHolidayTourTemplateAsync(RequestCreateHolidayTourTemplateDto request, Guid createdById);
+
+        /// <summary>
+        /// Cập nhật tour template ngày lễ
+        /// Sử dụng validator riêng cho holiday template, cho phép chọn bất kỳ ngày nào trong tuần
+        /// </summary>
+        /// <param name="id">ID của holiday template cần cập nhật</param>
+        /// <param name="request">Request chứa thông tin cập nhật</param>
+        /// <param name="updatedById">ID của user thực hiện cập nhật</param>
+        /// <returns>Response với thông tin template đã cập nhật</returns>
+        Task<ResponseUpdateTourTemplateDto> UpdateHolidayTourTemplateAsync(Guid id, RequestUpdateHolidayTourTemplateDto request, Guid updatedById);
     }
 }

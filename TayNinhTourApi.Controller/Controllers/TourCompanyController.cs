@@ -190,6 +190,22 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(response.StatusCode, response);
         }
 
+        [HttpPatch("template/holiday/{id}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<ActionResult<ResponseUpdateTourTemplateDto>> UpdateHolidayTourTemplate(Guid id, RequestUpdateHolidayTourTemplateDto request)
+        {
+            // Get current user id from ICurrentUserService
+            var userId = _currentUserService.GetCurrentUserId();
+
+            if (userId == Guid.Empty)
+            {
+                return BadRequest("User ID not found in authentication context.");
+            }
+
+            var response = await _tourTemplateService.UpdateHolidayTourTemplateAsync(id, request, userId);
+            return StatusCode(response.StatusCode, response);
+        }
+
         [HttpPatch("template/{id}")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<ActionResult<ResponseUpdateTourTemplateDto>> UpdateTourTemplate(Guid id, RequestUpdateTourTemplateDto request)
