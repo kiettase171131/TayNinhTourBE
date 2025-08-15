@@ -674,8 +674,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                // Validate basic holiday template request (includes 30-day rule)
-                var validationResult = ValidateHolidayTemplateRequest(request);
+                // Validate basic holiday template request using HOLIDAY-SPECIFIC validator
+                var validationResult = HolidayTourTemplateValidator.ValidateCreateRequest(request);
                 if (!validationResult.IsValid)
                 {
                     return new ResponseCreateTourTemplateDto
@@ -707,8 +707,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 }
 
-                // Get schedule day from the tour date
-                var scheduleDay = GetScheduleDayFromDate(request.TourDate);
+                // Get schedule day from the tour date (accepts any day of week)
+                var scheduleDay = HolidayTourTemplateValidator.GetScheduleDayFromDate(request.TourDate);
 
                 // Create tour template based on holiday request
                 var tourTemplate = new TourTemplate
@@ -734,8 +734,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     tourTemplate.Images = images;
                 }
 
-                // Validate business rules for the created template
-                var businessValidation = TourTemplateValidator.ValidateBusinessRules(tourTemplate);
+                // Validate business rules using HOLIDAY-SPECIFIC validator
+                var businessValidation = HolidayTourTemplateValidator.ValidateHolidayBusinessRules(tourTemplate);
                 if (!businessValidation.IsValid)
                 {
                     return new ResponseCreateTourTemplateDto
@@ -749,9 +749,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // Additional validation: Apply same slot date validation as regular template
+                // Additional validation: Apply holiday-specific slot date validation
                 var tourDateTime = request.TourDate.ToDateTime(TimeOnly.MinValue);
-                var slotValidation = TourTemplateValidator.ValidateFirstSlotDate(tourTemplate.CreatedAt, tourDateTime.Month, tourDateTime.Year);
+                var slotValidation = HolidayTourTemplateValidator.ValidateHolidaySlotDate(tourTemplate.CreatedAt, tourDateTime);
                 if (!slotValidation.IsValid)
                 {
                     return new ResponseCreateTourTemplateDto
@@ -795,7 +795,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new ResponseCreateTourTemplateDto
                 {
                     StatusCode = 201,
-                    Message = $"Tạo tour template ngày lễ thành công và đã tạo slot cho ngày {request.TourDate:dd/MM/yyyy} (sau {(tourDateTime - tourTemplate.CreatedAt).Days} ngày từ ngày tạo)",
+                    Message = $"Tạo tour template ngày lễ thành công và đã tạo slot cho ngày {request.TourDate:dd/MM/yyyy} ({scheduleDay.GetVietnameseName()}) - sau {(tourDateTime - tourTemplate.CreatedAt).Days} ngày từ ngày tạo",
                     success = true,
                     Data = responseDto
                 };
@@ -818,90 +818,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         private ResponseValidationDto ValidateHolidayTemplateRequest(RequestCreateHolidayTourTemplateDto request)
         {
-            var result = new ResponseValidationDto
-            {
-                IsValid = true,
-                StatusCode = 200,
-                ValidationErrors = new List<string>(),
-                FieldErrors = new Dictionary<string, List<string>>()
-            };
-
-            // Title validation
-            if (string.IsNullOrWhiteSpace(request.Title))
-            {
-                AddFieldError(result, nameof(request.Title), "Tên template là bắt buộc");
-            }
-            else if (request.Title.Length > 200)
-            {
-                AddFieldError(result, nameof(request.Title), "Tên template không được vượt quá 200 ký tự");
-            }
-
-            // Location validation
-            if (string.IsNullOrWhiteSpace(request.StartLocation))
-            {
-                AddFieldError(result, nameof(request.StartLocation), "Điểm bắt đầu là bắt buộc");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.EndLocation))
-            {
-                AddFieldError(result, nameof(request.EndLocation), "Điểm kết thúc là bắt buộc");
-            }
-
-            // Tour date validation - Apply same business rules as regular templates
-            var currentTime = VietnamTimeZoneUtility.GetVietnamNow();
-            var tourDateTime = request.TourDate.ToDateTime(TimeOnly.MinValue);
-
-            // Rule 1: Tour date must be in the future
-            if (request.TourDate <= DateOnly.FromDateTime(currentTime))
-            {
-                AddFieldError(result, nameof(request.TourDate), "Ngày tour phải là ngày trong tương lai");
-            }
-
-            // Rule 2: Apply the same 30-day rule as regular templates
-            var minimumDate = currentTime.AddDays(30);
-            if (tourDateTime < minimumDate)
-            {
-                var suggestedDate = minimumDate.AddDays(7); // Add 7 more days for safety
-                AddFieldError(result, nameof(request.TourDate), 
-                    $"Ngày tour phải sau ít nhất 30 ngày từ ngày tạo ({currentTime:dd/MM/yyyy}). " +
-                    $"Ngày sớm nhất có thể: {minimumDate:dd/MM/yyyy}. " +
-                    $"Gợi ý: Chọn ngày {suggestedDate:dd/MM/yyyy} hoặc muộn hơn. " +
-                    $"Ví dụ JSON hợp lệ: \"tourDate\": \"{suggestedDate:yyyy-MM-dd}\"");
-            }
-
-            // Rule 3: Tour date should not be too far in the future (same as regular template - 2 years max)
-            var maxFutureDate = DateOnly.FromDateTime(currentTime.AddYears(2));
-            if (request.TourDate > maxFutureDate)
-            {
-                AddFieldError(result, nameof(request.TourDate), 
-                    $"Ngày tour không được quá 2 năm trong tương lai. " +
-                    $"Ngày muộn nhất có thể: {maxFutureDate:dd/MM/yyyy}");
-            }
-
-            // Rule 4: Validate year range (same as regular template)
-            if (request.TourDate.Year < 2024 || request.TourDate.Year > 2030)
-            {
-                AddFieldError(result, nameof(request.TourDate), "Năm của ngày tour phải từ 2024 đến 2030");
-            }
-
-            // Set validation result
-            result.IsValid = !result.FieldErrors.Any();
-            if (!result.IsValid)
-            {
-                result.StatusCode = 400;
-                result.Message = "Dữ liệu không hợp lệ - Vui lòng kiểm tra và sửa các lỗi sau";
-                result.ValidationErrors = result.FieldErrors.SelectMany(x => x.Value).ToList();
-                
-                // Add helpful guidance similar to regular template
-                result.ValidationErrors.Add("💡 HƯỚNG DẪN HOLIDAY TEMPLATE:");
-                result.ValidationErrors.Add($"• Ngày hiện tại: {currentTime:dd/MM/yyyy} - KHÔNG thể chọn");
-                result.ValidationErrors.Add($"• Ngày sớm nhất: {minimumDate:dd/MM/yyyy} (sau 30 ngày)");
-                result.ValidationErrors.Add($"• Ngày muộn nhất: {maxFutureDate:dd/MM/yyyy} (tối đa 2 năm)");
-                result.ValidationErrors.Add($"• Ví dụ JSON hợp lệ: {{\"tourDate\": \"{minimumDate.AddDays(7):yyyy-MM-dd}\"}}");
-                result.ValidationErrors.Add("• Khác template thường: Holiday template có thể chọn bất kỳ ngày nào trong tuần");
-            }
-
-            return result;
+            // Use the dedicated holiday validator instead of regular template validator
+            return HolidayTourTemplateValidator.ValidateCreateRequest(request);
         }
 
         /// <summary>
@@ -909,31 +827,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         private ScheduleDay GetScheduleDayFromDate(DateOnly date)
         {
-            var dateTime = date.ToDateTime(TimeOnly.MinValue);
-            return dateTime.DayOfWeek switch
-            {
-                DayOfWeek.Sunday => ScheduleDay.Sunday,
-                DayOfWeek.Monday => ScheduleDay.Monday,
-                DayOfWeek.Tuesday => ScheduleDay.Tuesday,
-                DayOfWeek.Wednesday => ScheduleDay.Wednesday,
-                DayOfWeek.Thursday => ScheduleDay.Thursday,
-                DayOfWeek.Friday => ScheduleDay.Friday,
-                DayOfWeek.Saturday => ScheduleDay.Saturday,
-                _ => ScheduleDay.Saturday // Default fallback
-            };
-        }
-
-        /// <summary>
-        /// Helper method to add field errors to validation result
-        /// </summary>
-        private void AddFieldError(ResponseValidationDto result, string fieldName, string errorMessage)
-        {
-            if (!result.FieldErrors.ContainsKey(fieldName))
-            {
-                result.FieldErrors[fieldName] = new List<string>();
-            }
-            result.FieldErrors[fieldName].Add(errorMessage);
-            result.ValidationErrors.Add($"{fieldName}: {errorMessage}");
+            // Use the holiday validator's method for consistency
+            return HolidayTourTemplateValidator.GetScheduleDayFromDate(date);
         }
 
         #endregion

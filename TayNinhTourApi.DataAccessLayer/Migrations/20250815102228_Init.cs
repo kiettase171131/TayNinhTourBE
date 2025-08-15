@@ -15,6 +15,29 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "AdminSettingDiscounts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Key = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Value = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AdminSettingDiscounts", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Images",
                 columns: table => new
                 {
@@ -329,6 +352,7 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     TotalAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     TotalAfterDiscount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     DiscountAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    TaxAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     VoucherId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     PayOsOrderCode = table.Column<string>(type: "longtext", nullable: true)
@@ -936,46 +960,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                     table.ForeignKey(
                         name: "FK_Products_Users_ShopId",
                         column: x => x.ShopId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "ShopCustomerStatuses",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    SpecialtyShopId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    CustomerUserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    IsUpcomingVisitor = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    NextTourDate = table.Column<DateOnly>(type: "date", nullable: true),
-                    PlannedCheckInTime = table.Column<TimeSpan>(type: "time(6)", nullable: true),
-                    TimelineItemId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    Activity = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CustomerId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    CreatedById = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    UpdatedById = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ShopCustomerStatuses", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ShopCustomerStatuses_SpecialtyShops_SpecialtyShopId",
-                        column: x => x.SpecialtyShopId,
-                        principalTable: "SpecialtyShops",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ShopCustomerStatuses_Users_CustomerId",
-                        column: x => x.CustomerId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -2355,17 +2339,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
                 filter: "IsActive = 1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ShopCustomerStatuses_CustomerId",
-                table: "ShopCustomerStatuses",
-                column: "CustomerId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ShopCustomerStatuses_SpecialtyShopId_CustomerUserId",
-                table: "ShopCustomerStatuses",
-                columns: new[] { "SpecialtyShopId", "CustomerUserId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "IX_SpecialtyShopApplication_Email",
                 table: "SpecialtyShopApplications",
                 column: "Email");
@@ -3089,6 +3062,9 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "AdminSettingDiscounts");
+
+            migrationBuilder.DropTable(
                 name: "AIChatMessages");
 
             migrationBuilder.DropTable(
@@ -3129,9 +3105,6 @@ namespace TayNinhTourApi.DataAccessLayer.Migrations
 
             migrationBuilder.DropTable(
                 name: "RefundPolicies");
-
-            migrationBuilder.DropTable(
-                name: "ShopCustomerStatuses");
 
             migrationBuilder.DropTable(
                 name: "SpecialtyShopApplications");
