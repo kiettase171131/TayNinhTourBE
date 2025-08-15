@@ -1,12 +1,15 @@
     using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Booking;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourFeedback;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Booking;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourFeedback;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
+using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -20,15 +23,18 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ITourBookingService _tourBookingService;
         private readonly ITourFeedbackService _tourFeedback;
         private readonly ILogger<TourBookingController> _logger;
+        private readonly IUnitOfWork _unitOfWork;
 
         public TourBookingController(
             ITourBookingService tourBookingService,
             ILogger<TourBookingController> logger,
-            ITourFeedbackService tourFeedback)
+            ITourFeedbackService tourFeedback,
+            IUnitOfWork unitOfWork)
         {
             _tourBookingService = tourBookingService;
             _logger = logger;
             _tourFeedback = tourFeedback;
+            _unitOfWork = unitOfWork;
         }
 
         /// <summary>
@@ -195,7 +201,8 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Kiểm tra capacity cho TourOperation
+        /// Kiểm tra capacity cho TourOperation (LEGACY - shared capacity across all slots)
+        /// ⚠️ WARNING: This checks total operation capacity, not individual slot capacity
         /// </summary>
         /// <param name="operationId">ID của TourOperation</param>
         /// <param name="requestedGuests">Số khách muốn booking (optional)</param>
@@ -217,6 +224,104 @@ namespace TayNinhTourApi.Controller.Controllers
                     Message = "Có lỗi xảy ra khi kiểm tra capacity",
                     StatusCode = 500,
                     TourOperationId = operationId
+                });
+            }
+        }
+
+        /// <summary>
+        /// ✅ NEW: Kiểm tra capacity cho TourSlot cụ thể (individual slot capacity)
+        /// Use this for slot-specific booking validation
+        /// </summary>
+        /// <param name="slotId">ID của TourSlot</param>
+        /// <param name="requestedGuests">Số khách muốn booking</param>
+        /// <returns>Thông tin capacity của slot cụ thể</returns>
+        [HttpGet("slot/{slotId}/capacity")]
+        public async Task<ActionResult> CheckSlotCapacity(Guid slotId, [FromQuery] int requestedGuests = 1)
+        {
+            try
+            {
+                if (requestedGuests <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Số lượng khách phải lớn hơn 0",
+                        statusCode = 400
+                    });
+                }
+
+                // Get slot with current capacity
+                var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Where(s => s.Id == slotId && !s.IsDeleted)
+                    .Select(s => new 
+                    {
+                        s.Id,
+                        s.MaxGuests,
+                        s.CurrentBookings,
+                        s.IsActive,
+                        s.Status,
+                        s.TourDate
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (slot == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Tour slot không tồn tại",
+                        statusCode = 404
+                    });
+                }
+
+                var availableSpots = slot.MaxGuests - slot.CurrentBookings;
+                var canBook = slot.IsActive && 
+                             slot.Status == TourSlotStatus.Available &&
+                             slot.TourDate > DateOnly.FromDateTime(DateTime.UtcNow) &&
+                             availableSpots >= requestedGuests;
+
+                var capacityInfo = new
+                {
+                    slotId = slotId,
+                    maxCapacity = slot.MaxGuests,
+                    bookedCapacity = slot.CurrentBookings,
+                    availableCapacity = availableSpots,
+                    bookingPercentage = slot.MaxGuests > 0 ? Math.Round((decimal)slot.CurrentBookings / slot.MaxGuests * 100, 2) : 0,
+                    isFull = availableSpots <= 0
+                };
+
+                var userMessage = canBook 
+                    ? $"Slot này còn {availableSpots} chỗ trống"
+                    : availableSpots <= 0 
+                        ? "Slot này đã hết chỗ"
+                        : !slot.IsActive 
+                            ? "Slot này không còn hoạt động"
+                            : slot.TourDate <= DateOnly.FromDateTime(DateTime.UtcNow)
+                                ? "Slot này đã qua ngày"
+                                : $"Slot này chỉ còn {availableSpots} chỗ, không đủ cho {requestedGuests} khách";
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Kiểm tra capacity slot thành công",
+                    statusCode = 200,
+                    slotId = slotId,
+                    capacityInfo = capacityInfo,
+                    canBook = canBook,
+                    maxAdditionalGuests = Math.Max(0, availableSpots),
+                    userMessage = userMessage,
+                    checkedAt = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking slot capacity: {SlotId}", slotId);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi kiểm tra capacity slot",
+                    statusCode = 500,
+                    error = ex.Message
                 });
             }
         }
