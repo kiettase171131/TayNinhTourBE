@@ -814,23 +814,215 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Validate holiday tour template creation request
+        /// Cập nhật tour template ngày lễ
+        /// Sử dụng validator riêng cho holiday template
         /// </summary>
-        private ResponseValidationDto ValidateHolidayTemplateRequest(RequestCreateHolidayTourTemplateDto request)
+        public async Task<ResponseUpdateTourTemplateDto> UpdateHolidayTourTemplateAsync(Guid id, RequestUpdateHolidayTourTemplateDto request, Guid updatedById)
         {
-            // Use the dedicated holiday validator instead of regular template validator
-            return HolidayTourTemplateValidator.ValidateCreateRequest(request);
-        }
+            try
+            {
+                // Get existing template
+                var existingTemplate = await _unitOfWork.TourTemplateRepository.GetByIdAsync(id, new[] { "Images", "TourDetails", "TourSlots" });
+                if (existingTemplate == null || existingTemplate.IsDeleted)
+                {
+                    return new ResponseUpdateTourTemplateDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy holiday tour template",
+                        success = false,
+                        Data = null
+                    };
+                }
 
-        /// <summary>
-        /// Get schedule day from a specific date
-        /// </summary>
-        private ScheduleDay GetScheduleDayFromDate(DateOnly date)
-        {
-            // Use the holiday validator's method for consistency
-            return HolidayTourTemplateValidator.GetScheduleDayFromDate(date);
-        }
+                // Check permission
+                var permissionCheck = TourTemplateValidator.ValidatePermission(existingTemplate, updatedById, "cập nhật");
+                if (!permissionCheck.IsValid)
+                {
+                    return new ResponseUpdateTourTemplateDto
+                    {
+                        StatusCode = permissionCheck.StatusCode,
+                        Message = permissionCheck.Message,
+                        success = false,
+                        ValidationErrors = permissionCheck.ValidationErrors,
+                        FieldErrors = permissionCheck.FieldErrors,
+                        Data = null
+                    };
+                }
 
+                // Check if template can be updated
+                var canUpdateCheck = await CanUpdateTourTemplateAsync(id);
+                if (!canUpdateCheck.CanUpdate)
+                {
+                    return new ResponseUpdateTourTemplateDto
+                    {
+                        StatusCode = 409,
+                        Message = canUpdateCheck.Reason,
+                        success = false,
+                        ValidationErrors = canUpdateCheck.BlockingReasons,
+                        Data = null
+                    };
+                }
+
+                // Validate update request using HOLIDAY-SPECIFIC validator
+                var validationResult = HolidayTourTemplateValidator.ValidateUpdateRequest(request, existingTemplate);
+                if (!validationResult.IsValid)
+                {
+                    return new ResponseUpdateTourTemplateDto
+                    {
+                        StatusCode = validationResult.StatusCode,
+                        Message = validationResult.Message,
+                        success = false,
+                        ValidationErrors = validationResult.ValidationErrors,
+                        FieldErrors = validationResult.FieldErrors,
+                        Data = null
+                    };
+                }
+
+                // Handle image updates
+                if (request.Images != null)
+                {
+                    var imageUpdateResult = await _imageHandler.UpdateTourTemplateImagesAsync(existingTemplate, request.Images);
+                    if (!imageUpdateResult.IsValid)
+                    {
+                        return new ResponseUpdateTourTemplateDto
+                        {
+                            StatusCode = imageUpdateResult.StatusCode,
+                            Message = imageUpdateResult.Message,
+                            success = false,
+                            ValidationErrors = imageUpdateResult.ValidationErrors,
+                            FieldErrors = imageUpdateResult.FieldErrors,
+                            Data = null
+                        };
+                    }
+                }
+
+                // Apply updates (only non-null fields)
+                if (!string.IsNullOrEmpty(request.Title))
+                {
+                    existingTemplate.Title = request.Title;
+                }
+
+                if (!string.IsNullOrEmpty(request.StartLocation))
+                {
+                    existingTemplate.StartLocation = request.StartLocation;
+                }
+
+                if (!string.IsNullOrEmpty(request.EndLocation))
+                {
+                    existingTemplate.EndLocation = request.EndLocation;
+                }
+
+                if (request.TemplateType.HasValue)
+                {
+                    existingTemplate.TemplateType = request.TemplateType.Value;
+                }
+
+                // Handle tour date update (most complex part)
+                DateOnly? oldTourDate = null;
+                if (request.TourDate.HasValue)
+                {
+                    // Get current tour slot to remember old date
+                    var currentSlot = existingTemplate.TourSlots?.FirstOrDefault();
+                    if (currentSlot != null)
+                    {
+                        oldTourDate = currentSlot.TourDate;
+                    }
+
+                    // Update schedule day based on new date
+                    var newScheduleDay = HolidayTourTemplateValidator.GetScheduleDayFromDate(request.TourDate.Value);
+                    existingTemplate.ScheduleDays = newScheduleDay;
+                    existingTemplate.Month = request.TourDate.Value.Month;
+                    existingTemplate.Year = request.TourDate.Value.Year;
+                }
+
+                // Set audit fields
+                existingTemplate.UpdatedById = updatedById;
+                existingTemplate.UpdatedAt = DateTime.UtcNow;
+
+                // Validate business rules after update using HOLIDAY-SPECIFIC validator
+                var businessValidation = HolidayTourTemplateValidator.ValidateHolidayBusinessRules(existingTemplate);
+                if (!businessValidation.IsValid)
+                {
+                    return new ResponseUpdateTourTemplateDto
+                    {
+                        StatusCode = businessValidation.StatusCode,
+                        Message = businessValidation.Message,
+                        success = false,
+                        ValidationErrors = businessValidation.ValidationErrors,
+                        FieldErrors = businessValidation.FieldErrors,
+                        Data = null
+                    };
+                }
+
+                await _unitOfWork.TourTemplateRepository.Update(existingTemplate);
+
+                // Update tour slot if date changed
+                if (request.TourDate.HasValue && oldTourDate.HasValue)
+                {
+                    var currentUserId = _currentUserService.GetCurrentUserId();
+                    var existingSlot = await _unitOfWork.TourSlotRepository.GetByDateAsync(existingTemplate.Id, oldTourDate.Value);
+                    
+                    if (existingSlot != null)
+                    {
+                        // Update existing slot with new date
+                        existingSlot.TourDate = request.TourDate.Value;
+                        existingSlot.ScheduleDay = HolidayTourTemplateValidator.GetScheduleDayFromDate(request.TourDate.Value);
+                        existingSlot.UpdatedAt = DateTime.UtcNow;
+                        existingSlot.UpdatedById = currentUserId;
+                        
+                        await _unitOfWork.TourSlotRepository.UpdateAsync(existingSlot);
+                    }
+                    else
+                    {
+                        // Create new slot if old one doesn't exist
+                        var newSlot = new TourSlot
+                        {
+                            Id = Guid.NewGuid(),
+                            TourTemplateId = existingTemplate.Id,
+                            TourDate = request.TourDate.Value,
+                            ScheduleDay = HolidayTourTemplateValidator.GetScheduleDayFromDate(request.TourDate.Value),
+                            Status = TourSlotStatus.Available,
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedById = currentUserId
+                        };
+
+                        await _unitOfWork.TourSlotRepository.AddAsync(newSlot);
+                    }
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                // Map to response DTO
+                var responseDto = _mapper.Map<TourTemplateDto>(existingTemplate);
+
+                var updateMessage = "Cập nhật holiday tour template thành công";
+                if (request.TourDate.HasValue)
+                {
+                    var newScheduleDay = HolidayTourTemplateValidator.GetScheduleDayFromDate(request.TourDate.Value);
+                    updateMessage += $" và đã cập nhật slot cho ngày {request.TourDate.Value:dd/MM/yyyy} ({newScheduleDay.GetVietnameseName()})";
+                }
+
+                return new ResponseUpdateTourTemplateDto
+                {
+                    StatusCode = 200,
+                    Message = updateMessage,
+                    success = true,
+                    Data = responseDto
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResponseUpdateTourTemplateDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi khi cập nhật holiday tour template",
+                    success = false,
+                    ValidationErrors = new List<string> { ex.Message },
+                    Data = null
+                };
+            }
+        }
         #endregion
 
         #region Private Methods

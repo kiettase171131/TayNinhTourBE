@@ -280,5 +280,127 @@ namespace TayNinhTourApi.BusinessLogicLayer.Utilities
             }
             result.FieldErrors[fieldName].Add(errorMessage);
         }
+
+        /// <summary>
+        /// Validate holiday tour template update request
+        /// Cho phép ch?n b?t k? ngày nào trong tu?n cho ngày m?i
+        /// </summary>
+        public static ResponseValidationDto ValidateUpdateRequest(RequestUpdateHolidayTourTemplateDto request, TourTemplate existingTemplate)
+        {
+            var result = new ResponseValidationDto
+            {
+                IsValid = true,
+                StatusCode = 200,
+                ValidationErrors = new List<string>(),
+                FieldErrors = new Dictionary<string, List<string>>()
+            };
+
+            // Title validation (if provided)
+            if (request.Title != null)
+            {
+                if (string.IsNullOrWhiteSpace(request.Title))
+                {
+                    AddFieldError(result, nameof(request.Title), "Tên template không ???c ?? tr?ng");
+                }
+                else if (request.Title.Length > 200)
+                {
+                    AddFieldError(result, nameof(request.Title), "Tên template không ???c v??t quá 200 ký t?");
+                }
+            }
+
+            // Location validation (if provided)
+            if (request.StartLocation != null)
+            {
+                if (string.IsNullOrWhiteSpace(request.StartLocation))
+                {
+                    AddFieldError(result, nameof(request.StartLocation), "?i?m b?t ??u không ???c ?? tr?ng");
+                }
+                else if (request.StartLocation.Length > 500)
+                {
+                    AddFieldError(result, nameof(request.StartLocation), "?i?m b?t ??u không ???c v??t quá 500 ký t?");
+                }
+            }
+
+            if (request.EndLocation != null)
+            {
+                if (string.IsNullOrWhiteSpace(request.EndLocation))
+                {
+                    AddFieldError(result, nameof(request.EndLocation), "?i?m k?t thúc không ???c ?? tr?ng");
+                }
+                else if (request.EndLocation.Length > 500)
+                {
+                    AddFieldError(result, nameof(request.EndLocation), "?i?m k?t thúc không ???c v??t quá 500 ký t?");
+                }
+            }
+
+            // Template type validation (if provided)
+            if (request.TemplateType.HasValue && !Enum.IsDefined(typeof(TourTemplateType), request.TemplateType.Value))
+            {
+                AddFieldError(result, nameof(request.TemplateType), "Lo?i tour template không h?p l?");
+            }
+
+            // Tour date validation (if provided) - Apply same business rules
+            if (request.TourDate.HasValue)
+            {
+                var currentTime = VietnamTimeZoneUtility.GetVietnamNow();
+                var newTourDateTime = request.TourDate.Value.ToDateTime(TimeOnly.MinValue);
+
+                // Rule 1: Tour date must be in the future
+                if (request.TourDate.Value <= DateOnly.FromDateTime(currentTime))
+                {
+                    AddFieldError(result, nameof(request.TourDate), "Ngày tour m?i ph?i là ngày trong t??ng lai");
+                }
+
+                // Rule 2: Apply the same 30-day rule as when creating
+                var minimumDate = existingTemplate.CreatedAt.AddDays(30);
+                if (newTourDateTime < minimumDate)
+                {
+                    var suggestedDate = minimumDate.AddDays(7);
+                    AddFieldError(result, nameof(request.TourDate), 
+                        $"Ngày tour ph?i sau ít nh?t 30 ngày t? ngày t?o template ({existingTemplate.CreatedAt:dd/MM/yyyy}). " +
+                        $"Ngày s?m nh?t có th?: {minimumDate:dd/MM/yyyy}. " +
+                        $"G?i ý: Ch?n ngày {suggestedDate:dd/MM/yyyy} ho?c mu?n h?n. " +
+                        $"Ví d? JSON h?p l?: \"tourDate\": \"{suggestedDate:yyyy-MM-dd}\"");
+                }
+
+                // Rule 3: Tour date should not be too far in the future (2 years max)
+                var maxFutureDate = DateOnly.FromDateTime(currentTime.AddYears(2));
+                if (request.TourDate.Value > maxFutureDate)
+                {
+                    AddFieldError(result, nameof(request.TourDate), 
+                        $"Ngày tour không ???c quá 2 n?m trong t??ng lai. " +
+                        $"Ngày mu?n nh?t có th?: {maxFutureDate:dd/MM/yyyy}");
+                }
+
+                // Rule 4: Validate year range
+                if (request.TourDate.Value.Year < 2024 || request.TourDate.Value.Year > 2030)
+                {
+                    AddFieldError(result, nameof(request.TourDate), "N?m c?a ngày tour ph?i t? 2024 ??n 2030");
+                }
+            }
+
+            // Set validation result
+            result.IsValid = !result.FieldErrors.Any();
+            if (!result.IsValid)
+            {
+                result.StatusCode = 400;
+                result.Message = "D? li?u c?p nh?t không h?p l? - Vui lòng ki?m tra và s?a các l?i sau";
+                result.ValidationErrors = result.FieldErrors.SelectMany(x => x.Value).ToList();
+                
+                // Add helpful guidance for holiday template update
+                var currentTime = VietnamTimeZoneUtility.GetVietnamNow();
+                var minimumDate = existingTemplate.CreatedAt.AddDays(30);
+                var maxFutureDate = DateOnly.FromDateTime(currentTime.AddYears(2));
+                
+                result.ValidationErrors.Add("?? H??NG D?N C?P NH?T HOLIDAY TEMPLATE:");
+                result.ValidationErrors.Add($"• Template ???c t?o: {existingTemplate.CreatedAt:dd/MM/yyyy}");
+                result.ValidationErrors.Add($"• Ngày s?m nh?t cho tourDate: {minimumDate:dd/MM/yyyy} (sau 30 ngày t? ngày t?o)");
+                result.ValidationErrors.Add($"• Ngày mu?n nh?t cho tourDate: {maxFutureDate:dd/MM/yyyy} (t?i ?a 2 n?m)");
+                result.ValidationErrors.Add("• ? ??C BI?T: Holiday template có th? ch?n b?t k? ngày nào trong tu?n");
+                result.ValidationErrors.Add("• ?? Ch? g?i fields mu?n thay ??i, ?? null cho fields không thay ??i");
+            }
+
+            return result;
+        }
     }
 }
