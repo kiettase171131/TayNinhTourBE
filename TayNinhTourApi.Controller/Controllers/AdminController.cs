@@ -621,6 +621,7 @@ namespace TayNinhTourApi.Controller.Controllers
             return Ok(stats);
         }
 
+
         /// <summary>
         /// DEBUG: Tạo table PaymentTransactions
         /// </summary>

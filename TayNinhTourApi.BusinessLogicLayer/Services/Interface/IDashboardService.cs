@@ -13,6 +13,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BloggerDashboardDto> GetBloggerStatsAsync(Guid bloggerId, int month, int year);
         Task<ShopDashboardDto> GetShopStatisticsAsync(Guid shopId, int year, int month);
         Task<List<TourDetailsStatisticDto>> GetTourDetailsStatisticsAsync();
+        Task<TourCompanyStatisticDto> GetStatisticForCompanyAsync(Guid userId);
     }
 
 }
