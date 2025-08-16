@@ -1421,6 +1421,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
+                // NEW VALIDATION: Check if there will be at least 1 timeline item remaining after deletion
+                var allTimelineItems = await _unitOfWork.TimelineItemRepository
+                    .GetAllAsync(t => t.TourDetailsId == timelineItem.TourDetailsId && !t.IsDeleted && t.IsActive);
+
+                var remainingItemsCount = allTimelineItems.Count(t => t.Id != timelineItemId);
+                
+                if (remainingItemsCount < 1)
+                {
+                    return new ResponseDeleteTourDetailDto
+                    {
+                        StatusCode = 400,
+                        Message = "Không thể xóa timeline item này vì lịch trình phải có ít nhất 1 timeline item. Đây là timeline item cuối cùng.",
+                        success = false
+                    };
+                }
+
                 // Soft delete timeline item
                 timelineItem.IsDeleted = true;
                 timelineItem.DeletedAt = DateTime.UtcNow;
