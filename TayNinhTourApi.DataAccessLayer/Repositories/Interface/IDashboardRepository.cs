@@ -34,6 +34,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<decimal> GetWalletAsync(Guid shopId);
         Task<(decimal averageRating, int totalRatings)> GetProductRatingsAsync(Guid shopId, DateTime startDate, DateTime endDate);
         Task<decimal?> GetShopRatingAsync(Guid shopId);
+        Task<int> CountConfirmedBookingsByUserIdAsync(Guid userId);
+        Task<(decimal RevenueHold, decimal Wallet)> GetWalletInfoAsync(Guid userId);
     }
 
 }
