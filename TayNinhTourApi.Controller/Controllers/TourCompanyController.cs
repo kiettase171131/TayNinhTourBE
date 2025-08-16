@@ -9,8 +9,11 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.Services;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.Controller.Helper;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -23,18 +26,21 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ITourTemplateService _tourTemplateService;
         private readonly ITourGuideApplicationService _tourGuideApplicationService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IDashboardService _dashboard;
 
 
         public TourCompanyController(
             ITourCompanyService tourCompanyService,
             ITourTemplateService tourTemplateService,
             ITourGuideApplicationService tourGuideApplicationService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IDashboardService dashboard)
         {
             _tourCompanyService = tourCompanyService;
             _tourTemplateService = tourTemplateService;
             _tourGuideApplicationService = tourGuideApplicationService;
             _currentUserService = currentUserService;
+            _dashboard = dashboard;
         }
 
         [HttpGet("tour")]
@@ -276,6 +282,16 @@ namespace TayNinhTourApi.Controller.Controllers
 
             var response = await _tourCompanyService.ActivatePublicTourDetailsAsync(tourDetailsId, userId);
             return StatusCode(response.StatusCode, response);
+        }
+        [HttpGet("Dashboard")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<IActionResult> GetTourcompanyStatistic()
+        {
+            // Giả sử bạn đã có userId từ token:
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+
+            var result = await _dashboard.GetStatisticForCompanyAsync(currentUser.Id);
+            return Ok(result);
         }
     }
 

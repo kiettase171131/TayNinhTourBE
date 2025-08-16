@@ -113,5 +113,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             new TourDetailsStatisticDto { StatusGroup = "Đã duyệt", Count = approvedCount }
         };
         }
+        public async Task<TourCompanyStatisticDto> GetStatisticForCompanyAsync(Guid userId)
+        {
+            var confirmedCount = await _dashboardRepository.CountConfirmedBookingsByUserIdAsync(userId);
+            var (revenueHold, wallet) = await _dashboardRepository.GetWalletInfoAsync(userId);
+
+            return new TourCompanyStatisticDto
+            {
+                ConfirmedBookings = confirmedCount,
+                RevenueHold = revenueHold,
+                Wallet = wallet
+            };
+        }
     }
 }
