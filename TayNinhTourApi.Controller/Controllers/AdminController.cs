@@ -614,6 +614,12 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _dashboardService.GetDashboardAsync(year, month);
             return Ok(result);
         }
+        [HttpGet("Count-Tour-pending-approve")]
+        public async Task<IActionResult> GetTourDetailsStatistics()
+        {
+            var stats = await _dashboardService.GetTourDetailsStatisticsAsync();
+            return Ok(stats);
+        }
 
         /// <summary>
         /// DEBUG: Tạo table PaymentTransactions
