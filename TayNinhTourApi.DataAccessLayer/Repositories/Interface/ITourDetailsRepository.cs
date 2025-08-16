@@ -1,4 +1,5 @@
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
 {
@@ -87,5 +88,6 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="id">ID của tour detail</param>
         /// <returns>True nếu có thể xóa</returns>
         Task<bool> CanDeleteDetailAsync(Guid id);
+        
     }
 }
