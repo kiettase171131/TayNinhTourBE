@@ -167,6 +167,24 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             var shop = await _context.SpecialtyShops.FirstOrDefaultAsync(s => s.UserId == shopId);
             return shop?.Rating;
         }
+        //tourcompany
+        public async Task<int> CountConfirmedBookingsByUserIdAsync(Guid userId)
+        {
+            return await _context.TourBookings
+                .Where(b => b.Status == BookingStatus.Confirmed &&
+                            b.TourOperation.TourDetails.TourTemplate.CreatedById == userId)
+                .CountAsync();
+        }
 
+        public async Task<(decimal RevenueHold, decimal Wallet)> GetWalletInfoAsync(Guid userId)
+        {
+            var company = await _context.TourCompanies
+                .FirstOrDefaultAsync(c => c.UserId == userId);
+
+            if (company == null)
+                return (0, 0);
+
+            return (company.RevenueHold, company.Wallet);
+        }
     }
 }

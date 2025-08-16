@@ -265,7 +265,7 @@ namespace TayNinhTourApi.Controller.Controllers
         public async Task<IActionResult> GetStatistics(int year, int month)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var statistics = await _dashboardService.GetShopStatisticsAsync(currentUser.UserId, year,month);
+            var statistics = await _dashboardService.GetShopStatisticsAsync(currentUser.Id, year,month);
             return Ok(statistics);
         }
         // CreateShopForTimeline endpoint removed
@@ -285,6 +285,6 @@ namespace TayNinhTourApi.Controller.Controllers
             var res = await _specialtyShopService.GetVisitorsAsync(me, pageIndex, pageSize, fromDate, toDate);
             return StatusCode(res.StatusCode, res);
         }
-       
+        
     }
 }
