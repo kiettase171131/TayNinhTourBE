@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Dashboard;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -93,6 +94,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalProductRatings = totalProductRatings,
                 ShopAverageRating = shopRating
             };
+        }
+        public async Task<List<TourDetailsStatisticDto>> GetTourDetailsStatisticsAsync()
+        {
+            var groupedData = await _dashboardRepository.GetGroupedTourDetailsAsync();
+
+            int pendingCount = groupedData
+                .Where(g => g.Status == TourDetailsStatus.Pending)
+                .Sum(g => g.Count);
+
+            int approvedCount = groupedData
+                .Where(g => g.Status != TourDetailsStatus.Pending)
+                .Sum(g => g.Count);
+
+            return new List<TourDetailsStatisticDto>
+        {
+            new TourDetailsStatisticDto { StatusGroup = "Chờ duyệt", Count = pendingCount },
+            new TourDetailsStatisticDto { StatusGroup = "Đã duyệt", Count = approvedCount }
+        };
         }
     }
 }
