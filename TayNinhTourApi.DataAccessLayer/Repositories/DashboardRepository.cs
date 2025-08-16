@@ -56,7 +56,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             => _context.Blogs.CountAsync(b => b.CreatedAt >= startDate && b.CreatedAt < endDate);
         public async Task<List<(Guid ShopId, decimal Revenue)>> GetTotalRevenueByShopAsync(DateTime startDate, DateTime endDate)
         {
-            return await _context.OrderDetails
+            return await _context.OrderDetails  
                 .Where(od =>
                     od.Order.Status == OrderStatus.Paid &&
                     od.Order.CreatedAt >= startDate &&
@@ -66,6 +66,13 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     g.Key,
                     g.Sum(x => x.Order.TotalAfterDiscount)
                 ))
+                .ToListAsync();
+        }
+        public async Task<List<(TourDetailsStatus Status, int Count)>> GetGroupedTourDetailsAsync()
+        {
+            return await _context.TourDetails
+                .GroupBy(td => td.Status)
+                .Select(g => new ValueTuple<TourDetailsStatus, int>(g.Key, g.Count()))
                 .ToListAsync();
         }
         //Blogger
