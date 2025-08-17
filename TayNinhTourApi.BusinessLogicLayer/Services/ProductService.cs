@@ -840,8 +840,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             if (totalAfterDiscount <= 0)
                     throw new InvalidOperationException("Tổng tiền thanh toán không hợp lệ sau khi áp dụng voucher.");
-            // ✅ Tổng thanh toán cuối cùng sau giảm + thuế
-            var totalPayable = totalAfterDiscount + taxAmount;
+            // ✅/ Tổng thanh toán cuối cùng sau giảm + thuế
+            //var totalPayable = totalAfterDiscount + taxAmount;
 
             // Tạo PayOsOrderCode với format TNDT + 10 số sử dụng utility
             var payOsOrderCodeString = PayOsOrderCodeUtility.GeneratePayOsOrderCode();
@@ -852,7 +852,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UserId = currentUser.Id,
                     TotalAmount = total,
                     DiscountAmount = discountAmount,
-                    TotalAfterDiscount = totalPayable,
+                    TotalAfterDiscount = totalAfterDiscount,
                     TaxAmount = taxAmount,
                     Status = OrderStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
@@ -869,7 +869,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }).ToList()
                 };
 
-                await _orderRepository.AddAsync(order);
+                await _orderRepository.AddAsync(order); 
                 await _orderRepository.SaveChangesAsync();
 
                 // === ENHANCED PAYOS: Use new PaymentTransaction system ===
@@ -877,7 +877,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     OrderId = order.Id, // Link to Order (Product Payment)
                     TourBookingId = null, // NULL for product payments
-                    Amount = totalPayable,
+                    Amount = totalAfterDiscount,
                     Description = $"Product Order {payOsOrderCodeString}"
                 };
 
@@ -890,7 +890,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TotalOriginal = total,
                     DiscountAmount = discountAmount,
                     TaxAmount = taxAmount,
-                    TotalAfterDiscount = totalPayable,
+                    TotalAfterDiscount = totalAfterDiscount,
                     PromotionMessages = promotionMessages
                 };
             }
