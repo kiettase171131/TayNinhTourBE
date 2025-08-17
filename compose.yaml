@@ -22,7 +22,7 @@ services:
     restart: always
     environment:
       ConnectionStrings__DefaultConnection: Server=mysql-database;Port=3306;Database=TayNinhTourDb;Uid=TayNinhTour;Pwd=App@123456;SslMode=none;AllowPublicKeyRetrieval=true;Connection Timeout=30;Command Timeout=60;
-      AllowedHosts: *
+      AllowedHosts: "*"
       TimeZone__DefaultTimeZone: SE Asia Standard Time
       TimeZone__DisplayName: Vietnam Standard Time (UTC+7)
       TimeZone__Culture: vi-VN
