@@ -393,7 +393,7 @@ catch (Exception ex)
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseStaticFiles();
 // Serve static files
 // Create the Images directory if it doesn't exist
