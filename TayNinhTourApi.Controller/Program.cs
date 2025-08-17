@@ -122,12 +122,12 @@ builder.Services.AddAuthorization(options =>
 });
 
 // Config Forwarded Headers
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+// builder.Services.Configure<ForwardedHeadersOptions>(options =>
+// {
+//     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+//     options.KnownNetworks.Clear();
+//     options.KnownProxies.Clear();
+// });
 
 // Configure Kestrel to allow large request bodies
 builder.Services.Configure<KestrelServerOptions>(options =>
