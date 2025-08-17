@@ -10,7 +10,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Dashboard
     {
         public int TotalProducts { get; set; }
         public int TotalOrders { get; set; }
-        public decimal TotalRevenue { get; set; }
+        public decimal TotalRevenueBeforeTax { get; set; }
+        public decimal TotalRevenueAfterTax { get; set; }
         public decimal Wallet { get; set; }
         public decimal AverageProductRating { get; set; }
         public int TotalProductRatings { get; set; }

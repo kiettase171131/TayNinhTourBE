@@ -19,5 +19,5 @@
 
                     [ForeignKey(nameof(ProductId))]
                     public virtual Product Product { get; set; } = null!;
-                }
+                }   
             }

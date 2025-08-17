@@ -47,9 +47,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var revenueByShop = revenueByShopRaw
                 .Select(r => new ShopRevenueDto
                 {
-                    ShopId = r.ShopId,
-                   
-                    TotalRevenue = r.Revenue
+                    ShopId = r.ShopId,                 
+                    TotalRevenueBeforeTax = r.Revenue,
+                    TotalRevenueAfterTax = r.RevenueTax
                 })
                 .ToList();
 
@@ -74,12 +74,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var startDate = new DateTime(year, month, 1);
             var endDate = startDate.AddMonths(1);
-           
-
 
             var totalProducts = await _dashboardRepository.GetTotalProductsAsync(shopId);
             var totalOrders = await _dashboardRepository.GetTotalOrdersAsync(shopId, startDate, endDate);
-            var totalRevenue = await _dashboardRepository.GetTotalRevenueAsync(shopId, startDate, endDate);
+
+            var (revenue, revenueTax) = await _dashboardRepository.GetTotalRevenueAsync(shopId, startDate, endDate);
+
             var wallet = await _dashboardRepository.GetWalletAsync(shopId);
             var (avgProductRating, totalProductRatings) = await _dashboardRepository.GetProductRatingsAsync(shopId, startDate, endDate);
             var shopRating = await _dashboardRepository.GetShopRatingAsync(shopId);
@@ -88,13 +88,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 TotalProducts = totalProducts,
                 TotalOrders = totalOrders,
-                TotalRevenue = totalRevenue,
+                TotalRevenueBeforeTax = revenue,
+                TotalRevenueAfterTax = revenueTax,
                 Wallet = wallet,
                 AverageProductRating = avgProductRating,
                 TotalProductRatings = totalProductRatings,
                 ShopAverageRating = shopRating
             };
         }
+
         public async Task<List<TourDetailsStatisticDto>> GetTourDetailsStatisticsAsync()
         {
             var groupedData = await _dashboardRepository.GetGroupedTourDetailsAsync();

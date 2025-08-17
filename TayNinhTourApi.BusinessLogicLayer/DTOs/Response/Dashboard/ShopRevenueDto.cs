@@ -9,6 +9,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Dashboard
     public class ShopRevenueDto
     {
         public Guid ShopId { get; set; }
-        public decimal TotalRevenue { get; set; }
+        public decimal TotalRevenueBeforeTax { get; set; }
+        public decimal TotalRevenueAfterTax { get; set; }
     }
 }

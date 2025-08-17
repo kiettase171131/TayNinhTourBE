@@ -54,20 +54,23 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
         public Task<int> GetPostsAsync(DateTime startDate, DateTime endDate)
             => _context.Blogs.CountAsync(b => b.CreatedAt >= startDate && b.CreatedAt < endDate);
-        public async Task<List<(Guid ShopId, decimal Revenue)>> GetTotalRevenueByShopAsync(DateTime startDate, DateTime endDate)
+        public async Task<List<(Guid ShopId, decimal Revenue, decimal RevenueTax)>> GetTotalRevenueByShopAsync(DateTime startDate, DateTime endDate)
         {
-            return await _context.OrderDetails  
+            return await _context.OrderDetails
                 .Where(od =>
                     od.Order.Status == OrderStatus.Paid &&
                     od.Order.CreatedAt >= startDate &&
                     od.Order.CreatedAt < endDate)
-                .GroupBy(od => od.Product.SpecialtyShopId)
-                .Select(g => new ValueTuple<Guid, decimal>(
+                .GroupBy(od => od.Product.ShopId)
+                .Select(g => new ValueTuple<Guid, decimal, decimal>(
                     g.Key,
-                    g.Sum(x => x.Order.TotalAfterDiscount)
+                    g.Sum(x => x.Order.TotalAfterDiscount * 0.9m), // Revenue (90%)
+                    g.Sum(x => x.Order.TotalAfterDiscount * 0.8m)  // RevenueTax (80%)
                 ))
                 .ToListAsync();
         }
+
+
         public async Task<List<(TourDetailsStatus Status, int Count)>> GetGroupedTourDetailsAsync()
         {
             return await _context.TourDetails
@@ -123,20 +126,32 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .CountAsync();
         }
 
-        public async Task<decimal> GetTotalRevenueAsync(Guid shopId, DateTime startDate, DateTime endDate)
+        public async Task<(decimal Revenue, decimal RevenueTax)> GetTotalRevenueAsync(Guid shopId, DateTime startDate, DateTime endDate)
         {
             var productIds = await _context.Products
                 .Where(p => p.ShopId == shopId)
                 .Select(p => p.Id)
                 .ToListAsync();
 
-            return await _context.OrderDetails
-                .Where(od => productIds.Contains(od.ProductId)
-                          && od.Order.Status == OrderStatus.Paid
-                          && od.Order.CreatedAt >= startDate
-                          && od.Order.CreatedAt < endDate)
-                .SumAsync(od => (decimal?)od.Order.TotalAfterDiscount) ?? 0;
+            var totalRevenue90 = await _context.OrderDetails
+                .Where(od =>
+                    productIds.Contains(od.ProductId) &&
+                    od.Order.Status == OrderStatus.Paid &&
+                    od.Order.CreatedAt >= startDate &&
+                    od.Order.CreatedAt < endDate)
+                .SumAsync(od => (decimal?)(od.Order.TotalAfterDiscount * 0.9m)) ?? 0;
+
+            var totalRevenue80 = await _context.OrderDetails
+                .Where(od =>
+                    productIds.Contains(od.ProductId) &&
+                    od.Order.Status == OrderStatus.Paid &&
+                    od.Order.CreatedAt >= startDate &&
+                    od.Order.CreatedAt < endDate)
+                .SumAsync(od => (decimal?)(od.Order.TotalAfterDiscount * 0.8m)) ?? 0;
+
+            return (totalRevenue90, totalRevenue80);
         }
+
 
         public async Task<decimal> GetWalletAsync(Guid shopId)
         {
