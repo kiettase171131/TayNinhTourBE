@@ -1,0 +1,69 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main_2, master ]
+  pull_request:
+    branches: [ main_2, master ]
+  workflow_dispatch:
+
+
+jobs:
+  build-image:
+    name: CI / Build Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set lowercase repo owner
+        id: lowercase
+        run: |
+          echo "REGISTRY=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: TayNinhTourApi.Controller/Dockerfile
+          push: true
+          tags: ghcr.io/${{ env.REGISTRY }}/tayninh-api:latest
+  
+  
+  deploy-api:
+    name: Deploy Api
+    needs: [build-image]
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set lowercase repo owner
+        id: lowercase
+        run: |
+          echo "REGISTRY=$(echo 'ghcr.io/${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Pull Image And Deploy
+        run: docker compose -p tayninh-application up -d --pull always
+
+      - name: Cleanup Image
+        run: docker image prune -a -f
