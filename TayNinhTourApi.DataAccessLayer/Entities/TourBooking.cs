@@ -64,7 +64,7 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// <summary>
         /// Ngày chuyển tiền từ revenue hold sang wallet của TourCompany
         /// Null nếu chưa chuyển tiền
-        /// </summary>
+        /// </summary>              
         public DateTime? RevenueTransferredDate { get; set; }
 
         /// <summary>

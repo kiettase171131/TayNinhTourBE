@@ -21,6 +21,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<int> GetNewShopsAsync(DateTime startDate, DateTime endDate);
         Task<int> GetPostsAsync(DateTime startDate, DateTime endDate);
         Task<List<(Guid ShopId, decimal Revenue, decimal RevenueTax)>> GetTotalRevenueByShopAsync(DateTime startDate, DateTime endDate);
+        
+
+
         Task<List<(TourDetailsStatus Status, int Count)>> GetGroupedTourDetailsAsync();
         Task<int> GetTotalPostsAsync(Guid bloggerId,int month, int year);
         Task<int> GetApprovedPostsAsync(Guid bloggerId, int month, int year);

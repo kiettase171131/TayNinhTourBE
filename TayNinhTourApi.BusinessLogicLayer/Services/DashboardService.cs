@@ -52,6 +52,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TotalRevenueAfterTax = r.RevenueTax
                 })
                 .ToList();
+            
+
 
             var dto = new AdminDashboardDto
             {
@@ -66,6 +68,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 NewShopsCVThisMonth = await _dashboardRepository.GetNewShopsAsync(startDate, endDate),
                 NewPostsThisMonth = await _dashboardRepository.GetPostsAsync(startDate, endDate),
                 RevenueByShop = revenueByShop
+                
+
             };
 
           return dto;
@@ -90,7 +94,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalOrders = totalOrders,
                 TotalRevenueBeforeTax = revenue,
                 TotalRevenueAfterTax = revenueTax,
-                Wallet = wallet,
+                Wallet = wallet,    
                 AverageProductRating = avgProductRating,
                 TotalProductRatings = totalProductRatings,
                 ShopAverageRating = shopRating

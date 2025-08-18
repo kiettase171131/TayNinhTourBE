@@ -64,11 +64,18 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .GroupBy(od => od.Product.ShopId)
                 .Select(g => new ValueTuple<Guid, decimal, decimal>(
                     g.Key,
-                    g.Sum(x => x.Order.TotalAfterDiscount * 0.9m), // Revenue (90%)
+                    g.Sum(x => x.Order.TotalAfterDiscount * 0.9m), 
                     g.Sum(x => x.Order.TotalAfterDiscount * 0.8m)  // RevenueTax (80%)
                 ))
                 .ToListAsync();
         }
+       
+
+
+
+
+
+
 
 
         public async Task<List<(TourDetailsStatus Status, int Count)>> GetGroupedTourDetailsAsync()
