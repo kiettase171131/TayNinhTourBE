@@ -81,8 +81,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         if (result.success)
                         {
                             successCount++;
-                            _logger.LogInformation("Successfully transferred revenue for booking {BookingCode}: {TransferAmount} VN? (after 10% commission from {FullAmount} VN?)", 
-                                booking.BookingCode, booking.RevenueHold * 0.9m, booking.RevenueHold);
+                            _logger.LogInformation("Successfully transferred revenue for booking {BookingCode}: {TransferAmount} VN? (after 20% total deduction: 10% commission + 10% VAT from {FullAmount} VN?)", 
+                                booking.BookingCode, booking.RevenueHold * 0.8m, booking.RevenueHold);
 
                             // Send notification to tour company about revenue transfer
                             if (booking.TourOperation?.TourDetails?.CreatedById != null)
@@ -91,7 +91,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                 {
                                     var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? VietnamTimeZoneUtility.GetVietnamNow();
                                     var tourTitle = booking.TourOperation?.TourDetails?.Title ?? "Tour";
-                                    var transferAmount = booking.RevenueHold * 0.9m; // 90% after commission
+                                    var transferAmount = booking.RevenueHold * 0.8m; // 80% after commission and VAT
                                     
                                     await tourCompanyNotificationService.NotifyRevenueTransferAsync(
                                         booking.TourOperation.TourDetails.CreatedById,
