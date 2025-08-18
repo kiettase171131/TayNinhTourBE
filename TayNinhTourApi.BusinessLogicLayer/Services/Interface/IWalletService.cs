@@ -46,30 +46,37 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<string?> GetUserWalletTypeAsync(Guid userId);
 
         /// <summary>
-        /// Xử lý rút tiền từ ví SpecialtyShop
+        /// Xử lý rút tiền từ ví (hỗ trợ cả TourCompany và SpecialtyShop)
         /// Method này được gọi khi admin approve withdrawal request
         /// </summary>
-        /// <param name="userId">ID của user sở hữu shop</param>
+        /// <param name="userId">ID của user sở hữu wallet</param>
         /// <param name="amount">Số tiền cần trừ</param>
         /// <param name="withdrawalRequestId">ID của withdrawal request (để audit)</param>
         /// <returns>Kết quả xử lý rút tiền</returns>
         Task<ApiResponse<bool>> ProcessWithdrawalAsync(Guid userId, decimal amount, Guid withdrawalRequestId);
 
         /// <summary>
-        /// Hoàn tiền vào ví SpecialtyShop (trong trường hợp rollback)
+        /// Hoàn tiền vào ví (hỗ trợ cả TourCompany và SpecialtyShop)
         /// </summary>
-        /// <param name="userId">ID của user sở hữu shop</param>
+        /// <param name="userId">ID của user sở hữu wallet</param>
         /// <param name="amount">Số tiền cần hoàn</param>
         /// <param name="reason">Lý do hoàn tiền</param>
         /// <returns>Kết quả hoàn tiền</returns>
         Task<ApiResponse<bool>> RefundToWalletAsync(Guid userId, decimal amount, string reason);
 
         /// <summary>
-        /// Kiểm tra số dư ví có đủ để rút không
+        /// Kiểm tra số dư ví có đủ để rút không (hỗ trợ cả TourCompany và SpecialtyShop)
         /// </summary>
         /// <param name="userId">ID của user</param>
         /// <param name="amount">Số tiền muốn rút</param>
         /// <returns>True nếu đủ số dư</returns>
         Task<ApiResponse<bool>> CheckSufficientBalanceAsync(Guid userId, decimal amount);
+
+        /// <summary>
+        /// Lấy số dư ví hiện tại (hỗ trợ cả TourCompany và SpecialtyShop)
+        /// </summary>
+        /// <param name="userId">ID của user</param>
+        /// <returns>Số dư ví hiện tại</returns>
+        Task<ApiResponse<decimal>> GetCurrentWalletBalanceAsync(Guid userId);
     }
 }

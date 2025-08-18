@@ -8,7 +8,7 @@ using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     /// <summary>
-    /// Service implementation cho qu?n lÔøΩ vÔøΩ ti?n c?a c? TourCompany vÔøΩ SpecialtyShop
+    /// Service implementation cho qu?n l˝ vÌ ti?n c?a c? TourCompany v‡ SpecialtyShop
     /// </summary>
     public class WalletService : BaseService, IWalletService
     {
@@ -17,7 +17,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// L?y thÔøΩng tin vÔøΩ c?a TourCompany theo UserId
+        /// L?y thÙng tin vÌ c?a TourCompany theo UserId
         /// </summary>
         public async Task<ApiResponse<TourCompanyWalletDto>> GetTourCompanyWalletAsync(Guid userId)
         {
@@ -27,12 +27,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (tourCompany == null)
                 {
-                    return ApiResponse<TourCompanyWalletDto>.NotFound("Kh√¥ng t√¨m th·∫•y th√¥ng tin c√¥ng ty tour. Vui l√≤ng li√™n h·ªá qu·∫£n tr·ªã vi√™n.");
+                    return ApiResponse<TourCompanyWalletDto>.NotFound("KhÙng tÏm th?y thÙng tin cÙng ty tour. Vui lÚng liÍn h? qu?n tr? viÍn.");
                 }
 
                 if (!tourCompany.IsActive)
                 {
-                    return ApiResponse<TourCompanyWalletDto>.BadRequest("T√†i kho·∫£n c√¥ng ty tour ƒë√£ b·ªã v√¥ hi·ªáu h√≥a.");
+                    return ApiResponse<TourCompanyWalletDto>.BadRequest("T‡i kho?n cÙng ty tour ?„ b? vÙ hi?u hÛa.");
                 }
 
                 var walletDto = new TourCompanyWalletDto
@@ -45,16 +45,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UpdatedAt = tourCompany.UpdatedAt ?? tourCompany.CreatedAt
                 };
 
-                return ApiResponse<TourCompanyWalletDto>.Success(walletDto, "L·∫•y th√¥ng tin v√≠ c√¥ng ty tour th√†nh c√¥ng");
+                return ApiResponse<TourCompanyWalletDto>.Success(walletDto, "L?y thÙng tin vÌ cÙng ty tour th‡nh cÙng");
             }
             catch (Exception ex)
             {
-                return ApiResponse<TourCompanyWalletDto>.Error(500, $"L·ªói khi l·∫•y th√¥ng tin v√≠: {ex.Message}");
+                return ApiResponse<TourCompanyWalletDto>.Error(500, $"L?i khi l?y thÙng tin vÌ: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// L?y thÔøΩng tin vÔøΩ c?a SpecialtyShop theo UserId
+        /// L?y thÙng tin vÌ c?a SpecialtyShop theo UserId
         /// </summary>
         public async Task<ApiResponse<SpecialtyShopWalletDto>> GetSpecialtyShopWalletAsync(Guid userId)
         {
@@ -64,12 +64,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (specialtyShop == null)
                 {
-                    return ApiResponse<SpecialtyShopWalletDto>.NotFound("Kh√¥ng t√¨m th·∫•y th√¥ng tin shop. Vui l√≤ng ƒëƒÉng k√Ω l√†m shop tr∆∞·ªõc.");
+                    return ApiResponse<SpecialtyShopWalletDto>.NotFound("KhÙng tÏm th?y thÙng tin shop. Vui lÚng ??ng k˝ l‡m shop tr??c.");
                 }
 
                 if (!specialtyShop.IsActive)
                 {
-                    return ApiResponse<SpecialtyShopWalletDto>.BadRequest("T√†i kho·∫£n shop ƒë√£ b·ªã v√¥ hi·ªáu h√≥a.");
+                    return ApiResponse<SpecialtyShopWalletDto>.BadRequest("T‡i kho?n shop ?„ b? vÙ hi?u hÛa.");
                 }
 
                 var walletDto = new SpecialtyShopWalletDto
@@ -81,22 +81,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     UpdatedAt = specialtyShop.UpdatedAt ?? specialtyShop.CreatedAt
                 };
 
-                return ApiResponse<SpecialtyShopWalletDto>.Success(walletDto, "L·∫•y th√¥ng tin v√≠ shop th√†nh c√¥ng");
+                return ApiResponse<SpecialtyShopWalletDto>.Success(walletDto, "L?y thÙng tin vÌ shop th‡nh cÙng");
             }
             catch (Exception ex)
             {
-                return ApiResponse<SpecialtyShopWalletDto>.Error(500, $"L·ªói khi l·∫•y th√¥ng tin v√≠: {ex.Message}");
+                return ApiResponse<SpecialtyShopWalletDto>.Error(500, $"L?i khi l?y thÙng tin vÌ: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// L?y thÔøΩng tin vÔøΩ theo role c?a user hi?n t?i
+        /// L?y thÙng tin vÌ theo role c?a user hi?n t?i
         /// </summary>
         public async Task<ApiResponse<WalletInfoDto>> GetWalletByUserRoleAsync(Guid userId)
         {
             try
             {
-                // Ki?m tra xem user cÔøΩ ph?i TourCompany khÔøΩng
+                // Ki?m tra xem user cÛ ph?i TourCompany khÙng
                 var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
                 if (tourCompany != null && tourCompany.IsActive)
                 {
@@ -110,10 +110,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         UpdatedAt = tourCompany.UpdatedAt ?? tourCompany.CreatedAt
                     };
 
-                    return ApiResponse<WalletInfoDto>.Success(tourCompanyWallet, "L·∫•y th√¥ng tin v√≠ c√¥ng ty tour th√†nh c√¥ng");
+                    return ApiResponse<WalletInfoDto>.Success(tourCompanyWallet, "L?y thÙng tin vÌ cÙng ty tour th‡nh cÙng");
                 }
 
-                // Ki?m tra xem user cÔøΩ ph?i SpecialtyShop khÔøΩng
+                // Ki?m tra xem user cÛ ph?i SpecialtyShop khÙng
                 var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
                 if (specialtyShop != null && specialtyShop.IsActive)
                 {
@@ -122,24 +122,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         WalletType = "SpecialtyShop",
                         OwnerName = specialtyShop.ShopName,
                         AvailableBalance = specialtyShop.Wallet,
-                        HoldBalance = null, // SpecialtyShop khÔøΩng cÔøΩ hold balance
+                        HoldBalance = null, // SpecialtyShop khÙng cÛ hold balance
                         TotalBalance = specialtyShop.Wallet,
                         UpdatedAt = specialtyShop.UpdatedAt ?? specialtyShop.CreatedAt
                     };
 
-                    return ApiResponse<WalletInfoDto>.Success(specialtyShopWallet, "L·∫•y th√¥ng tin v√≠ shop th√†nh c√¥ng");
+                    return ApiResponse<WalletInfoDto>.Success(specialtyShopWallet, "L?y thÙng tin vÌ shop th‡nh cÙng");
                 }
 
-                return ApiResponse<WalletInfoDto>.NotFound("B·∫°n ch∆∞a c√≥ v√≠ ti·ªÅn. Vui l√≤ng ƒëƒÉng k√Ω l√†m c√¥ng ty tour ho·∫∑c shop ƒë·ªÉ c√≥ v√≠.");
+                return ApiResponse<WalletInfoDto>.NotFound("B?n ch?a cÛ vÌ ti?n. Vui lÚng ??ng k˝ l‡m cÙng ty tour ho?c shop ?? cÛ vÌ.");
             }
             catch (Exception ex)
             {
-                return ApiResponse<WalletInfoDto>.Error(500, $"L·ªói khi l·∫•y th√¥ng tin v√≠: {ex.Message}");
+                return ApiResponse<WalletInfoDto>.Error(500, $"L?i khi l?y thÙng tin vÌ: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Ki?m tra user cÔøΩ vÔøΩ khÔøΩng
+        /// Ki?m tra user cÛ vÌ khÙng
         /// </summary>
         public async Task<bool> HasWalletAsync(Guid userId)
         {
@@ -164,7 +164,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// L?y lo?i role cÔøΩ vÔøΩ c?a user
+        /// L?y lo?i role cÛ vÌ c?a user
         /// </summary>
         public async Task<string?> GetUserWalletTypeAsync(Guid userId)
         {
@@ -189,120 +189,215 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// X·ª≠ l√Ω r√∫t ti·ªÅn t·ª´ v√≠ SpecialtyShop
-        /// Method n√†y ƒë∆∞·ª£c g·ªçi khi admin approve withdrawal request
+        /// X? l˝ r˙t ti?n t? vÌ (h? tr? c? TourCompany v‡ SpecialtyShop)
+        /// Method n‡y ???c g?i khi admin approve withdrawal request
         /// </summary>
-        /// <param name="userId">ID c·ªßa user s·ªü h·ªØu shop</param>
-        /// <param name="amount">S·ªë ti·ªÅn c·∫ßn tr·ª´</param>
-        /// <param name="withdrawalRequestId">ID c·ªßa withdrawal request (ƒë·ªÉ audit)</param>
-        /// <returns>K·∫øt qu·∫£ x·ª≠ l√Ω r√∫t ti·ªÅn</returns>
+        /// <param name="userId">ID c?a user s? h?u wallet</param>
+        /// <param name="amount">S? ti?n c?n tr?</param>
+        /// <param name="withdrawalRequestId">ID c?a withdrawal request (?? audit)</param>
+        /// <returns>K?t qu? x? l˝ r˙t ti?n</returns>
         public async Task<ApiResponse<bool>> ProcessWithdrawalAsync(Guid userId, decimal amount, Guid withdrawalRequestId)
         {
             try
             {
                 if (amount <= 0)
                 {
-                    return ApiResponse<bool>.BadRequest("S·ªë ti·ªÅn r√∫t ph·∫£i l·ªõn h∆°n 0");
+                    return ApiResponse<bool>.BadRequest("S? ti?n r˙t ph?i l?n h?n 0");
                 }
 
-                var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
-                if (specialtyShop == null)
+                // Ki?m tra lo?i vÌ c?a user
+                var walletType = await GetUserWalletTypeAsync(userId);
+                if (string.IsNullOrEmpty(walletType))
                 {
-                    return ApiResponse<bool>.NotFound("Kh√¥ng t√¨m th·∫•y th√¥ng tin shop");
+                    return ApiResponse<bool>.NotFound("KhÙng tÏm th?y thÙng tin vÌ");
                 }
 
-                if (!specialtyShop.IsActive)
+                if (walletType == "TourCompany")
                 {
-                    return ApiResponse<bool>.BadRequest("Shop ƒë√£ b·ªã v√¥ hi·ªáu h√≥a");
-                }
+                    var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
+                    if (tourCompany == null)
+                    {
+                        return ApiResponse<bool>.NotFound("KhÙng tÏm th?y thÙng tin cÙng ty tour");
+                    }
 
-                if (specialtyShop.Wallet < amount)
+                    if (!tourCompany.IsActive)
+                    {
+                        return ApiResponse<bool>.BadRequest("CÙng ty tour ?„ b? vÙ hi?u hÛa");
+                    }
+
+                    if (tourCompany.Wallet < amount)
+                    {
+                        return ApiResponse<bool>.BadRequest($"S? d? vÌ khÙng ??. S? d? hi?n t?i: {tourCompany.Wallet:N0} VN?, S? ti?n c?n r˙t: {amount:N0} VN?");
+                    }
+
+                    // Tr? ti?n t? vÌ TourCompany
+                    tourCompany.Wallet -= amount;
+                    await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
+
+                    return ApiResponse<bool>.Success(true, $"?„ tr? {amount:N0} VN? t? vÌ cÙng ty tour {tourCompany.CompanyName}");
+                }
+                else if (walletType == "SpecialtyShop")
                 {
-                    return ApiResponse<bool>.BadRequest($"S·ªë d∆∞ v√≠ kh√¥ng ƒë·ªß. S·ªë d∆∞ hi·ªán t·∫°i: {specialtyShop.Wallet:N0} VNƒê, S·ªë ti·ªÅn c·∫ßn r√∫t: {amount:N0} VNƒê");
+                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
+                    if (specialtyShop == null)
+                    {
+                        return ApiResponse<bool>.NotFound("KhÙng tÏm th?y thÙng tin shop");
+                    }
+
+                    if (!specialtyShop.IsActive)
+                    {
+                        return ApiResponse<bool>.BadRequest("Shop ?„ b? vÙ hi?u hÛa");
+                    }
+
+                    if (specialtyShop.Wallet < amount)
+                    {
+                        return ApiResponse<bool>.BadRequest($"S? d? vÌ khÙng ??. S? d? hi?n t?i: {specialtyShop.Wallet:N0} VN?, S? ti?n c?n r˙t: {amount:N0} VN?");
+                    }
+
+                    // Tr? ti?n t? vÌ SpecialtyShop
+                    specialtyShop.Wallet -= amount;
+                    await _unitOfWork.SpecialtyShopRepository.UpdateAsync(specialtyShop);
+
+                    return ApiResponse<bool>.Success(true, $"?„ tr? {amount:N0} VN? t? vÌ shop {specialtyShop.ShopName}");
                 }
-
-                // Tr·ª´ ti·ªÅn t·ª´ v√≠
-                specialtyShop.Wallet -= amount;
-                await _unitOfWork.SpecialtyShopRepository.UpdateAsync(specialtyShop);
-
-                return ApiResponse<bool>.Success(true, $"ƒê√£ tr·ª´ {amount:N0} VNƒê t·ª´ v√≠ shop {specialtyShop.ShopName}");
+                else
+                {
+                    return ApiResponse<bool>.BadRequest("Lo?i vÌ khÙng ???c h? tr?");
+                }
             }
             catch (Exception ex)
             {
-                return ApiResponse<bool>.Error(500, $"L·ªói khi x·ª≠ l√Ω r√∫t ti·ªÅn: {ex.Message}");
+                return ApiResponse<bool>.Error(500, $"L?i khi x? l˝ r˙t ti?n: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Ho√†n ti·ªÅn v√†o v√≠ SpecialtyShop (trong tr∆∞·ªùng h·ª£p rollback)
+        /// Ho‡n ti?n v‡o vÌ (h? tr? c? TourCompany v‡ SpecialtyShop)
         /// </summary>
-        /// <param name="userId">ID c·ªßa user s·ªü h·ªØu shop</param>
-        /// <param name="amount">S·ªë ti·ªÅn c·∫ßn ho√†n</param>
-        /// <param name="reason">L√Ω do ho√†n ti·ªÅn</param>
-        /// <returns>K·∫øt qu·∫£ ho√†n ti·ªÅn</returns>
+        /// <param name="userId">ID c?a user s? h?u wallet</param>
+        /// <param name="amount">S? ti?n c?n ho‡n</param>
+        /// <param name="reason">L˝ do ho‡n ti?n</param>
+        /// <returns>K?t qu? ho‡n ti?n</returns>
         public async Task<ApiResponse<bool>> RefundToWalletAsync(Guid userId, decimal amount, string reason)
         {
             try
             {
                 if (amount <= 0)
                 {
-                    return ApiResponse<bool>.BadRequest("S·ªë ti·ªÅn ho√†n ph·∫£i l·ªõn h∆°n 0");
+                    return ApiResponse<bool>.BadRequest("S? ti?n ho‡n ph?i l?n h?n 0");
                 }
 
-                var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
-                if (specialtyShop == null)
+                // Ki?m tra lo?i vÌ c?a user
+                var walletType = await GetUserWalletTypeAsync(userId);
+                if (string.IsNullOrEmpty(walletType))
                 {
-                    return ApiResponse<bool>.NotFound("Kh√¥ng t√¨m th·∫•y th√¥ng tin shop");
+                    return ApiResponse<bool>.NotFound("KhÙng tÏm th?y thÙng tin vÌ");
                 }
 
-                if (!specialtyShop.IsActive)
+                if (walletType == "TourCompany")
                 {
-                    return ApiResponse<bool>.BadRequest("Shop ƒë√£ b·ªã v√¥ hi·ªáu h√≥a");
+                    var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
+                    if (tourCompany == null)
+                    {
+                        return ApiResponse<bool>.NotFound("KhÙng tÏm th?y thÙng tin cÙng ty tour");
+                    }
+
+                    if (!tourCompany.IsActive)
+                    {
+                        return ApiResponse<bool>.BadRequest("CÙng ty tour ?„ b? vÙ hi?u hÛa");
+                    }
+
+                    // C?ng ti?n v‡o vÌ TourCompany
+                    tourCompany.Wallet += amount;
+                    await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
+
+                    return ApiResponse<bool>.Success(true, $"?„ ho‡n {amount:N0} VN? v‡o vÌ cÙng ty tour {tourCompany.CompanyName}. L˝ do: {reason}");
                 }
+                else if (walletType == "SpecialtyShop")
+                {
+                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
+                    if (specialtyShop == null)
+                    {
+                        return ApiResponse<bool>.NotFound("KhÙng tÏm th?y thÙng tin shop");
+                    }
 
-                // C·ªông ti·ªÅn v√†o v√≠
-                specialtyShop.Wallet += amount;
-                await _unitOfWork.SpecialtyShopRepository.UpdateAsync(specialtyShop);
+                    if (!specialtyShop.IsActive)
+                    {
+                        return ApiResponse<bool>.BadRequest("Shop ?„ b? vÙ hi?u hÛa");
+                    }
 
-                return ApiResponse<bool>.Success(true, $"ƒê√£ ho√†n {amount:N0} VNƒê v√†o v√≠ shop {specialtyShop.ShopName}. L√Ω do: {reason}");
+                    // C?ng ti?n v‡o vÌ SpecialtyShop
+                    specialtyShop.Wallet += amount;
+                    await _unitOfWork.SpecialtyShopRepository.UpdateAsync(specialtyShop);
+
+                    return ApiResponse<bool>.Success(true, $"?„ ho‡n {amount:N0} VN? v‡o vÌ shop {specialtyShop.ShopName}. L˝ do: {reason}");
+                }
+                else
+                {
+                    return ApiResponse<bool>.BadRequest("Lo?i vÌ khÙng ???c h? tr?");
+                }
             }
             catch (Exception ex)
             {
-                return ApiResponse<bool>.Error(500, $"L·ªói khi ho√†n ti·ªÅn: {ex.Message}");
+                return ApiResponse<bool>.Error(500, $"L?i khi ho‡n ti?n: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Ki·ªÉm tra s·ªë d∆∞ v√≠ c√≥ ƒë·ªß ƒë·ªÉ r√∫t kh√¥ng
+        /// Ki?m tra s? d? vÌ cÛ ?? ?? r˙t khÙng (h? tr? c? TourCompany v‡ SpecialtyShop)
         /// </summary>
-        /// <param name="userId">ID c·ªßa user</param>
-        /// <param name="amount">S·ªë ti·ªÅn mu·ªën r√∫t</param>
-        /// <returns>True n·∫øu ƒë·ªß s·ªë d∆∞</returns>
+        /// <param name="userId">ID c?a user</param>
+        /// <param name="amount">S? ti?n mu?n r˙t</param>
+        /// <returns>True n?u ?? s? d?</returns>
         public async Task<ApiResponse<bool>> CheckSufficientBalanceAsync(Guid userId, decimal amount)
         {
             try
             {
-                var walletResponse = await GetSpecialtyShopWalletAsync(userId);
+                // L?y thÙng tin vÌ theo role c?a user
+                var walletResponse = await GetWalletByUserRoleAsync(userId);
                 if (!walletResponse.IsSuccess)
                 {
                     return ApiResponse<bool>.Error(walletResponse.StatusCode, walletResponse.Message);
                 }
 
-                var currentBalance = walletResponse.Data.Wallet;
+                var currentBalance = walletResponse.Data.AvailableBalance;
                 var hasSufficientBalance = currentBalance >= amount;
 
                 if (hasSufficientBalance)
                 {
-                    return ApiResponse<bool>.Success(true, "S·ªë d∆∞ v√≠ ƒë·ªß ƒë·ªÉ th·ª±c hi·ªán r√∫t ti·ªÅn");
+                    return ApiResponse<bool>.Success(true, "S? d? vÌ ?? ?? th?c hi?n r˙t ti?n");
                 }
                 else
                 {
-                    return ApiResponse<bool>.Success(false, $"S·ªë d∆∞ v√≠ kh√¥ng ƒë·ªß. S·ªë d∆∞ hi·ªán t·∫°i: {currentBalance:N0} VNƒê, S·ªë ti·ªÅn mu·ªën r√∫t: {amount:N0} VNƒê");
+                    return ApiResponse<bool>.Success(false, $"S? d? vÌ khÙng ??. S? d? hi?n t?i: {currentBalance:N0} VN?, S? ti?n mu?n r˙t: {amount:N0} VN?");
                 }
             }
             catch (Exception ex)
             {
-                return ApiResponse<bool>.Error(500, $"L·ªói khi ki·ªÉm tra s·ªë d∆∞: {ex.Message}");
+                return ApiResponse<bool>.Error(500, $"L?i khi ki?m tra s? d?: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// L?y s? d? vÌ hi?n t?i (h? tr? c? TourCompany v‡ SpecialtyShop)
+        /// </summary>
+        /// <param name="userId">ID c?a user</param>
+        /// <returns>S? d? vÌ hi?n t?i</returns>
+        public async Task<ApiResponse<decimal>> GetCurrentWalletBalanceAsync(Guid userId)
+        {
+            try
+            {
+                var walletResponse = await GetWalletByUserRoleAsync(userId);
+                if (!walletResponse.IsSuccess)
+                {
+                    return ApiResponse<decimal>.Error(walletResponse.StatusCode, walletResponse.Message);
+                }
+
+                return ApiResponse<decimal>.Success(walletResponse.Data.AvailableBalance, "L?y s? d? vÌ th‡nh cÙng");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<decimal>.Error(500, $"L?i khi l?y s? d? vÌ: {ex.Message}");
             }
         }
     }

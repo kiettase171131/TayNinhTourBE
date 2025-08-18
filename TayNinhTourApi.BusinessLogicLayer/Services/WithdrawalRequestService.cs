@@ -50,14 +50,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<WithdrawalRequestResponseDto>.Error(canCreateResult.Message);
                 }
 
-                // Lấy thông tin ví hiện tại
-                var walletResponse = await _walletService.GetSpecialtyShopWalletAsync(userId);
-                if (!walletResponse.IsSuccess)
+                // Lấy thông tin ví hiện tại (hỗ trợ cả TourCompany và SpecialtyShop)
+                var walletBalanceResponse = await _walletService.GetCurrentWalletBalanceAsync(userId);
+                if (!walletBalanceResponse.IsSuccess)
                 {
                     return ApiResponse<WithdrawalRequestResponseDto>.Error("Không thể lấy thông tin ví");
                 }
 
-                var currentBalance = walletResponse.Data.Wallet;
+                var currentBalance = walletBalanceResponse.Data;
 
                 // Tạo withdrawal request
                 var withdrawalRequest = new WithdrawalRequest
@@ -79,15 +79,31 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var bankAccount = await _unitOfWork.BankAccountRepository.GetByIdAsync(createDto.BankAccountId);
                 withdrawalRequest.BankAccount = bankAccount!;
 
-                // Tạo notification cho admin
-                var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
-                if (specialtyShop != null)
+                // Tạo notification cho admin (hỗ trợ cả TourCompany và SpecialtyShop)
+                var walletType = await _walletService.GetUserWalletTypeAsync(userId);
+                string ownerName = "Không xác định";
+                
+                if (walletType == "TourCompany")
                 {
-                    await _notificationService.CreateNewWithdrawalRequestNotificationAsync(
-                        withdrawalRequest.Id,
-                        specialtyShop.ShopName,
-                        withdrawalRequest.Amount);
+                    var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
+                    if (tourCompany != null)
+                    {
+                        ownerName = tourCompany.CompanyName;
+                    }
                 }
+                else if (walletType == "SpecialtyShop")
+                {
+                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
+                    if (specialtyShop != null)
+                    {
+                        ownerName = specialtyShop.ShopName;
+                    }
+                }
+
+                await _notificationService.CreateNewWithdrawalRequestNotificationAsync(
+                    withdrawalRequest.Id,
+                    ownerName,
+                    withdrawalRequest.Amount);
 
                 var responseDto = MapToResponseDto(withdrawalRequest);
                 return ApiResponse<WithdrawalRequestResponseDto>.Success(responseDto, "Tạo yêu cầu rút tiền thành công");
@@ -234,20 +250,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<bool>.Error("Chỉ có thể duyệt yêu cầu đang chờ xử lý");
                 }
 
-                // Kiểm tra số dư ví hiện tại
-                var walletResponse = await _walletService.GetSpecialtyShopWalletAsync(withdrawalRequest.UserId);
-                if (!walletResponse.IsSuccess)
+                // Kiểm tra số dư ví hiện tại (hỗ trợ cả TourCompany và SpecialtyShop)
+                var balanceCheckResponse = await _walletService.CheckSufficientBalanceAsync(withdrawalRequest.UserId, withdrawalRequest.Amount);
+                if (!balanceCheckResponse.IsSuccess)
                 {
-                    return ApiResponse<bool>.Error("Không thể lấy thông tin ví");
+                    return ApiResponse<bool>.Error("Không thể kiểm tra số dư ví");
                 }
 
-                var currentBalance = walletResponse.Data.Wallet;
-                if (currentBalance < withdrawalRequest.Amount)
+                if (!balanceCheckResponse.Data)
                 {
                     return ApiResponse<bool>.Error("Số dư ví không đủ để thực hiện rút tiền");
                 }
 
-                // Sử dụng WalletService để xử lý rút tiền
+                // Sử dụng WalletService để xử lý rút tiền (đã hỗ trợ cả TourCompany và SpecialtyShop)
                 var withdrawalResult = await _walletService.ProcessWithdrawalAsync(
                     withdrawalRequest.UserId,
                     withdrawalRequest.Amount,
@@ -450,14 +465,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<bool>.Error("Tài khoản ngân hàng không tồn tại hoặc không thuộc về bạn");
                 }
 
-                // Validate wallet balance
-                var walletResponse = await _walletService.GetSpecialtyShopWalletAsync(userId);
+                // Validate wallet balance (hỗ trợ cả TourCompany và SpecialtyShop)
+                var walletResponse = await _walletService.GetWalletByUserRoleAsync(userId);
                 if (!walletResponse.IsSuccess)
                 {
                     return ApiResponse<bool>.Error("Không thể lấy thông tin ví");
                 }
 
-                var currentBalance = walletResponse.Data.Wallet;
+                var currentBalance = walletResponse.Data.AvailableBalance;
                 if (currentBalance < amount)
                 {
                     return ApiResponse<bool>.Error($"Số dư ví không đủ. Số dư hiện tại: {currentBalance:N0} VNĐ");

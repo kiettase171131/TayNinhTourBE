@@ -55,8 +55,8 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         /// <summary>
         /// Số tiền giữ lại (revenue hold) của booking này
-        /// Được cộng khi khách thanh toán thành công (90% của TotalPrice sau khi trừ 10% commission)
-        /// Sẽ được chuyển vào ví của TourCompany sau 3 ngày từ khi tour hoàn thành
+        /// Được cộng khi khách thanh toán thành công (100% của TotalPrice)
+        /// Sẽ được chuyển vào ví của TourCompany sau 3 ngày từ khi tour hoàn thành (80% sau khi trừ 10% phí hoa hồng và 10% VAT)
         /// </summary>
         [Column(TypeName = "decimal(18,2)")]
         public decimal RevenueHold { get; set; } = 0;

@@ -56,6 +56,26 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         Task<List<TourBooking>> GetBookingsByUserIdAsync(Guid userId, bool includeInactive = false);
 
         /// <summary>
+        /// Lấy danh sách bookings của user với filter nâng cao
+        /// </summary>
+        /// <param name="userId">ID của user</param>
+        /// <param name="pageIndex">Trang hiện tại</param>
+        /// <param name="pageSize">Kích thước trang</param>
+        /// <param name="status">Lọc theo trạng thái booking</param>
+        /// <param name="startDate">Lọc từ ngày booking</param>
+        /// <param name="endDate">Lọc đến ngày booking</param>
+        /// <param name="searchTerm">Tìm kiếm theo tên công ty tổ chức tour</param>
+        /// <returns>Tuple chứa danh sách bookings và tổng số record</returns>
+        Task<(List<TourBooking> bookings, int totalCount)> GetUserBookingsWithFilterAsync(
+            Guid userId,
+            int pageIndex = 0,
+            int pageSize = 10,
+            BookingStatus? status = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            string? searchTerm = null);
+
+        /// <summary>
         /// Lấy booking theo booking code
         /// </summary>
         /// <param name="bookingCode">Mã booking</param>
