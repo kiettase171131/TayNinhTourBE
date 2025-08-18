@@ -20,7 +20,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Dashboard
         public int NewPostsThisMonth { get; set; }
         // Thêm danh sách doanh thu theo từng shop
         public List<ShopRevenueDto> RevenueByShop { get; set; } = new();
-        public List<CompanyRevenueDto> RevenueByTourCompany { get; set; } = new();
-        public List<SlotRevenueDto> RevenueByTourSlot { get; set; } = new();
+       
     }
 }
