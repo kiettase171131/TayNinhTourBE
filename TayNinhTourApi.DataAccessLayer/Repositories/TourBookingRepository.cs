@@ -292,5 +292,94 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                             .ThenInclude(u => u.TourCompany)
                 .FirstOrDefaultAsync(tb => tb.PayOsOrderCode == payOsOrderCode && !tb.IsDeleted);
         }
+
+        /// <summary>
+        /// Lấy danh sách bookings của một user với filter nâng cao
+        /// </summary>
+        public async Task<(List<TourBooking> bookings, int totalCount)> GetUserBookingsWithFilterAsync(
+            Guid userId,
+            int pageIndex = 0,
+            int pageSize = 10,
+            BookingStatus? status = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            string? searchTerm = null)
+        {
+            var query = _context.TourBookings
+                .Include(tb => tb.Guests.Where(g => !g.IsDeleted))
+                .Include(tb => tb.TourOperation)
+                    .ThenInclude(to => to.TourDetails)
+                        .ThenInclude(td => td.CreatedBy)  // User who created the tour (tour company)
+                            .ThenInclude(u => u.TourCompany)  // Tour company info
+                .Include(tb => tb.TourOperation)
+                    .ThenInclude(to => to.TourDetails)
+                        .ThenInclude(td => td.AssignedSlots)
+                .Include(tb => tb.TourOperation)
+                    .ThenInclude(to => to.TourGuide)
+                .Include(tb => tb.User)
+                .Where(tb => tb.UserId == userId && !tb.IsDeleted);
+
+            // Filter by status
+            if (status.HasValue)
+            {
+                // Handle the status mapping
+                switch (status.Value)
+                {
+                    case BookingStatus.Confirmed:
+                        query = query.Where(tb => tb.Status == BookingStatus.Confirmed);
+                        break;
+                    case BookingStatus.Pending:
+                        query = query.Where(tb => tb.Status == BookingStatus.Pending);
+                        break;
+                    case BookingStatus.CancelledByCustomer:
+                    case BookingStatus.CancelledByCompany:
+                        // Map "cancel" to both cancelled statuses
+                        query = query.Where(tb => tb.Status == BookingStatus.CancelledByCustomer || tb.Status == BookingStatus.CancelledByCompany);
+                        break;
+                    default:
+                        query = query.Where(tb => tb.Status == status.Value);
+                        break;
+                }
+            }
+
+            // Filter by date range (booking date)
+            if (startDate.HasValue)
+            {
+                query = query.Where(tb => tb.BookingDate >= startDate.Value);
+            }
+            if (endDate.HasValue)
+            {
+                // Include the entire end date
+                var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(tb => tb.BookingDate <= endOfDay);
+            }
+
+            // Filter by search term (tour company name)
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                var searchLower = searchTerm.ToLower();
+                query = query.Where(tb => 
+                    // Search in tour company name
+                    (tb.TourOperation.TourDetails.CreatedBy.TourCompany != null && 
+                     tb.TourOperation.TourDetails.CreatedBy.TourCompany.CompanyName.ToLower().Contains(searchLower)) ||
+                    // Also search in tour title as fallback
+                    tb.TourOperation.TourDetails.Title.ToLower().Contains(searchLower) ||
+                    // Search in user/company name who created the tour
+                    tb.TourOperation.TourDetails.CreatedBy.Name.ToLower().Contains(searchLower)
+                );
+            }
+
+            // Get total count before pagination
+            var totalCount = await query.CountAsync();
+
+            // Apply pagination and ordering
+            var bookings = await query
+                .OrderByDescending(tb => tb.BookingDate)
+                .Skip(pageIndex * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (bookings, totalCount);
+        }
     }
 }

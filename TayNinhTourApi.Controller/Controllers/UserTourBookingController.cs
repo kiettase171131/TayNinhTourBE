@@ -217,21 +217,30 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Lấy danh sách bookings của user hiện tại
+        /// Lấy danh sách bookings của user hiện tại với filter
         /// </summary>
         /// <param name="pageIndex">Trang hiện tại (mặc định: 1)</param>
         /// <param name="pageSize">Số lượng items per page (mặc định: 10)</param>
+        /// <param name="status">Lọc theo trạng thái booking (confirmed, cancel, pending)</param>
+        /// <param name="startDate">Lọc từ ngày booking (YYYY-MM-DD)</param>
+        /// <param name="endDate">Lọc đến ngày booking (YYYY-MM-DD)</param>
+        /// <param name="searchTerm">Tìm kiếm theo tên công ty tổ chức tour</param>
         /// <returns>Danh sách bookings của user</returns>
         [HttpGet("my-bookings")]
         [Authorize]
         public async Task<IActionResult> GetMyBookings(
             [FromQuery] int pageIndex = 1,
-            [FromQuery] int pageSize = 10)
+            [FromQuery] int pageSize = 10,
+            [FromQuery] BookingStatus? status = null,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null,
+            [FromQuery] string? searchTerm = null)
         {
             try
             {
                 var userId = _currentUserService.GetCurrentUserId();
-                var result = await _userTourBookingService.GetUserBookingsAsync(userId, pageIndex, pageSize);
+                var result = await _userTourBookingService.GetUserBookingsAsync(
+                    userId, pageIndex, pageSize, status, startDate, endDate, searchTerm);
 
                 return Ok(new
                 {

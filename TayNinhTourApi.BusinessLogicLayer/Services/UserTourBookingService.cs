@@ -826,29 +826,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// Lấy danh sách bookings của user
+        /// Lấy danh sách bookings của user với filter
         /// </summary>
-        public async Task<Common.PagedResult<TourBookingDto>> GetUserBookingsAsync(Guid userId, int pageIndex = 1, int pageSize = 10)
+        public async Task<Common.PagedResult<TourBookingDto>> GetUserBookingsAsync(
+            Guid userId, 
+            int pageIndex = 1, 
+            int pageSize = 10,
+            BookingStatus? status = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            string? searchTerm = null)
         {
-            var query = _unitOfWork.TourBookingRepository.GetQueryable()
-                .Where(b => b.UserId == userId && !b.IsDeleted)
-                .Include(b => b.Guests.Where(g => !g.IsDeleted)) // ✅ NEW: Include guests
-                .Include(b => b.TourOperation)
-                    .ThenInclude(to => to.TourDetails)
-                        .ThenInclude(td => td.AssignedSlots)
-                .Include(b => b.TourOperation)
-                    .ThenInclude(to => to.TourGuide)
-                .Include(b => b.User);
+            // Convert 1-based pageIndex to 0-based for repository
+            var repoPageIndex = Math.Max(0, pageIndex - 1);
 
-            var totalCount = await query.CountAsync();
+            var (bookingEntities, totalCount) = await _unitOfWork.TourBookingRepository.GetUserBookingsWithFilterAsync(
+                userId, repoPageIndex, pageSize, status, startDate, endDate, searchTerm);
 
-            var bookingEntities = await query
-                .OrderByDescending(b => b.CreatedAt)
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            // ✅ NEW: Map to DTOs including guests using dedicated method
+            // Map to DTOs including guests using dedicated method
             var bookings = bookingEntities.Select(MapToBookingDtoWithGuests).ToList();
 
             return new Common.PagedResult<TourBookingDto>

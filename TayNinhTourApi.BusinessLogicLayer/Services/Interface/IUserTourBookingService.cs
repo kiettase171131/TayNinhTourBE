@@ -3,6 +3,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking;
+using TayNinhTourApi.DataAccessLayer.Enums;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
@@ -50,13 +51,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<CreateBookingResultDto> CreateBookingAsync(CreateTourBookingRequest request, Guid userId);
 
         /// <summary>
-        /// Lấy danh sách bookings của user
+        /// Lấy danh sách bookings của user với filter
         /// </summary>
         /// <param name="userId">ID của user</param>
         /// <param name="pageIndex">Trang hiện tại</param>
         /// <param name="pageSize">Số lượng items per page</param>
+        /// <param name="status">Lọc theo trạng thái booking (confirmed, cancel, pending)</param>
+        /// <param name="startDate">Lọc từ ngày (booking date)</param>
+        /// <param name="endDate">Lọc đến ngày (booking date)</param>
+        /// <param name="searchTerm">Tìm kiếm theo tên công ty tổ chức tour</param>
         /// <returns>Danh sách bookings của user</returns>
-        Task<Common.PagedResult<TourBookingDto>> GetUserBookingsAsync(Guid userId, int pageIndex = 1, int pageSize = 10);
+        Task<Common.PagedResult<TourBookingDto>> GetUserBookingsAsync(
+            Guid userId, 
+            int pageIndex = 1, 
+            int pageSize = 10,
+            BookingStatus? status = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            string? searchTerm = null);
 
         /// <summary>
         /// Hủy booking
