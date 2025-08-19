@@ -150,6 +150,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tb => tb.TourOperation)
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.TourTemplate)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .Where(tb => tb.UserId == userId);
 
             if (!includeInactive)
@@ -173,6 +174,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tb => tb.TourOperation)
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.TourTemplate)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .FirstOrDefaultAsync(tb => tb.BookingCode == bookingCode);
         }
 
@@ -239,6 +241,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tb => tb.TourOperation)
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.TourTemplate)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .AsQueryable();
 
             if (tourOperationId.HasValue)
@@ -290,6 +293,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.CreatedBy)
                             .ThenInclude(u => u.TourCompany)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .FirstOrDefaultAsync(tb => tb.PayOsOrderCode == payOsOrderCode && !tb.IsDeleted);
         }
 
@@ -303,7 +307,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             BookingStatus? status = null,
             DateTime? startDate = null,
             DateTime? endDate = null,
-            string? searchTerm = null)
+            string? searchTerm = null,
+            string? bookingCode = null)
         {
             var query = _context.TourBookings
                 .Include(tb => tb.Guests.Where(g => !g.IsDeleted))
@@ -317,6 +322,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tb => tb.TourOperation)
                     .ThenInclude(to => to.TourGuide)
                 .Include(tb => tb.User)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .Where(tb => tb.UserId == userId && !tb.IsDeleted);
 
             // Filter by status
@@ -352,6 +358,17 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 // Include the entire end date
                 var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
                 query = query.Where(tb => tb.BookingDate <= endOfDay);
+            }
+
+            // ✅ NEW: Filter by PayOsOrderCode when bookingCode parameter is provided
+            // When user searches by "bookingCode", we actually search by PayOsOrderCode
+            // This supports both exact match and partial match for better user experience
+            if (!string.IsNullOrWhiteSpace(bookingCode))
+            {
+                var cleanBookingCode = bookingCode.Trim();
+                query = query.Where(tb => 
+                    tb.PayOsOrderCode == cleanBookingCode ||
+                    (tb.PayOsOrderCode != null && tb.PayOsOrderCode.Contains(cleanBookingCode)));
             }
 
             // Filter by search term (tour company name)

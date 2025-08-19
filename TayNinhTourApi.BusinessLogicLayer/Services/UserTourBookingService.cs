@@ -835,13 +835,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             BookingStatus? status = null,
             DateTime? startDate = null,
             DateTime? endDate = null,
-            string? searchTerm = null)
+            string? searchTerm = null,
+            string? bookingCode = null)
         {
             // Convert 1-based pageIndex to 0-based for repository
             var repoPageIndex = Math.Max(0, pageIndex - 1);
 
             var (bookingEntities, totalCount) = await _unitOfWork.TourBookingRepository.GetUserBookingsWithFilterAsync(
-                userId, repoPageIndex, pageSize, status, startDate, endDate, searchTerm);
+                userId, repoPageIndex, pageSize, status, startDate, endDate, searchTerm, bookingCode);
 
             // Map to DTOs including guests using dedicated method
             var bookings = bookingEntities.Select(MapToBookingDtoWithGuests).ToList();
@@ -1649,6 +1650,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Price = booking.TourOperation.Price,
                     MaxGuests = booking.TourOperation.MaxGuests,
                     CurrentBookings = booking.TourOperation.CurrentBookings,
+                    // ✅ FIXED: Get tour date from TourSlot if booking has TourSlot assigned
                     TourStartDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
                     GuideId = booking.TourOperation.TourGuide?.Id.ToString(),
                     GuideName = booking.TourOperation.TourGuide?.FullName,
@@ -1719,8 +1721,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Price = booking.TourOperation.Price,
                     MaxGuests = booking.TourOperation.MaxGuests,
                     CurrentBookings = booking.TourOperation.CurrentBookings,
-                    TourStartDate = booking.TourOperation.TourDetails?.AssignedSlots?.Any() == true ?
-                        booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null,
+                    // ✅ FIXED: Get tour date from TourSlot if booking has TourSlot assigned
+                    TourStartDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ??
+                        (booking.TourOperation.TourDetails?.AssignedSlots?.Any() == true ?
+                            booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null),
                     GuideId = booking.TourOperation.TourGuide?.Id.ToString(),
                     GuideName = booking.TourOperation.TourGuide?.FullName,
                     GuidePhone = booking.TourOperation.TourGuide?.PhoneNumber
