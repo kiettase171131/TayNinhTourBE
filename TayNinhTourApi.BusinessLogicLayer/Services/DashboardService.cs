@@ -14,6 +14,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     {
         private readonly IDashboardRepository _dashboardRepository;
 
+        // Commission and VAT rates
+        private const decimal PLATFORM_COMMISSION_RATE = 0.10m; // 10%
+        private const decimal VAT_RATE = 0.10m; // 10%
+        private const decimal TOTAL_DEDUCTION_RATE = PLATFORM_COMMISSION_RATE + VAT_RATE; // 20%
+
         public DashboardService(IDashboardRepository dashboardRepository)
         {
             _dashboardRepository = dashboardRepository;
@@ -129,6 +134,274 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 ConfirmedBookings = confirmedCount,
                 RevenueHold = revenueHold,
                 Wallet = wallet
+            };
+        }
+
+        /// <summary>
+        /// Admin lấy thống kê thu nhập của tất cả tour companies
+        /// </summary>
+        public async Task<AdminTourCompanyRevenueOverviewDto> GetTourCompanyRevenueStatsAsync(
+            int? year = null, 
+            int? month = null, 
+            int pageIndex = 0, 
+            int pageSize = 10, 
+            string? searchTerm = null, 
+            bool? isActive = null)
+        {
+            // Set default values if not provided
+            var currentDate = DateTime.UtcNow;
+            var effectiveYear = year ?? currentDate.Year;
+            var effectiveMonth = month ?? currentDate.Month;
+
+            var startDate = new DateTime(effectiveYear, effectiveMonth, 1);
+            var endDate = startDate.AddMonths(1);
+
+            // Get tour companies with pagination
+            var (companies, totalCount) = await _dashboardRepository.GetTourCompaniesAsync(
+                pageIndex, pageSize, searchTerm, isActive);
+
+            var tourCompanyStats = new List<TourCompanyRevenueStatsDto>();
+
+            // Process each tour company
+            foreach (var company in companies)
+            {
+                // Get revenue hold
+                var revenueHold = await _dashboardRepository.GetTourCompanyRevenueHoldAsync(company.UserId);
+
+                // Get monthly stats
+                var (totalRevenueBeforeTax, totalRevenueAfterTax, confirmedBookings, bookedSlots) =
+                    await _dashboardRepository.GetTourCompanyMonthlyStatsAsync(company.UserId, startDate, endDate);
+
+                // Get pending transfer stats
+                var (pendingTransferCount, pendingTransferAmount) =
+                    await _dashboardRepository.GetTourCompanyPendingTransferStatsAsync(company.UserId);
+
+                // Get monthly bookings details
+                var monthlyBookings = await _dashboardRepository.GetTourCompanyMonthlyBookingsAsync(
+                    company.UserId, startDate, endDate);
+
+                var bookingDetails = monthlyBookings.Select(b => new TourBookingDetailDto
+                {
+                    BookingId = b.BookingId,
+                    BookingCode = b.BookingCode,
+                    TourTitle = b.TourTitle,
+                    TourDate = b.TourDate,
+                    GuestCount = b.GuestCount,
+                    TotalPayment = b.TotalPayment,
+                    RevenueHold = b.RevenueHold,
+                    IsTransferredToWallet = b.IsTransferred,
+                    RevenueTransferredDate = b.TransferredDate,
+                    BookingStatus = b.BookingStatus,
+                    BookingCreatedAt = b.BookingCreatedAt
+                }).ToList();
+
+                var stats = new TourCompanyRevenueStatsDto
+                {
+                    TourCompanyId = company.TourCompanyId,
+                    UserId = company.UserId,
+                    CompanyName = company.CompanyName,
+                    Email = company.Email,
+                    CurrentWalletBalance = company.Wallet,
+                    TotalRevenueHold = revenueHold,
+                    MonthlyRevenueBeforeTax = totalRevenueBeforeTax,
+                    MonthlyRevenueAfterTax = totalRevenueAfterTax,
+                    MonthlyConfirmedBookings = confirmedBookings,
+                    PendingTransferBookings = pendingTransferCount,
+                    PendingTransferAmount = pendingTransferAmount,
+                    MonthlyBookedSlots = bookedSlots,
+                    MonthlyBookings = bookingDetails,
+                    IsActive = company.IsActive,
+                    CreatedAt = company.CreatedAt,
+                    LastUpdated = company.UpdatedAt
+                };
+
+                tourCompanyStats.Add(stats);
+            }
+
+            // Get system overview stats
+            var (totalSystemRevenueHold, totalSystemWallet, totalSystemBookings) = 
+                await _dashboardRepository.GetSystemTourRevenueOverviewAsync(startDate, endDate);
+
+            // Calculate totals
+            var totalBeforeTax = tourCompanyStats.Sum(tc => tc.MonthlyRevenueBeforeTax);
+            var totalAfterTax = tourCompanyStats.Sum(tc => tc.MonthlyRevenueAfterTax);
+            var totalCommission = totalBeforeTax * PLATFORM_COMMISSION_RATE;
+            var totalVAT = totalBeforeTax * VAT_RATE;
+
+            // Calculate pagination info
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+            return new AdminTourCompanyRevenueOverviewDto
+            {
+                TourCompanies = tourCompanyStats,
+                TotalTourCompanies = totalCount,
+                ActiveTourCompanies = tourCompanyStats.Count(tc => tc.IsActive),
+                TotalSystemRevenueBeforeTax = totalBeforeTax,
+                TotalSystemRevenueAfterTax = totalAfterTax,
+                TotalPlatformCommission = totalCommission,
+                TotalVAT = totalVAT,
+                TotalMonthlyBookings = totalSystemBookings,
+                TotalRevenueHold = totalSystemRevenueHold,
+                TotalWalletBalance = totalSystemWallet,
+                Month = effectiveMonth,
+                Year = effectiveYear,
+                GeneratedAt = DateTime.UtcNow,
+                Pagination = new PaginationInfo
+                {
+                    PageIndex = pageIndex,
+                    PageSize = pageSize,
+                    TotalCount = totalCount,
+                    TotalPages = totalPages,
+                    HasNext = pageIndex < totalPages - 1,
+                    HasPrevious = pageIndex > 0
+                }
+            };
+        }
+
+        /// <summary>
+        /// Admin lấy thống kê chi tiết của một tour company cụ thể
+        /// </summary>
+        public async Task<TourCompanyRevenueStatsDto?> GetTourCompanyRevenueDetailAsync(
+            Guid tourCompanyId, 
+            int? year = null, 
+            int? month = null)
+        {
+            // Set default values if not provided
+            var currentDate = DateTime.UtcNow;
+            var effectiveYear = year ?? currentDate.Year;
+            var effectiveMonth = month ?? currentDate.Month;
+
+            var startDate = new DateTime(effectiveYear, effectiveMonth, 1);
+            var endDate = startDate.AddMonths(1);
+
+            // Get tour company info
+            var companyInfo = await _dashboardRepository.GetTourCompanyByIdAsync(tourCompanyId);
+            if (companyInfo == null)
+                return null;
+
+            // Get revenue hold
+            var revenueHold = await _dashboardRepository.GetTourCompanyRevenueHoldAsync(companyInfo.Value.UserId);
+
+            // Get monthly stats
+            var (totalRevenueBeforeTax, totalRevenueAfterTax, confirmedBookings, bookedSlots) = 
+                await _dashboardRepository.GetTourCompanyMonthlyStatsAsync(companyInfo.Value.UserId, startDate, endDate);
+
+            // Get pending transfer stats
+            var (pendingTransferCount, pendingTransferAmount) = 
+                await _dashboardRepository.GetTourCompanyPendingTransferStatsAsync(companyInfo.Value.UserId);
+
+            // Get monthly bookings details
+            var monthlyBookings = await _dashboardRepository.GetTourCompanyMonthlyBookingsAsync(
+                companyInfo.Value.UserId, startDate, endDate);
+
+            var bookingDetails = monthlyBookings.Select(b => new TourBookingDetailDto
+            {
+                BookingId = b.BookingId,
+                BookingCode = b.BookingCode,
+                TourTitle = b.TourTitle,
+                TourDate = b.TourDate,
+                GuestCount = b.GuestCount,
+                TotalPayment = b.TotalPayment,
+                RevenueHold = b.RevenueHold,
+                IsTransferredToWallet = b.IsTransferred,
+                RevenueTransferredDate = b.TransferredDate,
+                BookingStatus = b.BookingStatus,
+                BookingCreatedAt = b.BookingCreatedAt
+            }).ToList();
+
+            // Get tour statistics
+            var (totalCreated, approved, publicTours, pending, rejected, withRevenue) = 
+                await _dashboardRepository.GetTourCompanyTourStatsAsync(companyInfo.Value.UserId, startDate, endDate);
+
+            var tourStats = new TourStatsDto
+            {
+                TotalToursCreated = totalCreated,
+                ToursApproved = approved,
+                ToursPublic = publicTours,
+                ToursPending = pending,
+                ToursRejected = rejected,
+                ToursWithRevenue = withRevenue
+            };
+
+            // Get tour revenue details
+            var tourRevenueData = await _dashboardRepository.GetTourCompanyTourRevenueDetailsAsync(
+                companyInfo.Value.UserId, startDate, endDate);
+
+            var tourRevenueDetails = new List<TourRevenueDetailDto>();
+
+            foreach (var t in tourRevenueData)
+            {
+                // Get detailed transfer information for this tour
+                var (transferredCount, pendingCount, eligibleCount, earliestTransfer, latestTransfer, 
+                    averageTransferDays, transferRate, bookingTransfers) = 
+                    await _dashboardRepository.GetTourRevenueTransferDetailsAsync(t.TourDetailsId, startDate, endDate);
+
+                var transferInfo = new TourRevenueTransferInfoDto
+                {
+                    EarliestTransferDate = earliestTransfer,
+                    LatestTransferDate = latestTransfer,
+                    AverageTransferDays = averageTransferDays,
+                    TransferCompletionRate = transferRate,
+                    BookingTransfers = bookingTransfers.Select(bt => new BookingTransferDetailDto
+                    {
+                        BookingId = bt.BookingId,
+                        BookingCode = bt.BookingCode,
+                        TourDate = bt.TourDate,
+                        TourCompletionDate = bt.TourCompletionDate,
+                        EligibleTransferDate = bt.EligibleTransferDate,
+                        ActualTransferDate = bt.ActualTransferDate,
+                        IsTransferred = bt.IsTransferred,
+                        IsEligibleForTransfer = bt.IsEligible,
+                        DaysSinceTourCompletion = bt.DaysSinceCompletion,
+                        RevenueAmount = bt.RevenueAmount,
+                        TransferStatus = bt.TransferStatus
+                    }).ToList()
+                };
+
+                var tourRevenueDetail = new TourRevenueDetailDto
+                {
+                    TourDetailsId = t.TourDetailsId,
+                    TourTitle = t.TourTitle,
+                    TourStatus = t.TourStatus,
+                    TourCreatedAt = t.TourCreatedAt,
+                    IsPublic = t.IsPublic,
+                    MonthlyBookingCount = t.MonthlyBookingCount,
+                    MonthlyRevenueBeforeTax = t.MonthlyRevenueBeforeTax,
+                    MonthlyRevenueAfterTax = t.MonthlyRevenueAfterTax,
+                    RevenueHold = t.RevenueHold,
+                    RevenueTransferred = t.RevenueTransferred,
+                    TransferredBookingCount = transferredCount,
+                    PendingTransferBookingCount = pendingCount,
+                    EligibleForTransferCount = eligibleCount,
+                    TotalGuestsCount = t.TotalGuestsCount,
+                    CurrentPrice = t.CurrentPrice,
+                    AvailableSlots = t.AvailableSlots,
+                    TransferInfo = transferInfo
+                };
+
+                tourRevenueDetails.Add(tourRevenueDetail);
+            }
+
+            return new TourCompanyRevenueStatsDto
+            {
+                TourCompanyId = companyInfo.Value.TourCompanyId,
+                UserId = companyInfo.Value.UserId,
+                CompanyName = companyInfo.Value.CompanyName,
+                Email = companyInfo.Value.Email,
+                CurrentWalletBalance = companyInfo.Value.Wallet,
+                TotalRevenueHold = revenueHold,
+                MonthlyRevenueBeforeTax = totalRevenueBeforeTax,
+                MonthlyRevenueAfterTax = totalRevenueAfterTax,
+                MonthlyConfirmedBookings = confirmedBookings,
+                PendingTransferBookings = pendingTransferCount,
+                PendingTransferAmount = pendingTransferAmount,
+                MonthlyBookedSlots = bookedSlots,
+                TourStats = tourStats,
+                TourRevenueDetails = tourRevenueDetails,
+                MonthlyBookings = bookingDetails,
+                IsActive = companyInfo.Value.IsActive,
+                CreatedAt = companyInfo.Value.CreatedAt,
+                LastUpdated = companyInfo.Value.UpdatedAt
             };
         }
     }

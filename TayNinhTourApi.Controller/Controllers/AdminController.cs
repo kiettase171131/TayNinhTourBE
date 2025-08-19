@@ -585,189 +585,144 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
-        /// Debug: Test thông báo khi không tìm thấy hướng dẫn viên phù hợp
+        /// Admin lấy thống kê thu nhập của tất cả tour companies
         /// </summary>
-        [HttpPost("debug/test-no-suitable-guides-notification/{tourDetailsId:guid}")]
-        public async Task<IActionResult> DebugTestNoSuitableGuidesNotification([FromRoute] Guid tourDetailsId)
+        /// <param name="year">Năm thống kê (optional, default: năm hiện tại)</param>
+        /// <param name="month">Tháng thống kê (optional, default: tháng hiện tại)</param>
+        /// <param name="pageIndex">Trang hiện tại (0-based, default: 0)</param>
+        /// <param name="pageSize">Kích thước trang (default: 10)</param>
+        /// <param name="searchTerm">Từ khóa tìm kiếm tên company hoặc email</param>
+        /// <param name="isActive">Lọc theo trạng thái active (null = tất cả)</param>
+        /// <returns>Thống kê thu nhập của các tour companies</returns>
+        [HttpGet("tour-companies/revenue-stats")]
+        public async Task<IActionResult> GetTourCompanyRevenueStats(
+            [FromQuery] int? year = null,
+            [FromQuery] int? month = null,
+            [FromQuery] int pageIndex = 0,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] bool? isActive = null)
         {
             try
             {
-                var result = await _invitationService.DebugTestNoSuitableGuidesNotificationAsync(tourDetailsId);
-                return StatusCode(result.StatusCode, result);
+                // Set default values if not provided
+                var currentDate = DateTime.UtcNow;
+                var effectiveYear = year ?? currentDate.Year;
+                var effectiveMonth = month ?? currentDate.Month;
+
+                // Validate parameters
+                if (effectiveYear <= 0 || effectiveMonth < 1 || effectiveMonth > 12)
+                {
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "Năm hoặc tháng không hợp lệ. Năm phải > 0, tháng từ 1-12."
+                    });
+                }
+
+                if (pageIndex < 0)
+                {
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "PageIndex phải >= 0"
+                    });
+                }
+
+                if (pageSize <= 0 || pageSize > 100)
+                {
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "PageSize phải > 0 và <= 100"
+                    });
+                }
+
+                _logger.LogInformation("Admin getting tour company revenue stats - Year: {Year}, Month: {Month}, Page: {PageIndex}, Size: {PageSize}, Search: {SearchTerm}, Active: {IsActive}",
+                    effectiveYear, effectiveMonth, pageIndex, pageSize, searchTerm, isActive);
+
+                var result = await _dashboardService.GetTourCompanyRevenueStatsAsync(
+                    effectiveYear, effectiveMonth, pageIndex, pageSize, searchTerm, isActive);
+
+                return Ok(new
+                {
+                    StatusCode = 200,
+                    Message = "Lấy thống kê thu nhập tour companies thành công",
+                    Data = result
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in debug test no suitable guides notification for TourDetails {TourDetailsId}", tourDetailsId);
+                _logger.LogError(ex, "Error getting tour company revenue stats");
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "Có lỗi xảy ra khi test thông báo debug"
+                    Message = "Có lỗi xảy ra khi lấy thống kê thu nhập tour companies",
+                    Error = ex.Message
                 });
             }
         }
-        [HttpGet("Dashboard")]
-        public async Task<IActionResult> GetDashboard([FromQuery] int year, [FromQuery] int month)
-        {
-            if (year <= 0 || month < 1 || month > 12)
-                return BadRequest("Năm hoặc tháng không hợp lệ.");
-
-            var result = await _dashboardService.GetDashboardAsync(year, month);
-            return Ok(result);
-        }
-        [HttpGet("Count-Tour-pending-approve")]
-        public async Task<IActionResult> GetTourDetailsStatistics()
-        {
-            var stats = await _dashboardService.GetTourDetailsStatisticsAsync();
-            return Ok(stats);
-        }
-
 
         /// <summary>
-        /// DEBUG: Tạo table PaymentTransactions
+        /// Admin lấy thống kê chi tiết thu nhập của một tour company cụ thể
         /// </summary>
-        [HttpPost("debug/create-payment-transactions-table")]
-        [AllowAnonymous] // Cho phép access không cần auth để debug
-        public async Task<IActionResult> CreatePaymentTransactionsTable()
+        /// <param name="tourCompanyId">ID của tour company</param>
+        /// <param name="year">Năm thống kê (optional, default: năm hiện tại)</param>
+        /// <param name="month">Tháng thống kê (optional, default: tháng hiện tại)</param>
+        /// <returns>Thống kê chi tiết thu nhập của tour company</returns>
+        [HttpGet("tour-companies/{tourCompanyId}/revenue-detail")]
+        public async Task<IActionResult> GetTourCompanyRevenueDetail(
+            [FromRoute] Guid tourCompanyId,
+            [FromQuery] int? year = null,
+            [FromQuery] int? month = null)
         {
             try
             {
-                var sql = @"
-                    CREATE TABLE `PaymentTransactions` (
-                        `Id` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
-                        `OrderId` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
-                        `TourBookingId` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
-                        `Amount` decimal(18,2) NOT NULL,
-                        `Description` longtext CHARACTER SET utf8mb4 NULL,
-                        `PayOsOrderCode` bigint NOT NULL,
-                        `PayOsTransactionDateTime` datetime(6) NULL,
-                        `PayOsReference` longtext CHARACTER SET utf8mb4 NULL,
-                        `Status` int NOT NULL,
-                        `CreatedAt` datetime(6) NOT NULL,
-                        `UpdatedAt` datetime(6) NOT NULL,
-                        CONSTRAINT `PK_PaymentTransactions` PRIMARY KEY (`Id`),
-                        CONSTRAINT `FK_PaymentTransactions_Orders_OrderId` FOREIGN KEY (`OrderId`) REFERENCES `Orders` (`Id`),
-                        CONSTRAINT `FK_PaymentTransactions_TourBookings_TourBookingId` FOREIGN KEY (`TourBookingId`) REFERENCES `TourBookings` (`Id`)
-                    ) CHARACTER SET=utf8mb4;";
+                // Set default values if not provided
+                var currentDate = DateTime.UtcNow;
+                var effectiveYear = year ?? currentDate.Year;
+                var effectiveMonth = month ?? currentDate.Month;
 
-                await _context.Database.ExecuteSqlRawAsync(sql);
-
-                return Ok(new { success = true, message = "PaymentTransactions table created successfully" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating PaymentTransactions table");
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// DEBUG: Kiểm tra TourSlot và TourOperation relationship
-        /// </summary>
-        [HttpGet("debug/tourslot-operation/{tourSlotId}")]
-        [AllowAnonymous]
-        public async Task<IActionResult> CheckTourSlotOperation(Guid tourSlotId)
-        {
-            try
-            {
-                var tourSlot = await _context.TourSlots
-                    .Include(ts => ts.TourDetails)
-                        .ThenInclude(td => td.TourOperation)
-                    .FirstOrDefaultAsync(ts => ts.Id == tourSlotId);
-
-                if (tourSlot == null)
+                // Validate parameters
+                if (effectiveYear <= 0 || effectiveMonth < 1 || effectiveMonth > 12)
                 {
-                    return NotFound(new { success = false, message = "TourSlot not found" });
+                    return BadRequest(new
+                    {
+                        StatusCode = 400,
+                        Message = "Năm hoặc tháng không hợp lệ. Năm phải > 0, tháng từ 1-12."
+                    });
                 }
 
-                var result = new
+                _logger.LogInformation("Admin getting tour company revenue detail - CompanyId: {TourCompanyId}, Year: {Year}, Month: {Month}",
+                    tourCompanyId, effectiveYear, effectiveMonth);
+
+                var result = await _dashboardService.GetTourCompanyRevenueDetailAsync(tourCompanyId, effectiveYear, effectiveMonth);
+
+                if (result == null)
                 {
-                    success = true,
-                    data = new
+                    return NotFound(new
                     {
-                        tourSlotId = tourSlot.Id,
-                        tourDetailsId = tourSlot.TourDetailsId,
-                        tourSlotIsActive = tourSlot.IsActive,
-                        tourDetails = tourSlot.TourDetails != null ? new
-                        {
-                            id = tourSlot.TourDetails.Id,
-                            title = tourSlot.TourDetails.Title,
-                            status = tourSlot.TourDetails.Status
-                        } : null,
-                        tourOperation = tourSlot.TourDetails?.TourOperation != null ? new
-                        {
-                            id = tourSlot.TourDetails.TourOperation.Id,
-                            price = tourSlot.TourDetails.TourOperation.Price,
-                            maxGuests = tourSlot.TourDetails.TourOperation.MaxGuests,
-                            isActive = tourSlot.TourDetails.TourOperation.IsActive
-                        } : null
-                    }
-                };
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour company"
+                    });
+                }
 
-                return Ok(result);
+                return Ok(new
+                {
+                    StatusCode = 200,
+                    Message = "Lấy thống kê chi tiết thu nhập tour company thành công",
+                    Data = result
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking TourSlot operation");
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// DEBUG: Thêm columns còn thiếu cho PaymentTransactions table
-        /// </summary>
-        [HttpPost("debug/fix-payment-transactions-table")]
-        [AllowAnonymous]
-        public async Task<IActionResult> FixPaymentTransactionsTable()
-        {
-            try
-            {
-                var sql = @"
-                    ALTER TABLE `PaymentTransactions`
-                    ADD COLUMN `CheckoutUrl` longtext CHARACTER SET utf8mb4 NULL,
-                    ADD COLUMN `ExpiredAt` datetime(6) NULL,
-                    ADD COLUMN `FailureReason` longtext CHARACTER SET utf8mb4 NULL,
-                    ADD COLUMN `Gateway` longtext CHARACTER SET utf8mb4 NULL,
-                    ADD COLUMN `ParentTransactionId` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
-                    ADD COLUMN `PayOsTransactionId` longtext CHARACTER SET utf8mb4 NULL,
-                    ADD COLUMN `QrCode` longtext CHARACTER SET utf8mb4 NULL,
-                    ADD COLUMN `WebhookPayload` longtext CHARACTER SET utf8mb4 NULL;";
-
-                await _context.Database.ExecuteSqlRawAsync(sql);
-
-                return Ok(new { success = true, message = "PaymentTransactions table columns added successfully" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error adding PaymentTransactions table columns");
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// DEBUG: Thêm CreatedById và UpdatedById cho PaymentTransactions table
-        /// </summary>
-        [HttpPost("debug/add-audit-columns-payment-transactions")]
-        [AllowAnonymous]
-        public async Task<IActionResult> AddAuditColumnsPaymentTransactions()
-        {
-            try
-            {
-                var sql = @"
-                    ALTER TABLE `PaymentTransactions`
-                    ADD COLUMN `CreatedById` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
-                    ADD COLUMN `UpdatedById` char(36) CHARACTER SET ascii COLLATE ascii_general_ci NULL,
-                    ADD COLUMN `IsActive` tinyint(1) NOT NULL DEFAULT 1,
-                    ADD COLUMN `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
-                    ADD COLUMN `DeletedAt` datetime(6) NULL;";
-
-                await _context.Database.ExecuteSqlRawAsync(sql);
-
-                return Ok(new { success = true, message = "PaymentTransactions audit columns added successfully" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error adding PaymentTransactions audit columns");
-                return BadRequest(new { success = false, message = ex.Message });
+                _logger.LogError(ex, "Error getting tour company revenue detail for company {TourCompanyId}", tourCompanyId);
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy thống kê chi tiết thu nhập tour company",
+                    Error = ex.Message
+                });
             }
         }
     }
