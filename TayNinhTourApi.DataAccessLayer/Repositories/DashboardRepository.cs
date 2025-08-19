@@ -23,53 +23,111 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
         public Task<int> GetTotalAccountsAsync()
             => _context.Users.CountAsync();
 
-        public Task<int> GetNewAccountsAsync(DateTime startDate, DateTime endDate)
-            => _context.Users.CountAsync(u => u.CreatedAt >= startDate && u.CreatedAt < endDate);
+        // Repository (EF Core)
 
-        public Task<int> GetBookingsAsync(DateTime startDate, DateTime endDate)
-            => _context.TourBookings.CountAsync(b => b.CreatedAt >= startDate && b.CreatedAt < endDate);
-
-        public Task<int> GetOrdersAsync(DateTime startDate, DateTime endDate)
-            => _context.Orders.CountAsync(o => o.CreatedAt >= startDate && o.CreatedAt < endDate);
-
-        public async Task<decimal> GetTotalRevenueAsync(DateTime startDate, DateTime endDate)
-            => await _context.Orders
-                .Where(o => o.Status == OrderStatus.Paid && o.CreatedAt >= startDate && o.CreatedAt < endDate)
-                .SumAsync(o => (decimal?)o.TotalAfterDiscount) ?? 0;
-
-        public async Task<decimal> GetWithdrawRequestsTotalAsync(DateTime startDate, DateTime endDate)
-            => await _context.WithdrawalRequests
-                .Where(w => w.RequestedAt >= startDate && w.RequestedAt < endDate )
-                .SumAsync(w => (decimal?)w.Amount) ?? 0;
-        public async Task<decimal> GetWithdrawRequestsAcceptAsync(DateTime startDate, DateTime endDate)
-            => await _context.WithdrawalRequests
-                .Where(w => w.RequestedAt >= startDate && w.RequestedAt < endDate && w.Status == WithdrawalStatus.Approved)
-                .SumAsync(w => (decimal?)w.Amount) ?? 0;
-
-        public Task<int> GetNewCVsAsync(DateTime startDate, DateTime endDate)
-            => _context.TourGuideApplications.CountAsync(c => c.SubmittedAt >= startDate && c.SubmittedAt < endDate);
-
-        public Task<int> GetNewShopsAsync(DateTime startDate, DateTime endDate)
-            => _context.SpecialtyShopApplications.CountAsync(s => s.SubmittedAt >= startDate && s.SubmittedAt < endDate);
-
-        public Task<int> GetPostsAsync(DateTime startDate, DateTime endDate)
-            => _context.Blogs.CountAsync(b => b.CreatedAt >= startDate && b.CreatedAt < endDate);
-        public async Task<List<(Guid ShopId, decimal Revenue, decimal RevenueTax)>> GetTotalRevenueByShopAsync(DateTime startDate, DateTime endDate)
+        public Task<int> GetNewAccountsAsync(DateTime? startDate = null, DateTime? endDate = null)
         {
-            return await _context.OrderDetails
-                .Where(od =>
-                    od.Order.Status == OrderStatus.Paid &&
-                    od.Order.CreatedAt >= startDate &&
-                    od.Order.CreatedAt < endDate)
+            var query = _context.Users.AsQueryable();
+            if (startDate.HasValue) query = query.Where(u => u.CreatedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(u => u.CreatedAt < endDate.Value);
+            return query.CountAsync();
+        }
+
+        public Task<int> GetBookingsAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.TourBookings.AsQueryable();
+            if (startDate.HasValue) query = query.Where(b => b.CreatedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(b => b.CreatedAt < endDate.Value);
+            return query.CountAsync();
+        }
+
+        public Task<int> GetOrdersAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.Orders.AsQueryable();
+            if (startDate.HasValue) query = query.Where(o => o.CreatedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(o => o.CreatedAt < endDate.Value);
+            return query.CountAsync();
+        }
+
+        public async Task<decimal> GetTotalRevenueAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.Orders
+                .Where(o => o.Status == OrderStatus.Paid)
+                .AsQueryable();
+
+            if (startDate.HasValue) query = query.Where(o => o.CreatedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(o => o.CreatedAt < endDate.Value);
+
+            return await query.SumAsync(o => (decimal?)o.TotalAfterDiscount) ?? 0m;
+        }
+
+        public async Task<decimal> GetWithdrawRequestsTotalAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.WithdrawalRequests.AsQueryable();
+            if (startDate.HasValue) query = query.Where(w => w.RequestedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(w => w.RequestedAt < endDate.Value);
+
+            return await query.SumAsync(w => (decimal?)w.Amount) ?? 0m;
+        }
+
+        public async Task<decimal> GetWithdrawRequestsAcceptAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.WithdrawalRequests
+                .Where(w => w.Status == WithdrawalStatus.Approved)
+                .AsQueryable();
+
+            if (startDate.HasValue) query = query.Where(w => w.RequestedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(w => w.RequestedAt < endDate.Value);
+
+            return await query.SumAsync(w => (decimal?)w.Amount) ?? 0m;
+        }
+
+        public Task<int> GetNewCVsAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.TourGuideApplications.AsQueryable();
+            if (startDate.HasValue) query = query.Where(c => c.SubmittedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(c => c.SubmittedAt < endDate.Value);
+            return query.CountAsync();
+        }
+
+        public Task<int> GetNewShopsAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.SpecialtyShopApplications.AsQueryable();
+            if (startDate.HasValue) query = query.Where(s => s.SubmittedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(s => s.SubmittedAt < endDate.Value);
+            return query.CountAsync();
+        }
+
+        public Task<int> GetPostsAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.Blogs.AsQueryable();
+            if (startDate.HasValue) query = query.Where(b => b.CreatedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(b => b.CreatedAt < endDate.Value);
+            return query.CountAsync();
+        }
+
+        public async Task<List<(Guid ShopId, decimal Revenue, decimal RevenueTax)>> GetTotalRevenueByShopAsync(
+            DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.OrderDetails
+                .Where(od => od.Order.Status == OrderStatus.Paid)
+                .AsQueryable();
+
+            if (startDate.HasValue) query = query.Where(od => od.Order.CreatedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(od => od.Order.CreatedAt < endDate.Value);
+
+            // Ví dụ giữ nguyên công thức của bạn: 90% trước thuế, 80% sau thuế
+            return await query
                 .GroupBy(od => od.Product.ShopId)
                 .Select(g => new ValueTuple<Guid, decimal, decimal>(
                     g.Key,
-                    g.Sum(x => x.Order.TotalAfterDiscount * 0.9m), 
-                    g.Sum(x => x.Order.TotalAfterDiscount * 0.8m)  // RevenueTax (80%)
+                    g.Sum(x => x.Order.TotalAfterDiscount * 0.9m),
+                    g.Sum(x => x.Order.TotalAfterDiscount * 0.8m)
                 ))
                 .ToListAsync();
         }
-       
+
+
 
 
 
@@ -86,32 +144,36 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .ToListAsync();
         }
         //Blogger
-        private static IQueryable<T> FilterByMonth<T>(IQueryable<T> query, int month, int year)
-               where T : BaseEntity
+        private static IQueryable<T> FilterByDateRange<T>(IQueryable<T> query, DateTime? startDate, DateTime? endDate)
+    where T : BaseEntity
         {
-            return query.Where(x => x.CreatedAt.Month == month && x.CreatedAt.Year == year);
+            if (startDate.HasValue) query = query.Where(x => x.CreatedAt >= startDate.Value);
+            if (endDate.HasValue) query = query.Where(x => x.CreatedAt < endDate.Value);
+            return query;
         }
-        public Task<int> GetTotalPostsAsync(Guid bloggerId, int month, int year)
-       => FilterByMonth(_context.Blogs.Where(b => b.UserId == bloggerId), month, year).CountAsync();
 
-        public Task<int> GetApprovedPostsAsync(Guid bloggerId, int month, int year)
-            => FilterByMonth(_context.Blogs.Where(b => b.UserId == bloggerId && b.Status == 1), month, year).CountAsync();
+        public Task<int> GetTotalPostsAsync(Guid bloggerId, DateTime? startDate, DateTime? endDate)
+    => FilterByDateRange(_context.Blogs.Where(b => b.UserId == bloggerId), startDate, endDate).CountAsync();
 
-        public Task<int> GetRejectedPostsAsync(Guid bloggerId, int month, int year)
-            => FilterByMonth(_context.Blogs.Where(b => b.UserId == bloggerId && b.Status == 2), month, year).CountAsync();
+        public Task<int> GetApprovedPostsAsync(Guid bloggerId, DateTime? startDate, DateTime? endDate)
+            => FilterByDateRange(_context.Blogs.Where(b => b.UserId == bloggerId && b.Status == 1), startDate, endDate).CountAsync();
 
-        public Task<int> GetPendingPostsAsync(Guid bloggerId, int month, int year)
-            => FilterByMonth(_context.Blogs.Where(b => b.UserId == bloggerId && b.Status == 0), month, year).CountAsync();
+        public Task<int> GetRejectedPostsAsync(Guid bloggerId, DateTime? startDate, DateTime? endDate)
+            => FilterByDateRange(_context.Blogs.Where(b => b.UserId == bloggerId && b.Status == 2), startDate, endDate).CountAsync();
 
-        public Task<int> GetTotalLikesAsync(Guid bloggerId, int month, int year)
-            => FilterByMonth(_context.BlogReactions
-                .Where(r => r.Reaction == BlogStatusEnum.Like && r.Blog.UserId == bloggerId), month, year)
-                .CountAsync();
+        public Task<int> GetPendingPostsAsync(Guid bloggerId, DateTime? startDate, DateTime? endDate)
+            => FilterByDateRange(_context.Blogs.Where(b => b.UserId == bloggerId && b.Status == 0), startDate, endDate).CountAsync();
 
-        public Task<int> GetTotalCommentsAsync(Guid bloggerId, int month, int year)
-            => FilterByMonth(_context.BlogComments
-                .Where(c => c.Blog.UserId == bloggerId), month, year)
-                .CountAsync();
+        public Task<int> GetTotalLikesAsync(Guid bloggerId, DateTime? startDate, DateTime? endDate)
+            => FilterByDateRange(
+                _context.BlogReactions.Where(r => r.Reaction == BlogStatusEnum.Like && r.Blog.UserId == bloggerId),
+                startDate, endDate).CountAsync();
+
+        public Task<int> GetTotalCommentsAsync(Guid bloggerId, DateTime? startDate, DateTime? endDate)
+            => FilterByDateRange(
+                _context.BlogComments.Where(c => c.Blog.UserId == bloggerId),
+                startDate, endDate).CountAsync();
+
         //Shop
         public async Task<int> GetTotalProductsAsync(Guid shopId)
     => await _context.Products.CountAsync(p => p.ShopId == shopId);

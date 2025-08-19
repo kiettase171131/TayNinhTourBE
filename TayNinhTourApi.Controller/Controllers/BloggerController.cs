@@ -148,13 +148,9 @@ namespace TayNinhTourApi.Controller.Controllers
         }
         [HttpGet("Dashboard")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Blogger")]
-        public async Task<IActionResult> GetBloggerStats(int month, int year)
+        public async Task<IActionResult> GetBloggerStats(int? month, int? year)
         {
-            if(month < 1 || month > 12)
-            return BadRequest("Tháng phải từ 1-12.");
-            if (year < 2000 || year > DateTime.UtcNow.Year)
-                return BadRequest("Năm không hợp lệ.");
-
+            
             CurrentUserObject currentUserObject = await TokenHelper.Instance.GetThisUserInfo(HttpContext);  
             if (currentUserObject == null || currentUserObject.UserId == Guid.Empty)
                 return Unauthorized("Không tìm thấy thông tin Blogger.");

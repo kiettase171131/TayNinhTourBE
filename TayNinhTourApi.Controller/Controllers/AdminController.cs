@@ -606,11 +606,8 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
         [HttpGet("Dashboard")]
-        public async Task<IActionResult> GetDashboard([FromQuery] int year, [FromQuery] int month)
+        public async Task<IActionResult> GetDashboard([FromQuery] int? year, [FromQuery] int? month)
         {
-            if (year <= 0 || month < 1 || month > 12)
-                return BadRequest("Năm hoặc tháng không hợp lệ.");
-
             var result = await _dashboardService.GetDashboardAsync(year, month);
             return Ok(result);
         }

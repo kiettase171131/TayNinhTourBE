@@ -19,26 +19,52 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _dashboardRepository = dashboardRepository;
         }
 
-        public async Task<BloggerDashboardDto> GetBloggerStatsAsync(Guid bloggerId, int month, int year)
+        public async Task<BloggerDashboardDto> GetBloggerStatsAsync(Guid bloggerId, int? month = null, int? year = null)
         {
-           
+            DateTime? startDate = null;
+            DateTime? endDate = null;
+            bool hasValidYear = year is >= 1 and <= 9999;
+            bool hasValidMonth = month is >= 1 and <= 12;
+            if (hasValidYear && hasValidMonth)
+            {
+                startDate = new DateTime(year!.Value, month!.Value, 1);
+                endDate = startDate.Value.AddMonths(1);
+            }
+            else if (hasValidYear && !hasValidMonth)
+            {
+                // lọc theo cả năm
+                startDate = new DateTime(year!.Value, 1, 1);
+                endDate = startDate.Value.AddYears(1);
+            }
 
             return new BloggerDashboardDto
             {
-                TotalPosts = await _dashboardRepository.GetTotalPostsAsync(bloggerId, month, year),
-                ApprovedPosts = await _dashboardRepository.GetApprovedPostsAsync(bloggerId, month, year),
-                RejectedPosts = await _dashboardRepository.GetRejectedPostsAsync(bloggerId, month, year),
-                PendingPosts = await _dashboardRepository.GetPendingPostsAsync(bloggerId, month, year),
-                TotalLikes = await _dashboardRepository.GetTotalLikesAsync(bloggerId, month, year),
-                TotalComments = await _dashboardRepository.GetTotalCommentsAsync(bloggerId, month, year)
+                TotalPosts = await _dashboardRepository.GetTotalPostsAsync(bloggerId, startDate, endDate),
+                ApprovedPosts = await _dashboardRepository.GetApprovedPostsAsync(bloggerId, startDate, endDate),
+                RejectedPosts = await _dashboardRepository.GetRejectedPostsAsync(bloggerId, startDate, endDate),
+                PendingPosts = await _dashboardRepository.GetPendingPostsAsync(bloggerId, startDate, endDate),
+                TotalLikes = await _dashboardRepository.GetTotalLikesAsync(bloggerId, startDate, endDate),
+                TotalComments = await _dashboardRepository.GetTotalCommentsAsync(bloggerId, startDate, endDate)
             };
         }
 
-        public async Task<AdminDashboardDto> GetDashboardAsync(int year, int month)
+        public async Task<AdminDashboardDto> GetDashboardAsync(int? year = null, int? month = null)
         {
-            var startDate = new DateTime(year, month, 1);
-            var endDate = startDate.AddMonths(1);
-            
+            DateTime? startDate = null;
+            DateTime? endDate = null;
+            bool hasValidYear = year is >= 1 and <= 9999;
+            bool hasValidMonth = month is >= 1 and <= 12;
+            if (hasValidYear && hasValidMonth)
+            {
+                startDate = new DateTime(year!.Value, month!.Value, 1);
+                endDate = startDate.Value.AddMonths(1);
+            }
+            else if (hasValidYear && !hasValidMonth)
+            {
+                // lọc theo cả năm
+                startDate = new DateTime(year!.Value, 1, 1);
+                endDate = startDate.Value.AddYears(1);
+            }
 
             // Gọi repository lấy dữ liệu
             var revenueByShopRaw = await _dashboardRepository.GetTotalRevenueByShopAsync(startDate, endDate);
@@ -74,10 +100,28 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
           return dto;
         }
-        public async Task<ShopDashboardDto> GetShopStatisticsAsync(Guid shopId, int year, int month)
+        public async Task<ShopDashboardDto> GetShopStatisticsAsync(Guid shopId, int? year = null, int? month = null)
         {
-            var startDate = new DateTime(year, month, 1);
-            var endDate = startDate.AddMonths(1);
+            DateTime startDate = DateTime.MinValue;
+            DateTime endDate = DateTime.MaxValue;
+
+            // Case 1: Chỉ truyền year
+            if (year.HasValue && !month.HasValue)
+            {
+                startDate = new DateTime(year.Value, 1, 1);
+                endDate = startDate.AddYears(1);
+            }
+            // Case 2: Truyền cả year và month
+            else if (year.HasValue && month.HasValue)
+            {
+                if (month.Value < 1 || month.Value > 12)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(month), "Month must be between 1 and 12.");
+                }
+
+                startDate = new DateTime(year.Value, month.Value, 1);
+                endDate = startDate.AddMonths(1);
+            }
 
             var totalProducts = await _dashboardRepository.GetTotalProductsAsync(shopId);
             var totalOrders = await _dashboardRepository.GetTotalOrdersAsync(shopId, startDate, endDate);
