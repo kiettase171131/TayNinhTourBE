@@ -835,13 +835,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             BookingStatus? status = null,
             DateTime? startDate = null,
             DateTime? endDate = null,
-            string? searchTerm = null)
+            string? searchTerm = null,
+            string? bookingCode = null)
         {
             // Convert 1-based pageIndex to 0-based for repository
             var repoPageIndex = Math.Max(0, pageIndex - 1);
 
             var (bookingEntities, totalCount) = await _unitOfWork.TourBookingRepository.GetUserBookingsWithFilterAsync(
-                userId, repoPageIndex, pageSize, status, startDate, endDate, searchTerm);
+                userId, repoPageIndex, pageSize, status, startDate, endDate, searchTerm, bookingCode);
 
             // Map to DTOs including guests using dedicated method
             var bookings = bookingEntities.Select(MapToBookingDtoWithGuests).ToList();

@@ -303,7 +303,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             BookingStatus? status = null,
             DateTime? startDate = null,
             DateTime? endDate = null,
-            string? searchTerm = null)
+            string? searchTerm = null,
+            string? bookingCode = null)
         {
             var query = _context.TourBookings
                 .Include(tb => tb.Guests.Where(g => !g.IsDeleted))
@@ -352,6 +353,17 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 // Include the entire end date
                 var endOfDay = endDate.Value.Date.AddDays(1).AddTicks(-1);
                 query = query.Where(tb => tb.BookingDate <= endOfDay);
+            }
+
+            // ✅ NEW: Filter by PayOsOrderCode when bookingCode parameter is provided
+            // When user searches by "bookingCode", we actually search by PayOsOrderCode
+            // This supports both exact match and partial match for better user experience
+            if (!string.IsNullOrWhiteSpace(bookingCode))
+            {
+                var cleanBookingCode = bookingCode.Trim();
+                query = query.Where(tb => 
+                    tb.PayOsOrderCode == cleanBookingCode ||
+                    (tb.PayOsOrderCode != null && tb.PayOsOrderCode.Contains(cleanBookingCode)));
             }
 
             // Filter by search term (tour company name)

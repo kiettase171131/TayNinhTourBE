@@ -60,15 +60,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="startDate">Lọc từ ngày (booking date)</param>
         /// <param name="endDate">Lọc đến ngày (booking date)</param>
         /// <param name="searchTerm">Tìm kiếm theo tên công ty tổ chức tour</param>
+        /// <param name="bookingCode">Mã PayOsOrderCode để tìm kiếm booking cụ thể</param>
         /// <returns>Danh sách bookings của user</returns>
         Task<Common.PagedResult<TourBookingDto>> GetUserBookingsAsync(
-            Guid userId, 
-            int pageIndex = 1, 
+            Guid userId,
+            int pageIndex = 1,
             int pageSize = 10,
             BookingStatus? status = null,
             DateTime? startDate = null,
             DateTime? endDate = null,
-            string? searchTerm = null);
+            string? searchTerm = null,
+            string? bookingCode = null);
 
         /// <summary>
         /// Hủy booking

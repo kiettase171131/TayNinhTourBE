@@ -225,6 +225,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="startDate">Lọc từ ngày booking (YYYY-MM-DD)</param>
         /// <param name="endDate">Lọc đến ngày booking (YYYY-MM-DD)</param>
         /// <param name="searchTerm">Tìm kiếm theo tên công ty tổ chức tour</param>
+        /// <param name="bookingCode">Mã PayOsOrderCode để tìm kiếm booking cụ thể (ví dụ: TNDT5424028424). Lưu ý: Parameter này tìm kiếm theo PayOsOrderCode chứ không phải BookingCode thông thường</param>
         /// <returns>Danh sách bookings của user</returns>
         [HttpGet("my-bookings")]
         [Authorize]
@@ -234,19 +235,21 @@ namespace TayNinhTourApi.Controller.Controllers
             [FromQuery] BookingStatus? status = null,
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
-            [FromQuery] string? searchTerm = null)
+            [FromQuery] string? searchTerm = null,
+            [FromQuery] string? bookingCode = null)
         {
             try
             {
                 var userId = _currentUserService.GetCurrentUserId();
                 var result = await _userTourBookingService.GetUserBookingsAsync(
-                    userId, pageIndex, pageSize, status, startDate, endDate, searchTerm);
+                    userId, pageIndex, pageSize, status, startDate, endDate, searchTerm, bookingCode);
 
                 return Ok(new
                 {
                     success = true,
                     message = "Lấy danh sách bookings thành công",
-                    data = result
+                    data = result,
+                    note = bookingCode != null ? $"Tìm kiếm theo PayOsOrderCode: {bookingCode}" : null
                 });
             }
             catch (Exception ex)
