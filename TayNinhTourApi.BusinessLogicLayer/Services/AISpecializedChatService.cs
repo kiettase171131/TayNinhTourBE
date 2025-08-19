@@ -1,7 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
@@ -13,17 +16,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IGeminiAIService _geminiAIService;
         private readonly IAITourDataService _tourDataService;
         private readonly IAIProductDataService _productDataService;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<AISpecializedChatService> _logger;
 
         public AISpecializedChatService(
             IGeminiAIService geminiAIService,
             IAITourDataService tourDataService,
             IAIProductDataService productDataService,
+            IUnitOfWork unitOfWork,
             ILogger<AISpecializedChatService> logger)
         {
             _geminiAIService = geminiAIService;
             _tourDataService = tourDataService;
             _productDataService = productDataService;
+            _unitOfWork = unitOfWork;
             _logger = logger;
         }
 
@@ -257,28 +263,71 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             return @"Bạn là AI tư vấn tour du lịch Tây Ninh chuyên nghiệp với những đặc điểm sau:
 
-NHIỆM VỤ CHÍNH:
+🎯 **NHIỆM VỤ CHÍNH:**
 - Tư vấn tours, giá cả, lịch trình, dịch vụ đặt tour
-- Chỉ giới thiệu tours có sẵn, status PUBLIC và có slot trống
-- Không đưa ra thông tin sai lệch về tours
+- CHỈ giới thiệu tours có sẵn trong dữ liệu được cung cấp từ database
+- CHỈ sử dụng thông tin tour THỰC TẾ, không tạo ra tour giả
+- Ưu tiên tours có nhiều slot trống và giá tốt
 - Hỗ trợ booking và liên kết với các dịch vụ tour
 
-PHONG CÁCH GIAO TIẾP:
-- Nhiệt tình, chuyên nghiệp, thân thiện
-- Sử dụng emoji phù hợp (🚌 🏛️ 🎯 ✨)  
-- Trả lời cụ thể, có cấu trúc rõ ràng
-- Luôn đưa ra call-to-action cuối mỗi response
+🚨 **NGUYÊN TẮC QUAN TRỌNG:**
+- NGHIÊM CẤM tạo ra thông tin tour không có trong database
+- NGHIÊM CẤM bịa đặt giá cả, tên tour, hoặc thông tin lịch trình
+- Nếu không có tour phù hợp trong database → nói thẳng 'Hiện tại không có tour này'
+- Luôn dựa vào dữ liệu THỰC TẾ được cung cấp trong prompt
+- Giá tours đã bao gồm từ TourOperation (giá thực tế, không phải ước tính)
 
-LƯU Ý ĐỀ PHÒNG:
+💬 **PHONG CÁCH GIAO TIẾP:**
+- Nhiệt tình, chuyên nghiệp, thân thiện như consultant du lịch
+- Sử dụng emoji phù hợp (🚌 🏛️ 🎯 ✨ 💰 🗓️)  
+- Trả lời cụ thể, có cấu trúc rõ ràng với bullet points
+- Luôn đưa ra call-to-action cuối mỗi response
+- Highlight deals tốt và slots còn ít để tạo urgency
+
+📋 **KIẾN THỨC CHUYÊN MÔN:**
+- Hiểu 2 loại tour: FreeScenic (miễn phí vé) vs PaidAttraction (có vé)
+- Biết so sánh giá và value proposition của từng tour
+- Hiểu lịch trình và thời gian phù hợp cho từng loại khách
+- Tư vấn theo budget và sở thích của khách
+
+⚠️ **LƯU Ý ĐỀ PHÒNG:**
 - Nếu user hỏi về mua sắm sản phẩm → gợi ý chuyển sang Product Chat
 - Nếu user hỏi về thông tin Tây Ninh chung → gợi ý TayNinh Chat  
-- Luôn tập trung vào tư vấn TOUR, không lệch chủ đề
+- Luôn tập trung vào tư vấn TOUR CÓ THẬT, không lệch chủ đề
 
-CÁCH TRẢ LỜI:
-1. Chào hỏi nhiệt tình
-2. Đưa ra thông tin tours cụ thể từ database  
-3. Highlight ưu điểm và giá trị
-4. Kết thúc bằng câu hỏi hoặc gợi ý tiếp theo";
+📝 **CÁCH TRẢ LỜI CHUẨN:**
+1. **Chào hỏi nhiệt tình** với emoji phù hợp
+2. **Phân tích nhu cầu** của khách (budget, thời gian, sở thích)  
+3. **Giới thiệu tours cụ thể** từ database với:
+   - Tên tour chính xác
+   - Giá thực tế từ TourOperation
+   - Số chỗ trống hiện tại
+   - Ngày có tour gần nhất
+   - Highlights và value proposition
+4. **So sánh** ưu nhược điểm giữa các tours
+5. **Tạo urgency** nếu tour có ít slot hoặc giá tốt
+6. **Call-to-action** cụ thể: 'Bạn muốn đặt tour nào?' hoặc 'Cần tôi check thêm thông tin gì?'
+
+🔢 **FORMAT HIỂN THỊ TOUR:**
+```
+🎯 **[TÊN TOUR]**
+💰 Giá: [GIÁ THỰC] VNĐ/người
+📍 Tuyến: [ĐIỂM ĐI] → [ĐIỂM ĐẾN]  
+🪑 Còn: [SỐ CHỖ TRỐNG] chỗ
+📅 Ngày gần nhất: [NGÀY]
+⭐ Nổi bật: [HIGHLIGHTS]
+```
+
+❌ **TUYỆT ĐỐI KHÔNG ĐƯỢC:**
+- Tạo ra tours không có trong dữ liệu
+- Ước đoán giá hoặc thông tin không chắc chắn
+- Copy paste thông tin từ tour này sang tour khác
+- Đưa ra lịch trình chi tiết không có trong database
+
+✅ **NẾU KHÔNG CÓ TOUR PHÙ HỢP:**
+'Hiện tại hệ thống chưa có tour [yêu cầu của khách] phù hợp. Tuy nhiên, tôi có thể gợi ý các tours tương tự: [danh sách tours thực tế]. Hoặc bạn có thể liên hệ trực tiếp để được tư vấn thêm.'
+
+Hãy tư vấn dựa trên dữ liệu THỰC TẾ được cung cấp và tạo trải nghiệm tư vấn chuyên nghiệp!";
         }
 
         private string GetProductSystemPrompt()
@@ -292,7 +341,7 @@ NHIỆM VỤ CHÍNH:
 - Ưu tiên sản phẩm có rating cao, reviews tích cực
 - Hỗ trợ so sánh và đưa ra gợi ý mua hàng
 
-NGUYÊN TắC QUAN TRỌNG:
+NGUYÊN TẮC QUAN TRỌNG:
 - NGHIÊM CẤM tạo ra thông tin sản phẩm không có trong database
 - NGHIÊM CẤM bịa đặt giá cả, tên sản phẩm, hoặc thông tin shop
 - Nếu không có sản phẩm phù hợp trong database → nói thẳng 'Hiện tại không có sản phẩm này'
@@ -383,38 +432,367 @@ CÁCH TRẢ LỜI:
         {
             var lowerMessage = message.ToLower();
 
-            // Search for tours if user mentions tour-related keywords
+            _logger.LogInformation("Enriching tour data for AI prompt with REAL database data. User message: {Message}", message);
+
+            // 1. Luôn hiển thị tours có sẵn khi user hỏi về tour
             if (lowerMessage.Contains("tour") || lowerMessage.Contains("du lịch") ||
-                lowerMessage.Contains("tham quan") || lowerMessage.Contains("núi bà đen"))
+                lowerMessage.Contains("tham quan") || lowerMessage.Contains("núi bà đen") ||
+                lowerMessage.Contains("chùa") || lowerMessage.Contains("cao đài") ||
+                lowerMessage.Contains("giá") || lowerMessage.Contains("booking") ||
+                lowerMessage.Contains("đặt") || lowerMessage.Contains("có tour nào") ||
+                lowerMessage.Contains("slot") || lowerMessage.Contains("chỗ") || 
+                lowerMessage.Contains("người") || lowerMessage.Contains("book"))
             {
-                var tours = await _tourDataService.GetAvailableToursAsync(8);
+                _logger.LogInformation("User asking about tours - fetching ALL available tours from database");
+                var tours = await _tourDataService.GetAvailableToursAsync(10);
+                
                 if (tours.Any())
                 {
-                    promptBuilder.AppendLine("=== TOURS HIỆN CÓ ===");
+                    _logger.LogInformation("Retrieved {Count} REAL tours from database for AI recommendation", tours.Count);
+                    promptBuilder.AppendLine("\n=== TOURS CÓ SẴN THỰC TẾ TỪ DATABASE ===");
+                    
                     foreach (var tour in tours)
                     {
-                        promptBuilder.AppendLine($"• {tour.Title}");
-                        promptBuilder.AppendLine($"  - Từ: {tour.StartLocation} → {tour.EndLocation}");
-                        promptBuilder.AppendLine($"  - Giá: {tour.Price:N0} VNĐ");
-                        promptBuilder.AppendLine($"  - Còn: {tour.AvailableSlots} chỗ");
-                        promptBuilder.AppendLine($"  - Loại: {tour.TourType}");
+                        promptBuilder.AppendLine($"✅ **{tour.Title}**");
+                        promptBuilder.AppendLine($"   📍 Từ: {tour.StartLocation} → {tour.EndLocation}");
+                        promptBuilder.AppendLine($"   💰 Giá: {tour.Price:N0} VNĐ/người (GIÁ THỰC từ TourOperation)");
+                        promptBuilder.AppendLine($"   🪑 Tổng còn: {tour.AvailableSlots} chỗ trống");
+                        promptBuilder.AppendLine($"   🎯 Loại: {tour.TourType}");
+                        promptBuilder.AppendLine($"   🏢 Công ty: {tour.CompanyName}");
+                        
+                        // 🔧 NEW: Hiển thị chi tiết từng slot riêng biệt
+                        if (tour.AvailableDates.Any())
+                        {
+                            promptBuilder.AppendLine($"   📅 **CHI TIẾT TỪNG NGÀY/SLOT:**");
+                            
+                            // Lấy chi tiết slots cho tour này
+                            await EnrichWithDetailedSlotInfo(tour.Id, promptBuilder);
+                        }
+
+                        if (tour.Highlights.Any())
+                        {
+                            promptBuilder.AppendLine($"   ⭐ Nổi bật: {string.Join(", ", tour.Highlights.Take(3))}");
+                        }
+
+                        promptBuilder.AppendLine($"   🔢 ID Tour: {tour.Id}");
                         promptBuilder.AppendLine();
+                    }
+                    
+                    promptBuilder.AppendLine("📋 **LƯU Ý QUAN TRỌNG:**");
+                    promptBuilder.AppendLine("- Đây là dữ liệu THỰC TẾ từ cơ sở dữ liệu, không phải thông tin giả");
+                    promptBuilder.AppendLine("- Giá đã bao gồm từ TourOperation (giá thực tế hiện tại)");
+                    promptBuilder.AppendLine("- Chỉ tư vấn các tours này, KHÔNG tạo ra tours không có trong danh sách");
+                    promptBuilder.AppendLine("- Tours đều có status PUBLIC và có thể đặt ngay");
+                    promptBuilder.AppendLine("- Chi tiết slots giúp bạn chọn ngày phù hợp với số lượng khách");
+                    promptBuilder.AppendLine();
+                }
+                else
+                {
+                    _logger.LogWarning("No tours found in database - this is a critical issue for tour consultation");
+                    promptBuilder.AppendLine("\n=== CẢNH BÁO: KHÔNG CÓ TOUR NÀO ===");
+                    promptBuilder.AppendLine("Hiện tại KHÔNG có tour nào trong cơ sở dữ liệu có thể đặt được.");
+                    promptBuilder.AppendLine("Nguyên nhân có thể:");
+                    promptBuilder.AppendLine("- Chưa có tour nào có status PUBLIC");
+                    promptBuilder.AppendLine("- Tất cả tours đã hết chỗ");
+                    promptBuilder.AppendLine("- Tours chưa có TourOperation với giá");
+                    promptBuilder.AppendLine("- Vấn đề kết nối database");
+                    promptBuilder.AppendLine();
+                    promptBuilder.AppendLine("🚨 **HÃY THÔNG BÁO CHO KHÁCH HÀNG:**");
+                    promptBuilder.AppendLine("'Hiện tại hệ thống chưa có tour nào sẵn sàng để đặt. Vui lòng liên hệ trực tiếp qua hotline hoặc thử lại sau.'");
+                    promptBuilder.AppendLine("TUYỆT ĐỐI KHÔNG TẠO RA THÔNG TIN TOUR GIẢ!");
+                    promptBuilder.AppendLine();
+                }
+            }
+
+            // 2. Đặc biệt xử lý câu hỏi về số lượng khách cụ thể
+            if (lowerMessage.Contains("người") || lowerMessage.Contains("khách") || 
+                lowerMessage.Contains("slot") || lowerMessage.Contains("đủ") ||
+                lowerMessage.Contains("chỗ") || Regex.IsMatch(lowerMessage, @"\d+\s*(người|khách|chỗ)"))
+            {
+                _logger.LogInformation("User asking about specific guest capacity - providing detailed slot analysis");
+                
+                // Extract số lượng khách từ câu hỏi
+                var guestCountMatch = Regex.Match(lowerMessage, @"(\d+)\s*người");
+                if (guestCountMatch.Success && int.TryParse(guestCountMatch.Groups[1].Value, out int requestedGuests))
+                {
+                    promptBuilder.AppendLine($"\n🔍 **PHÂN TÍCH CHO {requestedGuests} KHÁCH:**");
+                    
+                    var tours = await _tourDataService.GetAvailableToursAsync(10);
+                    foreach (var tour in tours)
+                    {
+                        await AnalyzeSlotCapacityForGuests(tour.Id, requestedGuests, promptBuilder);
+                    }
+                }
+                else
+                {
+                    promptBuilder.AppendLine("\n🔍 **THÔNG TIN CHI TIẾT CAPACITY CÁC SLOTS:**");
+                    var tours = await _tourDataService.GetAvailableToursAsync(10);
+                    foreach (var tour in tours)
+                    {
+                        await EnrichWithDetailedSlotInfo(tour.Id, promptBuilder);
                     }
                 }
             }
 
-            // Price-based search
-            if (lowerMessage.Contains("giá") || lowerMessage.Contains("rẻ") || lowerMessage.Contains("tiền"))
+            // 3. Tìm kiếm theo khoảng giá cụ thể
+            if (lowerMessage.Contains("giá") || lowerMessage.Contains("rẻ") || lowerMessage.Contains("tiền") ||
+                lowerMessage.Contains("budget") || lowerMessage.Contains("bao nhiêu"))
             {
-                var budgetTours = await _tourDataService.GetToursByPriceRangeAsync(0, 500000, 5);
+                _logger.LogInformation("User asking about tour prices - fetching budget-friendly tours");
+                
+                // Tìm tours giá dưới 500k
+                var budgetTours = await _tourDataService.GetToursByPriceRangeAsync(0, 500000, 8);
                 if (budgetTours.Any())
                 {
-                    promptBuilder.AppendLine("=== TOURS GIÁ TỐT ===");
-                    foreach (var tour in budgetTours)
+                    _logger.LogInformation("Found {Count} budget tours under 500k", budgetTours.Count);
+                    promptBuilder.AppendLine("\n=== TOURS GIÁ TÔNG (DƯỚI 500K) ===");
+                    foreach (var tour in budgetTours.OrderBy(t => t.Price))
                     {
-                        promptBuilder.AppendLine($"• {tour.Title} - {tour.Price:N0} VNĐ");
+                        promptBuilder.AppendLine($"💎 {tour.Title} - {tour.Price:N0} VNĐ");
+                        promptBuilder.AppendLine($"   📍 {tour.StartLocation} → {tour.EndLocation}");
+                        promptBuilder.AppendLine($"   🪑 Còn {tour.AvailableSlots} chỗ");
+                    }
+                    promptBuilder.AppendLine();
+                }
+
+                // Tìm tours cao cấp (trên 500k)
+                var premiumTours = await _tourDataService.GetToursByPriceRangeAsync(500000, 2000000, 5);
+                if (premiumTours.Any())
+                {
+                    _logger.LogInformation("Found {Count} premium tours over 500k", premiumTours.Count);
+                    promptBuilder.AppendLine("\n=== TOURS CAO CẤP (TRÊN 500K) ===");
+                    foreach (var tour in premiumTours.OrderBy(t => t.Price))
+                    {
+                        promptBuilder.AppendLine($"⭐ {tour.Title} - {tour.Price:N0} VNĐ");
+                        promptBuilder.AppendLine($"   📍 {tour.StartLocation} → {tour.EndLocation}");
+                        promptBuilder.AppendLine($"   🪑 Còn {tour.AvailableSlots} chỗ");
+                    }
+                    promptBuilder.AppendLine();
+                }
+            }
+
+            // 4. Tìm kiếm theo loại tour
+            if (lowerMessage.Contains("danh lam") || lowerMessage.Contains("thắng cảnh") || 
+                lowerMessage.Contains("miễn phí") || lowerMessage.Contains("free"))
+            {
+                _logger.LogInformation("User asking about scenic tours");
+                var scenicTours = await _tourDataService.GetToursByTypeAsync("FreeScenic", 6);
+                if (scenicTours.Any())
+                {
+                    promptBuilder.AppendLine("\n=== TOURS DANH LAM THẮNG CẢNH (MIỄN PHÍ VÉ VÀO CỬA) ===");
+                    foreach (var tour in scenicTours)
+                    {
+                        promptBuilder.AppendLine($"🏞️ {tour.Title} - {tour.Price:N0} VNĐ");
+                        promptBuilder.AppendLine($"   📍 {tour.StartLocation} → {tour.EndLocation}");
+                        promptBuilder.AppendLine($"   🆓 Không phí vé vào cửa các địa điểm");
+                    }
+                    promptBuilder.AppendLine();
+                }
+            }
+
+            if (lowerMessage.Contains("vui chơi") || lowerMessage.Contains("giải trí") ||
+                lowerMessage.Contains("paid") || lowerMessage.Contains("khu du lịch"))
+            {
+                _logger.LogInformation("User asking about attraction tours");
+                var attractionTours = await _tourDataService.GetToursByTypeAsync("PaidAttraction", 6);
+                if (attractionTours.Any())
+                {
+                    promptBuilder.AppendLine("\n=== TOURS KHU VUI CHƠI (BAO GỒM VÉ VÀO CỬA) ===");
+                    foreach (var tour in attractionTours)
+                    {
+                        promptBuilder.AppendLine($"🎢 {tour.Title} - {tour.Price:N0} VNĐ");
+                        promptBuilder.AppendLine($"   📍 {tour.StartLocation} → {tour.EndLocation}");
+                        promptBuilder.AppendLine($"   🎫 Bao gồm vé vào cửa tất cả địa điểm");
+                    }
+                    promptBuilder.AppendLine();
+                }
+            }
+
+            // 5. Tìm kiếm theo địa điểm cụ thể
+            if (lowerMessage.Contains("núi bà đen"))
+            {
+                _logger.LogInformation("User asking about Nui Ba Den tours");
+                var badenTours = await _tourDataService.SearchToursAsync("Núi Bà Đen", 5);
+                if (badenTours.Any())
+                {
+                    promptBuilder.AppendLine("\n=== TOURS NÚI BÀ ĐEN ===");
+                    foreach (var tour in badenTours)
+                    {
+                        promptBuilder.AppendLine($"⛰️ {tour.Title} - {tour.Price:N0} VNĐ");
+                        promptBuilder.AppendLine($"   🪑 Còn {tour.AvailableSlots} chỗ");
+                        if (tour.AvailableDates.Any())
+                        {
+                            var nextDate = tour.AvailableDates.OrderBy(d => d).FirstOrDefault().ToString("dd/MM/yyyy");
+                            promptBuilder.AppendLine($"   📅 Ngày gần nhất: {nextDate}");
+                        }
+                    }
+                    promptBuilder.AppendLine();
+                }
+            }
+
+            // 6. Tìm kiếm theo thời gian (hôm nay, mai, cuối tuần)
+            if (lowerMessage.Contains("hôm nay") || lowerMessage.Contains("today"))
+            {
+                var todayTours = await _tourDataService.GetAvailableToursByDateAsync(DateTime.Today, 5);
+                if (todayTours.Any())
+                {
+                    promptBuilder.AppendLine("\n=== TOURS HÔM NAY ===");
+                    foreach (var tour in todayTours)
+                    {
+                        promptBuilder.AppendLine($"🗓️ {tour.Title} - {tour.Price:N0} VNĐ - {tour.AvailableSlots} chỗ");
+                    }
+                    promptBuilder.AppendLine();
+                }
+            }
+
+            if (lowerMessage.Contains("ngày mai") || lowerMessage.Contains("tomorrow"))
+            {
+                var tomorrowTours = await _tourDataService.GetAvailableToursByDateAsync(DateTime.Today.AddDays(1), 5);
+                if (tomorrowTours.Any())
+                {
+                    promptBuilder.AppendLine("\n=== TOURS NGÀY MAI ===");
+                    foreach (var tour in tomorrowTours)
+                    {
+                        promptBuilder.AppendLine($"📅 {tour.Title} - {tour.Price:N0} VNĐ - {tour.AvailableSlots} chỗ");
+                    }
+                    promptBuilder.AppendLine();
+                }
+            }
+
+            // 7. Thống kê tổng quan cuối prompt
+            var totalTours = await _tourDataService.GetAvailableToursAsync(100);
+            if (totalTours.Any())
+            {
+                var totalSlots = totalTours.Sum(t => t.AvailableSlots);
+                var avgPrice = totalTours.Average(t => t.Price);
+                var minPrice = totalTours.Min(t => t.Price);
+                var maxPrice = totalTours.Max(t => t.Price);
+
+                promptBuilder.AppendLine($"\n📊 **THỐNG KÊ TỔNG QUAN:**");
+                promptBuilder.AppendLine($"- Tổng {totalTours.Count} tours có sẵn để đặt");
+                promptBuilder.AppendLine($"- Tổng {totalSlots} chỗ trống");
+                promptBuilder.AppendLine($"- Giá từ {minPrice:N0} - {maxPrice:N0} VNĐ");
+                promptBuilder.AppendLine($"- Giá trung bình: {avgPrice:N0} VNĐ");
+                promptBuilder.AppendLine();
+            }
+
+            _logger.LogInformation("Completed tour data enrichment with {Count} tours", totalTours.Count);
+        }
+
+        /// <summary>
+        /// 🔧 NEW: Lấy chi tiết từng slot của một tour cụ thể
+        /// </summary>
+        private async Task EnrichWithDetailedSlotInfo(Guid tourTemplateId, StringBuilder promptBuilder)
+        {
+            try
+            {
+                // Lấy chi tiết slots cho tour template này
+                var slots = await _unitOfWork.TourSlotRepository
+                    .GetQueryable()
+                    .Include(ts => ts.TourDetails)
+                        .ThenInclude(td => td.TourOperation)
+                    .Where(ts => ts.TourTemplateId == tourTemplateId &&
+                                ts.IsActive &&
+                                ts.Status == TourSlotStatus.Available &&
+                                ts.MaxGuests > ts.CurrentBookings &&
+                                ts.TourDate >= DateOnly.FromDateTime(DateTime.Today) &&
+                                ts.TourDetails != null &&
+                                ts.TourDetails.Status == TourDetailsStatus.Public &&
+                                ts.TourDetails.TourOperation != null)
+                    .OrderBy(ts => ts.TourDate)
+                    .ToListAsync();
+
+                foreach (var slot in slots)
+                {
+                    var availableSpots = slot.MaxGuests - slot.CurrentBookings;
+                    var dateStr = slot.TourDate.ToString("dd/MM/yyyy");
+                    var dayOfWeek = slot.TourDate.ToDateTime(TimeOnly.MinValue).ToString("dddd", new System.Globalization.CultureInfo("vi-VN"));
+                    
+                    promptBuilder.AppendLine($"     🗓️ {dayOfWeek} {dateStr}: {availableSpots}/{slot.MaxGuests} chỗ trống");
+                    
+                    if (availableSpots >= 5)
+                    {
+                        promptBuilder.AppendLine($"       ✅ Đủ cho nhóm 5+ người");
+                    }
+                    else if (availableSpots > 0)
+                    {
+                        promptBuilder.AppendLine($"       ⚠️ Chỉ đủ cho nhóm {availableSpots} người");
+                    }
+                    else
+                    {
+                        promptBuilder.AppendLine($"       ❌ Đã kín chỗ");
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting detailed slot info for tour template {TourTemplateId}", tourTemplateId);
+                promptBuilder.AppendLine($"     ⚠️ Không thể lấy chi tiết slots");
+            }
+        }
+
+        /// <summary>
+        /// 🔧 NEW: Phân tích capacity cho số lượng khách cụ thể
+        /// </summary>
+        private async Task AnalyzeSlotCapacityForGuests(Guid tourTemplateId, int requestedGuests, StringBuilder promptBuilder)
+        {
+            try
+            {
+                var slots = await _unitOfWork.TourSlotRepository
+                    .GetQueryable()
+                    .Include(ts => ts.TourTemplate)
+                    .Include(ts => ts.TourDetails)
+                        .ThenInclude(td => td.TourOperation)
+                    .Where(ts => ts.TourTemplateId == tourTemplateId &&
+                                ts.IsActive &&
+                                ts.Status == TourSlotStatus.Available &&
+                                ts.MaxGuests > ts.CurrentBookings &&
+                                ts.TourDate >= DateOnly.FromDateTime(DateTime.Today) &&
+                                ts.TourDetails != null &&
+                                ts.TourDetails.Status == TourDetailsStatus.Public &&
+                                ts.TourDetails.TourOperation != null)
+                    .OrderBy(ts => ts.TourDate)
+                    .ToListAsync();
+
+                if (slots.Any())
+                {
+                    var tourTitle = slots.First().TourTemplate.Title;
+                    promptBuilder.AppendLine($"\n🎯 **{tourTitle}:**");
+                    
+                    var suitableSlots = slots.Where(s => (s.MaxGuests - s.CurrentBookings) >= requestedGuests).ToList();
+                    var unsuitableSlots = slots.Where(s => (s.MaxGuests - s.CurrentBookings) < requestedGuests && (s.MaxGuests - s.CurrentBookings) > 0).ToList();
+                    
+                    if (suitableSlots.Any())
+                    {
+                        promptBuilder.AppendLine($"   ✅ **SLOTS ĐỦ CHỖ CHO {requestedGuests} NGƯỜI:**");
+                        foreach (var slot in suitableSlots)
+                        {
+                            var availableSpots = slot.MaxGuests - slot.CurrentBookings;
+                            var dateStr = slot.TourDate.ToString("dd/MM/yyyy");
+                            promptBuilder.AppendLine($"     • {dateStr}: {availableSpots} chỗ trống (đủ cho {requestedGuests} người)");
+                        }
+                    }
+                    
+                    if (unsuitableSlots.Any())
+                    {
+                        promptBuilder.AppendLine($"   ⚠️ **SLOTS KHÔNG ĐỦ CHỖ CHO {requestedGuests} NGƯỜI:**");
+                        foreach (var slot in unsuitableSlots)
+                        {
+                            var availableSpots = slot.MaxGuests - slot.CurrentBookings;
+                            var dateStr = slot.TourDate.ToString("dd/MM/yyyy");
+                            promptBuilder.AppendLine($"     • {dateStr}: chỉ còn {availableSpots} chỗ (thiếu {requestedGuests - availableSpots} chỗ)");
+                        }
+                    }
+                    
+                    if (!suitableSlots.Any() && !unsuitableSlots.Any())
+                    {
+                        promptBuilder.AppendLine($"   ❌ **KHÔNG CÓ SLOT NÀO PHÙ HỢP CHO {requestedGuests} NGƯỜI**");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error analyzing slot capacity for {RequestedGuests} guests, tour {TourTemplateId}", requestedGuests, tourTemplateId);
             }
         }
 
