@@ -1650,6 +1650,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Price = booking.TourOperation.Price,
                     MaxGuests = booking.TourOperation.MaxGuests,
                     CurrentBookings = booking.TourOperation.CurrentBookings,
+                    // ✅ FIXED: Get tour date from TourSlot if booking has TourSlot assigned
                     TourStartDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
                     GuideId = booking.TourOperation.TourGuide?.Id.ToString(),
                     GuideName = booking.TourOperation.TourGuide?.FullName,
@@ -1720,8 +1721,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Price = booking.TourOperation.Price,
                     MaxGuests = booking.TourOperation.MaxGuests,
                     CurrentBookings = booking.TourOperation.CurrentBookings,
-                    TourStartDate = booking.TourOperation.TourDetails?.AssignedSlots?.Any() == true ?
-                        booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null,
+                    // ✅ FIXED: Get tour date from TourSlot if booking has TourSlot assigned
+                    TourStartDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ??
+                        (booking.TourOperation.TourDetails?.AssignedSlots?.Any() == true ?
+                            booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null),
                     GuideId = booking.TourOperation.TourGuide?.Id.ToString(),
                     GuideName = booking.TourOperation.TourGuide?.FullName,
                     GuidePhone = booking.TourOperation.TourGuide?.PhoneNumber

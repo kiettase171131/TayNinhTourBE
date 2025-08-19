@@ -474,7 +474,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             try
             {
                 var booking = await _unitOfWork.TourBookingRepository.GetByIdAsync(bookingId,
-                    new[] { "TourOperation", "TourOperation.TourDetails", "TourOperation.TourDetails.TourTemplate", "TourOperation.TourGuide", "User" });
+                    new[] { "TourOperation", "TourOperation.TourDetails", "TourOperation.TourDetails.TourTemplate", "TourOperation.TourGuide", "User", "TourSlot" });
 
                 if (booking == null) return null;
 
@@ -787,13 +787,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     GuidePhone = booking.TourOperation.TourGuide?.PhoneNumber
                 };
 
-                // Get tour date from TourSlot if available
-                var tourSlots = await _unitOfWork.TourSlotRepository.GetAllAsync(
-                    ts => ts.TourDetailsId == booking.TourOperation.TourDetailsId);
-                var tourSlot = tourSlots.FirstOrDefault();
-                if (tourSlot != null)
+                // Get tour date from TourSlot if booking has TourSlot assigned
+                if (booking.TourSlot != null)
                 {
-                    response.TourOperation.TourDate = tourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+                    response.TourOperation.TourDate = booking.TourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+                }
+                else
+                {
+                    // Fallback: try to get tour date from any TourSlot assigned to the TourDetails
+                    var tourSlots = await _unitOfWork.TourSlotRepository.GetAllAsync(
+                        ts => ts.TourDetailsId == booking.TourOperation.TourDetailsId);
+                    var tourSlot = tourSlots.FirstOrDefault();
+                    if (tourSlot != null)
+                    {
+                        response.TourOperation.TourDate = tourSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+                    }
                 }
             }
 

@@ -150,6 +150,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tb => tb.TourOperation)
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.TourTemplate)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .Where(tb => tb.UserId == userId);
 
             if (!includeInactive)
@@ -173,6 +174,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tb => tb.TourOperation)
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.TourTemplate)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .FirstOrDefaultAsync(tb => tb.BookingCode == bookingCode);
         }
 
@@ -239,6 +241,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tb => tb.TourOperation)
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.TourTemplate)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .AsQueryable();
 
             if (tourOperationId.HasValue)
@@ -290,6 +293,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     .ThenInclude(to => to.TourDetails)
                         .ThenInclude(td => td.CreatedBy)
                             .ThenInclude(u => u.TourCompany)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .FirstOrDefaultAsync(tb => tb.PayOsOrderCode == payOsOrderCode && !tb.IsDeleted);
         }
 
@@ -318,6 +322,7 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Include(tb => tb.TourOperation)
                     .ThenInclude(to => to.TourGuide)
                 .Include(tb => tb.User)
+                .Include(tb => tb.TourSlot) // Added TourSlot to get tour date information
                 .Where(tb => tb.UserId == userId && !tb.IsDeleted);
 
             // Filter by status
