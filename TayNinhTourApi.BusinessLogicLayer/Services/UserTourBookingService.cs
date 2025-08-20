@@ -1747,21 +1747,53 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 GroupQRCodeData = booking.GroupQRCodeData,
                 CreatedAt = booking.CreatedAt,
                 UpdatedAt = booking.UpdatedAt,
-                TourTitle = booking.TourOperation?.TourDetails?.Title ?? "N/A",
-                TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
-                CompanyName = companyName, // ✅ NEW: Add company name
-                Guests = booking.Guests?.Select(g => new TourBookingGuestDto
+
+                // ✅ NEW: Set tour title, tour date, and company name
+                TourTitle = booking.TourOperation?.TourDetails?.Title ?? string.Empty,
+                TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ??
+                          (booking.TourOperation?.TourDetails?.AssignedSlots?.Any() == true ?
+                              booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null),
+                CompanyName = companyName,
+
+                // ✅ NEW: Include guests information
+                Guests = booking.Guests?.Where(g => !g.IsDeleted).Select(g => new TourBookingGuestDto
                 {
                     Id = g.Id,
+                    TourBookingId = g.TourBookingId,
                     GuestName = g.GuestName,
                     GuestEmail = g.GuestEmail,
                     GuestPhone = g.GuestPhone,
-                    IsGroupRepresentative = g.IsGroupRepresentative,
-                    QRCodeData = g.QRCodeData,
                     IsCheckedIn = g.IsCheckedIn,
                     CheckInTime = g.CheckInTime,
-                    CheckInNotes = g.CheckInNotes
-                }).ToList() ?? new List<TourBookingGuestDto>()
+                    CheckInNotes = g.CheckInNotes,
+                    QRCodeData = g.QRCodeData,
+                    CreatedAt = g.CreatedAt
+                }).ToList() ?? new List<TourBookingGuestDto>(),
+
+                TourOperation = booking.TourOperation != null ? new TourOperationSummaryDto
+                {
+                    Id = booking.TourOperation.Id,
+                    TourDetailsId = booking.TourOperation.TourDetailsId,
+                    TourTitle = booking.TourOperation.TourDetails?.Title ?? "",
+                    Price = booking.TourOperation.Price,
+                    MaxGuests = booking.TourOperation.MaxGuests,
+                    CurrentBookings = booking.TourOperation.CurrentBookings,
+                    // ✅ FIXED: Get tour date from TourSlot if booking has TourSlot assigned
+                    TourStartDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ??
+                        (booking.TourOperation.TourDetails?.AssignedSlots?.Any() == true ?
+                            booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null),
+                    GuideId = booking.TourOperation.TourGuide?.Id.ToString(),
+                    GuideName = booking.TourOperation.TourGuide?.FullName,
+                    GuidePhone = booking.TourOperation.TourGuide?.PhoneNumber
+                } : null,
+
+                User = booking.User != null ? new DTOs.Response.TourBooking.UserSummaryDto
+                {
+                    Id = booking.User.Id,
+                    Name = booking.User.Name,
+                    Email = booking.User.Email,
+                    PhoneNumber = booking.User.PhoneNumber
+                } : null!
             };
         }
 
