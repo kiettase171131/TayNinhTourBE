@@ -296,9 +296,17 @@ namespace TayNinhTourApi.Controller.Controllers
                         ? "Slot này đã hết chỗ"
                         : !slot.IsActive
                             ? "Slot này không còn hoạt động"
-                            : slot.TourDate <= DateOnly.FromDateTime(DateTime.UtcNow)
-                                ? "Slot này đã qua ngày"
-                                : $"Slot này chỉ còn {availableSpots} chỗ, không đủ cho {requestedGuests} khách";
+                        : slot.Status == TourSlotStatus.InProgress
+                            ? "Tour này đã bắt đầu, không thể đặt booking"
+                        : slot.Status == TourSlotStatus.FullyBooked
+                            ? "Tour này đã đầy"
+                        : slot.Status == TourSlotStatus.Cancelled
+                            ? "Tour này đã bị hủy"
+                        : slot.Status == TourSlotStatus.Completed
+                            ? "Tour này đã hoàn thành"
+                        : slot.TourDate <= DateOnly.FromDateTime(DateTime.UtcNow)
+                            ? "Slot này đã qua ngày"
+                            : $"Slot này chỉ còn {availableSpots} chỗ, không đủ cho {requestedGuests} khách";
 
                 return Ok(new
                 {
