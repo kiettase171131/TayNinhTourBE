@@ -166,6 +166,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public string EndLocation { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
 
+        // ✅ NEW: Slot-specific capacity information
+        /// <summary>
+        /// Số lượng slot có sẵn (có thể booking)
+        /// </summary>
+        public int AvailableSlots { get; set; }
+
+        /// <summary>
+        /// Tổng capacity của tất cả slots còn available
+        /// </summary>
+        public int TotalSlotsCapacity { get; set; }
+
+        /// <summary>
+        /// Tổng số chỗ trống trong tất cả slots còn available
+        /// </summary>
+        public int TotalAvailableSpots { get; set; }
+
         // Early Bird Information
         public bool IsEarlyBirdActive { get; set; }
         public decimal EarlyBirdPrice { get; set; }
@@ -178,6 +194,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         // Computed properties for FE convenience
         public decimal FinalPrice => IsEarlyBirdActive ? EarlyBirdPrice : Price;
         public bool HasEarlyBirdDiscount => IsEarlyBirdActive && EarlyBirdDiscountPercent > 0;
+
+        /// <summary>
+        /// ✅ NEW: Tour có thể book được không (dựa trên slot availability)
+        /// </summary>
+        public bool IsBookable => AvailableSlots > 0 && TotalAvailableSpots > 0;
+
+        /// <summary>
+        /// ✅ NEW: Message hiển thị cho user về availability
+        /// </summary>
+        public string AvailabilityMessage => AvailableSlots switch
+        {
+            0 => "Tất cả slot đã đầy",
+            1 => $"Còn 1 slot với {TotalAvailableSpots} chỗ trống",
+            _ => $"Còn {AvailableSlots} slots với tổng {TotalAvailableSpots} chỗ trống"
+        };
 
         /// <summary>
         /// Đã bỏ IsEarlyBirdEligible để tránh confusion - dùng IsEarlyBirdActive thay thế

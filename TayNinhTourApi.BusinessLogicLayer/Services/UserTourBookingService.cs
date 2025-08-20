@@ -65,15 +65,27 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 .Include(td => td.TourOperation)
                 .Include(td => td.TourTemplate)
                 .Include(td => td.AssignedSlots)
-                .Where(td => td.TourOperation != null && td.TourOperation.IsActive)
-                .Where(td => td.TourOperation!.CurrentBookings < td.TourOperation.MaxGuests);
+                .Where(td => td.TourOperation != null && td.TourOperation.IsActive);
+                // ✅ REMOVED: .Where(td => td.TourOperation!.CurrentBookings < td.TourOperation.MaxGuests)
+                // Vì mỗi TourSlot có capacity riêng, không cần check tổng capacity của TourOperation
 
-            // Filter by date range
+            // Filter by date range - check if any slots are available in the date range
             if (fromDate.HasValue || toDate.HasValue)
             {
                 query = query.Where(td => td.AssignedSlots.Any(slot =>
+                    slot.IsActive && 
+                    slot.Status == TourSlotStatus.Available &&
+                    slot.CurrentBookings < slot.MaxGuests && // ✅ Check slot-specific capacity
                     (!fromDate.HasValue || slot.TourDate >= DateOnly.FromDateTime(fromDate.Value)) &&
                     (!toDate.HasValue || slot.TourDate <= DateOnly.FromDateTime(toDate.Value))));
+            }
+            else
+            {
+                // ✅ NEW: Only show tours that have at least one available slot
+                query = query.Where(td => td.AssignedSlots.Any(slot =>
+                    slot.IsActive && 
+                    slot.Status == TourSlotStatus.Available &&
+                    slot.CurrentBookings < slot.MaxGuests)); // Check slot-specific capacity
             }
 
             // Filter by search keyword
@@ -124,6 +136,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     ? _pricingService.CalculateDaysRemainingForEarlyBird(tourPublicDate, tourStartDate, currentDate)
                     : 0;
 
+                // ✅ FIXED: Calculate available slots capacity correctly
+                var availableSlots = td.AssignedSlots.Where(s => 
+                    s.IsActive && 
+                    s.Status == TourSlotStatus.Available &&
+                    s.CurrentBookings < s.MaxGuests).ToList();
+                
+                var totalAvailableSpots = availableSlots.Sum(s => s.MaxGuests - s.CurrentBookings);
+                var totalMaxGuests = availableSlots.Sum(s => s.MaxGuests);
+                var totalCurrentBookings = availableSlots.Sum(s => s.CurrentBookings);
+
                 tours.Add(new AvailableTourDto
                 {
                     TourDetailsId = td.Id,
@@ -132,12 +154,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Description = td.Description,
                     ImageUrls = td.ImageUrls,
                     Price = td.TourOperation.Price,
-                    MaxGuests = td.TourOperation.MaxGuests,
-                    CurrentBookings = td.TourOperation.CurrentBookings,
+                    MaxGuests = td.TourOperation.MaxGuests, // Keep for reference, but use slot data for availability
+                    CurrentBookings = td.TourOperation.CurrentBookings, // Keep for reference
                     TourStartDate = tourStartDate != DateTime.MaxValue ? tourStartDate : null,
                     StartLocation = td.TourTemplate.StartLocation,
                     EndLocation = td.TourTemplate.EndLocation,
                     CreatedAt = td.CreatedAt,
+
+                    // ✅ NEW: Add slot-specific availability info
+                    AvailableSlots = availableSlots.Count,
+                    TotalSlotsCapacity = totalMaxGuests,
+                    TotalAvailableSpots = totalAvailableSpots,
 
                     // Enhanced Early Bird Information với logic mới
                     IsEarlyBirdActive = pricingInfo.IsEarlyBird,
@@ -318,8 +345,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // NEW LOGIC: Sử dụng UpdatedAt như ngày công khai tour
             var tourPublicDate = tourOperation.TourDetails.UpdatedAt ?? tourOperation.TourDetails.CreatedAt;
 
-            var availableSpots = tourOperation.MaxGuests - tourOperation.CurrentBookings;
-            var isAvailable = availableSpots >= request.NumberOfGuests && tourStartDate > VietnamTimeZoneUtility.GetVietnamNow();
+            // ✅ FIXED: Check availability across all slots, not just TourOperation capacity
+            var availableSlots = tourOperation.TourDetails.AssignedSlots.Where(s => 
+                s.IsActive && 
+                s.Status == TourSlotStatus.Available &&
+                s.CurrentBookings < s.MaxGuests).ToList();
+            
+            var totalAvailableSpots = availableSlots.Sum(s => s.MaxGuests - s.CurrentBookings);
+            var isAvailable = totalAvailableSpots >= request.NumberOfGuests && 
+                             tourStartDate > VietnamTimeZoneUtility.GetVietnamNow();
 
             var pricingInfo = _pricingService.GetPricingInfo(
                 tourOperation.Price,
@@ -348,9 +382,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TourStartDate = tourStartDate != DateTime.MaxValue ? tourStartDate : null,
                 TourDetailsCreatedAt = tourOperation.TourDetails.CreatedAt, // Giữ để reference
                 IsAvailable = isAvailable,
-                AvailableSpots = availableSpots,
+                AvailableSpots = totalAvailableSpots, // ✅ FIXED: Use slot-based availability
                 UnavailableReason = !isAvailable ?
-                    (availableSpots < request.NumberOfGuests ? "Không đủ chỗ trống" : "Tour đã khởi hành") : null
+                    (totalAvailableSpots < request.NumberOfGuests ? "Không đủ chỗ trống trong các slot" : "Tour đã khởi hành") : null
             };
         }
 
@@ -445,18 +479,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         };
                     }
 
-                    // Calculate available spots correctly using TourOperation.MaxGuests
-                    var actualMaxGuests = tourSlot.TourDetails?.TourOperation?.MaxGuests ?? tourSlot.MaxGuests;
-                    var actualAvailableSpots = actualMaxGuests - tourSlot.CurrentBookings;
+                    // ✅ FIXED: Use TourSlot capacity correctly - each slot has independent capacity
+                    var slotAvailableSpots = tourSlot.MaxGuests - tourSlot.CurrentBookings;
 
-                    if (actualAvailableSpots < request.NumberOfGuests)
+                    if (slotAvailableSpots < request.NumberOfGuests)
                     {
-                        _logger.LogWarning("Insufficient capacity in slot. TourSlotId: {TourSlotId}, Available: {Available}, Requested: {Requested}, ActualMaxGuests: {ActualMaxGuests}, SlotMaxGuests: {SlotMaxGuests}",
-                            request.TourSlotId, actualAvailableSpots, request.NumberOfGuests, actualMaxGuests, tourSlot.MaxGuests);
+                        _logger.LogWarning("Insufficient capacity in slot. TourSlotId: {TourSlotId}, Available: {Available}, Requested: {Requested}, SlotMaxGuests: {SlotMaxGuests}, SlotCurrentBookings: {SlotCurrentBookings}",
+                            request.TourSlotId, slotAvailableSpots, request.NumberOfGuests, tourSlot.MaxGuests, tourSlot.CurrentBookings);
                         return new CreateBookingResultDto
                         {
                             Success = false,
-                            Message = $"Slot này chỉ còn {actualAvailableSpots} chỗ trống, không đủ cho {request.NumberOfGuests} khách"
+                            Message = $"Slot này chỉ còn {slotAvailableSpots} chỗ trống, không đủ cho {request.NumberOfGuests} khách"
                         };
                     }
 
@@ -1020,7 +1053,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                _logger.LogInformation("Processing payment success for booking {BookingCode}, TotalPrice: {TotalPrice}, OriginalPrice: {OriginalPrice}, DiscountPercent: {DiscountPercent}%",
+                _logger.LogInformation("Processing payment success for booking {BookingCode}, TotalPrice: {TotalPrice}, OriginalPrice: {OriginalPrice}, Discount: {DiscountPercent}%",
                     booking.BookingCode, booking.TotalPrice, booking.OriginalPrice, booking.DiscountPercent);
 
                 // Step 2: Use execution strategy to handle the transaction properly with MySQL
@@ -1036,7 +1069,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         booking.Status = BookingStatus.Confirmed;
                         booking.ConfirmedDate = DateTime.UtcNow;
                         booking.UpdatedAt = DateTime.UtcNow;
-                        booking.ReservedUntil = null;
                         booking.RevenueHold = booking.TotalPrice;
 
                         // Generate main booking QR code
@@ -1715,53 +1747,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 GroupQRCodeData = booking.GroupQRCodeData,
                 CreatedAt = booking.CreatedAt,
                 UpdatedAt = booking.UpdatedAt,
-
-                // ✅ NEW: Set tour title, tour date, and company name
-                TourTitle = booking.TourOperation?.TourDetails?.Title ?? string.Empty,
-                TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ??
-                          (booking.TourOperation?.TourDetails?.AssignedSlots?.Any() == true ?
-                              booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null),
-                CompanyName = companyName,
-
-                // ✅ NEW: Include guests information
-                Guests = booking.Guests?.Where(g => !g.IsDeleted).Select(g => new TourBookingGuestDto
+                TourTitle = booking.TourOperation?.TourDetails?.Title ?? "N/A",
+                TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
+                CompanyName = companyName, // ✅ NEW: Add company name
+                Guests = booking.Guests?.Select(g => new TourBookingGuestDto
                 {
                     Id = g.Id,
-                    TourBookingId = g.TourBookingId,
                     GuestName = g.GuestName,
                     GuestEmail = g.GuestEmail,
                     GuestPhone = g.GuestPhone,
+                    IsGroupRepresentative = g.IsGroupRepresentative,
+                    QRCodeData = g.QRCodeData,
                     IsCheckedIn = g.IsCheckedIn,
                     CheckInTime = g.CheckInTime,
-                    CheckInNotes = g.CheckInNotes,
-                    QRCodeData = g.QRCodeData,
-                    CreatedAt = g.CreatedAt
-                }).ToList() ?? new List<TourBookingGuestDto>(),
-
-                TourOperation = booking.TourOperation != null ? new TourOperationSummaryDto
-                {
-                    Id = booking.TourOperation.Id,
-                    TourDetailsId = booking.TourOperation.TourDetailsId,
-                    TourTitle = booking.TourOperation.TourDetails?.Title ?? "",
-                    Price = booking.TourOperation.Price,
-                    MaxGuests = booking.TourOperation.MaxGuests,
-                    CurrentBookings = booking.TourOperation.CurrentBookings,
-                    // ✅ FIXED: Get tour date from TourSlot if booking has TourSlot assigned
-                    TourStartDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ??
-                        (booking.TourOperation.TourDetails?.AssignedSlots?.Any() == true ?
-                            booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null),
-                    GuideId = booking.TourOperation.TourGuide?.Id.ToString(),
-                    GuideName = booking.TourOperation.TourGuide?.FullName,
-                    GuidePhone = booking.TourOperation.TourGuide?.PhoneNumber
-                } : null,
-
-                User = booking.User != null ? new DTOs.Response.TourBooking.UserSummaryDto
-                {
-                    Id = booking.User.Id,
-                    Name = booking.User.Name,
-                    Email = booking.User.Email,
-                    PhoneNumber = booking.User.PhoneNumber
-                } : null!
+                    CheckInNotes = g.CheckInNotes
+                }).ToList() ?? new List<TourBookingGuestDto>()
             };
         }
 
