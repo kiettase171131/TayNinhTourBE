@@ -16,7 +16,7 @@ namespace TayNinhTourApi.Controller.Controllers
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
- 
+
     public class TourOperationController : ControllerBase
     {
         private readonly ITourOperationService _tourOperationService;
@@ -170,6 +170,53 @@ namespace TayNinhTourApi.Controller.Controllers
                 {
                     success = false,
                     Message = "Lỗi hệ thống khi kiểm tra khả năng tạo operation"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Lấy operation theo Operation ID
+        /// </summary>
+        /// <param name="id">ID của Operation</param>
+        /// <returns>Operation details</returns>
+        [HttpGet("{id:guid}")]
+        [ProducesResponseType(typeof(ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>), 200)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult<ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>>> GetOperationById(Guid id)
+        {
+            try
+            {
+                _logger.LogInformation("Getting operation {OperationId}", id);
+
+                var operation = await _tourOperationService.GetOperationByIdAsync(id);
+                if (operation == null)
+                {
+                    return NotFound(new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
+                    {
+                        success = false,
+                        Message = "Không tìm thấy operation",
+                        Data = null,
+                        StatusCode = 404
+                    });
+                }
+
+                return Ok(new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
+                {
+                    success = true,
+                    Message = "Lấy thông tin operation thành công",
+                    Data = operation,
+                    StatusCode = 200
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting operation {OperationId}", id);
+                return StatusCode(500, new ApiResponse<TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourOperation.TourOperationDto>
+                {
+                    success = false,
+                    Message = "Có lỗi xảy ra khi lấy thông tin operation",
+                    Data = null,
+                    StatusCode = 500
                 });
             }
         }

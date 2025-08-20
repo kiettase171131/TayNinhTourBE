@@ -153,7 +153,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         slot.Status = shouldBeStatus;
                         slot.UpdatedAt = DateTime.UtcNow;
-                        
+
                         await _unitOfWork.TourSlotRepository.UpdateAsync(slot);
                         fixedCount++;
 
@@ -222,6 +222,128 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// Lấy chi tiết slot với thông tin tour và danh sách bookings
+        /// </summary>
+        [HttpGet("{id}/tour-details-and-bookings")]
+        public async Task<IActionResult> GetSlotWithTourDetailsAndBookings(Guid id)
+        {
+            try
+            {
+                var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Include(s => s.TourDetails)
+                        .ThenInclude(td => td!.TourOperation)
+                            .ThenInclude(to => to!.TourGuide)
+                    .Include(s => s.TourDetails)
+                        .ThenInclude(td => td!.Timeline.Where(ti => !ti.IsDeleted))
+                            .ThenInclude(ti => ti.SpecialtyShop)
+                    .Include(s => s.Bookings.Where(b => !b.IsDeleted))
+                        .ThenInclude(b => b.User)
+                    .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
+
+                if (slot == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy tour slot",
+                        statusCode = 404
+                    });
+                }
+
+                var result = new
+                {
+                    success = true,
+                    message = "Lấy thông tin tour slot thành công",
+                    statusCode = 200,
+                    data = new
+                    {
+                        slot = new
+                        {
+                            id = slot.Id,
+                            tourDate = slot.TourDate,
+                            scheduleDay = slot.ScheduleDay,
+                            status = slot.Status,
+                            statusName = slot.Status.ToString(),
+                            isActive = slot.IsActive,
+                            createdAt = slot.CreatedAt,
+                            updatedAt = slot.UpdatedAt
+                        },
+                        tourDetails = slot.TourDetails == null ? null : new
+                        {
+                            id = slot.TourDetails.Id,
+                            title = slot.TourDetails.Title,
+                            description = slot.TourDetails.Description,
+                            status = slot.TourDetails.Status,
+                            timeline = slot.TourDetails.Timeline?.Select(ti => new
+                            {
+                                id = ti.Id,
+                                checkInTime = ti.CheckInTime,
+                                activity = ti.Activity,
+                                sortOrder = ti.SortOrder,
+                                specialtyShop = ti.SpecialtyShop == null ? null : new
+                                {
+                                    id = ti.SpecialtyShop.Id,
+                                    name = ti.SpecialtyShop.ShopName,
+                                    location = ti.SpecialtyShop.Location,
+                                    phoneNumber = ti.SpecialtyShop.PhoneNumber
+                                }
+                            }).OrderBy(ti => ti.sortOrder).ToList()
+                        },
+                        tourOperation = slot.TourDetails?.TourOperation == null ? null : new
+                        {
+                            id = slot.TourDetails.TourOperation.Id,
+                            price = slot.TourDetails.TourOperation.Price,
+                            maxGuests = slot.TourDetails.TourOperation.MaxGuests,
+                            currentBookings = slot.TourDetails.TourOperation.CurrentBookings,
+                            status = slot.TourDetails.TourOperation.Status,
+                            isActive = slot.TourDetails.TourOperation.IsActive,
+                            tourGuide = slot.TourDetails.TourOperation.TourGuide == null ? null : new
+                            {
+                                id = slot.TourDetails.TourOperation.TourGuide.Id,
+                                fullName = slot.TourDetails.TourOperation.TourGuide.FullName,
+                                phoneNumber = slot.TourDetails.TourOperation.TourGuide.PhoneNumber,
+                                email = slot.TourDetails.TourOperation.TourGuide.Email
+                            }
+                        },
+                        bookings = slot.Bookings?.Select(b => new
+                        {
+                            id = b.Id,
+                            bookingCode = b.BookingCode,
+                            numberOfGuests = b.NumberOfGuests,
+                            totalPrice = b.TotalPrice,
+                            status = b.Status,
+                            contactName = b.ContactName,
+                            contactPhone = b.ContactPhone,
+                            contactEmail = b.ContactEmail,
+                            createdAt = b.CreatedAt,
+                            user = b.User == null ? null : new
+                            {
+                                id = b.User.Id,
+                                name = b.User.Name,
+                                email = b.User.Email,
+                                phoneNumber = b.User.PhoneNumber
+                            }
+                        }).ToList()
+                    }
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting slot with tour details and bookings: {SlotId}", id);
+
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy thông tin tour slot",
+                    statusCode = 500,
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
         /// Debug endpoint - Get detailed capacity info for troubleshooting slot availability issues
         /// </summary>
         [HttpGet("{id}/debug-capacity-detailed")]
@@ -233,28 +355,29 @@ namespace TayNinhTourApi.Controller.Controllers
                     .Include(s => s.TourDetails)
                         .ThenInclude(td => td!.TourOperation)
                     .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
-                
+
                 if (slot == null)
                 {
-                    return NotFound(new { 
+                    return NotFound(new
+                    {
                         success = false,
                         message = "Slot not found",
                         slotId = id
                     });
                 }
-                
+
                 // Real-time booking count calculation from database
                 var realTimeBookings = await _unitOfWork.TourBookingRepository.GetQueryable()
-                    .Where(b => b.TourSlotId == id && 
-                               !b.IsDeleted && 
+                    .Where(b => b.TourSlotId == id &&
+                               !b.IsDeleted &&
                                (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending))
                     .SumAsync(b => b.NumberOfGuests);
-                    
+
                 var debugData = new
                 {
                     slotId = id,
                     timestamp = DateTime.UtcNow,
-                    
+
                     // TourSlot capacity data (independent per slot)
                     tourSlot = new
                     {
@@ -266,12 +389,12 @@ namespace TayNinhTourApi.Controller.Controllers
                         statusName = slot.Status.ToString(),
                         tourDate = slot.TourDate,
                         isInFuture = slot.TourDate > DateOnly.FromDateTime(DateTime.UtcNow),
-                        isBookable = slot.IsActive && 
-                                    slot.Status == TourSlotStatus.Available && 
+                        isBookable = slot.IsActive &&
+                                    slot.Status == TourSlotStatus.Available &&
                                     slot.TourDate > DateOnly.FromDateTime(DateTime.UtcNow) &&
                                     slot.AvailableSpots > 0
                     },
-                    
+
                     // Real-time calculation verification
                     realTimeData = new
                     {
@@ -280,7 +403,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         discrepancyDetected = Math.Abs(realTimeBookings - slot.CurrentBookings) > 0,
                         realTimeAvailableSpots = slot.MaxGuests - realTimeBookings
                     },
-                    
+
                     // Status inconsistency issues
                     statusIssues = new
                     {
@@ -291,7 +414,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         needsStatusFix = slot.AvailableSpots > 0 && slot.Status == TourSlotStatus.FullyBooked
                     }
                 };
-                
+
                 return Ok(new
                 {
                     success = true,
