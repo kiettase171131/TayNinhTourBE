@@ -1336,7 +1336,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     CheckInTime = checkInTime,
                     Activity = request.Activity,
                     SpecialtyShopId = request.SpecialtyShopId,
-                    SortOrder = newSortOrder,
+                    SortOrder = await GetNextSortOrderAsync(request.TourDetailsId),
                     IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     CreatedById = createdById
@@ -2510,17 +2510,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var result = new List<string>();
 
+            // Add URLs from imageUrls list first
             if (imageUrls != null && imageUrls.Any())
             {
                 result.AddRange(imageUrls.Where(url => !string.IsNullOrWhiteSpace(url)));
             }
             
-            if (!string.IsNullOrWhiteSpace(singleImageUrl))
+            // Only add singleImageUrl if it's not already in the list
+            if (!string.IsNullOrWhiteSpace(singleImageUrl) && !result.Contains(singleImageUrl))
             {
                 result.Add(singleImageUrl);
             }
 
-            return result;
+            // Remove duplicates and return distinct URLs only
+            return result.Distinct().ToList();
         }
 
         /// <summary>
