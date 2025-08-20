@@ -371,17 +371,17 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     (tb.PayOsOrderCode != null && tb.PayOsOrderCode.Contains(cleanBookingCode)));
             }
 
-            // Filter by search term (tour company name)
+            // Filter by search term (tour title AND tour company name)
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
                 var searchLower = searchTerm.ToLower();
                 query = query.Where(tb => 
-                    // Search in tour company name
+                    // ✅ PRIMARY: Search in tour title (most important for users)
+                    tb.TourOperation.TourDetails.Title.ToLower().Contains(searchLower) ||
+                    // ✅ SECONDARY: Search in tour company name
                     (tb.TourOperation.TourDetails.CreatedBy.TourCompany != null && 
                      tb.TourOperation.TourDetails.CreatedBy.TourCompany.CompanyName.ToLower().Contains(searchLower)) ||
-                    // Also search in tour title as fallback
-                    tb.TourOperation.TourDetails.Title.ToLower().Contains(searchLower) ||
-                    // Search in user/company name who created the tour
+                    // ✅ TERTIARY: Search in user/company name who created the tour (fallback)
                     tb.TourOperation.TourDetails.CreatedBy.Name.ToLower().Contains(searchLower)
                 );
             }

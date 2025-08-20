@@ -224,7 +224,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="status">Lọc theo trạng thái booking (confirmed, cancel, pending)</param>
         /// <param name="startDate">Lọc từ ngày booking (YYYY-MM-DD)</param>
         /// <param name="endDate">Lọc đến ngày booking (YYYY-MM-DD)</param>
-        /// <param name="searchTerm">Tìm kiếm theo tên công ty tổ chức tour</param>
+        /// <param name="searchTerm">Tìm kiếm theo tên tour (title) hoặc tên công ty tổ chức tour</param>
         /// <param name="bookingCode">Mã PayOsOrderCode để tìm kiếm booking cụ thể (ví dụ: TNDT5424028424). Lưu ý: Parameter này tìm kiếm theo PayOsOrderCode chứ không phải BookingCode thông thường</param>
         /// <returns>Danh sách bookings của user</returns>
         [HttpGet("my-bookings")]
