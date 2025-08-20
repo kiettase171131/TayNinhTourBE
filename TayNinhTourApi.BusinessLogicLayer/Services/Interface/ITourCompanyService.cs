@@ -13,5 +13,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> CreateTourAsync(RequestCreateTourCmsDto request, Guid createdBy);
         Task<BaseResposeDto> DeleteTourAsync(Guid id);
         Task<BaseResposeDto> ActivatePublicTourDetailsAsync(Guid tourDetailsId, Guid userId);
+        Task<BaseResposeDto> GetIncidentsAsync(Guid userId, int pageIndex, int pageSize, string? severity, string? status, DateTime? fromDate, DateTime? toDate);
+        Task<BaseResposeDto> GetActiveToursAsync(Guid userId);
     }
 }

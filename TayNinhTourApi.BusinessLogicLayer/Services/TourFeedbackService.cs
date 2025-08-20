@@ -27,7 +27,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly ITourGuideInvitationRepository _invitationRepo;
         private readonly ITourOperationRepository _operationRepo;
 
-        public TourFeedbackService(IMapper mapper, ITourFeedbackRepository tourFeedback, ITourBookingRepository bookingRepo, ITourGuideRepository tourGuideRepository,IUnitOfWork unitOfWork, ITourGuideInvitationRepository invitationRepo,ITourOperationRepository tourOperationRepository)
+        public TourFeedbackService(IMapper mapper, ITourFeedbackRepository tourFeedback, ITourBookingRepository bookingRepo, ITourGuideRepository tourGuideRepository, IUnitOfWork unitOfWork, ITourGuideInvitationRepository invitationRepo, ITourOperationRepository tourOperationRepository)
         {
             _mapper = mapper;
             _tourFeedback = tourFeedback;
@@ -147,7 +147,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
 
         // GET: feedback theo Slot
-        public async Task<TourFeedbackResponse> GetTourFeedbacksBySlotAsync(Guid slotId,int? pageIndex, int? pageSize,int? minTourRating = null,int? maxTourRating = null,bool? onlyWithGuideRating = null)
+        public async Task<TourFeedbackResponse> GetTourFeedbacksBySlotAsync(Guid slotId, int? pageIndex, int? pageSize, int? minTourRating = null, int? maxTourRating = null, bool? onlyWithGuideRating = null)
         {
             var include = new[] { "TourGuide" };
             var pageIdx = pageIndex ?? Constants.PageIndexDefault;
@@ -169,7 +169,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (minTourRating.HasValue) predicate = predicate.And(x => x.TourRating >= minTourRating.Value);
             if (maxTourRating.HasValue) predicate = predicate.And(x => x.TourRating <= maxTourRating.Value);
             if (onlyWithGuideRating == true) predicate = predicate.And(x => x.GuideRating != null);
-            
+
 
             var q = _tourFeedback.GetQueryable().Include(x => x.TourGuide).Where(predicate);
 
@@ -194,6 +194,193 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 PageIndex = pageIdx,
                 PageSize = pageSz
             };
+        }
+
+        /// <summary>
+        /// Lấy danh sách feedback của user
+        /// </summary>
+        public async Task<TourFeedbackResponse> GetUserFeedbacksAsync(Guid userId, int pageIndex = 1, int pageSize = 10)
+        {
+            try
+            {
+                var include = new[] { "TourGuide", "TourBooking", "TourBooking.TourOperation", "TourBooking.TourOperation.TourDetails" };
+
+                var predicate = PredicateBuilder.New<TourFeedback>(x => true);
+                predicate = predicate.And(x => x.UserId == userId);
+
+                var query = _tourFeedback.GetQueryable()
+                    .Include(x => x.TourGuide)
+                    .Include(x => x.TourBooking)
+                        .ThenInclude(tb => tb.TourOperation)
+                            .ThenInclude(to => to.TourDetails)
+                    .Where(predicate);
+
+                var total = await query.CountAsync();
+
+                var items = await query.OrderByDescending(x => x.CreatedAt)
+                                   .Skip((pageIndex - 1) * pageSize)
+                                   .Take(pageSize)
+                                   .ToListAsync();
+
+                var dto = _mapper.Map<List<TourFeedbackDto>>(items);
+
+                return new TourFeedbackResponse
+                {
+                    StatusCode = 200,
+                    success = true,
+                    Message = "Lấy danh sách feedback thành công",
+                    Data = dto,
+                    TotalRecord = total,
+                    TotalCount = total,
+                    TotalPages = (int)Math.Ceiling((double)total / pageSize),
+                    PageIndex = pageIndex,
+                    PageSize = pageSize
+                };
+            }
+            catch (Exception ex)
+            {
+                return new TourFeedbackResponse
+                {
+                    StatusCode = 500,
+                    success = false,
+                    Message = $"Lỗi khi lấy danh sách feedback: {ex.Message}",
+                    Data = new List<TourFeedbackDto>()
+                };
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật feedback của user (chỉ trong thời gian cho phép)
+        /// </summary>
+        public async Task<ResponseCreateFeedBackDto> UpdateFeedbackAsync(Guid feedbackId, Guid userId, UpdateTourFeedbackRequest request)
+        {
+            return await _unitOfWork.ExecuteInStrategyAsync(async () =>
+            {
+                await using var tx = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
+                    // Lấy feedback hiện tại
+                    var feedback = await _tourFeedback.GetAsync(f => f.Id == feedbackId && f.UserId == userId);
+                    if (feedback == null)
+                    {
+                        return new ResponseCreateFeedBackDto
+                        {
+                            StatusCode = 404,
+                            success = false,
+                            Message = "Không tìm thấy feedback hoặc bạn không có quyền chỉnh sửa"
+                        };
+                    }
+
+                    // Kiểm tra thời gian cho phép chỉnh sửa (7 ngày sau khi tạo)
+                    var editDeadline = feedback.CreatedAt.AddDays(7);
+                    if (DateTime.UtcNow > editDeadline)
+                    {
+                        return new ResponseCreateFeedBackDto
+                        {
+                            StatusCode = 400,
+                            success = false,
+                            Message = "Đã quá thời hạn chỉnh sửa feedback (7 ngày)"
+                        };
+                    }
+
+                    // Cập nhật thông tin
+                    if (request.TourRating.HasValue)
+                        feedback.TourRating = request.TourRating.Value;
+
+                    if (request.TourComment != null)
+                        feedback.TourComment = request.TourComment;
+
+                    if (request.GuideRating.HasValue)
+                        feedback.GuideRating = request.GuideRating.Value;
+
+                    if (request.GuideComment != null)
+                        feedback.GuideComment = request.GuideComment;
+
+                    feedback.UpdatedAt = DateTime.UtcNow;
+
+                    await _tourFeedback.UpdateAsync(feedback);
+                    await _unitOfWork.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    return new ResponseCreateFeedBackDto
+                    {
+                        StatusCode = 200,
+                        success = true,
+                        Message = "Cập nhật feedback thành công",
+                        FeedBackId = feedback.Id,
+                        BookingId = feedback.TourBookingId,
+                        SlotId = feedback.TourSlotId
+                    };
+                }
+                catch (Exception ex)
+                {
+                    await tx.RollbackAsync();
+                    return new ResponseCreateFeedBackDto
+                    {
+                        StatusCode = 500,
+                        success = false,
+                        Message = $"Lỗi khi cập nhật feedback: {ex.Message}"
+                    };
+                }
+            });
+        }
+
+        /// <summary>
+        /// Xóa feedback của user (chỉ trong thời gian cho phép)
+        /// </summary>
+        public async Task<ResponseCreateFeedBackDto> DeleteFeedbackAsync(Guid feedbackId, Guid userId)
+        {
+            return await _unitOfWork.ExecuteInStrategyAsync(async () =>
+            {
+                await using var tx = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
+                    // Lấy feedback hiện tại
+                    var feedback = await _tourFeedback.GetAsync(f => f.Id == feedbackId && f.UserId == userId);
+                    if (feedback == null)
+                    {
+                        return new ResponseCreateFeedBackDto
+                        {
+                            StatusCode = 404,
+                            success = false,
+                            Message = "Không tìm thấy feedback hoặc bạn không có quyền xóa"
+                        };
+                    }
+
+                    // Kiểm tra thời gian cho phép xóa (24 giờ sau khi tạo)
+                    var deleteDeadline = feedback.CreatedAt.AddHours(24);
+                    if (DateTime.UtcNow > deleteDeadline)
+                    {
+                        return new ResponseCreateFeedBackDto
+                        {
+                            StatusCode = 400,
+                            success = false,
+                            Message = "Đã quá thời hạn xóa feedback (24 giờ)"
+                        };
+                    }
+
+                    await _tourFeedback.DeleteAsync(feedback.Id);
+                    await _unitOfWork.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    return new ResponseCreateFeedBackDto
+                    {
+                        StatusCode = 200,
+                        success = true,
+                        Message = "Xóa feedback thành công"
+                    };
+                }
+                catch (Exception ex)
+                {
+                    await tx.RollbackAsync();
+                    return new ResponseCreateFeedBackDto
+                    {
+                        StatusCode = 500,
+                        success = false,
+                        Message = $"Lỗi khi xóa feedback: {ex.Message}"
+                    };
+                }
+            });
         }
     }
 }

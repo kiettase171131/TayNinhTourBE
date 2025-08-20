@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
+using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
@@ -67,12 +68,12 @@ namespace TayNinhTourApi.Controller.Controllers
                     // Filter TourDetails that need admin approval
                     // Include both Pending (0) and AwaitingAdminApproval (6) statuses
                     var pendingApprovalDetails = response.Data
-                        .Where(td => 
+                        .Where(td =>
                             td.Status.ToString() == TourDetailsStatus.Pending.ToString() ||
                             td.Status.ToString() == TourDetailsStatus.AwaitingAdminApproval.ToString())
                         .ToList();
 
-                    _logger.LogInformation("Found {Count} TourDetails pending approval out of {Total} total", 
+                    _logger.LogInformation("Found {Count} TourDetails pending approval out of {Total} total",
                         pendingApprovalDetails.Count, response.Data.Count);
 
                     // Log the statuses for debugging
@@ -459,7 +460,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         var statusList = status.Split(',', StringSplitOptions.RemoveEmptyEntries)
                                               .Select(s => s.Trim())
                                               .ToList();
-                        
+
                         var validStatuses = new List<TourDetailsStatus>();
                         var invalidStatuses = new List<string>();
 
@@ -487,7 +488,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         if (validStatuses.Any())
                         {
                             allTourDetails = allTourDetails.Where(td => validStatuses.Any(vs => vs.ToString() == td.Status));
-                            _logger.LogInformation("Applied status filter '{Status}': {Count} TourDetails found", 
+                            _logger.LogInformation("Applied status filter '{Status}': {Count} TourDetails found",
                                 string.Join(", ", validStatuses), allTourDetails.Count());
                         }
                     }
@@ -496,12 +497,12 @@ namespace TayNinhTourApi.Controller.Controllers
                     if (!string.IsNullOrEmpty(searchTerm))
                     {
                         var searchLower = searchTerm.ToLower();
-                        allTourDetails = allTourDetails.Where(td => 
+                        allTourDetails = allTourDetails.Where(td =>
                             td.Title.ToLower().Contains(searchLower) ||
                             (!string.IsNullOrEmpty(td.Description) && td.Description.ToLower().Contains(searchLower)) ||
                             (!string.IsNullOrEmpty(td.SkillsRequired) && td.SkillsRequired.ToLower().Contains(searchLower)));
 
-                        _logger.LogInformation("Applied search term '{SearchTerm}': {Count} TourDetails found", 
+                        _logger.LogInformation("Applied search term '{SearchTerm}': {Count} TourDetails found",
                             searchTerm, allTourDetails.Count());
                     }
 
@@ -740,5 +741,138 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// Thay đổi trạng thái của tour slot (Admin only)
+        /// </summary>
+        /// <param name="tourSlotId">ID của tour slot</param>
+        /// <param name="request">Request chứa trạng thái mới</param>
+        /// <returns>Kết quả thay đổi trạng thái</returns>
+        [HttpPut("tour-slots/{tourSlotId}/status")]
+        public async Task<IActionResult> UpdateTourSlotStatus(
+            Guid tourSlotId,
+            [FromBody] UpdateTourSlotStatusRequest request)
+        {
+            try
+            {
+                // Validate request
+                if (request == null || string.IsNullOrEmpty(request.Status))
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Trạng thái không được để trống",
+                        success = false
+                    });
+                }
+
+                // Validate status value
+                if (!Enum.TryParse<TourSlotStatus>(request.Status, true, out var newStatus))
+                {
+                    return BadRequest(new BaseResposeDto
+                    {
+                        StatusCode = 400,
+                        Message = "Trạng thái không hợp lệ",
+                        success = false
+                    });
+                }
+
+                // Find tour slot
+                var tourSlot = await _context.TourSlots
+                    .Include(ts => ts.TourDetails)
+                    .ThenInclude(td => td.TourTemplate)
+                    .FirstOrDefaultAsync(ts => ts.Id == tourSlotId && !ts.IsDeleted);
+
+                if (tourSlot == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour slot",
+                        success = false
+                    });
+                }
+
+                // Update status
+                var oldStatus = tourSlot.Status;
+                tourSlot.Status = newStatus;
+                tourSlot.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Admin updated tour slot {tourSlotId} status from {oldStatus} to {newStatus}");
+
+                return Ok(new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = $"Đã cập nhật trạng thái tour slot từ {oldStatus} thành {newStatus}",
+                    success = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating tour slot {tourSlotId} status");
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi cập nhật trạng thái tour slot",
+                    success = false
+                });
+            }
+        }
+
+        /// <summary>
+        /// Tìm kiếm tour slot theo ID để quản lý trạng thái
+        /// </summary>
+        /// <param name="tourSlotId">ID của tour slot</param>
+        /// <returns>Thông tin tour slot</returns>
+        [HttpGet("tour-slots/{tourSlotId}")]
+        public async Task<IActionResult> GetTourSlotById(Guid tourSlotId)
+        {
+            try
+            {
+                var tourSlot = await _context.TourSlots
+                    .Include(ts => ts.TourDetails)
+                    .ThenInclude(td => td.TourTemplate)
+                    .Include(ts => ts.TourDetails)
+                    .ThenInclude(td => td.TourOperation)
+                    .FirstOrDefaultAsync(ts => ts.Id == tourSlotId && !ts.IsDeleted);
+
+                if (tourSlot == null)
+                {
+                    return NotFound(new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour slot",
+                        success = false
+                    });
+                }
+
+                return Ok(new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy thông tin tour slot thành công",
+                    success = true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting tour slot {tourSlotId}");
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi lấy thông tin tour slot",
+                    success = false
+                });
+            }
+        }
     }
+}
+
+/// <summary>
+/// Request model để cập nhật trạng thái tour slot
+/// </summary>
+public class UpdateTourSlotStatusRequest
+{
+    public string Status { get; set; } = string.Empty;
 }

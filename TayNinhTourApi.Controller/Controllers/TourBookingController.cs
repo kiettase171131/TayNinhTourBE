@@ -1,4 +1,4 @@
-    using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -253,7 +253,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 // Get slot with current capacity
                 var slot = await _unitOfWork.TourSlotRepository.GetQueryable()
                     .Where(s => s.Id == slotId && !s.IsDeleted)
-                    .Select(s => new 
+                    .Select(s => new
                     {
                         s.Id,
                         s.MaxGuests,
@@ -275,7 +275,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 }
 
                 var availableSpots = slot.MaxGuests - slot.CurrentBookings;
-                var canBook = slot.IsActive && 
+                var canBook = slot.IsActive &&
                              slot.Status == TourSlotStatus.Available &&
                              slot.TourDate > DateOnly.FromDateTime(DateTime.UtcNow) &&
                              availableSpots >= requestedGuests;
@@ -290,11 +290,11 @@ namespace TayNinhTourApi.Controller.Controllers
                     isFull = availableSpots <= 0
                 };
 
-                var userMessage = canBook 
+                var userMessage = canBook
                     ? $"Slot này còn {availableSpots} chỗ trống"
-                    : availableSpots <= 0 
+                    : availableSpots <= 0
                         ? "Slot này đã hết chỗ"
-                        : !slot.IsActive 
+                        : !slot.IsActive
                             ? "Slot này không còn hoạt động"
                             : slot.TourDate <= DateOnly.FromDateTime(DateTime.UtcNow)
                                 ? "Slot này đã qua ngày"
@@ -416,6 +416,108 @@ namespace TayNinhTourApi.Controller.Controllers
             if (currentUser is null || currentUser.UserId == Guid.Empty) return Unauthorized();
             var res = await _tourFeedback.CreateAsync(currentUser.UserId, request);
             return StatusCode(res.StatusCode, res);
+        }
+
+        /// <summary>
+        /// Lấy danh sách feedback của user hiện tại
+        /// </summary>
+        /// <param name="pageIndex">Trang hiện tại (mặc định: 1)</param>
+        /// <param name="pageSize">Số lượng items per page (mặc định: 10)</param>
+        /// <returns>Danh sách feedback của user</returns>
+        [HttpGet("my-feedbacks")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetMyFeedbacks(
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUser is null || currentUser.UserId == Guid.Empty)
+                    return Unauthorized();
+
+                var result = await _tourFeedback.GetUserFeedbacksAsync(
+                    currentUser.UserId, pageIndex, pageSize);
+
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user feedbacks for user {UserId}",
+                    HttpContext.User?.Identity?.Name);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi lấy danh sách đánh giá của bạn"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Cập nhật feedback của user (chỉ trong thời gian cho phép)
+        /// </summary>
+        /// <param name="feedbackId">ID của feedback</param>
+        /// <param name="request">Thông tin cập nhật</param>
+        /// <returns>Feedback sau khi cập nhật</returns>
+        [HttpPut("feedback/{feedbackId}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> UpdateFeedback(
+            Guid feedbackId,
+            [FromBody] UpdateTourFeedbackRequest request)
+        {
+            try
+            {
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUser is null || currentUser.UserId == Guid.Empty)
+                    return Unauthorized();
+
+                var result = await _tourFeedback.UpdateFeedbackAsync(
+                    feedbackId, currentUser.UserId, request);
+
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating feedback {FeedbackId} for user {UserId}",
+                    feedbackId, HttpContext.User?.Identity?.Name);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi cập nhật đánh giá"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Xóa feedback của user (chỉ trong thời gian cho phép)
+        /// </summary>
+        /// <param name="feedbackId">ID của feedback</param>
+        /// <returns>Kết quả xóa</returns>
+        [HttpDelete("feedback/{feedbackId}")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> DeleteFeedback(Guid feedbackId)
+        {
+            try
+            {
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUser is null || currentUser.UserId == Guid.Empty)
+                    return Unauthorized();
+
+                var result = await _tourFeedback.DeleteFeedbackAsync(
+                    feedbackId, currentUser.UserId);
+
+                return StatusCode(result.StatusCode, result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting feedback {FeedbackId} for user {UserId}",
+                    feedbackId, HttpContext.User?.Identity?.Name);
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi xóa đánh giá"
+                });
+            }
         }
     }
 }

@@ -19,7 +19,7 @@ namespace TayNinhTourApi.Controller.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    
+
     public class TourCompanyController : ControllerBase
     {
         private readonly ITourCompanyService _tourCompanyService;
@@ -292,6 +292,78 @@ namespace TayNinhTourApi.Controller.Controllers
 
             var result = await _dashboard.GetStatisticForCompanyAsync(currentUser.Id);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách incidents của tour company
+        /// </summary>
+        [HttpGet("incidents")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<IActionResult> GetIncidents(
+            [FromQuery] int pageIndex = 0,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? severity = null,
+            [FromQuery] string? status = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            try
+            {
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUser?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin user"
+                    });
+                }
+
+                var response = await _tourCompanyService.GetIncidentsAsync(
+                    currentUser.UserId, pageIndex, pageSize, severity, status, fromDate, toDate);
+
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi lấy danh sách incidents"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Lấy danh sách tours đang hoạt động của tour company
+        /// </summary>
+        [HttpGet("tours/active")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<IActionResult> GetActiveTours()
+        {
+            try
+            {
+                var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+                if (currentUser?.UserId == null)
+                {
+                    return Unauthorized(new BaseResposeDto
+                    {
+                        StatusCode = 401,
+                        Message = "Không tìm thấy thông tin user"
+                    });
+                }
+
+                var response = await _tourCompanyService.GetActiveToursAsync(currentUser.UserId);
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = "Lỗi server khi lấy danh sách tours đang hoạt động"
+                });
+            }
         }
     }
 

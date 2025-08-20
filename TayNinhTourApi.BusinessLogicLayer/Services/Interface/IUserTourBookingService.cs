@@ -22,10 +22,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="searchKeyword">Từ khóa tìm kiếm</param>
         /// <returns>Danh sách tours có thể booking</returns>
         Task<Common.PagedResult<AvailableTourDto>> GetAvailableToursAsync(
-            int pageIndex = 1, 
-            int pageSize = 10, 
-            DateTime? fromDate = null, 
-            DateTime? toDate = null, 
+            int pageIndex = 1,
+            int pageSize = 10,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
             string? searchKeyword = null);
 
         /// <summary>
@@ -111,6 +111,37 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="userId">ID của user (để kiểm tra quyền)</param>
         /// <returns>Kết quả gửi lại email</returns>
         Task<BaseResposeDto> ResendQRTicketEmailAsync(Guid bookingId, Guid userId);
+
+        /// <summary>
+        /// Lấy tiến độ tour đang diễn ra cho user
+        /// </summary>
+        /// <param name="tourOperationId">ID của tour operation</param>
+        /// <param name="userId">ID của user</param>
+        /// <returns>Tiến độ tour với timeline và thống kê</returns>
+        Task<UserTourProgressDto?> GetTourProgressAsync(Guid tourOperationId, Guid userId);
+
+        /// <summary>
+        /// Kiểm tra user có booking cho tour này không
+        /// </summary>
+        /// <param name="userId">ID của user</param>
+        /// <param name="tourOperationId">ID của tour operation</param>
+        /// <returns>True nếu user có booking</returns>
+        Task<bool> UserHasBookingForTourAsync(Guid userId, Guid tourOperationId);
+
+        /// <summary>
+        /// Lấy tổng quan dashboard cho user
+        /// </summary>
+        /// <param name="userId">ID của user</param>
+        /// <returns>Thống kê tổng quan về tours của user</returns>
+        Task<UserDashboardSummaryDto> GetUserDashboardSummaryAsync(Guid userId);
+
+        /// <summary>
+        /// Gửi lại QR ticket cho booking
+        /// </summary>
+        /// <param name="bookingId">ID của booking</param>
+        /// <param name="userId">ID của user</param>
+        /// <returns>Kết quả gửi lại QR ticket</returns>
+        Task<ResendQRTicketResultDto> ResendQRTicketAsync(Guid bookingId, Guid userId);
     }
 
     /// <summary>
@@ -143,11 +174,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public DateTime? EarlyBirdEndDate { get; set; }
         public int DaysRemainingForEarlyBird { get; set; }
         public string PricingType { get; set; } = "Standard"; // "Early Bird" hoặc "Standard"
-        
+
         // Computed properties for FE convenience
         public decimal FinalPrice => IsEarlyBirdActive ? EarlyBirdPrice : Price;
         public bool HasEarlyBirdDiscount => IsEarlyBirdActive && EarlyBirdDiscountPercent > 0;
-        
+
         /// <summary>
         /// Đã bỏ IsEarlyBirdEligible để tránh confusion - dùng IsEarlyBirdActive thay thế
         /// </summary>
@@ -198,17 +229,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         public decimal OriginalPrice { get; set; }
         public decimal DiscountedPrice { get; set; }
         public decimal SavingsAmount { get; set; }
-        
+
         /// <summary>
         /// Kiểm tra early bird có sắp hết hạn không (còn <= 3 ngày)
         /// </summary>
         public bool IsExpiringSoon => IsActive && DaysRemaining <= 3 && DaysRemaining > 0;
-        
+
         /// <summary>
         /// Message hiển thị cho user
         /// </summary>
-        public string DisplayMessage => IsActive 
-            ? $"Giảm {DiscountPercent}% - Còn {DaysRemaining} ngày!" 
+        public string DisplayMessage => IsActive
+            ? $"Giảm {DiscountPercent}% - Còn {DaysRemaining} ngày!"
             : "Không có giảm giá";
     }
 

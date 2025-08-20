@@ -858,6 +858,127 @@ namespace TayNinhTourApi.Controller.Controllers
         }
 
         /// <summary>
+        /// Lấy tiến độ tour đang diễn ra cho user
+        /// </summary>
+        /// <param name="tourOperationId">ID của tour operation</param>
+        /// <returns>Tiến độ tour với timeline và thống kê</returns>
+        [HttpGet("tour-progress/{tourOperationId}")]
+        [Authorize]
+        public async Task<IActionResult> GetTourProgress(Guid tourOperationId)
+        {
+            try
+            {
+                var userId = _currentUserService.GetCurrentUserId();
+
+                // Kiểm tra user có booking cho tour này không
+                var hasBooking = await _userTourBookingService.UserHasBookingForTourAsync(userId, tourOperationId);
+                if (!hasBooking)
+                {
+                    return Forbid(new
+                    {
+                        success = false,
+                        message = "Bạn không có quyền xem tiến độ tour này"
+                    }.ToString());
+                }
+
+                var result = await _userTourBookingService.GetTourProgressAsync(tourOperationId, userId);
+
+                if (result == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy thông tin tiến độ tour"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy tiến độ tour thành công",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Lỗi khi lấy tiến độ tour: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Lấy tổng quan dashboard cho user
+        /// </summary>
+        /// <returns>Thống kê tổng quan về tours của user</returns>
+        [HttpGet("dashboard-summary")]
+        [Authorize]
+        public async Task<IActionResult> GetUserDashboardSummary()
+        {
+            try
+            {
+                var userId = _currentUserService.GetCurrentUserId();
+                var result = await _userTourBookingService.GetUserDashboardSummaryAsync(userId);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy tổng quan dashboard thành công",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Lỗi khi lấy tổng quan dashboard: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
+        /// Gửi lại QR ticket cho booking
+        /// </summary>
+        /// <param name="bookingId">ID của booking</param>
+        /// <returns>Kết quả gửi lại QR ticket</returns>
+        [HttpPost("resend-qr-ticket/{bookingId}")]
+        [Authorize]
+        public async Task<IActionResult> ResendQRTicket(Guid bookingId)
+        {
+            try
+            {
+                var userId = _currentUserService.GetCurrentUserId();
+                var result = await _userTourBookingService.ResendQRTicketAsync(bookingId, userId);
+
+                if (!result.Success)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = result.Message
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = result.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = $"Lỗi khi gửi lại QR ticket: {ex.Message}"
+                });
+            }
+        }
+
+        /// <summary>
         /// Debug endpoint - Test basic PayOS configuration only
         /// </summary>
         [HttpGet("debug-payos-basic")]
@@ -1391,7 +1512,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// </summary>
         /// <param name="bookingId">ID của booking</param>
         /// <returns>Kết quả gửi lại email</returns>
-        [HttpPost("resend-qr-ticket/{bookingId}")]
+        [HttpPost("resend-qr-ticket-email/{bookingId}")]
         [Authorize]
         public async Task<IActionResult> ResendQRTicketEmail(Guid bookingId)
         {

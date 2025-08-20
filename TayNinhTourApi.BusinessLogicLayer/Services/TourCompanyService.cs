@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using LinqKit;
+using System.Linq;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.Common.Enums;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
@@ -8,6 +9,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
+using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services
@@ -291,6 +293,148 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     StatusCode = 500,
                     Message = $"Có lỗi xảy ra khi kích hoạt public: {ex.Message}",
+                    success = false
+                };
+            }
+        }
+
+        public async Task<BaseResposeDto> GetIncidentsAsync(Guid userId, int pageIndex, int pageSize, string? severity, string? status, DateTime? fromDate, DateTime? toDate)
+        {
+            try
+            {
+                // Tìm tour company của user hiện tại
+                var tourCompany = await _unitOfWork.UserRepository.GetByIdAsync(userId);
+                if (tourCompany == null)
+                {
+                    return new BaseResposeDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy thông tin công ty tour",
+                        success = false
+                    };
+                }
+
+                // Build predicate để filter incidents
+                var predicate = PredicateBuilder.New<TourIncident>(x => !x.IsDeleted);
+
+                // Filter theo tour operations của company này
+                predicate = predicate.And(x => x.TourOperation.TourDetails.TourTemplate.CreatedById == userId);
+
+                // Filter theo severity nếu có
+                if (!string.IsNullOrEmpty(severity))
+                {
+                    predicate = predicate.And(x => x.Severity == severity);
+                }
+
+                // Filter theo status nếu có
+                if (!string.IsNullOrEmpty(status))
+                {
+                    predicate = predicate.And(x => x.Status == status);
+                }
+
+                // Filter theo date range nếu có
+                if (fromDate.HasValue)
+                {
+                    predicate = predicate.And(x => x.CreatedAt >= fromDate.Value);
+                }
+
+                if (toDate.HasValue)
+                {
+                    predicate = predicate.And(x => x.CreatedAt <= toDate.Value.AddDays(1));
+                }
+
+                var include = new string[] {
+                    "TourOperation.TourDetails.TourTemplate",
+                    "ReportedByGuide"
+                };
+
+                var incidents = await _unitOfWork.TourIncidentRepository.GenericGetPaginationAsync(
+                    pageIndex, pageSize, predicate, include);
+
+                var incidentDtos = incidents.Select(incident => new
+                {
+                    Id = incident.Id,
+                    Title = incident.Title,
+                    Description = incident.Description,
+                    Severity = incident.Severity,
+                    Status = incident.Status,
+                    CreatedAt = incident.CreatedAt,
+                    TourName = incident.TourOperation?.TourDetails?.TourTemplate?.Title,
+                    TourDate = incident.TourOperation?.CreatedAt, // Sử dụng CreatedAt thay vì TourDate
+                    GuideName = incident.ReportedByGuide?.FullName,
+                    GuidePhone = incident.ReportedByGuide?.PhoneNumber
+                }).ToList();
+
+                var totalCount = incidents.Count();
+                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy danh sách incidents thành công",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi lấy danh sách incidents: {ex.Message}",
+                    success = false
+                };
+            }
+        }
+
+        public async Task<BaseResposeDto> GetActiveToursAsync(Guid userId)
+        {
+            try
+            {
+                // Build predicate để lấy tours đang hoạt động
+                var predicate = PredicateBuilder.New<TourSlot>(x => !x.IsDeleted);
+
+                // Filter theo tour company
+                predicate = predicate.And(x => x.TourDetails != null && x.TourDetails.TourTemplate.CreatedById == userId);
+
+                // Filter theo status (InProgress hoặc Available trong tương lai gần)
+                var today = DateTime.Today;
+                var futureLimit = today.AddDays(30); // Lấy tours trong 30 ngày tới
+
+                predicate = predicate.And(x =>
+                    (x.Status == TourSlotStatus.InProgress) ||
+                    (x.Status == TourSlotStatus.Available && x.TourDate >= DateOnly.FromDateTime(today) && x.TourDate <= DateOnly.FromDateTime(futureLimit)));
+
+                var include = new string[] {
+                    "TourDetails.TourTemplate"
+                };
+
+                var activeSlots = await _unitOfWork.TourSlotRepository.GetAllAsync(predicate, include);
+
+                var activeTourDtos = activeSlots.ToList().Select(slot => new
+                {
+                    TourSlotId = slot.Id,
+                    TourName = slot.TourDetails?.TourTemplate?.Title,
+                    StartDate = slot.TourDate,
+                    EndDate = slot.TourDate, // TourSlot chỉ có TourDate, không có StartDate/EndDate riêng
+                    Status = slot.Status.ToString(),
+                    CurrentBookings = slot.CurrentBookings,
+                    MaxGuests = slot.MaxGuests,
+                    HasOperations = slot.TourDetails?.TourOperation != null
+                }).ToList();
+
+                return new BaseResposeDto
+                {
+                    StatusCode = 200,
+                    Message = "Lấy danh sách tours đang hoạt động thành công",
+                    success = true
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 500,
+                    Message = $"Có lỗi xảy ra khi lấy danh sách tours đang hoạt động: {ex.Message}",
                     success = false
                 };
             }

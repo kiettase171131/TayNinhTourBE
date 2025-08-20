@@ -571,8 +571,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         BookingType = request.BookingType ?? "Individual", // New field for booking type
                         GroupName = request.GroupName, // New field for group name
                         GroupDescription = request.GroupDescription, // New field for group description
-                        ContactName = request.BookingType == "GroupRepresentative" && request.GroupRepresentative != null 
-                            ? request.GroupRepresentative.GuestName 
+                        ContactName = request.BookingType == "GroupRepresentative" && request.GroupRepresentative != null
+                            ? request.GroupRepresentative.GuestName
                             : request.Guests?.FirstOrDefault()?.GuestName ?? "Guest",
                         ContactPhone = request.ContactPhone,
                         ContactEmail = request.BookingType == "GroupRepresentative" && request.GroupRepresentative != null
@@ -607,7 +607,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                 TourBookingId = booking.Id,
                                 GuestName = request.GroupRepresentative.GuestName.Trim(),
                                 GuestEmail = request.GroupRepresentative.GuestEmail.Trim().ToLowerInvariant(),
-                                GuestPhone = string.IsNullOrWhiteSpace(request.GroupRepresentative.GuestPhone) 
+                                GuestPhone = string.IsNullOrWhiteSpace(request.GroupRepresentative.GuestPhone)
                                     ? null : request.GroupRepresentative.GuestPhone.Trim(),
                                 IsGroupRepresentative = true, // Mark as group representative
                                 IsCheckedIn = false,
@@ -829,8 +829,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// Lấy danh sách bookings của user với filter
         /// </summary>
         public async Task<Common.PagedResult<TourBookingDto>> GetUserBookingsAsync(
-            Guid userId, 
-            int pageIndex = 1, 
+            Guid userId,
+            int pageIndex = 1,
             int pageSize = 10,
             BookingStatus? status = null,
             DateTime? startDate = null,
@@ -1040,7 +1040,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         booking.RevenueHold = booking.TotalPrice;
 
                         // Generate main booking QR code
-                        booking.QRCodeData = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeData(booking) 
+                        booking.QRCodeData = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeData(booking)
                             ?? _qrCodeService.GenerateQRCodeData(booking);
 
                         // Save booking first
@@ -1074,7 +1074,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             if (tourOperation != null)
                             {
                                 var newCurrentBookings = tourOperation.CurrentBookings + booking.NumberOfGuests;
-                                
+
                                 // ✅ Check constraint before update to avoid database constraint violation
                                 if (newCurrentBookings <= tourOperation.MaxGuests)
                                 {
@@ -1088,7 +1088,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                                 {
                                     _logger.LogWarning("Skipping TourOperation.CurrentBookings update for booking {BookingCode} - Would exceed MaxGuests ({NewTotal} > {MaxGuests}). Using slot-specific capacity only.",
                                         booking.BookingCode, newCurrentBookings, tourOperation.MaxGuests);
-                                    
+
                                     // ✅ Note: TourSlot capacity is still updated correctly above
                                     // This is just to avoid breaking the constraint while maintaining slot independence
                                 }
@@ -1172,14 +1172,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing payment success for PayOS order code: {PayOsOrderCode}. Error: {ErrorMessage}", payOsOrderCode, ex.Message);
-                
+
                 // Try simple fallback method if main method fails due to execution strategy issues
                 if (ex.Message.Contains("execution strategy") || ex.Message.Contains("MySqlRetryingExecutionStrategy"))
                 {
                     _logger.LogInformation("Attempting simple payment success method for {PayOsOrderCode} due to execution strategy conflict", payOsOrderCode);
                     return await HandlePaymentSuccessSimpleAsync(payOsOrderCode);
                 }
-                
+
                 // Try standard fallback method for other issues
                 try
                 {
@@ -1279,7 +1279,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (booking.Status != BookingStatus.Pending)
                 {
-                    _logger.LogInformation("Booking {BookingCode} is not in pending status: {Status}", 
+                    _logger.LogInformation("Booking {BookingCode} is not in pending status: {Status}",
                         booking.BookingCode, booking.Status);
                     return new BaseResposeDto
                     {
@@ -1437,9 +1437,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (booking.BookingType == "GroupRepresentative")
                 {
                     // For GroupRepresentative: Generate ONE group QR code for the entire booking
-                    booking.QRCodeData = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeData(booking) 
+                    booking.QRCodeData = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeData(booking)
                         ?? _qrCodeService.GenerateQRCodeData(booking);
-                    
+
                     _logger.LogInformation("Generated GROUP QR code for booking {BookingCode} with {GuestCount} guests",
                         booking.BookingCode, booking.NumberOfGuests);
                 }
@@ -1452,10 +1452,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         // REMOVED: await _unitOfWork.TourBookingGuestRepository.UpdateAsync(guest);
                         // These will be saved when the main transaction commits
                     }
-                    
+
                     // Also keep booking QR for backward compatibility
                     booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
-                    
+
                     _logger.LogInformation("Generated INDIVIDUAL QR codes for {GuestCount} guests in booking {BookingCode}",
                         guests.Count, booking.BookingCode);
                 }
@@ -1494,17 +1494,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     // For group booking: Send ONE email to representative with GROUP QR
                     var representativeEmail = booking.ContactEmail;
                     var representativeName = booking.ContactName ?? "Customer";
-                    
+
                     if (!string.IsNullOrWhiteSpace(representativeEmail) && IsValidEmail(representativeEmail))
                     {
                         // Generate group QR code image
                         var qrCodeImage = (_qrCodeService as QRCodeService)?.GenerateGroupQRCodeImageAsync(booking, 300).Result
                             ?? await _qrCodeService.GenerateQRCodeImageAsync(booking, 300);
-                        
+
                         // Send group booking confirmation email
                         await _emailSender.SendGroupBookingConfirmationAsync(
                             booking, representativeName, representativeEmail, tourTitle, tourDate, qrCodeImage);
-                        
+
                         _logger.LogInformation("GROUP booking confirmation email sent to {Email} for booking {BookingCode} with {GuestCount} guests",
                             representativeEmail, booking.BookingCode, booking.NumberOfGuests);
                         return "Email xác nhận nhóm đã được gửi cho người đại diện";
@@ -1519,7 +1519,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     // For individual booking: Send personal emails to each guest
                     var guestsWithQR = await _unitOfWork.TourBookingGuestRepository.GetGuestsByBookingIdAsync(booking.Id);
-                    
+
                     if (!guestsWithQR.Any())
                     {
                         _logger.LogWarning("No guests found for booking {BookingId} - cannot send individual emails", booking.Id);
@@ -1867,6 +1867,324 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = $"Lỗi khi xử lý thanh toán: {ex.Message}"
                 };
             }
+        }
+
+        /// <summary>
+        /// Lấy tiến độ tour đang diễn ra cho user
+        /// </summary>
+        public async Task<UserTourProgressDto?> GetTourProgressAsync(Guid tourOperationId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting tour progress for operation {TourOperationId} and user {UserId}", tourOperationId, userId);
+
+                // Lấy thông tin tour operation với timeline
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetQueryable()
+                    .Where(to => to.Id == tourOperationId && to.IsActive && !to.IsDeleted)
+                    .Include(to => to.TourDetails)
+                        .ThenInclude(td => td.Timeline.Where(ti => ti.IsActive))
+                    .Include(to => to.TourGuide)
+                    .FirstOrDefaultAsync();
+
+                if (tourOperation?.TourDetails == null)
+                {
+                    _logger.LogWarning("Tour operation {TourOperationId} not found", tourOperationId);
+                    return null;
+                }
+
+                // Lấy TourSlots thông qua TourDetails
+                var tourSlots = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Where(ts => ts.TourDetailsId == tourOperation.TourDetailsId && ts.IsActive)
+                    .Include(ts => ts.TimelineProgress)
+                    .ToListAsync();
+
+                // Lấy thông tin timeline progress từ TourSlot
+                var activeSlot = tourSlots.FirstOrDefault(ts => ts.IsActive);
+                var timelineProgresses = activeSlot?.TimelineProgress?.ToList() ?? new List<TourSlotTimelineProgress>();
+
+                // Tạo timeline items với progress status
+                var timelineItems = tourOperation.TourDetails.Timeline
+                    .OrderBy(ti => ti.SortOrder)
+                    .Select(ti =>
+                    {
+                        var progress = timelineProgresses.FirstOrDefault(tp => tp.TimelineItemId == ti.Id);
+                        return new TourTimelineProgressItemDto
+                        {
+                            Id = ti.Id,
+                            CheckInTime = ti.CheckInTime.ToString(@"hh\:mm"),
+                            Activity = ti.Activity,
+                            SpecialtyShopId = ti.SpecialtyShopId,
+                            SpecialtyShopName = ti.SpecialtyShop?.ShopName,
+                            SortOrder = ti.SortOrder,
+                            IsCompleted = progress?.IsCompleted ?? false,
+                            CompletedAt = progress?.CompletedAt,
+                            IsActive = progress?.IsCompleted == false &&
+                                      (timelineProgresses.Where(tp => tp.TimelineItem.SortOrder < ti.SortOrder).All(tp => tp.IsCompleted) ||
+                                       ti.SortOrder == 1)
+                        };
+                    }).ToList();
+
+                // Tính toán thống kê
+                var totalItems = timelineItems.Count;
+                var completedItems = timelineItems.Count(ti => ti.IsCompleted);
+                var progressPercentage = totalItems > 0 ? (double)completedItems / totalItems * 100 : 0;
+
+                // Lấy thông tin guests và check-in status
+                var bookings = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(tb => tb.TourOperationId == tourOperationId &&
+                                tb.Status == BookingStatus.Confirmed)
+                    .Include(tb => tb.Guests)
+                    .ToListAsync();
+
+                var totalGuests = bookings.Sum(b => b.NumberOfGuests);
+                var checkedInGuests = bookings.SelectMany(b => b.Guests).Count(g => g.IsCheckedIn);
+                var checkInPercentage = totalGuests > 0 ? (double)checkedInGuests / totalGuests * 100 : 0;
+
+                // Xác định current status
+                string currentStatus;
+                if (completedItems == 0)
+                    currentStatus = "Chưa bắt đầu";
+                else if (completedItems == totalItems)
+                    currentStatus = "Đã hoàn thành";
+                else
+                    currentStatus = "Đang diễn ra";
+
+                // Ước tính thời gian hoàn thành
+                DateTime? estimatedCompletion = null;
+                if (completedItems > 0 && completedItems < totalItems && activeSlot != null)
+                {
+                    var averageTimePerItem = TimeSpan.FromHours(8.0 / totalItems); // Giả sử tour 8 tiếng
+                    var remainingItems = totalItems - completedItems;
+                    estimatedCompletion = DateTime.UtcNow.Add(averageTimePerItem * remainingItems);
+                }
+
+                return new UserTourProgressDto
+                {
+                    TourOperationId = tourOperationId,
+                    TourTitle = tourOperation.TourDetails.Title,
+                    TourStartDate = activeSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.UtcNow,
+                    GuideName = tourOperation.TourGuide?.FullName,
+                    GuidePhone = tourOperation.TourGuide?.PhoneNumber,
+                    Timeline = timelineItems,
+                    Stats = new TourProgressStatsDto
+                    {
+                        TotalItems = totalItems,
+                        CompletedItems = completedItems,
+                        ProgressPercentage = progressPercentage,
+                        TotalGuests = totalGuests,
+                        CheckedInGuests = checkedInGuests,
+                        CheckInPercentage = checkInPercentage
+                    },
+                    CurrentStatus = currentStatus,
+                    CurrentLocation = timelineItems.FirstOrDefault(ti => ti.IsActive)?.Activity,
+                    EstimatedCompletion = estimatedCompletion
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tour progress for operation {TourOperationId}", tourOperationId);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Kiểm tra user có booking cho tour này không
+        /// </summary>
+        public async Task<bool> UserHasBookingForTourAsync(Guid userId, Guid tourOperationId)
+        {
+            try
+            {
+                return await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .AnyAsync(tb => tb.UserId == userId &&
+                                   tb.TourOperationId == tourOperationId &&
+                                   tb.Status == BookingStatus.Confirmed);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking user booking for tour {TourOperationId} and user {UserId}", tourOperationId, userId);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Lấy tổng quan dashboard cho user
+        /// </summary>
+        public async Task<UserDashboardSummaryDto> GetUserDashboardSummaryAsync(Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting dashboard summary for user {UserId}", userId);
+
+                // Lấy tất cả bookings của user
+                var bookings = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(tb => tb.UserId == userId)
+                    .Include(tb => tb.TourOperation)
+                        .ThenInclude(to => to.TourDetails)
+                    .Include(tb => tb.TourSlot)
+                    .Include(tb => tb.Guests)
+                    .OrderByDescending(tb => tb.CreatedAt)
+                    .ToListAsync();
+
+                var currentDate = VietnamTimeZoneUtility.GetVietnamNow().Date;
+
+                // Phân loại bookings theo status
+                var confirmedBookings = bookings.Where(b => b.Status == BookingStatus.Confirmed).ToList();
+                var upcomingBookings = confirmedBookings.Where(b =>
+                    b.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue).Date >= currentDate).ToList();
+                var completedBookings = confirmedBookings.Where(b =>
+                    b.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue).Date < currentDate).ToList();
+                var cancelledBookings = bookings.Where(b =>
+                    b.Status == BookingStatus.CancelledByCustomer ||
+                    b.Status == BookingStatus.CancelledByCompany).ToList();
+
+                // Tính ongoing tours (tours đang diễn ra trong ngày hôm nay)
+                var ongoingBookings = confirmedBookings.Where(b =>
+                    b.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue).Date == currentDate).ToList();
+
+                // Tính pending feedbacks (tours đã hoàn thành nhưng chưa có feedback)
+                var completedBookingIds = completedBookings.Select(b => b.Id).ToList();
+                var existingFeedbacks = await _unitOfWork.TourFeedbackRepository.GetQueryable()
+                    .Where(tf => completedBookingIds.Contains(tf.TourBookingId))
+                    .Select(tf => tf.TourBookingId)
+                    .ToListAsync();
+
+                var pendingFeedbacksCount = completedBookings.Count(b => !existingFeedbacks.Contains(b.Id));
+
+                // Lấy recent bookings (5 bookings gần nhất)
+                var recentBookingDtos = bookings.Take(5).Select(MapToTourBookingDto).ToList();
+
+                // Lấy upcoming bookings (5 tours sắp tới)
+                var upcomingBookingDtos = upcomingBookings.Take(5).Select(MapToTourBookingDto).ToList();
+
+                return new UserDashboardSummaryDto
+                {
+                    TotalBookings = bookings.Count,
+                    UpcomingTours = upcomingBookings.Count,
+                    OngoingTours = ongoingBookings.Count,
+                    CompletedTours = completedBookings.Count,
+                    CancelledTours = cancelledBookings.Count,
+                    PendingFeedbacks = pendingFeedbacksCount,
+                    RecentBookings = recentBookingDtos,
+                    UpcomingBookings = upcomingBookingDtos
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting dashboard summary for user {UserId}", userId);
+                return new UserDashboardSummaryDto();
+            }
+        }
+
+        /// <summary>
+        /// Gửi lại QR ticket cho booking
+        /// </summary>
+        public async Task<ResendQRTicketResultDto> ResendQRTicketAsync(Guid bookingId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("Resending QR ticket for booking {BookingId} and user {UserId}", bookingId, userId);
+
+                // Kiểm tra booking thuộc về user và đã confirmed
+                var booking = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(tb => tb.Id == bookingId && tb.UserId == userId && tb.Status == BookingStatus.Confirmed)
+                    .Include(tb => tb.User)
+                    .Include(tb => tb.TourOperation)
+                        .ThenInclude(to => to.TourDetails)
+                    .Include(tb => tb.TourSlot)
+                    .Include(tb => tb.Guests)
+                    .FirstOrDefaultAsync();
+
+                if (booking == null)
+                {
+                    return new ResendQRTicketResultDto
+                    {
+                        Success = false,
+                        Message = "Không tìm thấy booking hoặc booking chưa được xác nhận"
+                    };
+                }
+
+                // Kiểm tra tour chưa bắt đầu
+                var tourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.MaxValue;
+                if (tourDate <= VietnamTimeZoneUtility.GetVietnamNow())
+                {
+                    return new ResendQRTicketResultDto
+                    {
+                        Success = false,
+                        Message = "Không thể gửi lại QR ticket cho tour đã bắt đầu"
+                    };
+                }
+
+                // Gửi email với QR ticket
+                await SendConfirmationEmailsAsync(booking);
+
+                return new ResendQRTicketResultDto
+                {
+                    Success = true,
+                    Message = "QR ticket đã được gửi lại thành công",
+                    SentAt = DateTime.UtcNow,
+                    Email = booking.ContactEmail
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending QR ticket for booking {BookingId}", bookingId);
+                return new ResendQRTicketResultDto
+                {
+                    Success = false,
+                    Message = $"Lỗi khi gửi lại QR ticket: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Helper method để map TourBooking entity sang DTO
+        /// </summary>
+        private TourBookingDto MapToTourBookingDto(TourBooking booking)
+        {
+            return new TourBookingDto
+            {
+                Id = booking.Id,
+                BookingCode = booking.BookingCode,
+                TourOperationId = booking.TourOperationId,
+                UserId = booking.UserId,
+                NumberOfGuests = booking.NumberOfGuests,
+                OriginalPrice = booking.OriginalPrice,
+                DiscountPercent = booking.DiscountPercent,
+                TotalPrice = booking.TotalPrice,
+                Status = booking.Status,
+                StatusName = booking.Status.ToString(),
+                PayOsOrderCode = booking.PayOsOrderCode,
+                QRCodeData = booking.QRCodeData,
+                BookingDate = booking.BookingDate,
+                ConfirmedDate = booking.ConfirmedDate,
+                CancelledDate = booking.CancelledDate,
+                CancellationReason = booking.CancellationReason,
+                CustomerNotes = booking.CustomerNotes,
+                ContactName = booking.ContactName,
+                ContactPhone = booking.ContactPhone,
+                ContactEmail = booking.ContactEmail,
+                SpecialRequests = booking.CustomerNotes,
+                BookingType = booking.BookingType,
+                GroupName = booking.GroupName,
+                GroupDescription = booking.GroupDescription,
+                GroupQRCodeData = booking.GroupQRCodeData,
+                CreatedAt = booking.CreatedAt,
+                UpdatedAt = booking.UpdatedAt,
+                TourTitle = booking.TourOperation?.TourDetails?.Title ?? "N/A",
+                TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
+                Guests = booking.Guests?.Select(g => new TourBookingGuestDto
+                {
+                    Id = g.Id,
+                    GuestName = g.GuestName,
+                    GuestEmail = g.GuestEmail,
+                    GuestPhone = g.GuestPhone,
+                    IsGroupRepresentative = g.IsGroupRepresentative,
+                    QRCodeData = g.QRCodeData,
+                    IsCheckedIn = g.IsCheckedIn,
+                    CheckInTime = g.CheckInTime,
+                    CheckInNotes = g.CheckInNotes
+                }).ToList() ?? new List<TourBookingGuestDto>()
+            };
         }
     }
 }
