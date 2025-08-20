@@ -64,6 +64,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking
         public DateTime? TourDate { get; set; }
 
         /// <summary>
+        /// Tên công ty tổ chức tour (computed từ TourOperation.TourDetails.CreatedBy.TourCompany.CompanyName)
+        /// </summary>
+        public string CompanyName { get; set; } = string.Empty;
+
+        /// <summary>
         /// Danh sách khách hàng trong booking này
         /// Mỗi guest có thông tin riêng và QR code riêng
         /// </summary>

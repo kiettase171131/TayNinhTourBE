@@ -1651,7 +1651,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     MaxGuests = booking.TourOperation.MaxGuests,
                     CurrentBookings = booking.TourOperation.CurrentBookings,
                     // ✅ FIXED: Get tour date from TourSlot if booking has TourSlot assigned
-                    TourStartDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
+                    TourStartDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ??
+                        (booking.TourOperation.TourDetails?.AssignedSlots?.Any() == true ?
+                            booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null),
                     GuideId = booking.TourOperation.TourGuide?.Id.ToString(),
                     GuideName = booking.TourOperation.TourGuide?.FullName,
                     GuidePhone = booking.TourOperation.TourGuide?.PhoneNumber
@@ -1672,6 +1674,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         private TourBookingDto MapToBookingDtoWithGuests(TourBooking booking)
         {
+            // Get company name from tour details
+            var companyName = string.Empty;
+            if (booking.TourOperation?.TourDetails?.CreatedBy?.TourCompany?.CompanyName != null)
+            {
+                companyName = booking.TourOperation.TourDetails.CreatedBy.TourCompany.CompanyName;
+            }
+            else if (booking.TourOperation?.TourDetails?.CreatedBy?.Name != null)
+            {
+                // Fallback to user name if company name is not available
+                companyName = booking.TourOperation.TourDetails.CreatedBy.Name;
+            }
+
             return new TourBookingDto
             {
                 Id = booking.Id,
@@ -1695,8 +1709,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 ContactPhone = booking.ContactPhone,
                 ContactEmail = booking.ContactEmail,
                 SpecialRequests = booking.CustomerNotes,
+                BookingType = booking.BookingType,
+                GroupName = booking.GroupName,
+                GroupDescription = booking.GroupDescription,
+                GroupQRCodeData = booking.GroupQRCodeData,
                 CreatedAt = booking.CreatedAt,
                 UpdatedAt = booking.UpdatedAt,
+
+                // ✅ NEW: Set tour title, tour date, and company name
+                TourTitle = booking.TourOperation?.TourDetails?.Title ?? string.Empty,
+                TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ??
+                          (booking.TourOperation?.TourDetails?.AssignedSlots?.Any() == true ?
+                              booking.TourOperation.TourDetails.AssignedSlots.Min(s => s.TourDate).ToDateTime(TimeOnly.MinValue) : null),
+                CompanyName = companyName,
 
                 // ✅ NEW: Include guests information
                 Guests = booking.Guests?.Where(g => !g.IsDeleted).Select(g => new TourBookingGuestDto
@@ -1828,7 +1853,6 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                             guest.QRCodeData = _qrCodeService.GenerateGuestQRCodeData(guest, booking);
                             await _unitOfWork.TourBookingGuestRepository.UpdateAsync(guest);
                         }
-                        await _unitOfWork.SaveChangesAsync();
                     }
                 }
                 catch (Exception ex)
@@ -2141,6 +2165,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// </summary>
         private TourBookingDto MapToTourBookingDto(TourBooking booking)
         {
+            // Get company name from tour details
+            var companyName = string.Empty;
+            if (booking.TourOperation?.TourDetails?.CreatedBy?.TourCompany?.CompanyName != null)
+            {
+                companyName = booking.TourOperation.TourDetails.CreatedBy.TourCompany.CompanyName;
+            }
+            else if (booking.TourOperation?.TourDetails?.CreatedBy?.Name != null)
+            {
+                // Fallback to user name if company name is not available
+                companyName = booking.TourOperation.TourDetails.CreatedBy.Name;
+            }
+
             return new TourBookingDto
             {
                 Id = booking.Id,
@@ -2172,6 +2208,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 UpdatedAt = booking.UpdatedAt,
                 TourTitle = booking.TourOperation?.TourDetails?.Title ?? "N/A",
                 TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
+                CompanyName = companyName, // ✅ NEW: Add company name
                 Guests = booking.Guests?.Select(g => new TourBookingGuestDto
                 {
                     Id = g.Id,
