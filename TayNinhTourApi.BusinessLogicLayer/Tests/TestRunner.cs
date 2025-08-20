@@ -233,9 +233,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Tests
             Console.WriteLine("──────────────────");
             Console.WriteLine("Early Bird Pricing Tests:");
             Console.WriteLine("  • EarlyBirdActive - Test early bird discount when conditions are met");
-            Console.WriteLine("  • EarlyBirdExpired - Test no discount when booking after 15 days");
+            Console.WriteLine("  • EarlyBirdExpired - Test no discount when booking after 14 days");
             Console.WriteLine("  • TourTooSoon - Test no discount when tour starts within 30 days");
-            Console.WriteLine("  • BoundaryConditions - Test edge cases at 15 and 30 day boundaries");
+            Console.WriteLine("  • BoundaryConditions - Test edge cases at 14 and 30 day boundaries");
             Console.WriteLine("  • All - Run all Early Bird tests");
             Console.WriteLine();
             Console.WriteLine("Usage examples:");

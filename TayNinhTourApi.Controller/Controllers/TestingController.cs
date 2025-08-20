@@ -75,9 +75,9 @@ namespace TayNinhTourApi.Controller.Controllers
                     earlyBirdRules = new
                     {
                         discountPercent = "25%",
-                        timeWindow = "15 ngày đầu sau khi tạo tour",
+                        timeWindow = "14 ngày đầu sau khi tạo tour",
                         minimumNotice = "Tour phải khởi hành sau ít nhất 30 ngày từ ngày đặt",
-                        logic = "daysSinceCreated <= 15 AND daysUntilTour >= 30"
+                        logic = "daysSinceCreated <= 14 AND daysUntilTour >= 30"
                     },
                     
                     passedTests = testResults.PassedTestResults.Select(test => new
@@ -177,13 +177,13 @@ namespace TayNinhTourApi.Controller.Controllers
                     
                     eligibilityCheck = new
                     {
-                        withinEarlyBirdWindow = daysSinceCreated <= 15,
+                        withinEarlyBirdWindow = daysSinceCreated <= 14,
                         sufficientNotice = daysUntilTour >= 30,
                         meetsAllConditions = pricingInfo.IsEarlyBird,
                         explanation = pricingInfo.IsEarlyBird
-                            ? "✅ Đủ điều kiện Early Bird - Đặt trong 15 ngày đầu và tour sau ít nhất 30 ngày"
-                            : daysSinceCreated > 15
-                                ? "❌ Không đủ điều kiện - Đã quá 15 ngày kể từ khi mở bán"
+                            ? "✅ Đủ điều kiện Early Bird - Đặt trong 14 ngày đầu và tour sau ít nhất 30 ngày"
+                            : daysSinceCreated > 14
+                                ? "❌ Không đủ điều kiện - Đã quá 14 ngày kể từ khi mở bán"
                                 : "❌ Không đủ điều kiện - Tour khởi hành quá gần (< 30 ngày)"
                     },
                     
@@ -191,7 +191,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     
                     earlyBirdRules = new
                     {
-                        windowDays = 15,
+                        windowDays = 14,
                         minimumNoticeDays = 30,
                         discountPercent = 25,
                         calculation = "finalPrice = originalPrice * (1 - 0.25) if eligible"
@@ -339,7 +339,7 @@ namespace TayNinhTourApi.Controller.Controllers
                         price = $"{tc.Price:N0} VND",
                         daysSinceCreated = tc.DaysCreated,
                         daysUntilTour = tc.DaysUntil,
-                        expectedEarlyBird = tc.DaysCreated <= 15 && tc.DaysUntil >= 30
+                        expectedEarlyBird = tc.DaysCreated <= 14 && tc.DaysUntil >= 30
                     })
                 };
 
