@@ -328,24 +328,8 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             // Filter by status
             if (status.HasValue)
             {
-                // Handle the status mapping
-                switch (status.Value)
-                {
-                    case BookingStatus.Confirmed:
-                        query = query.Where(tb => tb.Status == BookingStatus.Confirmed);
-                        break;
-                    case BookingStatus.Pending:
-                        query = query.Where(tb => tb.Status == BookingStatus.Pending);
-                        break;
-                    case BookingStatus.CancelledByCustomer:
-                    case BookingStatus.CancelledByCompany:
-                        // Map "cancel" to both cancelled statuses
-                        query = query.Where(tb => tb.Status == BookingStatus.CancelledByCustomer || tb.Status == BookingStatus.CancelledByCompany);
-                        break;
-                    default:
-                        query = query.Where(tb => tb.Status == status.Value);
-                        break;
-                }
+                // ✅ FIXED: Handle each status separately instead of mapping multiple statuses
+                query = query.Where(tb => tb.Status == status.Value);
             }
 
             // Filter by date range (booking date)
