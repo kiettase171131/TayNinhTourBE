@@ -10,7 +10,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
     {
         public string UserName { get; set; } = null!;
         public string Content { get; set; } = null!;
-        public double Rating { get; set; } = 0;
+        public int Rating { get; set; } = 0;
         public DateTime CreatedAt { get; set; }
     }
 

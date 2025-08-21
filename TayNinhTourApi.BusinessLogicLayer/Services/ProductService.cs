@@ -987,7 +987,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             var includes = new[] { "User" };
 
-            // 1) Lấy tất cả ratings của sản phẩm
+            // 1) Lấy tất cả ratings của sản phẩm (để tính average + map sang review)
             var ratings = await _ratingRepo.ListAsync(r => r.ProductId == productId);
 
             // 2) Lấy tất cả reviews (kèm User)
@@ -998,23 +998,27 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 ? Math.Round(ratings.Average(r => r.Rating), 1)
                 : 0;
 
-            // 4) Lấy rating mới nhất của từng user (nếu có)
-            var latestRatingByUser = ratings
-                .GroupBy(r => r.UserId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderByDescending(x => x.CreatedAt).First().Rating
-                );
+            // 4) Tạo từ điển: key = (OrderId, UserId, ProductId) -> Rating
+            //    Đảm bảo mỗi đơn hàng/mỗi lần rating map đúng về review tương ứng
+            var ratingByOUP = ratings
+                .GroupBy(x => (x.OrderId, x.UserId, x.ProductId))
+                .ToDictionary(g => g.Key, g => g.First().Rating);
+            // Nếu chắc chắn 1 rating/đơn thì First() là đủ.
+            // Nếu có nhiều record/đơn, đổi thành g.OrderBy(x => x.CreatedAt).First()/Last() tùy quy ước.
 
-            // 5) Map toàn bộ reviews sang DTO, kèm Rating (mặc định = 0 nếu chưa có)
-            var reviewDtos = reviews.Select(r => new ProductReviewDto
+            // 5) Map review -> DTO, lấy đúng rating theo (OrderId, UserId, ProductId)
+            var reviewDtos = reviews.Select(r =>
             {
-                UserName = r.User.Name,
-                Content = r.Content,
-                CreatedAt = r.CreatedAt,
-                Rating = latestRatingByUser.ContainsKey(r.UserId)
-                             ? latestRatingByUser[r.UserId]
-                             : 0
+                var key = (r.OrderId, r.UserId, r.ProductId);
+                var hasRating = ratingByOUP.TryGetValue(key, out var ratingValue);
+
+                return new ProductReviewDto
+                {
+                    UserName = r.User.Name,
+                    Content = r.Content,
+                    CreatedAt = r.CreatedAt,
+                    Rating = hasRating ? ratingValue : 0
+                };
             }).ToList();
 
             return new ProductReviewSummaryDto
@@ -1025,6 +1029,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Reviews = reviewDtos
             };
         }
+
 
 
 
@@ -1590,7 +1595,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
                 var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
 
-                var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted && x.CreatedById == currentUserObject.Id);
+                var predicate = PredicateBuilder.New<Order>(x => !x.IsDeleted && x.UserId == currentUserObject.Id);
 
                 // lọc theo status (IsActive)
                 if (status.HasValue)
