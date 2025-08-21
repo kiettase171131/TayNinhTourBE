@@ -289,7 +289,7 @@ namespace TayNinhTourApi.Controller.Controllers
             var res = await _specialtyShopService.GetVisitorsAsync(me, pageIndex, pageSize, fromDate, toDate);
             return StatusCode(res.StatusCode, res);
         }
-        [HttpPost("Product")]
+        [HttpPost("Create-Product")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
         public async Task<IActionResult> Create([FromForm] RequestCreateProductDto dto)
         {
