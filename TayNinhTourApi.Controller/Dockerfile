@@ -1,6 +1,9 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-USER $APP_UID
+ARG APP_UID=1001
+RUN useradd -u ${APP_UID} -m appuser
 WORKDIR /app
+RUN chown -R appuser:appuser /app
+USER appuser
 EXPOSE 8080
 EXPOSE 8081
 
@@ -21,5 +24,6 @@ RUN dotnet publish "./TayNinhTourApi.Controller.csproj" -c $BUILD_CONFIGURATION 
 
 FROM base AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=publish --chown=appuser:appuser /app/publish .
+USER appuser
 ENTRYPOINT ["dotnet", "TayNinhTourApi.Controller.dll"]
