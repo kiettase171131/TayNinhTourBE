@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product
 {
-    public class ProductReviewDto : BaseResposeDto
+    public class ProductReviewDto 
     {
         public string UserName { get; set; } = null!;
         public string Content { get; set; } = null!;
