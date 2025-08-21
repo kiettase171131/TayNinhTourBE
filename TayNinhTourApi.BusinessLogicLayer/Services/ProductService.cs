@@ -287,12 +287,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Directory.CreateDirectory(uploadsFolder);
 
                 var req = _httpContextAccessor.HttpContext!.Request;
-                string scheme = "https";
-                if (req.Headers.TryGetValue("X-Forwarded-Proto", out var p) && !string.IsNullOrEmpty(p)) scheme = p!;
-                else scheme = req.Scheme;
-
-                string host = req.Headers["X-Forwarded-Host"].FirstOrDefault() ?? req.Host.Value;
-                var baseUrl = $"{scheme}://{host}";
+                var baseUrl = $"{req.Scheme}://{req.Host.Value}";
 
                 foreach (var file in request.Files)
                 {
@@ -316,12 +311,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                     var filename = $"{Guid.NewGuid()}{ext}";
                     var filePath = Path.Combine(uploadsFolder, filename);
-                    //using var stream = new FileStream(filePath, FileMode.Create);
-                    await using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                    {
-                        await file.CopyToAsync(stream);
-                    }
-
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await file.CopyToAsync(stream);
 
                     var fileUrl = $"{baseUrl}/uploads/products/{product.Id}/{filename}";
                     uploadedUrls.Add(fileUrl);
