@@ -320,6 +320,13 @@ namespace TayNinhTourApi.Controller.Controllers
             await _cmsService.UpdateTourDiscountPercentAsync(request.DiscountPercent);
             return Ok(new { message = "Cập nhật thành công", newValue = request.DiscountPercent });
         }
+        [HttpGet("TourCompany")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTourCompanyCms(int? pageIndex, int? pageSize, string? textSearch, bool? isActive)
+        {
+            var result = await _cmsService.GetTourCompaniesAsync(pageIndex, pageSize, textSearch, isActive);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
 

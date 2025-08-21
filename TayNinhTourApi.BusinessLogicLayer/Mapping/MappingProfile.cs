@@ -10,6 +10,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Booking;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms.TayNinhTourApi.Business.DTOs.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
@@ -291,6 +292,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
                opt => opt.MapFrom(src => src.TourGuide != null
                                           ? src.TourGuide.FullName
                                           : null));
+            #endregion
+            #region Tourcompany Mapping
+            CreateMap<TourCompany, TourCompanyCmsDto>()
+    .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User.Email))
+    .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.User.Name))
+    .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.User.PhoneNumber));
+
+
+            // All Shop mappings removed - using SpecialtyShop only
             #endregion
         }
 

@@ -8,6 +8,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms.TayNinhTourApi.Business.DTOs.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
@@ -31,8 +32,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IBlogReactionRepository _blogReactionRepository;
         private readonly ISpecialtyShopRepository _shopRepository;
         private readonly ITourGuideRepository _tourGuideRepository;
+        private readonly ITourCompanyRepository _tourCompany;
         private readonly IAdminSettingDiscountRepository _adminSetting;
-        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository,ITourGuideRepository tourGuideRepository,IAdminSettingDiscountRepository adminSetting )
+        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository,ITourGuideRepository tourGuideRepository,IAdminSettingDiscountRepository adminSetting,ITourCompanyRepository tourCompany)
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
@@ -45,6 +47,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _shopRepository = shopRepository;
             _tourGuideRepository = tourGuideRepository;
             _adminSetting = adminSetting;
+            _tourCompany = tourCompany;
         }
 
         public async Task<BaseResposeDto> DeleteUserAsync(Guid id)
@@ -588,6 +591,48 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalPages = totalPages
             };
         }
+        public async Task<ResponseGetTourCompaniesDto> GetTourCompaniesAsync(int? pageIndex,int? pageSize,string? textSearch,bool? isActive)
+        {
+            var include = new string[] { nameof(TourCompany.User) };
+
+            var pageIndexValue = pageIndex ?? Constants.PageIndexDefault;
+            var pageSizeValue = pageSize ?? Constants.PageSizeDefault;
+
+            var predicate = PredicateBuilder.New<TourCompany>(x => !x.IsDeleted);
+
+            if (!string.IsNullOrEmpty(textSearch))
+            {
+                predicate = predicate.And(x =>
+                    x.CompanyName.Contains(textSearch, StringComparison.OrdinalIgnoreCase) ||
+                    x.Description!.Contains(textSearch, StringComparison.OrdinalIgnoreCase) ||
+                    x.Address!.Contains(textSearch, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (isActive.HasValue)
+            {
+                predicate = predicate.And(x => x.IsActive == isActive.Value);
+            }
+
+            // Lấy danh sách TourCompany với phân trang
+            var companies = await _tourCompany.GenericGetPaginationAsync(
+                pageIndexValue,
+                pageSizeValue,
+                predicate,
+                include
+            );
+
+            var totalCompanies = companies.Count();
+            var totalPages = (int)Math.Ceiling((double)totalCompanies / pageSizeValue);
+
+            return new ResponseGetTourCompaniesDto
+            {
+                StatusCode = 200,
+                Data = _mapper.Map<List<TourCompanyCmsDto>>(companies),
+                TotalRecord = totalCompanies,
+                TotalPages = totalPages
+            };
+        }
+
         public async Task<decimal> GetTourDiscountPercentAsync()
         => await _adminSetting.GetTourDiscountPercentAsync();
 
