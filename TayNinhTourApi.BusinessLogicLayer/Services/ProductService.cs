@@ -917,9 +917,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<BaseResposeDto> FeedbackProductAsync(CreateProductFeedbackDto dto, Guid userId)
         {
-            // Kiểm tra đơn hàng đã nhận thành công hay chưa (IsChecked = true)
+            // 1. Kiểm tra user có mua sản phẩm trong đơn hàng này và đã nhận chưa
             var hasCheckedOrder = await _orderDetailRepository.AnyAsync(od =>
                 od.ProductId == dto.ProductId &&
+                od.OrderId == dto.OrderId &&
                 od.Order.UserId == userId &&
                 od.Order.IsChecked == true);
 
@@ -931,64 +932,89 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = "Bạn chỉ được đánh giá khi đã nhận hàng thành công."
                 };
             }
-            // Update or insert rating
-            var existingRating = await _ratingRepo.GetFirstOrDefaultAsync(
-                r => r.ProductId == dto.ProductId && r.UserId == userId);
 
-            if (existingRating != null)
+            // 2. Chặn feedback nếu đã feedback sản phẩm này trong đơn này
+            var hasFeedback = await _ratingRepo.AnyAsync(r =>
+                r.ProductId == dto.ProductId &&
+                r.OrderId == dto.OrderId &&
+                r.UserId == userId);
+
+            if (hasFeedback)
             {
-                existingRating.Rating = dto.Rating;
-                await _ratingRepo.UpdateAsync(existingRating);
-            }
-            else
-            {
-                var newRating = new ProductRating
+                return new BaseResposeDto
                 {
-                    ProductId = dto.ProductId,
-                    UserId = userId,
-                    Rating = dto.Rating
+                    StatusCode = 400,
+                    Message = "Bạn đã đánh giá sản phẩm này trong đơn hàng này rồi."
                 };
-                await _ratingRepo.AddAsync(newRating);
             }
 
-            // Always add new review
+            // 3. Ghi rating (1 lần / đơn)
+            var rating = new ProductRating
+            {
+                ProductId = dto.ProductId,
+                OrderId = dto.OrderId,
+                UserId = userId,
+                Rating = dto.Rating,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _ratingRepo.AddAsync(rating);
+
+            // 4. Ghi review (1 lần / đơn)
             var review = new ProductReview
             {
                 ProductId = dto.ProductId,
+                OrderId = dto.OrderId,  
                 UserId = userId,
-                Content = dto.Review
+                Content = dto.Review,
+                CreatedAt = DateTime.UtcNow
             };
             await _reviewRepo.AddAsync(review);
 
-            // Save all changes
+            // 5. Save changes
             await _ratingRepo.SaveChangesAsync();
             await _reviewRepo.SaveChangesAsync();
 
             return new BaseResposeDto
             {
                 StatusCode = 200,
-                Message = "Product feedback submitted successfully"
+                Message = "Gửi đánh giá thành công."
             };
         }
+
 
 
         public async Task<ProductReviewSummaryDto> GetProductReviewSummaryAsync(Guid productId)
         {
             var includes = new[] { "User" };
 
-            // Lấy ratings (chạy tuần tự)
+            // 1) Lấy tất cả ratings của sản phẩm
             var ratings = await _ratingRepo.ListAsync(r => r.ProductId == productId);
 
-            // Lấy reviews kèm user
+            // 2) Lấy tất cả reviews (kèm User)
             var reviews = await _reviewRepo.ListAsync(r => r.ProductId == productId, includes);
 
-            var averageRating = ratings.Any() ? Math.Round(ratings.Average(r => r.Rating), 1) : 0;
+            // 3) Tính average rating (trên toàn bộ records rating)
+            var averageRating = ratings.Any()
+                ? Math.Round(ratings.Average(r => r.Rating), 1)
+                : 0;
 
+            // 4) Lấy rating mới nhất của từng user (nếu có)
+            var latestRatingByUser = ratings
+                .GroupBy(r => r.UserId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(x => x.CreatedAt).First().Rating
+                );
+
+            // 5) Map toàn bộ reviews sang DTO, kèm Rating (mặc định = 0 nếu chưa có)
             var reviewDtos = reviews.Select(r => new ProductReviewDto
             {
                 UserName = r.User.Name,
                 Content = r.Content,
-                CreatedAt = r.CreatedAt
+                CreatedAt = r.CreatedAt,
+                Rating = latestRatingByUser.ContainsKey(r.UserId)
+                             ? latestRatingByUser[r.UserId]
+                             : 0
             }).ToList();
 
             return new ProductReviewSummaryDto
@@ -999,6 +1025,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Reviews = reviewDtos
             };
         }
+
+
 
 
         public async Task<ApplyVoucherResult> ApplyVoucherForCartAsync(string voucherCode, List<CartItemDto> cartItems)

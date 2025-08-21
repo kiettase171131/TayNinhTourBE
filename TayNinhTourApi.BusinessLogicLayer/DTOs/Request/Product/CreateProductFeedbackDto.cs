@@ -9,6 +9,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product
     public class CreateProductFeedbackDto
     {
         public Guid ProductId { get; set; }
+        public Guid OrderId { get; set; }   
         public int Rating { get; set; }  // 1–5
         public string Review { get; set; } = null!;
     }

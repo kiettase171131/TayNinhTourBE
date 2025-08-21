@@ -117,6 +117,13 @@ namespace TayNinhTourApi.DataAccessLayer.Contexts
                 e.HasIndex(f => new { f.TourGuideId });
                 e.HasIndex(f => f.UserId);
             });
+            modelBuilder.Entity<ProductRating>()
+                .HasIndex(x => new { x.ProductId, x.UserId, x.OrderId })
+                .IsUnique();
+
+            modelBuilder.Entity<ProductReview>()
+                .HasIndex(x => new { x.ProductId, x.UserId, x.OrderId })
+                .IsUnique();
 
 
         }
