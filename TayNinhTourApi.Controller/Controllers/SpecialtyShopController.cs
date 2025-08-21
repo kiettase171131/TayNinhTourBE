@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Product;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
+using TayNinhTourApi.BusinessLogicLayer.Services;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
 
@@ -21,12 +23,14 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ISpecialtyShopService _specialtyShopService;
         private readonly ILogger<SpecialtyShopController> _logger;
         private readonly IDashboardService _dashboardService;
+        private readonly IProductService _productService;
 
-        public SpecialtyShopController(ISpecialtyShopService specialtyShopService, ILogger<SpecialtyShopController> logger, IDashboardService dashboardService)
+        public SpecialtyShopController(ISpecialtyShopService specialtyShopService, ILogger<SpecialtyShopController> logger, IDashboardService dashboardService, IProductService productService)
         {
             _specialtyShopService = specialtyShopService;
             _logger = logger;
             _dashboardService = dashboardService;
+            _productService = productService;
         }
 
         /// <summary>
@@ -285,6 +289,13 @@ namespace TayNinhTourApi.Controller.Controllers
             var res = await _specialtyShopService.GetVisitorsAsync(me, pageIndex, pageSize, fromDate, toDate);
             return StatusCode(res.StatusCode, res);
         }
-        
+        [HttpPost("Product")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
+        public async Task<IActionResult> Create([FromForm] RequestCreateProductDto dto)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.CreateProductAsync(dto, currentUser);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }
