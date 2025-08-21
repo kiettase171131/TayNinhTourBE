@@ -30,14 +30,14 @@ namespace TayNinhTourApi.Controller.Controllers
             _httpContextAccessor = httpContextAccessor;
             _payOsService = payOsService;
         }
-        //[HttpPost("Product")]
-        //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
-        //public async Task<IActionResult> Create([FromForm] RequestCreateProductDto dto)
-        //{
-        //    var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-        //    var result = await _productService.CreateProductAsync(dto, currentUser);
-        //    return StatusCode(result.StatusCode, result);
-        //}
+        [HttpPost("Product")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
+        public async Task<IActionResult> Create([FromForm] RequestCreateProductDto dto)
+        {
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _productService.CreateProductAsync(dto, currentUser);
+            return StatusCode(result.StatusCode, result);
+        }
 
         [HttpGet("Product")]
         public async Task<IActionResult> GetAll(int? pageIndex, int? pageSize, string? textSearch, bool? status, string? sortBySoldCount)
