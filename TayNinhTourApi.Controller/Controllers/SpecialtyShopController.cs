@@ -291,7 +291,7 @@ namespace TayNinhTourApi.Controller.Controllers
         }
         [HttpPost("Create-Product")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Specialty Shop")]
-        public async Task<IActionResult> Create([FromForm] RequestCreateProductDto dto)
+        public async Task<IActionResult> Create(RequestCreateProductDto dto)
         {
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
             var result = await _productService.CreateProductAsync(dto, currentUser);
