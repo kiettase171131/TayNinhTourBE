@@ -345,8 +345,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.Normal,
                 Icon = "📩",
-                ActionUrl = $"/bookings/{bookingCode}"
-
+                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
             };
 
             return await CreateNotificationAsync(createDto);
@@ -365,11 +364,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 UserId = userId,
                 Title = "🚫 Hướng dẫn viên từ chối",
-                Message = $"{guideName} đã từ chối tour '{tourTitle}'. {(rejectionReason != null ? $"Lý do: {rejectionReason}" : "")} Bấm để xem trong trang quản lý admin.",
+                Message = $"{guideName} đã từ chối tour '{tourTitle}'. {(rejectionReason != null ? $"Lý do: {rejectionReason}" : "")}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "🚫",
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours" // Đường dẫn admin để quản lý tour
+                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
             });
         }
 
@@ -385,11 +384,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 UserId = userId,
                 Title = "⚠️ Cần tìm hướng dẫn viên thủ công",
-                Message = $"Tour '{tourTitle}' có {expiredCount} lời mời đã hết hạn. Cần tìm hướng dẫn viên thủ công. Bấm để xem trong trang quản lý admin.",
+                Message = $"Tour '{tourTitle}' có {expiredCount} lời mời đã hết hạn. Cần tìm hướng dẫn viên thủ công.",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "⚠️",
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours" // Đường dẫn admin để quản lý tour
+                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
             });
         }
 
@@ -405,11 +404,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 UserId = userId,
                 Title = "🚨 Tour sắp bị hủy!",
-                Message = $"Tour '{tourTitle}' sẽ bị hủy trong {daysUntilCancellation} ngày nếu không tìm được hướng dẫn viên! Bấm để xem trong trang quản lý admin.",
+                Message = $"Tour '{tourTitle}' sẽ bị hủy trong {daysUntilCancellation} ngày nếu không tìm được hướng dẫn viên!",
                 Type = NotificationType.Critical,
                 Priority = NotificationPriority.Critical,
                 Icon = "🚨",
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours" // Đường dẫn admin để quản lý tour
+                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
             });
         }
 
@@ -430,13 +429,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var message = $"Bạn được mời tham gia tour '{tourTitle}' bởi {tourCompanyName}.";
                 if (!string.IsNullOrEmpty(skillsRequired))
                 {
-                    message += $" Kỹ năng yêu cầu: {skillsRequired}.";
+                    message += $"Kỹ năng yêu cầu: {skillsRequired}.";
                 }
 
                 var hoursUntilExpiry = (int)(expiresAt - VietnamTimeZoneUtility.GetVietnamNow()).TotalHours;
-                message += $" Hạn phản hồi: {hoursUntilExpiry} giờ.";
+                message += $"Hạn phản hồi: {hoursUntilExpiry} giờ.";
 
-                var icon = invitationType.ToLower() == "manual" ? "👥" : "🎯"; // Manual = personal invite, Auto = skill-matched
+                var icon = invitationType.ToLower() == "manual" ? "??" : "??"; // Manual = personal invite, Auto = skill-matched
 
                 return await CreateNotificationAsync(new CreateNotificationDto
                 {
@@ -446,7 +445,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = NotificationType.TourGuide,
                     Priority = NotificationPriority.High,
                     Icon = icon,
-                    ActionUrl = "https://tndt.netlify.app/tour-guide/invitations", // Đường dẫn đến trang danh sách lời mời TourGuide
+                    ActionUrl = $"/invitations/{invitationId}",
                     Data = new Dictionary<string, object>
                     {
                         ["invitationId"] = invitationId,
@@ -488,12 +487,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return await CreateNotificationAsync(new CreateNotificationDto
                 {
                     UserId = guideUserId,
-                    Title = $"{urgencyText} Lời mời tour sắp hết hạn",
-                    Message = $"Lời mời tham gia tour '{tourTitle}' sẽ hết hạn trong {hoursUntilExpiry} giờ. Vui lòng phản hồi sớm!",
-                    Type = NotificationType.Warning,
+                    Title = $"{urgencyIcon} {urgencyText} - Lời mời tour",
+                    Message = $"Lời mời tour '{tourTitle}' sẽ hết hạn trong {hoursUntilExpiry} giờ. Vui lòng phản hồi sớm!",
+                    Type = hoursUntilExpiry <= 2 ? NotificationType.Critical : NotificationType.Warning,
                     Priority = hoursUntilExpiry <= 2 ? NotificationPriority.Critical : NotificationPriority.High,
                     Icon = urgencyIcon,
-                    ActionUrl = "https://tndt.netlify.app/tour-guide/invitations", // Đường dẫn đến trang danh sách lời mời TourGuide
+                    ActionUrl = $"/invitations/{invitationId}",
                     Data = new Dictionary<string, object>
                     {
                         ["invitationId"] = invitationId,
@@ -619,16 +618,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = "Bạn có một booking tour mới",
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.High,
-                Icon = "📥" // Hoặc "🆕", "📩", tùy phong cách hệ thống
-
+                Icon = "📥", // Hoặc "🆕", "📩", tùy phong cách hệ thống
+                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
             });
         }
 
         /// <summary>
-        /// T?o th�ng b�o h?y tour v?i danh s�c bookings
+        /// T?o th�ng b�o h?y tour v?i danh s�ch bookings
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="affectedBookings">Danh s�c bookings b? ?nh h??ng</param>
+        /// <param name="affectedBookings">Danh s�ch bookings b? ?nh h??ng</param>
         /// <param name="tourTitle">T�n tour</param>
         /// <param name="tourStartDate">Ng�y kh?i h�nh</param>
         /// <param name="reason">L� do h?y</param>
@@ -647,8 +646,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = $"Tour '{tourTitle}' đã bị hủy: {reason}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
-                Icon = "❌" // Hoặc "⚠️", "🚫", "📛" tùy mức độ cảnh báo
-
+                Icon = "❌", // Hoặc "⚠️", "🚫", "📛" tùy mức độ cảnh báo
+                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
             });
         }
 
@@ -668,8 +667,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = $"Khách hàng đã hủy booking. Lý do: {reason ?? "Không có lý do"}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.Medium,
-                Icon = "🚫" // Hoặc "❌", "⚠️", "📭" tùy mức cảnh báo bạn muốn thể hiện
-
+                Icon = "🚫", // Hoặc "❌", "⚠️", "📭" tùy mức cảnh báo bạn muốn thể hiện
+                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
             });
         }
 
@@ -733,12 +732,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         Id = Guid.NewGuid(),
                         UserId = admin.Id,
-                        Title = "💰 Yêu cầu rút tiền mới",
-                        Message = $"Shop {shopName} đã tạo yêu cầu rút tiền {amount:N0} VNĐ. Bấm để xem và xử lý yêu cầu.",
+                        Title = "Yêu cầu rút tiền mới",
+                        Message = $"Shop {shopName} đã tạo yêu cầu rút tiền {amount:N0} VNĐ",
                         Type = NotificationType.System,
                         Priority = NotificationPriority.High,
                         AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"shopName\":\"{shopName}\",\"amount\":{amount}}}",
-                        ActionUrl = "https://tndt.netlify.app/admin/withdrawal-requests", // Đường dẫn admin để xem và quản lý yêu cầu rút tiền
+                        ActionUrl = $"/admin/withdrawals/{withdrawalRequestId}",
                         Icon = "💰",
                         ExpiresAt = DateTime.UtcNow.AddDays(7),
                         IsRead = false,
@@ -785,35 +784,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                // Determine user wallet type to set appropriate ActionUrl
-                string actionUrl = "/wallet"; // default
-                
-                // Check if user is TourCompany
-                var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
-                if (tourCompany != null && tourCompany.IsActive)
-                {
-                    actionUrl = "https://tndt.netlify.app/tour-company/wallet";
-                }
-                else
-                {
-                    // Check if user is SpecialtyShop
-                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
-                    if (specialtyShop != null && specialtyShop.IsActive)
-                    {
-                        actionUrl = "https://tndt.netlify.app/speciality-shop/wallet";
-                    }
-                }
-
                 var notification = new Notification
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    Title = "✅ Yêu cầu rút tiền đã được duyệt",
-                    Message = $"Yêu cầu rút tiền {amount:N0} VNĐ đã được duyệt. Tiền sẽ được chuyển vào tài khoản {bankAccount}. Bấm để xem chi tiết trong ví của bạn.",
+                    Title = "Yêu cầu rút tiền đã được duyệt",
+                    Message = $"Yêu cầu rút tiền {amount:N0} VNĐ đã được duyệt. Tiền sẽ được chuyển vào tài khoản {bankAccount}",
                     Type = NotificationType.System,
                     Priority = NotificationPriority.High,
                     AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"amount\":{amount},\"bankAccount\":\"{bankAccount}\",\"transactionReference\":\"{transactionReference}\"}}",
-                    ActionUrl = actionUrl,
+                    ActionUrl = $"/shop/withdrawals/{withdrawalRequestId}",
                     Icon = "✅",
                     ExpiresAt = DateTime.UtcNow.AddDays(30),
                     IsRead = false,
@@ -824,7 +804,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.NotificationRepository.AddAsync(notification);
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Created withdrawal approved notification for user {UserId}. Request: {WithdrawalRequestId}", userId, withdrawalRequestId);
+                _logger.LogInformation("Created withdrawal approved notification for user {UserId}. Request: {WithdrawalRequestId}",
+                    userId, withdrawalRequestId);
 
                 return new BaseResposeDto
                 {
@@ -856,35 +837,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
-                // Determine user wallet type to set appropriate ActionUrl
-                string actionUrl = "/wallet"; // default
-                
-                // Check if user is TourCompany
-                var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
-                if (tourCompany != null && tourCompany.IsActive)
-                {
-                    actionUrl = "https://tndt.netlify.app/tour-company/wallet";
-                }
-                else
-                {
-                    // Check if user is SpecialtyShop
-                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
-                    if (specialtyShop != null && specialtyShop.IsActive)
-                    {
-                        actionUrl = "https://tndt.netlify.app/speciality-shop/wallet";
-                    }
-                }
-
                 var notification = new Notification
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
-                    Title = "❌ Yêu cầu rút tiền bị từ chối",
-                    Message = $"Yêu cầu rút tiền {amount:N0} VNĐ đã bị từ chối. Lý do: {reason}. Bấm để xem chi tiết và tạo yêu cầu mới.",
+                    Title = "Yêu cầu rút tiền bị từ chối",
+                    Message = $"Yêu cầu rút tiền {amount:N0} VNĐ đã bị từ chối. Lý do: {reason}",
                     Type = NotificationType.Warning,
                     Priority = NotificationPriority.High,
                     AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"amount\":{amount},\"reason\":\"{reason}\"}}",
-                    ActionUrl = actionUrl,
+                    ActionUrl = $"/shop/withdrawals/{withdrawalRequestId}",
                     Icon = "❌",
                     ExpiresAt = DateTime.UtcNow.AddDays(30),
                     IsRead = false,
@@ -895,7 +857,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 await _unitOfWork.NotificationRepository.AddAsync(notification);
                 await _unitOfWork.SaveChangesAsync();
 
-                _logger.LogInformation("Created withdrawal rejected notification for user {UserId}. Request: {WithdrawalRequestId}", userId, withdrawalRequestId);
+                _logger.LogInformation("Created withdrawal rejected notification for user {UserId}. Request: {WithdrawalRequestId}",
+                    userId, withdrawalRequestId);
 
                 return new BaseResposeDto
                 {
@@ -936,12 +899,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     {
                         Id = Guid.NewGuid(),
                         UserId = admin.Id,
-                        Title = "⏰ Yêu cầu rút tiền cần xử lý gấp",
-                        Message = $"Yêu cầu rút tiền {amount:N0} VNĐ của shop {shopName} đã chờ {daysPending} ngày. Bấm để xử lý ngay.",
+                        Title = "Yêu cầu rút tiền cần xử lý gấp",
+                        Message = $"Yêu cầu rút tiền {amount:N0} VNĐ của shop {shopName} đã chờ {daysPending} ngày",
                         Type = NotificationType.Warning,
                         Priority = NotificationPriority.Urgent,
                         AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"shopName\":\"{shopName}\",\"amount\":{amount},\"daysPending\":{daysPending}}}",
-                        ActionUrl = "https://tndt.netlify.app/admin/withdrawal-requests", // Đường dẫn admin để xem và quản lý yêu cầu rút tiền
+                        ActionUrl = $"/admin/withdrawals/{withdrawalRequestId}",
                         Icon = "⏰",
                         ExpiresAt = DateTime.UtcNow.AddDays(3),
                         IsRead = false,
