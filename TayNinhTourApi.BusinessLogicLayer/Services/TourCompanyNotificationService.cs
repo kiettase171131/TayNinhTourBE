@@ -104,6 +104,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Gửi thông báo khi tiền được chuyển từ revenue hold sang wallet
         /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
+        /// UPDATED: Thêm ActionUrl dẫn đến trang wallet để user có thể xem chi tiết
         /// </summary>
         public async Task<bool> NotifyRevenueTransferAsync(
             Guid tourCompanyUserId, 
@@ -116,16 +117,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification ONLY
+                // 🔔 Tạo in-app notification ONLY với ActionUrl đến wallet
                 await _notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
                 {
                     UserId = tourCompanyUserId,
                     Title = "💰 Tiền tour đã chuyển vào ví",
-                    Message = $"Tiền từ tour '{tourTitle}' ({amount:N0} VNĐ) đã được chuyển vào ví. Bạn có thể rút tiền ngay!",
+                    Message = $"Tiền từ tour '{tourTitle}' ({amount:N0} VNĐ) đã được chuyển vào ví. Bạn có thể rút tiền ngay! Bấm để xem chi tiết trong ví.",
                     Type = DataAccessLayer.Enums.NotificationType.Wallet,
                     Priority = DataAccessLayer.Enums.NotificationPriority.Medium,
                     Icon = "💰",
-                    ActionUrl = "/wallet/revenue"
+                    ActionUrl = "https://tndt.netlify.app/tour-company/wallet" // Đường dẫn đến wallet TourCompany
                 });
 
                 Console.WriteLine($"Revenue transfer notification sent (in-app only) for user {tourCompanyUserId}, amount: {amount:N0} VNĐ");
@@ -237,6 +238,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Gửi thông báo khi admin duyệt tour details
         /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email để giảm thời gian phản hồi
+        /// UPDATED: Thêm ActionUrl dẫn đến trang admin để TourCompany có thể xem và quản lý tour
         /// </summary>
         public async Task<bool> NotifyTourApprovalAsync(
             Guid tourCompanyUserId,
@@ -248,16 +250,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification ONLY
+                // 🔔 Tạo in-app notification ONLY với ActionUrl dẫn đến admin tour list
                 await _notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
                 {
                     UserId = tourCompanyUserId,
                     Title = "✅ Tour được duyệt",
-                    Message = $"Tour '{tourDetailsTitle}' đã được admin duyệt và có thể bắt đầu mời hướng dẫn viên!",
+                    Message = $"Tour '{tourDetailsTitle}' đã được admin duyệt và có thể bắt đầu mời hướng dẫn viên! Bấm để xem trong trang quản lý admin.",
                     Type = DataAccessLayer.Enums.NotificationType.Tour,
                     Priority = DataAccessLayer.Enums.NotificationPriority.High,
                     Icon = "✅",
-                    ActionUrl = "/tours/approved"
+                    ActionUrl = "https://tndt.netlify.app/tour-company/tours" // Đường dẫn admin để quản lý tour
                 });
 
                 Console.WriteLine($"Tour approval notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}");
@@ -273,6 +275,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Gửi thông báo khi admin từ chối tour details
         /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email để giảm thời gian phản hồi
+        /// UPDATED: Thêm ActionUrl dẫn đến trang admin để TourCompany có thể xem và chỉnh sửa tour
         /// </summary>
         public async Task<bool> NotifyTourRejectionAsync(
             Guid tourCompanyUserId,
@@ -284,16 +287,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification ONLY
+                // 🔔 Tạo in-app notification ONLY với ActionUrl dẫn đến admin tour list
                 await _notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
                 {
                     UserId = tourCompanyUserId,
                     Title = "❌ Tour bị từ chối",
-                    Message = $"Tour '{tourDetailsTitle}' đã bị admin từ chối. Lý do: {rejectionReason}. Vui lòng chỉnh sửa và gửi lại.",
+                    Message = $"Tour '{tourDetailsTitle}' đã bị admin từ chối. Lý do: {rejectionReason}. Bấm để xem và chỉnh sửa trong trang quản lý admin.",
                     Type = DataAccessLayer.Enums.NotificationType.Warning,
                     Priority = DataAccessLayer.Enums.NotificationPriority.High,
                     Icon = "❌",
-                    ActionUrl = "/tours/rejected"
+                    ActionUrl = "https://tndt.netlify.app/tour-company/tours" // Đường dẫn admin để quản lý tour
                 });
 
                 Console.WriteLine($"Tour rejection notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}");
@@ -309,6 +312,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Gửi thông báo khi TourGuide chấp nhận lời mời tour
         /// OPTIMIZED: Chỉ gửi in-app notification, không gửi email
+        /// UPDATED: Thêm ActionUrl dẫn đến trang admin để TourCompany có thể xem tour ready-to-public
         /// </summary>
         public async Task<bool> NotifyGuideAcceptanceAsync(
             Guid tourCompanyUserId,
@@ -322,16 +326,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var user = await _unitOfWork.UserRepository.GetByIdAsync(tourCompanyUserId);
                 if (user == null) return false;
 
-                // 🔔 Tạo in-app notification ONLY
+                // 🔔 Tạo in-app notification ONLY với ActionUrl dẫn đến admin tour list
                 await _notificationService.CreateNotificationAsync(new DTOs.Request.Notification.CreateNotificationDto
                 {
                     UserId = tourCompanyUserId,
                     Title = "🎉 Hướng dẫn viên chấp nhận!",
-                    Message = $"{guideFullName} đã chấp nhận lời mời cho tour '{tourDetailsTitle}'. Tour sẵn sàng để public!",
+                    Message = $"{guideFullName} đã chấp nhận lời mời cho tour '{tourDetailsTitle}'. Tour sẵn sàng để public! Bấm để xem trong trang quản lý.",
                     Type = DataAccessLayer.Enums.NotificationType.TourGuide,
                     Priority = DataAccessLayer.Enums.NotificationPriority.High,
                     Icon = "🎉",
-                    ActionUrl = "/tours/ready-to-public"
+                    ActionUrl = "https://tndt.netlify.app/tour-company/tours" // Đường dẫn admin để quản lý tour
                 });
 
                 Console.WriteLine($"Guide acceptance notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}, guide: {guideFullName}");
