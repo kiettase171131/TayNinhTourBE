@@ -100,7 +100,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 predicate = predicate.And(x => x.IsActive == status);
             }
-
+            var totalblogs = await _blogRepository.CountAsync(predicate);
             // Get tours from repository
             var blogs = await _blogRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate, include);
             var blogIds = blogs.Select(b => b.Id).ToList();
@@ -114,7 +114,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 dto.TotalDislikes = dislikeCounts.GetValueOrDefault(dto.Id, 0);
                 dto.TotalComments = commentCounts.GetValueOrDefault(dto.Id, 0);
             });
-            var totalblogs = blogs.Count();
+            
             var totalPages = (int)Math.Ceiling((double)totalblogs / pageSizeValue);
 
             return new ResponseGetBlogsDto
@@ -177,11 +177,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 predicate = predicate.And(x => x.IsActive == status);
             }
-
+            var totalTours = await _unitOfWork.TourRepository.CountAsync(predicate);    
             // Get tours from repository
             var tours = await _unitOfWork.TourRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate, include);
 
-            var totalTours = tours.Count();
+            
             var totalPages = (int)Math.Ceiling((double)totalTours / pageSizeValue);
 
             return new ResponseGetToursDto
@@ -214,11 +214,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 predicate = predicate.And(x => x.IsActive == status.Value);
             }
             predicate = predicate.And(x => x.Role.Name != "Admin");
-
+            var totalUsers = await _userRepository.CountAsync(predicate);
             // Get users from repository
             var users = await _userRepository.GenericGetPaginationAsync(pageIndexValue, pageSizeValue, predicate,include);
 
-            var totalUsers = users.Count();
+            
             var totalPages = (int)Math.Ceiling((double)totalUsers / pageSizeValue);
 
             return new ResponseGetUsersCmsDto
@@ -525,7 +525,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 predicate = predicate.And(x => x.IsShopActive == isActive.Value);
             }
-
+            var totalShops = await _shopRepository.CountAsync(predicate);
             // Lấy danh sách SpecialtyShop với phân trang
             var shops = await _shopRepository.GenericGetPaginationAsync(
                 pageIndexValue,
@@ -534,7 +534,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 include
             );
 
-            var totalShops = shops.Count();
+            
             var totalPages = (int)Math.Ceiling((double)totalShops / pageSizeValue);
 
             return new ResponseGetSpecialtyShopsDto
@@ -571,7 +571,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 predicate = predicate.And(x => x.IsAvailable == isAvailable.Value);
             }
-
+            var totalGuides = await _tourGuideRepository.CountAsync(predicate);
             // Lấy danh sách TourGuide phân trang
             var tourGuides = await _tourGuideRepository.GenericGetPaginationAsync(
                 pageIndexValue,
@@ -580,7 +580,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 include
             );
 
-            var totalGuides = tourGuides.Count();
+           
             var totalPages = (int)Math.Ceiling((double)totalGuides / pageSizeValue);
 
             return new ResponseGetTourGuidesDto
@@ -612,7 +612,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 predicate = predicate.And(x => x.IsActive == isActive.Value);
             }
-
+            var totalCompanies = await _tourCompany.CountAsync(predicate);
             // Lấy danh sách TourCompany với phân trang
             var companies = await _tourCompany.GenericGetPaginationAsync(
                 pageIndexValue,
@@ -621,7 +621,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 include
             );
 
-            var totalCompanies = companies.Count();
+            
             var totalPages = (int)Math.Ceiling((double)totalCompanies / pageSizeValue);
 
             return new ResponseGetTourCompaniesDto
