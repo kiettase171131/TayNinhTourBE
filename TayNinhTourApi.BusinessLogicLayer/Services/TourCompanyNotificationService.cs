@@ -257,7 +257,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = DataAccessLayer.Enums.NotificationType.Tour,
                     Priority = DataAccessLayer.Enums.NotificationPriority.High,
                     Icon = "✅",
-                    ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                    ActionUrl = "/tour-company/tours"
                 });
 
                 Console.WriteLine($"Tour approval notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}");
@@ -293,7 +293,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = DataAccessLayer.Enums.NotificationType.Warning,
                     Priority = DataAccessLayer.Enums.NotificationPriority.High,
                     Icon = "❌",
-                    ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                    ActionUrl = "/tour-company/tours"
                 });
 
                 Console.WriteLine($"Tour rejection notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}");
@@ -331,7 +331,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = DataAccessLayer.Enums.NotificationType.TourGuide,
                     Priority = DataAccessLayer.Enums.NotificationPriority.High,
                     Icon = "🎉",
-                    ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                    ActionUrl = "/tour-company/tours"
                 });
 
                 Console.WriteLine($"Guide acceptance notification sent (in-app only) for user {tourCompanyUserId}, tour: {tourDetailsTitle}, guide: {guideFullName}");

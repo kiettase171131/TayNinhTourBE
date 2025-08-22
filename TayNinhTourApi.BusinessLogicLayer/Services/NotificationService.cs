@@ -345,7 +345,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.Normal,
                 Icon = "📩",
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                ActionUrl = "/tour-company/tours"
             };
 
             return await CreateNotificationAsync(createDto);
@@ -368,12 +368,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "🚫",
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                ActionUrl = "/tour-company/tours"
             });
         }
 
         /// <summary>
-        /// T?o th�ng b�o c?n t�m guide th? c�ng
+        /// T?o th�ng b�o c�n t�m guide th? c�ng
         /// </summary>
         public async Task<BaseResposeDto> CreateManualGuideSelectionNotificationAsync(
             Guid userId, 
@@ -388,7 +388,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "⚠️",
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                ActionUrl = "/tour-company/tours"
             });
         }
 
@@ -408,7 +408,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Critical,
                 Priority = NotificationPriority.Critical,
                 Icon = "🚨",
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                ActionUrl = "/tour-company/tours"
             });
         }
 
@@ -619,15 +619,15 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.High,
                 Icon = "📥", // Hoặc "🆕", "📩", tùy phong cách hệ thống
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                ActionUrl = "/tour-company/tours"
             });
         }
 
         /// <summary>
-        /// T?o th�ng b�o h?y tour v?i danh s�ch bookings
+        /// T?o th�ng b�o h?y tour v?i danh s�c bookings
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="affectedBookings">Danh s�ch bookings b? ?nh h??ng</param>
+        /// <param name="affectedBookings">Danh s�c bookings b? ?nh h??ng</param>
         /// <param name="tourTitle">T�n tour</param>
         /// <param name="tourStartDate">Ng�y kh?i h�nh</param>
         /// <param name="reason">L� do h?y</param>
@@ -647,7 +647,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "❌", // Hoặc "⚠️", "🚫", "📛" tùy mức độ cảnh báo
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                ActionUrl = "/tour-company/tours"
             });
         }
 
@@ -668,7 +668,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.Medium,
                 Icon = "🚫", // Hoặc "❌", "⚠️", "📭" tùy mức cảnh báo bạn muốn thể hiện
-                ActionUrl = "https://tndt.netlify.app/tour-company/tours"
+                ActionUrl = "/tour-company/tours"
             });
         }
 
