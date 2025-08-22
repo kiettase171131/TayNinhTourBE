@@ -169,7 +169,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Check if textSearch is null or empty
             if (!string.IsNullOrEmpty(textSearch))
             {
-                predicate = predicate.And(x => (x.Title != null && x.Title.Contains(textSearch, StringComparison.OrdinalIgnoreCase)));
+                var pattern = $"%{textSearch}%";
+                predicate = predicate.And(x =>
+                    EF.Functions.Like(x.Title, pattern));
             }
 
             // Check if status is null or empty
