@@ -799,7 +799,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
                     if (specialtyShop != null && specialtyShop.IsActive)
                     {
-                        walletUrl = "/specialty-shop/wallet";
+                        walletUrl = "/speciality-shop/wallet";
                     }
                 }
 
@@ -871,7 +871,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
                     if (specialtyShop != null && specialtyShop.IsActive)
                     {
-                        walletUrl = "/specialty-shop/wallet";
+                        walletUrl = "/speciality-shop/wallet";
                     }
                 }
 
