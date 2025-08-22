@@ -1234,7 +1234,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 predicate = predicate.And(x => x.IsActive == status.Value);
             }
-
+            var totalVouchers = await _voucherRepository.CountAsync(predicate);
             var vouchers = await _voucherRepository.GenericGetPaginationAsync(
                 pageIndexValue,
                 pageSizeValue,
@@ -1242,7 +1242,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 null // No includes needed for simplified voucher system
             );
 
-            var totalVouchers = vouchers.Count();
+            
             var totalPages = (int)Math.Ceiling((double)totalVouchers / pageSizeValue);
 
             return new ResponseGetVouchersDto
@@ -1545,7 +1545,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     predicate = predicate.And(x => x.Status == orderStatus.Value);
                 }
-
+                var totalOrders = await _orderRepository.CountAsync(predicate);
                 // lấy danh sách + phân trang
                 var orders = await _orderRepository.GenericGetPaginationAsync(
                     pageIndexValue,
@@ -1559,7 +1559,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 );
 
-                var totalOrders = orders.Count();
+                
                 var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
 
                 // Debug: Log thông tin orders trước khi mapping
@@ -1614,7 +1614,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     predicate = predicate.And(x => x.Status == orderStatus.Value);
                 }
-
+                var totalOrders = await _orderRepository.CountAsync(predicate);
                 // lấy danh sách + phân trang
                 var orders = await _orderRepository.GenericGetPaginationAsync(
                     pageIndexValue,
@@ -1627,7 +1627,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 );
 
-                var totalOrders = orders.Count();
+               
                 var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
 
                 // Debug: Log thông tin orders trước khi mapping
@@ -1687,7 +1687,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 {
                     predicate = predicate.And(x => x.Status == orderStatus.Value);
                 }
-
+                var totalOrders = await _orderRepository.CountAsync(predicate);
                 var orders = await _orderRepository.GenericGetPaginationAsync(
                     pageIndexValue,
                     pageSizeValue,
@@ -1699,7 +1699,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     }
                 );
 
-                var totalOrders = orders.Count();
+                
                 var totalPages = (int)Math.Ceiling((double)totalOrders / pageSizeValue);
 
                 Console.WriteLine($"Found {totalOrders} orders to map");
