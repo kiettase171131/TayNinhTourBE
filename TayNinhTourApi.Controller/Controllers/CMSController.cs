@@ -9,8 +9,8 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.ApplicationDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
-using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
@@ -18,6 +18,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.SupTicketDTO;
 using TayNinhTourApi.BusinessLogicLayer.Services;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
+using static Google.Apis.Requests.BatchRequest;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -327,6 +328,24 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _cmsService.GetTourCompaniesAsync(pageIndex, pageSize, textSearch, isActive);
             return StatusCode(result.StatusCode, result);
         }
+        [HttpGet("TourCompany/{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTourCompanyById(Guid id)
+        {
+            var response = await _cmsService.GetTourCompanyByIdAsync(id);
+
+            return StatusCode(response.StatusCode, response);
+        }
+        [HttpGet("TourGuide/{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTourGuideById(Guid id)
+        {
+            var result = await _cmsService.GetTourGuideByIdAsync(id);
+
+            return StatusCode(result.StatusCode, result);
+        }
+
+
     }
 }
 

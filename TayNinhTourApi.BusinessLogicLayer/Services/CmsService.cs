@@ -638,5 +638,55 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task UpdateTourDiscountPercentAsync(decimal newPercent)
             => await _adminSetting.UpdateTourDiscountPercentAsync(newPercent);
+        public async Task<ResponseGetTourCompanyByIdDto> GetTourCompanyByIdAsync(Guid id)
+        {
+            var include = new string[] { nameof(TourCompany.User) };
+
+            var tourCompany = await _tourCompany.GetByIdAsync(id, include);
+
+            if (tourCompany == null || tourCompany.IsDeleted)
+            {
+                return new ResponseGetTourCompanyByIdDto
+                {
+                    StatusCode = 404,
+                    Message = "Tour company not found"
+                };
+            }
+
+            return new ResponseGetTourCompanyByIdDto
+            {
+                StatusCode = 200,
+                success = true,
+                Data = _mapper.Map<TourCompanyCmsDto>(tourCompany)
+            };
+        }
+        public async Task<ResponseGetTourGuideByIdDto> GetTourGuideByIdAsync(Guid id)
+        {
+            var include = new string[] { nameof(TourGuide.User), nameof(TourGuide.ApprovedBy) };
+
+            var tourGuide = await _tourGuideRepository.GetByIdAsync(id, include);
+
+            if (tourGuide == null || tourGuide.IsDeleted)
+            {
+                return new ResponseGetTourGuideByIdDto
+                {
+                    StatusCode = 404,
+                    Message = "Tour guide not found"
+                };
+            }
+
+            // Map dữ liệu sang DTO
+            var dto = _mapper.Map<TourGuideCmsDto>(tourGuide);
+
+            return new ResponseGetTourGuideByIdDto
+            {
+                StatusCode = 200,
+                success = true,
+                Data = dto
+            };
+        }
+
+
+
     }
 }

@@ -4,6 +4,7 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Blog;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Cms.TayNinhTourApi.Business.DTOs.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
@@ -22,7 +23,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         Task<BaseResposeDto> CreateUserAsync(RequestCreateUserDto request);
         Task<ResponseGetSpecialtyShopsDto> GetSpecialtyShopsAsync(int? pageIndex,int? pageSize,string? textSearch,bool? isActive);
         Task<ResponseGetTourGuidesDto> GetTourGuidesAsync(int? pageIndex,int? pageSize,string? textSearch,bool? isAvailable,bool? isActive);
+        Task<ResponseGetTourGuideByIdDto> GetTourGuideByIdAsync(Guid id);
         Task<ResponseGetTourCompaniesDto> GetTourCompaniesAsync(int? pageIndex, int? pageSize, string? textSearch, bool? isActive);
+        Task<ResponseGetTourCompanyByIdDto> GetTourCompanyByIdAsync(Guid id);
         Task<decimal> GetTourDiscountPercentAsync();
         Task UpdateTourDiscountPercentAsync(decimal newPercent);
     }

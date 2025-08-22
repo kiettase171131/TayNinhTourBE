@@ -187,7 +187,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 TotalPages = totalPages
             };
         }
-        public async Task<ResponseGetProductByIdDto> GetProductByIdAsync(Guid id)
+        public async Task<ResponseGetProductByIdDto> GetProductByIdAsync(Guid id)       
         {
             var include = new string[] { nameof(Product.ProductImages) };
 
