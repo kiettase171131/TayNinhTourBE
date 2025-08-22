@@ -206,8 +206,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             if (!string.IsNullOrEmpty(textSearch))
             {
-                predicate = predicate.And(x => x.Name.Contains(textSearch, StringComparison.OrdinalIgnoreCase) || x.Email.Contains(textSearch, StringComparison.OrdinalIgnoreCase));
+                var pattern = $"%{textSearch}%";
+                predicate = predicate.And(x =>
+                    EF.Functions.Like(x.Name, pattern) || EF.Functions.Like(x.PhoneNumber, pattern) ||
+                    EF.Functions.Like(x.Email, pattern));
             }
+
 
             if (status.HasValue)
             {
