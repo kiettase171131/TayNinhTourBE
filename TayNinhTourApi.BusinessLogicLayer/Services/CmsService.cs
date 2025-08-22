@@ -519,10 +519,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             if (!string.IsNullOrEmpty(textSearch))
             {
+                var pattern = $"%{textSearch}%";
                 predicate = predicate.And(x =>
-                    x.ShopName.Contains(textSearch, StringComparison.OrdinalIgnoreCase) ||
-                    x.RepresentativeName.Contains(textSearch, StringComparison.OrdinalIgnoreCase) ||
-                    x.Email.Contains(textSearch, StringComparison.OrdinalIgnoreCase));
+                    EF.Functions.Like(x.ShopName, pattern) || EF.Functions.Like(x.RepresentativeName, pattern) ||
+                    EF.Functions.Like(x.Email, pattern));
             }
 
             if (isActive.HasValue)
@@ -563,8 +563,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // Search theo FullName (nếu có textSearch)
             if (!string.IsNullOrEmpty(textSearch))
             {
-                var search = textSearch.ToLower();
-                predicate = predicate.And(x => x.FullName.ToLower().Contains(search));
+                var pattern = $"%{textSearch}%";
+                predicate = predicate.And(x =>
+                    EF.Functions.Like(x.FullName, pattern) || EF.Functions.Like(x.PhoneNumber, pattern) ||
+                    EF.Functions.Like(x.Email, pattern));
             }
             if (isActive.HasValue)
             {
@@ -606,10 +608,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
             if (!string.IsNullOrEmpty(textSearch))
             {
+                var pattern = $"%{textSearch}%";
                 predicate = predicate.And(x =>
-                    x.CompanyName.Contains(textSearch, StringComparison.OrdinalIgnoreCase) ||
-                    x.Description!.Contains(textSearch, StringComparison.OrdinalIgnoreCase) ||
-                    x.Address!.Contains(textSearch, StringComparison.OrdinalIgnoreCase));
+                    EF.Functions.Like(x.CompanyName, pattern) 
+                    );
             }
 
             if (isActive.HasValue)
