@@ -125,7 +125,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = DataAccessLayer.Enums.NotificationType.Wallet,
                     Priority = DataAccessLayer.Enums.NotificationPriority.Medium,
                     Icon = "💰",
-                    ActionUrl = "/wallet/revenue"
+                    ActionUrl = "/tour-company/wallet"
                 });
 
                 Console.WriteLine($"Revenue transfer notification sent (in-app only) for user {tourCompanyUserId}, amount: {amount:N0} VNĐ");

@@ -737,7 +737,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Type = NotificationType.System,
                         Priority = NotificationPriority.High,
                         AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"shopName\":\"{shopName}\",\"amount\":{amount}}}",
-                        ActionUrl = "https://tndt.netlify.app/admin/withdrawal-requests",
+                        ActionUrl = "/withdrawal-requests",
                         Icon = "💰",
                         ExpiresAt = DateTime.UtcNow.AddDays(7),
                         IsRead = false,
@@ -784,6 +784,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
+                // Determine wallet URL based on user role
+                string walletUrl = "/wallet"; // Default fallback
+                
+                // Check if user is TourCompany
+                var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
+                if (tourCompany != null && tourCompany.IsActive)
+                {
+                    walletUrl = "/tour-company/wallet";
+                }
+                else
+                {
+                    // Check if user is SpecialtyShop
+                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
+                    if (specialtyShop != null && specialtyShop.IsActive)
+                    {
+                        walletUrl = "/specialty-shop/wallet";
+                    }
+                }
+
                 var notification = new Notification
                 {
                     Id = Guid.NewGuid(),
@@ -793,7 +812,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = NotificationType.System,
                     Priority = NotificationPriority.High,
                     AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"amount\":{amount},\"bankAccount\":\"{bankAccount}\",\"transactionReference\":\"{transactionReference}\"}}",
-                    ActionUrl = "https://tndt.netlify.app/speciality-shop/wallet",
+                    ActionUrl = walletUrl,
                     Icon = "✅",
                     ExpiresAt = DateTime.UtcNow.AddDays(30),
                     IsRead = false,
@@ -837,6 +856,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
+                // Determine wallet URL based on user role
+                string walletUrl = "/wallet"; // Default fallback
+                
+                // Check if user is TourCompany
+                var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
+                if (tourCompany != null && tourCompany.IsActive)
+                {
+                    walletUrl = "/tour-company/wallet";
+                }
+                else
+                {
+                    // Check if user is SpecialtyShop
+                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
+                    if (specialtyShop != null && specialtyShop.IsActive)
+                    {
+                        walletUrl = "/specialty-shop/wallet";
+                    }
+                }
+
                 var notification = new Notification
                 {
                     Id = Guid.NewGuid(),
@@ -846,7 +884,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = NotificationType.Warning,
                     Priority = NotificationPriority.High,
                     AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"amount\":{amount},\"reason\":\"{reason}\"}}",
-                    ActionUrl = "https://tndt.netlify.app/speciality-shop/wallet",
+                    ActionUrl = walletUrl,
                     Icon = "❌",
                     ExpiresAt = DateTime.UtcNow.AddDays(30),
                     IsRead = false,
@@ -904,7 +942,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Type = NotificationType.Warning,
                         Priority = NotificationPriority.Urgent,
                         AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"shopName\":\"{shopName}\",\"amount\":{amount},\"daysPending\":{daysPending}}}",
-                        ActionUrl = "https://tndt.netlify.app/admin/withdrawal-requests",
+                        ActionUrl = "/withdrawal-requests",
                         Icon = "⏰",
                         ExpiresAt = DateTime.UtcNow.AddDays(3),
                         IsRead = false,
