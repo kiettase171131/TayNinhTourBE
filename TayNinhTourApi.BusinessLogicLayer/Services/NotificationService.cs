@@ -445,7 +445,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = NotificationType.TourGuide,
                     Priority = NotificationPriority.High,
                     Icon = icon,
-                    ActionUrl = "https://tndt.netlify.app/tour-guide/invitations",
+                    ActionUrl = "/tour-guide/invitations",
                     Data = new Dictionary<string, object>
                     {
                         ["invitationId"] = invitationId,
@@ -492,7 +492,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = hoursUntilExpiry <= 2 ? NotificationType.Critical : NotificationType.Warning,
                     Priority = hoursUntilExpiry <= 2 ? NotificationPriority.Critical : NotificationPriority.High,
                     Icon = urgencyIcon,
-                    ActionUrl = "https://tndt.netlify.app/tour-guide/invitations",
+                    ActionUrl = "/tour-guide/invitations",
                     Data = new Dictionary<string, object>
                     {
                         ["invitationId"] = invitationId,

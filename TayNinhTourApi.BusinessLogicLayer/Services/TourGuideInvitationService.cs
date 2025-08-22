@@ -1621,7 +1621,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = DataAccessLayer.Enums.NotificationType.Warning,
                     Priority = DataAccessLayer.Enums.NotificationPriority.High,
                     Icon = "⚠️",
-                    ActionUrl = "https://tndt.netlify.app/tour-company/tours",
+                    ActionUrl = "/tour-company/tours",
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
                     IsRead = false,
                     CreatedAt = DateTime.UtcNow,
