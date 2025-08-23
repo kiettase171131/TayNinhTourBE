@@ -92,11 +92,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
             string reason);
 
         /// <summary>
-        /// Lấy thống kê yêu cầu rút tiền
+        /// Lấy thống kê yêu cầu rút tiền của user cụ thể
         /// </summary>
-        /// <param name="userId">ID của user (null = tất cả users)</param>
+        /// <param name="userId">ID của user</param>
+        /// <param name="startDate">Ngày bắt đầu lọc (null = tất cả)</param>
+        /// <param name="endDate">Ngày kết thúc lọc (null = tất cả)</param>
         /// <returns>Thống kê yêu cầu rút tiền</returns>
-        Task<ApiResponse<WithdrawalStatsDto>> GetStatsAsync(Guid? userId = null);
+        Task<ApiResponse<WithdrawalStatsDto>> GetStatsForUserAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null);
+
+        /// <summary>
+        /// Lấy thống kê yêu cầu rút tiền tổng hợp (cho admin)
+        /// </summary>
+        /// <param name="startDate">Ngày bắt đầu lọc (null = tất cả)</param>
+        /// <param name="endDate">Ngày kết thúc lọc (null = tất cả)</param>
+        /// <returns>Thống kê yêu cầu rút tiền</returns>
+        Task<ApiResponse<WithdrawalStatsDto>> GetStatsAsync(DateTime? startDate = null, DateTime? endDate = null);
 
         /// <summary>
         /// Kiểm tra user có thể tạo yêu cầu rút tiền mới không

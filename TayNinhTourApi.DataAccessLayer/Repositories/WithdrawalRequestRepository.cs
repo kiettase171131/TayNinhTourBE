@@ -267,5 +267,90 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             return (totalRequests, pendingRequests, approvedRequests, rejectedRequests, 
                    totalAmount, pendingAmount, approvedAmount, rejectedAmount);
         }
+
+        /// <summary>
+        /// Lấy thống kê tổng hợp yêu cầu rút tiền với filtering theo ngày
+        /// </summary>
+        public async Task<(int TotalRequests, int PendingRequests, int ApprovedRequests, int RejectedRequests, int CancelledRequests,
+                          decimal TotalAmount, decimal PendingAmount, decimal ApprovedAmount, decimal RejectedAmount, decimal CancelledAmount,
+                          double AverageProcessingTimeHours, DateTime? LastRequestDate, DateTime? LastApprovalDate)> 
+                          GetTotalStatsAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.WithdrawalRequests
+                .Where(w => w.IsActive && !w.IsDeleted);
+
+            // Filter by date range if provided
+            if (startDate.HasValue)
+            {
+                query = query.Where(w => w.RequestedAt >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(w => w.RequestedAt <= endDate.Value);
+            }
+
+            var requests = await query.ToListAsync();
+
+            // Calculate basic stats
+            var totalRequests = requests.Count;
+            var pendingRequests = requests.Count(w => w.Status == WithdrawalStatus.Pending);
+            var approvedRequests = requests.Count(w => w.Status == WithdrawalStatus.Approved);
+            var rejectedRequests = requests.Count(w => w.Status == WithdrawalStatus.Rejected);
+            var cancelledRequests = requests.Count(w => w.Status == WithdrawalStatus.Cancelled);
+
+            // Calculate amounts
+            var totalAmount = requests.Sum(w => w.Amount);
+            var pendingAmount = requests.Where(w => w.Status == WithdrawalStatus.Pending).Sum(w => w.Amount);
+            var approvedAmount = requests.Where(w => w.Status == WithdrawalStatus.Approved).Sum(w => w.Amount);
+            var rejectedAmount = requests.Where(w => w.Status == WithdrawalStatus.Rejected).Sum(w => w.Amount);
+            var cancelledAmount = requests.Where(w => w.Status == WithdrawalStatus.Cancelled).Sum(w => w.Amount);
+
+            // Calculate average processing time (only for processed requests)
+            var processedRequests = requests.Where(w => w.ProcessedAt.HasValue).ToList();
+            double averageProcessingTimeHours = 0;
+            if (processedRequests.Any())
+            {
+                averageProcessingTimeHours = processedRequests
+                    .Average(w => (w.ProcessedAt!.Value - w.RequestedAt).TotalHours);
+            }
+
+            // Get last request and approval dates
+            var lastRequestDate = requests.Any() ? requests.Max(w => w.RequestedAt) : (DateTime?)null;
+            var lastApprovalDate = processedRequests
+                .Where(w => w.Status == WithdrawalStatus.Approved)
+                .Any() ? processedRequests
+                .Where(w => w.Status == WithdrawalStatus.Approved)
+                .Max(w => w.ProcessedAt) : null;
+
+            return (totalRequests, pendingRequests, approvedRequests, rejectedRequests, cancelledRequests,
+                   totalAmount, pendingAmount, approvedAmount, rejectedAmount, cancelledAmount,
+                   averageProcessingTimeHours, lastRequestDate, lastApprovalDate);
+        }
+
+        /// <summary>
+        /// Lấy tất cả yêu cầu rút tiền của user với filtering theo ngày
+        /// </summary>
+        public async Task<IEnumerable<WithdrawalRequest>> GetUserRequestsWithFilterAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.WithdrawalRequests
+                .Include(w => w.BankAccount)
+                .Where(w => w.UserId == userId && w.IsActive && !w.IsDeleted);
+
+            // Filter by date range if provided
+            if (startDate.HasValue)
+            {
+                query = query.Where(w => w.RequestedAt >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(w => w.RequestedAt <= endDate.Value);
+            }
+
+            return await query
+                .OrderByDescending(w => w.RequestedAt)
+                .ToListAsync();
+        }
     }
 }

@@ -275,9 +275,13 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <summary>
         /// Lấy thống kê yêu cầu rút tiền của user
         /// </summary>
+        /// <param name="startDate">Ngày bắt đầu lọc (yyyy-MM-dd) - tùy chọn</param>
+        /// <param name="endDate">Ngày kết thúc lọc (yyyy-MM-dd) - tùy chọn</param>
         /// <returns>Thống kê yêu cầu rút tiền</returns>
         [HttpGet("stats")]
-        public async Task<IActionResult> GetMyStats()
+        public async Task<IActionResult> GetMyStats(
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
         {
             try
             {
@@ -287,7 +291,16 @@ namespace TayNinhTourApi.Controller.Controllers
                     return Unauthorized("Không thể xác định user");
                 }
 
-                var result = await _withdrawalRequestService.GetStatsAsync(userId);
+                // Validate date range
+                if (startDate.HasValue && endDate.HasValue && startDate > endDate)
+                {
+                    return BadRequest(new { 
+                        Success = false, 
+                        Message = "Ngày bắt đầu không thể lớn hơn ngày kết thúc" 
+                    });
+                }
+
+                var result = await _withdrawalRequestService.GetStatsForUserAsync(userId, startDate, endDate);
                 
                 return Ok(result);
             }
