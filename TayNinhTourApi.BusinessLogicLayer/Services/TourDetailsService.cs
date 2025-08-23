@@ -563,12 +563,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             string? scheduleDay = null,
             string? startLocation = null,
             string? endLocation = null,
+            bool? hasEarlyBird = null,
             bool includeInactive = false)
         {
             try
             {
-                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}, searchTerm: {SearchTerm}, minPrice: {MinPrice}, maxPrice: {MaxPrice}, scheduleDay: {ScheduleDay}, startLocation: {StartLocation}, endLocation: {EndLocation}", 
-                    pageIndex, pageSize, searchTerm, minPrice, maxPrice, scheduleDay, startLocation, endLocation);
+                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}, searchTerm: {SearchTerm}, minPrice: {MinPrice}, maxPrice: {MaxPrice}, scheduleDay: {ScheduleDay}, startLocation: {StartLocation}, endLocation: {EndLocation}, hasEarlyBird: {HasEarlyBird}", 
+                    pageIndex, pageSize, searchTerm, minPrice, maxPrice, scheduleDay, startLocation, endLocation, hasEarlyBird);
 
                 // Build query for TourDetails with related entities (similar to UserTourSearch)
                 var query = _unitOfWork.TourDetailsRepository.GetQueryable();
@@ -662,18 +663,68 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     query = query.Where(td => td.TourTemplate.EndLocation.ToLower().Contains(endLocationLower));
                 }
 
-                // Get total count
-                var totalCount = await query.CountAsync();
-
-                // Apply pagination and get results
+                // Get initial results for early bird filtering
                 var tourDetails = await query
                     .OrderByDescending(td => td.CreatedAt)
-                    .Skip(pageIndex * pageSize)
-                    .Take(pageSize)
                     .ToListAsync();
 
+                // Apply early bird filter if specified
+                if (hasEarlyBird.HasValue)
+                {
+                    // Get TourPricingService for early bird calculation
+                    using var scope = _serviceProvider.CreateScope();
+                    var pricingService = scope.ServiceProvider.GetRequiredService<ITourPricingService>();
+                    var currentDate = DateTime.UtcNow;
+
+                    // Filter based on early bird eligibility
+                    tourDetails = tourDetails.Where(td =>
+                    {
+                        try
+                        {
+                            // Check if tour has pricing information
+                            if (td.TourOperation?.Price == null || td.TourOperation.Price <= 0)
+                                return !hasEarlyBird.Value; // If no pricing, include only if not filtering for early bird
+
+                            // Find earliest available slot for tour start date
+                            var earliestSlot = td.AssignedSlots
+                                .Where(slot => slot.TourDate >= DateOnly.FromDateTime(DateTime.Today) &&
+                                              slot.Status == TourSlotStatus.Available &&
+                                              slot.AvailableSpots > 0)
+                                .OrderBy(slot => slot.TourDate)
+                                .FirstOrDefault();
+
+                            if (earliestSlot == null)
+                                return !hasEarlyBird.Value; // If no available slots, include only if not filtering for early bird
+
+                            // Use tour public date (when status became Public) or created date as fallback
+                            var tourPublicDate = td.UpdatedAt?.Date ?? td.CreatedAt.Date;
+                            var tourStartDate = earliestSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+
+                            // Check early bird eligibility
+                            var isEarlyBirdEligible = pricingService.IsEarlyBirdEligible(
+                                tourStartDate,
+                                tourPublicDate,
+                                currentDate);
+
+                            return hasEarlyBird.Value ? isEarlyBirdEligible : !isEarlyBirdEligible;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Error checking early bird eligibility for TourDetails {TourDetailsId}", td.Id);
+                            return !hasEarlyBird.Value; // On error, include only if not filtering for early bird
+                        }
+                    }).ToList();
+                }
+
+                // Apply pagination to filtered results
+                var totalCount = tourDetails.Count;
+                var paginatedResults = tourDetails
+                    .Skip(pageIndex * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
                 // Map to enriched DTOs (similar to UserTourSearch response structure)
-                var enrichedTourDetails = tourDetails.Select(td => new EnrichedTourDetailDto
+                var enrichedTourDetails = paginatedResults.Select(td => new EnrichedTourDetailDto
                 {
                     Id = td.Id,
                     Title = td.Title,
@@ -751,6 +802,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 if (!string.IsNullOrEmpty(scheduleDay)) appliedFilters.Add($"thứ: {scheduleDay}");
                 if (!string.IsNullOrEmpty(startLocation)) appliedFilters.Add($"xuất phát: {startLocation}");
                 if (!string.IsNullOrEmpty(endLocation)) appliedFilters.Add($"điểm đến: {endLocation}");
+                if (hasEarlyBird.HasValue) appliedFilters.Add($"early bird: {(hasEarlyBird.Value ? "có" : "không")}");
 
                 var filterText = appliedFilters.Any() ? $" với bộ lọc: {string.Join(", ", appliedFilters)}" : "";
                 var resultMessage = $"Tìm thấy {totalCount} tour phù hợp{filterText}";
@@ -1368,7 +1420,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 int newSortOrder = request.SortOrder ?? await GetNextSortOrderAsync(request.TourDetailsId);
                 
                 // Check if there are existing items that would conflict with time order
-                foreach (var existingItem in existingItems)
+                foreach (var existingItem in existingItems.Where(t => t.IsActive))
                 {
                     // If new item has a lower sort order, its time must be < existing item's time
                     if (newSortOrder < existingItem.SortOrder && checkInTime >= existingItem.CheckInTime)

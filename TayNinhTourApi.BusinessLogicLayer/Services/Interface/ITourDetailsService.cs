@@ -72,6 +72,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="scheduleDay">Thứ trong tuần (Saturday/Sunday) từ tour template (optional)</param>
         /// <param name="startLocation">Điểm bắt đầu từ tour template (optional)</param>
         /// <param name="endLocation">Điểm kết thúc từ tour template (optional)</param>
+        /// <param name="hasEarlyBird">Lọc tour có early bird discount (optional)</param>
         /// <param name="includeInactive">Bao gồm inactive records</param>
         /// <returns>Danh sách TourDetails có phân trang</returns>
         Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
@@ -83,6 +84,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
             string? scheduleDay = null,
             string? startLocation = null,
             string? endLocation = null,
+            bool? hasEarlyBird = null,
             bool includeInactive = false);
 
         // ===== TIMELINE OPERATIONS (EXISTING & NEW) =====

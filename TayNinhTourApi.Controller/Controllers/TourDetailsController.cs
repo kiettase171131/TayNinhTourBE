@@ -53,7 +53,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     pageIndex, pageSize, includeInactive);
 
                 var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
-                    pageIndex, pageSize, null, null, null, null, null, null, includeInactive);
+                    pageIndex, pageSize, null, null, null, null, null, null, null, includeInactive);
                 return StatusCode(response.StatusCode, response);
             }
             catch (Exception ex)
@@ -274,6 +274,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="scheduleDay">Thứ trong tuần (Saturday/Sunday) từ tour template (optional)</param>
         /// <param name="startLocation">Điểm bắt đầu từ tour template (optional)</param>
         /// <param name="endLocation">Điểm kết thúc từ tour template (optional)</param>
+        /// <param name="hasEarlyBird">Lọc tour có early bird discount (optional)</param>
         /// <param name="includeInactive">Bao gồm inactive records (default: false)</param>
         /// <returns>Danh sách TourDetails có phân trang</returns>
         [HttpGet("paginated")]
@@ -287,15 +288,16 @@ namespace TayNinhTourApi.Controller.Controllers
             [FromQuery] string? scheduleDay = null,
             [FromQuery] string? startLocation = null,
             [FromQuery] string? endLocation = null,
+            [FromQuery] bool? hasEarlyBird = null,
             [FromQuery] bool includeInactive = false)
         {
             try
             {
-                _logger.LogInformation("Getting paginated TourDetails - Page: {PageIndex}, Size: {PageSize}, SearchTerm: {SearchTerm}, MinPrice: {MinPrice}, MaxPrice: {MaxPrice}, ScheduleDay: {ScheduleDay}, StartLocation: {StartLocation}, EndLocation: {EndLocation}",
-                    pageIndex, pageSize, searchTerm, minPrice, maxPrice, scheduleDay, startLocation, endLocation);
+                _logger.LogInformation("Getting paginated TourDetails - Page: {PageIndex}, Size: {PageSize}, SearchTerm: {SearchTerm}, MinPrice: {MinPrice}, MaxPrice: {MaxPrice}, ScheduleDay: {ScheduleDay}, StartLocation: {StartLocation}, EndLocation: {EndLocation}, HasEarlyBird: {HasEarlyBird}",
+                    pageIndex, pageSize, searchTerm, minPrice, maxPrice, scheduleDay, startLocation, endLocation, hasEarlyBird);
 
                 var response = await _tourDetailsService.GetTourDetailsPaginatedAsync(
-                    pageIndex, pageSize, searchTerm, minPrice, maxPrice, scheduleDay, startLocation, endLocation, includeInactive);
+                    pageIndex, pageSize, searchTerm, minPrice, maxPrice, scheduleDay, startLocation, endLocation, hasEarlyBird, includeInactive);
                 return StatusCode(response.StatusCode, response);
             }
             catch (Exception ex)
