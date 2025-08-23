@@ -486,6 +486,62 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        /// <summary>
+        /// Lấy thống kê yêu cầu rút tiền theo role cho TourCompany và SpecialtyShop
+        /// </summary>
+        public async Task<ApiResponse<WithdrawalRoleStatsSummaryDto>> GetRoleStatsAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            try
+            {
+                // Lấy thống kê cho TourCompany
+                var tourCompanyStats = await _unitOfWork.WithdrawalRequestRepository.GetStatsByRoleAsync("Tour Company", startDate, endDate);
+                
+                // Lấy thống kê cho SpecialtyShop
+                var specialtyShopStats = await _unitOfWork.WithdrawalRequestRepository.GetStatsByRoleAsync("Specialty Shop", startDate, endDate);
+
+                var summary = new WithdrawalRoleStatsSummaryDto
+                {
+                    TourCompanyStats = new WithdrawalRoleStatsDto
+                    {
+                        Role = "Tour Company",
+                        TotalRequests = tourCompanyStats.TotalRequests,
+                        PendingRequests = tourCompanyStats.PendingRequests,
+                        ApprovedRequests = tourCompanyStats.ApprovedRequests,
+                        RejectedRequests = tourCompanyStats.RejectedRequests,
+                        TotalAmountRequested = tourCompanyStats.TotalAmount,
+                        PendingAmount = tourCompanyStats.PendingAmount,
+                        ApprovedAmount = tourCompanyStats.ApprovedAmount,
+                        RejectedAmount = tourCompanyStats.RejectedAmount,
+                        StartDate = startDate,
+                        EndDate = endDate
+                    },
+                    SpecialtyShopStats = new WithdrawalRoleStatsDto
+                    {
+                        Role = "Specialty Shop",
+                        TotalRequests = specialtyShopStats.TotalRequests,
+                        PendingRequests = specialtyShopStats.PendingRequests,
+                        ApprovedRequests = specialtyShopStats.ApprovedRequests,
+                        RejectedRequests = specialtyShopStats.RejectedRequests,
+                        TotalAmountRequested = specialtyShopStats.TotalAmount,
+                        PendingAmount = specialtyShopStats.PendingAmount,
+                        ApprovedAmount = specialtyShopStats.ApprovedAmount,
+                        RejectedAmount = specialtyShopStats.RejectedAmount,
+                        StartDate = startDate,
+                        EndDate = endDate
+                    },
+                    GeneratedAt = DateTime.UtcNow,
+                    StartDate = startDate,
+                    EndDate = endDate
+                };
+
+                return ApiResponse<WithdrawalRoleStatsSummaryDto>.Success(summary, "Lấy thống kê thành công");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<WithdrawalRoleStatsSummaryDto>.Error($"Lỗi khi lấy thống kê theo role: {ex.Message}");
+            }
+        }
+
         #region Private Helper Methods
 
         /// <summary>

@@ -120,5 +120,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="bankAccountId">ID của tài khoản ngân hàng</param>
         /// <returns>Kết quả validation</returns>
         Task<ApiResponse<bool>> ValidateWithdrawalRequestAsync(Guid userId, decimal amount, Guid bankAccountId);
+
+        /// <summary>
+        /// Lấy thống kê yêu cầu rút tiền theo role cho TourCompany và SpecialtyShop
+        /// </summary>
+        /// <param name="startDate">Ngày bắt đầu lọc (null = tất cả)</param>
+        /// <param name="endDate">Ngày kết thúc lọc (null = tất cả)</param>
+        /// <returns>Thống kê yêu cầu rút tiền theo role</returns>
+        Task<ApiResponse<WithdrawalRoleStatsSummaryDto>> GetRoleStatsAsync(DateTime? startDate = null, DateTime? endDate = null);
     }
 }

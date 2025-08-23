@@ -228,5 +228,44 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
             return (totalRequests, totalAmount, approvedRequests, approvedAmount);
         }
+
+        /// <summary>
+        /// Lấy thống kê yêu cầu rút tiền theo role (TourCompany hoặc SpecialtyShop)
+        /// </summary>
+        public async Task<(int TotalRequests, int PendingRequests, int ApprovedRequests, int RejectedRequests, 
+                          decimal TotalAmount, decimal PendingAmount, decimal ApprovedAmount, decimal RejectedAmount)> 
+                          GetStatsByRoleAsync(string roleName, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            var query = _context.WithdrawalRequests
+                .Include(w => w.User)
+                .ThenInclude(u => u.Role)
+                .Where(w => w.IsActive && !w.IsDeleted && w.User.Role.Name == roleName);
+
+            // Filter by date range if provided
+            if (startDate.HasValue)
+            {
+                query = query.Where(w => w.RequestedAt >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(w => w.RequestedAt <= endDate.Value);
+            }
+
+            var requests = await query.ToListAsync();
+
+            var totalRequests = requests.Count;
+            var pendingRequests = requests.Count(w => w.Status == WithdrawalStatus.Pending);
+            var approvedRequests = requests.Count(w => w.Status == WithdrawalStatus.Approved);
+            var rejectedRequests = requests.Count(w => w.Status == WithdrawalStatus.Rejected);
+
+            var totalAmount = requests.Sum(w => w.Amount);
+            var pendingAmount = requests.Where(w => w.Status == WithdrawalStatus.Pending).Sum(w => w.Amount);
+            var approvedAmount = requests.Where(w => w.Status == WithdrawalStatus.Approved).Sum(w => w.Amount);
+            var rejectedAmount = requests.Where(w => w.Status == WithdrawalStatus.Rejected).Sum(w => w.Amount);
+
+            return (totalRequests, pendingRequests, approvedRequests, rejectedRequests, 
+                   totalAmount, pendingAmount, approvedAmount, rejectedAmount);
+        }
     }
 }
