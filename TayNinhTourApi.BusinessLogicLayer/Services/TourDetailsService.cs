@@ -557,13 +557,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
             int pageIndex,
             int pageSize,
-            Guid? tourTemplateId = null,
-            string? titleFilter = null,
+            string? searchTerm = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null,
+            string? scheduleDay = null,
+            string? startLocation = null,
+            string? endLocation = null,
             bool includeInactive = false)
         {
             try
             {
-                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}", pageIndex, pageSize);
+                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}, searchTerm: {SearchTerm}, minPrice: {MinPrice}, maxPrice: {MaxPrice}, scheduleDay: {ScheduleDay}, startLocation: {StartLocation}, endLocation: {EndLocation}", 
+                    pageIndex, pageSize, searchTerm, minPrice, maxPrice, scheduleDay, startLocation, endLocation);
 
                 // Build query for TourDetails with related entities (similar to UserTourSearch)
                 var query = _unitOfWork.TourDetailsRepository.GetQueryable();
@@ -580,15 +585,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     query = query.Where(td => !td.IsDeleted);
                 }
 
-                // Apply filters
-                if (tourTemplateId.HasValue)
+                // Search term filter - tìm kiếm theo title và description của tour
+                if (!string.IsNullOrEmpty(searchTerm))
                 {
-                    query = query.Where(td => td.TourTemplateId == tourTemplateId.Value);
-                }
-
-                if (!string.IsNullOrEmpty(titleFilter))
-                {
-                    query = query.Where(td => td.Title.Contains(titleFilter));
+                    var searchLower = searchTerm.ToLower();
+                    query = query.Where(td => td.Title.ToLower().Contains(searchLower) ||
+                                            (td.Description != null && td.Description.ToLower().Contains(searchLower)));
                 }
 
                 // Include navigation properties (similar to UserTourSearch)
@@ -601,6 +603,64 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 // Apply additional filters for TourTemplate
                 query = query.Where(td => td.TourTemplate.IsActive && !td.TourTemplate.IsDeleted);
+
+                // Price filters - lọc theo giá min max của tour operation
+                if (minPrice.HasValue || maxPrice.HasValue)
+                {
+                    query = query.Where(td => td.TourOperation != null);
+                    
+                    if (minPrice.HasValue)
+                    {
+                        query = query.Where(td => td.TourOperation.Price >= minPrice.Value);
+                    }
+                    
+                    if (maxPrice.HasValue)
+                    {
+                        query = query.Where(td => td.TourOperation.Price <= maxPrice.Value);
+                    }
+                }
+
+                // Schedule day filter - lọc theo thứ trong tuần từ tour template
+                if (!string.IsNullOrEmpty(scheduleDay))
+                {
+                    // Validate schedule day value
+                    if (Enum.TryParse<ScheduleDay>(scheduleDay, true, out var scheduleDayEnum))
+                    {
+                        query = query.Where(td => td.TourTemplate.ScheduleDays == scheduleDayEnum);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Invalid schedule day value: {ScheduleDay}. Valid values are: Saturday, Sunday", scheduleDay);
+                        // Return empty result for invalid schedule day
+                        return new ResponseGetTourDetailsPaginatedDto
+                        {
+                            StatusCode = 400,
+                            Message = $"Giá trị thứ trong tuần không hợp lệ: {scheduleDay}. Giá trị hợp lệ: Saturday, Sunday",
+                            success = false,
+                            Data = new List<EnrichedTourDetailDto>(),
+                            TotalCount = 0,
+                            PageIndex = pageIndex,
+                            PageSize = pageSize,
+                            TotalPages = 0,
+                            HasNextPage = false,
+                            HasPreviousPage = false
+                        };
+                    }
+                }
+
+                // Start location filter - lọc theo điểm bắt đầu từ tour template
+                if (!string.IsNullOrEmpty(startLocation))
+                {
+                    var startLocationLower = startLocation.ToLower();
+                    query = query.Where(td => td.TourTemplate.StartLocation.ToLower().Contains(startLocationLower));
+                }
+
+                // End location filter - lọc theo điểm kết thúc từ tour template
+                if (!string.IsNullOrEmpty(endLocation))
+                {
+                    var endLocationLower = endLocation.ToLower();
+                    query = query.Where(td => td.TourTemplate.EndLocation.ToLower().Contains(endLocationLower));
+                }
 
                 // Get total count
                 var totalCount = await query.CountAsync();
@@ -683,10 +743,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var hasNextPage = pageIndex < totalPages - 1;
                 var hasPreviousPage = pageIndex > 0;
 
+                // Build filter summary for response message
+                var appliedFilters = new List<string>();
+                if (!string.IsNullOrEmpty(searchTerm)) appliedFilters.Add($"tìm kiếm: '{searchTerm}'");
+                if (minPrice.HasValue) appliedFilters.Add($"giá từ: {minPrice.Value:N0}đ");
+                if (maxPrice.HasValue) appliedFilters.Add($"giá đến: {maxPrice.Value:N0}đ");
+                if (!string.IsNullOrEmpty(scheduleDay)) appliedFilters.Add($"thứ: {scheduleDay}");
+                if (!string.IsNullOrEmpty(startLocation)) appliedFilters.Add($"xuất phát: {startLocation}");
+                if (!string.IsNullOrEmpty(endLocation)) appliedFilters.Add($"điểm đến: {endLocation}");
+
+                var filterText = appliedFilters.Any() ? $" với bộ lọc: {string.Join(", ", appliedFilters)}" : "";
+                var resultMessage = $"Tìm thấy {totalCount} tour phù hợp{filterText}";
+
                 return new ResponseGetTourDetailsPaginatedDto
                 {
                     StatusCode = 200,
-                    Message = $"Tìm thấy {totalCount} tour phù hợp",
+                    Message = resultMessage,
                     success = true,
                     Data = enrichedTourDetails,
                     TotalCount = totalCount,
