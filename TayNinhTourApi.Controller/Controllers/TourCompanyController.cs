@@ -14,6 +14,7 @@ using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.Controller.Helper;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.Repositories.Interface;
+using static Google.Apis.Requests.BatchRequest;
 
 namespace TayNinhTourApi.Controller.Controllers
 {
@@ -365,6 +366,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTourCompany(Guid id, [FromBody] UpdateTourCompanyDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var result = await _tourCompanyService.UpdateTourCompanyAsync(id, dto);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 
     /// <summary>
@@ -376,5 +388,7 @@ namespace TayNinhTourApi.Controller.Controllers
         [StringLength(200, ErrorMessage = "Tiêu đề không được vượt quá 200 ký tự")]
         public string NewTitle { get; set; } = null!;
     }
+
+
 }
 

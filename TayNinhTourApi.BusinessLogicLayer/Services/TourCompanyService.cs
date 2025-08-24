@@ -439,5 +439,36 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
         }
+        public async Task<BaseResposeDto> UpdateTourCompanyAsync(Guid id, UpdateTourCompanyDto dto)
+        {
+            var tourCompany = await _unitOfWork.TourCompanyRepository.GetByIdAsync(id);
+
+            if (tourCompany == null || tourCompany.IsDeleted)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 404,
+                    Message = "Tour company not found"
+                };
+            }
+
+            // Cập nhật thông tin
+            tourCompany.CompanyName = dto.CompanyName;
+            tourCompany.Description = dto.Description;
+            tourCompany.Address = dto.Address;
+            tourCompany.Website = dto.Website;
+            tourCompany.BusinessLicense = dto.BusinessLicense;
+            tourCompany.UpdatedAt = DateTime.UtcNow;
+
+            await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
+
+            return new BaseResposeDto
+            {
+                StatusCode = 200,
+                success = true,
+                Message = "Tour company updated successfully"
+            };
+        }
+
     }
 }
