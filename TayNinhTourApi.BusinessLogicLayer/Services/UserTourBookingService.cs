@@ -1952,6 +1952,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var tourSlots = await _unitOfWork.TourSlotRepository.GetQueryable()
                     .Where(ts => ts.TourDetailsId == tourOperation.TourDetailsId && ts.IsActive)
                     .Include(ts => ts.TimelineProgress)
+                        .ThenInclude(tp => tp.TimelineItem)
                     .ToListAsync();
 
                 // Lấy thông tin timeline progress từ TourSlot
