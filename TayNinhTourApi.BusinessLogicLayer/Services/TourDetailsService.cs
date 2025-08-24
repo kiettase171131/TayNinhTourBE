@@ -724,69 +724,76 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     .ToList();
 
                 // Map to enriched DTOs (similar to UserTourSearch response structure)
-                var enrichedTourDetails = paginatedResults.Select(td => new EnrichedTourDetailDto
+                var enrichedTourDetails = paginatedResults.Select(td =>
                 {
-                    Id = td.Id,
-                    Title = td.Title,
-                    Description = td.Description,
-                    Status = td.Status.ToString(),
-                    SkillsRequired = td.SkillsRequired,
-                    ImageUrls = td.ImageUrls,
-                    CreatedAt = td.CreatedAt,
-                    
-                    // TourTemplate information (like UserTourSearch)
-                    TourTemplate = new TourTemplateBasicDto
+                    // ✅ FIXED: Calculate total capacity and bookings from all assigned slots
+                    var totalMaxGuests = td.AssignedSlots.Where(s => s.IsActive && !s.IsDeleted).Sum(s => s.MaxGuests);
+                    var totalCurrentBookings = td.AssignedSlots.Where(s => s.IsActive && !s.IsDeleted).Sum(s => s.CurrentBookings);
+
+                    return new EnrichedTourDetailDto
                     {
-                        Id = td.TourTemplate.Id,
-                        Title = td.TourTemplate.Title,
-                        TemplateType = td.TourTemplate.TemplateType.ToString(),
-                        ScheduleDays = td.TourTemplate.ScheduleDays.ToString(),
-                        ScheduleDaysVietnamese = td.TourTemplate.ScheduleDays.GetVietnameseName(),
-                        StartLocation = td.TourTemplate.StartLocation,
-                        EndLocation = td.TourTemplate.EndLocation,
-                        Month = td.TourTemplate.Month,
-                        Year = td.TourTemplate.Year,
-                        Images = td.TourTemplate.Images?.Select(img => new ImageDto
+                        Id = td.Id,
+                        Title = td.Title,
+                        Description = td.Description,
+                        Status = td.Status.ToString(),
+                        SkillsRequired = td.SkillsRequired,
+                        ImageUrls = td.ImageUrls,
+                        CreatedAt = td.CreatedAt,
+
+                        // TourTemplate information (like UserTourSearch)
+                        TourTemplate = new TourTemplateBasicDto
                         {
-                            Id = img.Id,
-                            Url = img.Url
-                        }).ToList() ?? new List<ImageDto>(),
-                        CreatedBy = new CreatedByDto
+                            Id = td.TourTemplate.Id,
+                            Title = td.TourTemplate.Title,
+                            TemplateType = td.TourTemplate.TemplateType.ToString(),
+                            ScheduleDays = td.TourTemplate.ScheduleDays.ToString(),
+                            ScheduleDaysVietnamese = td.TourTemplate.ScheduleDays.GetVietnameseName(),
+                            StartLocation = td.TourTemplate.StartLocation,
+                            EndLocation = td.TourTemplate.EndLocation,
+                            Month = td.TourTemplate.Month,
+                            Year = td.TourTemplate.Year,
+                            Images = td.TourTemplate.Images?.Select(img => new ImageDto
+                            {
+                                Id = img.Id,
+                                Url = img.Url
+                            }).ToList() ?? new List<ImageDto>(),
+                            CreatedBy = new CreatedByDto
+                            {
+                                Id = td.TourTemplate.CreatedBy.Id,
+                                Name = td.TourTemplate.CreatedBy.Name,
+                                Email = td.TourTemplate.CreatedBy.Email
+                            }
+                        },
+
+                        // TourOperation information (like UserTourSearch)
+                        TourOperation = td.TourOperation != null ? new TourOperationBasicDto
                         {
-                            Id = td.TourTemplate.CreatedBy.Id,
-                            Name = td.TourTemplate.CreatedBy.Name,
-                            Email = td.TourTemplate.CreatedBy.Email
-                        }
-                    },
-                    
-                    // TourOperation information (like UserTourSearch)
-                    TourOperation = td.TourOperation != null ? new TourOperationBasicDto
-                    {
-                        Id = td.TourOperation.Id,
-                        Price = td.TourOperation.Price,
-                        MaxGuests = td.TourOperation.MaxGuests,
-                        Description = td.TourOperation.Description,
-                        Notes = td.TourOperation.Notes,
-                        Status = td.TourOperation.Status.ToString(),
-                        CurrentBookings = td.TourOperation.CurrentBookings
-                    } : null,
-                    
-                    // Available slots information (like UserTourSearch)
-                    AvailableSlots = td.AssignedSlots
-                        .Where(slot => slot.TourDate >= DateOnly.FromDateTime(DateTime.Today) &&
-                                      slot.Status == TourSlotStatus.Available &&
-                                      slot.AvailableSpots > 0)
-                        .Select(slot => new AvailableSlotDto
-                        {
-                            Id = slot.Id,
-                            TourDate = slot.TourDate,
-                            Status = slot.Status.ToString(),
-                            MaxGuests = slot.MaxGuests,
-                            CurrentBookings = slot.CurrentBookings,
-                            AvailableSpots = slot.AvailableSpots
-                        })
-                        .OrderBy(slot => slot.TourDate)
-                        .ToList()
+                            Id = td.TourOperation.Id,
+                            Price = td.TourOperation.Price,
+                            MaxGuests = totalMaxGuests, // Use calculated total
+                            Description = td.TourOperation.Description,
+                            Notes = td.TourOperation.Notes,
+                            Status = td.TourOperation.Status.ToString(),
+                            CurrentBookings = totalCurrentBookings // Use calculated total
+                        } : null,
+
+                        // Available slots information (like UserTourSearch)
+                        AvailableSlots = td.AssignedSlots
+                            .Where(slot => slot.TourDate >= DateOnly.FromDateTime(DateTime.Today) &&
+                                          slot.Status == TourSlotStatus.Available &&
+                                          slot.AvailableSpots > 0)
+                            .Select(slot => new AvailableSlotDto
+                            {
+                                Id = slot.Id,
+                                TourDate = slot.TourDate,
+                                Status = slot.Status.ToString(),
+                                MaxGuests = slot.MaxGuests,
+                                CurrentBookings = slot.CurrentBookings,
+                                AvailableSpots = slot.AvailableSpots
+                            })
+                            .OrderBy(slot => slot.TourDate)
+                            .ToList()
+                    };
                 }).ToList();
 
                 // Calculate pagination info (like UserTourSearch)
