@@ -840,6 +840,183 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             }
         }
 
+        /// <summary>
+        /// Lấy TourDetails public của một tour company cụ thể cho khách hàng mua tour
+        /// </summary>
+        public async Task<ResponseGetTourDetailsPaginatedDto> GetPublicTourDetailsByCompanyAsync(
+            Guid tourCompanyId,
+            int pageIndex,
+            int pageSize)
+        {
+            try
+            {
+                _logger.LogInformation("Getting public tour details for TourCompany {TourCompanyId}, page: {PageIndex}, size: {PageSize}", 
+                    tourCompanyId, pageIndex, pageSize);
+
+                // STEP 1: Lấy UserId từ TourCompany ID
+                var tourCompany = await _unitOfWork.TourCompanyRepository.GetByIdAsync(tourCompanyId);
+                if (tourCompany == null || tourCompany.IsDeleted || !tourCompany.IsActive)
+                {
+                    return new ResponseGetTourDetailsPaginatedDto
+                    {
+                        StatusCode = 404,
+                        Message = "Không tìm thấy tour company hoặc company đã bị vô hiệu hóa",
+                        success = false,
+                        Data = new List<EnrichedTourDetailDto>(),
+                        TotalCount = 0,
+                        PageIndex = pageIndex,
+                        PageSize = pageSize,
+                        TotalPages = 0,
+                        HasNextPage = false,
+                        HasPreviousPage = false
+                    };
+                }
+
+                var userId = tourCompany.UserId;
+                _logger.LogInformation("Found TourCompany {TourCompanyId} with UserId {UserId}, CompanyName: {CompanyName}", 
+                    tourCompanyId, userId, tourCompany.CompanyName);
+
+                // STEP 2: Build query for TourDetails created by this user (tour company owner)
+                var query = _unitOfWork.TourDetailsRepository.GetQueryable();
+
+                // Filter by user ID and only public tours
+                query = query.Where(td => td.CreatedById == userId &&
+                                        td.IsActive && 
+                                        !td.IsDeleted && 
+                                        td.Status == TourDetailsStatus.Public);
+
+                // Include navigation properties for full tour information
+                query = query
+                    .Include(td => td.TourTemplate)
+                    .Include(td => td.TourTemplate.Images)
+                    .Include(td => td.TourTemplate.CreatedBy)
+                    .Include(td => td.TourOperation)
+                    .Include(td => td.AssignedSlots.Where(ts => ts.IsActive && !ts.IsDeleted));
+
+                // Apply additional filters for TourTemplate (active only)
+                query = query.Where(td => td.TourTemplate.IsActive && !td.TourTemplate.IsDeleted);
+
+                // Get total count before pagination
+                var totalCount = await query.CountAsync();
+
+                _logger.LogInformation("Found {TotalCount} public tours for TourCompany {TourCompanyId}", totalCount, tourCompanyId);
+
+                // Apply pagination and ordering (newest first)
+                var tourDetails = await query
+                    .OrderByDescending(td => td.CreatedAt)
+                    .Skip(pageIndex * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                // Map to enriched DTOs (same structure as UserTourSearch response)
+                var enrichedTourDetails = tourDetails.Select(td =>
+                {
+                    // Calculate total capacity and bookings from all assigned slots
+                    var totalMaxGuests = td.AssignedSlots.Where(s => s.IsActive && !s.IsDeleted).Sum(s => s.MaxGuests);
+                    var totalCurrentBookings = td.AssignedSlots.Where(s => s.IsActive && !s.IsDeleted).Sum(s => s.CurrentBookings);
+
+                    return new EnrichedTourDetailDto
+                    {
+                        Id = td.Id,
+                        Title = td.Title,
+                        Description = td.Description,
+                        Status = td.Status.ToString(),
+                        SkillsRequired = td.SkillsRequired,
+                        ImageUrls = td.ImageUrls,
+                        CreatedAt = td.CreatedAt,
+
+                        // TourTemplate information
+                        TourTemplate = new TourTemplateBasicDto
+                        {
+                            Id = td.TourTemplate.Id,
+                            Title = td.TourTemplate.Title,
+                            TemplateType = td.TourTemplate.TemplateType.ToString(),
+                            ScheduleDays = td.TourTemplate.ScheduleDays.ToString(),
+                            ScheduleDaysVietnamese = td.TourTemplate.ScheduleDays.GetVietnameseName(),
+                            StartLocation = td.TourTemplate.StartLocation,
+                            EndLocation = td.TourTemplate.EndLocation,
+                            Month = td.TourTemplate.Month,
+                            Year = td.TourTemplate.Year,
+                            Images = td.TourTemplate.Images?.Select(img => new ImageDto
+                            {
+                                Id = img.Id,
+                                Url = img.Url
+                            }).ToList() ?? new List<ImageDto>(),
+                            CreatedBy = new CreatedByDto
+                            {
+                                Id = td.TourTemplate.CreatedBy.Id,
+                                Name = td.TourTemplate.CreatedBy.Name,
+                                Email = td.TourTemplate.CreatedBy.Email
+                            }
+                        },
+
+                        // TourOperation information
+                        TourOperation = td.TourOperation != null ? new TourOperationBasicDto
+                        {
+                            Id = td.TourOperation.Id,
+                            Price = td.TourOperation.Price,
+                            MaxGuests = totalMaxGuests,
+                            Description = td.TourOperation.Description,
+                            Notes = td.TourOperation.Notes,
+                            Status = td.TourOperation.Status.ToString(),
+                            CurrentBookings = totalCurrentBookings
+                        } : null,
+
+                        // Available slots information (only future slots that are available)
+                        AvailableSlots = td.AssignedSlots
+                            .Where(slot => slot.TourDate >= DateOnly.FromDateTime(DateTime.Today) &&
+                                          slot.Status == TourSlotStatus.Available &&
+                                          slot.AvailableSpots > 0)
+                            .Select(slot => new AvailableSlotDto
+                            {
+                                Id = slot.Id,
+                                TourDate = slot.TourDate,
+                                Status = slot.Status.ToString(),
+                                MaxGuests = slot.MaxGuests,
+                                CurrentBookings = slot.CurrentBookings,
+                                AvailableSpots = slot.AvailableSpots
+                            })
+                            .OrderBy(slot => slot.TourDate)
+                            .ToList()
+                    };
+                }).ToList();
+
+                // Calculate pagination info
+                var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+                var hasNextPage = pageIndex < totalPages - 1;
+                var hasPreviousPage = pageIndex > 0;
+
+                var resultMessage = $"Tìm thấy {totalCount} tour công khai của {tourCompany.CompanyName}";
+
+                _logger.LogInformation("Successfully retrieved {Count} tours for TourCompany {TourCompanyId} ({CompanyName})", 
+                    enrichedTourDetails.Count, tourCompanyId, tourCompany.CompanyName);
+
+                return new ResponseGetTourDetailsPaginatedDto
+                {
+                    StatusCode = 200,
+                    Message = resultMessage,
+                    success = true,
+                    Data = enrichedTourDetails,
+                    TotalCount = totalCount,
+                    PageIndex = pageIndex,
+                    PageSize = pageSize,
+                    TotalPages = totalPages,
+                    HasNextPage = hasNextPage,
+                    HasPreviousPage = hasPreviousPage
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting public tour details for TourCompany {TourCompanyId}", tourCompanyId);
+                return new ResponseGetTourDetailsPaginatedDto
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách tour của công ty",
+                    success = false
+                };
+            }
+        }
+        
         #region Helper Methods
 
         /// <summary>
@@ -1505,7 +1682,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     catch (Exception notificationEx)
                     {
                         _logger.LogError(notificationEx, "Error sending notification for TourDetails status change on TourDetails {TourDetailsId}", tourDetails.Id);
-                        // Don't fail the creation if notification fails
+                        // Don't fail the main process if notification fails
                     }
                 }
 
@@ -2112,7 +2289,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     catch (Exception notificationEx)
                     {
                         _logger.LogError(notificationEx, "Error sending notification for TourDetails status change on TourDetails {TourDetailsId}", tourDetails.Id);
-                        // Don't fail the creation if notification fails
+                        // Don't fail the main process if notification fails
                     }
                 }
 
@@ -2402,8 +2579,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     companyId, guideId, tourDetailsId);
 
                 // Validate TourDetails exists and belongs to company
-                var tourDetails = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
-                if (tourDetails == null)
+                var tourDetail = await _unitOfWork.TourDetailsRepository.GetByIdAsync(tourDetailsId);
+                if (tourDetail == null)
                 {
                     return new BaseResposeDto
                     {
@@ -2413,7 +2590,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                if (tourDetails.CreatedById != companyId)
+                if (tourDetail.CreatedById != companyId)
                 {
                     return new BaseResposeDto
                     {

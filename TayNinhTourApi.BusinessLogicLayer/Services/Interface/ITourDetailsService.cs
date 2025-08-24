@@ -87,6 +87,18 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
             bool? hasEarlyBird = null,
             bool includeInactive = false);
 
+        /// <summary>
+        /// Lấy TourDetails public của một tour company cụ thể cho khách hàng mua tour
+        /// </summary>
+        /// <param name="tourCompanyId">ID của tour company</param>
+        /// <param name="pageIndex">Chỉ số trang (0-based)</param>
+        /// <param name="pageSize">Kích thước trang</param>
+        /// <returns>Danh sách TourDetails public của tour company có phân trang</returns>
+        Task<ResponseGetTourDetailsPaginatedDto> GetPublicTourDetailsByCompanyAsync(
+            Guid tourCompanyId,
+            int pageIndex,
+            int pageSize);
+
         // ===== TIMELINE OPERATIONS (EXISTING & NEW) =====
 
         /// <summary>
