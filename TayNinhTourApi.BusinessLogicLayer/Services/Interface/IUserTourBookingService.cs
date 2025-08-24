@@ -31,6 +31,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <summary>
         /// Lấy chi tiết tour để booking
         /// </summary>
+        Task<bool> UserHasBookingForTourSlotAsync(Guid userId, Guid tourSlotId);
+
         /// <param name="tourDetailsId">ID của TourDetails</param>
         /// <returns>Chi tiết tour để booking</returns>
         Task<TourDetailsForBookingDto?> GetTourDetailsForBookingAsync(Guid tourDetailsId);
@@ -118,7 +120,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="tourOperationId">ID của tour operation</param>
         /// <param name="userId">ID của user</param>
         /// <returns>Tiến độ tour với timeline và thống kê</returns>
-        Task<UserTourProgressDto?> GetTourProgressAsync(Guid tourOperationId, Guid userId);
+
 
         /// <summary>
         /// Kiểm tra user có booking cho tour này không

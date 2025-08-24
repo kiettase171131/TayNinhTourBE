@@ -22,12 +22,19 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IUserTourBookingService _userTourBookingService;
         private readonly ICurrentUserService _currentUserService;
 
+        private readonly ITourGuideTimelineService _tourGuideTimelineService;
+        private readonly ILogger<UserTourBookingController> _logger;
+
         public UserTourBookingController(
             IUserTourBookingService userTourBookingService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            ILogger<UserTourBookingController> logger,
+            ITourGuideTimelineService tourGuideTimelineService)
         {
             _userTourBookingService = userTourBookingService;
             _currentUserService = currentUserService;
+            _logger = logger;
+            _tourGuideTimelineService = tourGuideTimelineService;
         }
 
         /// <summary>
@@ -862,24 +869,42 @@ namespace TayNinhTourApi.Controller.Controllers
         /// </summary>
         /// <param name="tourOperationId">ID của tour operation</param>
         /// <returns>Tiến độ tour với timeline và thống kê</returns>
-        [HttpGet("tour-progress/{tourOperationId}")]
+        [HttpGet("tour-slot/{tourSlotId}/timeline")]
         [Authorize]
-        public async Task<IActionResult> GetTourProgress(Guid tourOperationId)
+        public async Task<IActionResult> GetTourSlotTimeline(Guid tourSlotId)
         {
             try
             {
                 var userId = _currentUserService.GetCurrentUserId();
 
-                // Kiểm tra user có booking cho tour này không
-                var hasBooking = await _userTourBookingService.UserHasBookingForTourAsync(userId, tourOperationId);
+                // Optional: Verify user has booking for this tour slot
+                var hasBooking = await _userTourBookingService.UserHasBookingForTourSlotAsync(userId, tourSlotId);
                 if (!hasBooking)
                 {
-                    return Forbid(new
-                    {
-                        success = false,
-                        message = "Bạn không có quyền xem tiến độ tour này"
-                    }.ToString());
+                    return Forbid();
                 }
+
+                var response = await _tourGuideTimelineService.GetTimelineWithProgressAsync(tourSlotId, userId);
+
+                return Ok(new ApiResponse<TimelineProgressResponse>
+                {
+                    StatusCode = 200,
+                    Message = "Lấy timeline thành công",
+                    Data = response,
+                    success = true
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new BaseResposeDto { StatusCode = 403, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting timeline for tour slot {TourSlotId}", tourSlotId);
+                return StatusCode(500, new BaseResposeDto { StatusCode = 500, Message = "Lỗi server" });
+            }
+        }
+
 
                 var result = await _userTourBookingService.GetTourProgressAsync(tourOperationId, userId);
 
