@@ -2,6 +2,8 @@
 using LinqKit;
 using Microsoft.EntityFrameworkCore;
 using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.BusinessLogicLayer.Common.Enums;
+
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
@@ -274,9 +276,22 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            // 2. Kiểm tra role hợp lệ (không được là Admin)
-            var role = await _roleRepository.GetByIdAsync(request.RoleId);
-            if (role == null || role.IsDeleted || !role.IsActive || role.Name == Constants.RoleAdminName)
+            // 2. Lấy role theo tên enum
+            string roleName = request.RoleName switch
+            {
+                RoleNameEnum.Admin => Constants.RoleAdminName,
+                RoleNameEnum.TourCompany => Constants.RoleTourCompanyName,
+                RoleNameEnum.User => Constants.RoleUserName,
+                RoleNameEnum.TourGuide => Constants.RoleTourGuideName,
+                RoleNameEnum.Blogger => Constants.RoleBloggerName,
+                RoleNameEnum.SpecialtyShop => Constants.RoleSpecialtyShopName,
+                _ => throw new ArgumentOutOfRangeException()
+            }; 
+          
+
+
+            var role = await _roleRepository.GetFirstOrDefaultAsync(x => x.Name == roleName);
+            if (role == null || role.IsDeleted || !role.IsActive)
             {
                 return new BaseResposeDto
                 {
@@ -285,7 +300,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            // 3. Tạo user mới
+            // 3. Tạo user
             var newUser = new User
             {
                 Id = Guid.NewGuid(),
@@ -293,24 +308,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Name = request.Name,
                 PhoneNumber = request.PhoneNumber,
                 PasswordHash = _bcryptUtility.HashPassword(request.Password),
-                RoleId = request.RoleId,
+                RoleId = role.Id,
                 IsActive = true,
-                IsVerified = true,  // Nếu muốn user CMS mặc định là verified
+                IsVerified = true,
                 CreatedAt = DateTime.UtcNow,
-                CreatedById = Guid.Empty,  // hoặc gán userId đang login nếu cần
+                CreatedById = Guid.Empty,
                 Avatar = "https://static-00.iconduck.com/assets.00/avatar-default-icon-2048x2048-h6w375ur.png"
             };
 
             await _userRepository.AddAsync(newUser);
-            await _unitOfWork.SaveChangesAsync();
+            await _userRepository.SaveChangesAsync();
 
             return new BaseResposeDto
             {
-                StatusCode = 201,
+                StatusCode = 200,
                 Message = "Tạo user thành công",
                 success = true
             };
         }
+
+
 
 
         public async Task<BaseResposeDto> UpdateBlogAsync(RequestUpdateBlogCmsDto request, Guid id, Guid updatedById)

@@ -7,11 +7,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Globalization;
 using TayNinhTourApi.BusinessLogicLayer.Common;
+using TayNinhTourApi.BusinessLogicLayer.Common.Enums;
 using TayNinhTourApi.BusinessLogicLayer.Mapping;
 using TayNinhTourApi.BusinessLogicLayer.Services;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
@@ -78,6 +79,7 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+   
 });
 
 // Register DbContext with MySQL (Pomelo provider) with retry policy and extended timeouts

@@ -7,7 +7,10 @@ using System.Threading.Tasks;
 namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms
 {
     using System.ComponentModel.DataAnnotations;
+    using System.Text.Json.Serialization;
     using TayNinhTourApi.BusinessLogicLayer.Common;  // Để dùng Constants
+    using TayNinhTourApi.BusinessLogicLayer.Common.Enums;
+
 
     public class RequestCreateUserDto
     {
@@ -27,8 +30,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms
         [MinLength(6, ErrorMessage = "Mật khẩu tối thiểu 6 ký tự")]
         public string Password { get; set; } = null!;
 
-        [Required(ErrorMessage = "RoleId là bắt buộc")]
-        public Guid RoleId { get; set; }
+        [Required(ErrorMessage = "Role là bắt buộc")]
+        
+        public RoleNameEnum RoleName { get; set; }
     }
 
 

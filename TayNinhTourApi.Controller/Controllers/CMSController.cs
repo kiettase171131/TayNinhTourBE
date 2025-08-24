@@ -54,9 +54,9 @@ namespace TayNinhTourApi.Controller.Controllers
             return StatusCode(response.StatusCode, response);
         }
         [HttpPost("user/create")]
-        public async Task<IActionResult> CreateUser([FromBody] RequestCreateUserDto dto)
+        public async Task<ActionResult<BaseResposeDto>> CreateUser([FromBody] RequestCreateUserDto request)
         {
-            var result = await _cmsService.CreateUserAsync(dto);
+            var result = await _cmsService.CreateUserAsync(request);
             return StatusCode(result.StatusCode, result);
         }
 
