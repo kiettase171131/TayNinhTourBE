@@ -1,8 +1,10 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using LinqKit;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Asn1.Ocsp;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
@@ -42,7 +44,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly IOrderRepository _orderRepo;
         private readonly IOrderDetailRepository _orderDetailRepo;
         private readonly IProductRepository _productRepo;
-        
+        private readonly IHostingEnvironment _env;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
 
 
 
@@ -52,7 +56,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             ITourSlotTimelineProgressRepository progressRepo, ITimelineItemRepository timelineRepo, ITourSlotRepository slotRepo, 
             ITourBookingRepository bookingRepo, IUserRepository userRepo,ISpecialtyShopRepository specialtyShop,
             ITourDetailsRepository tourDetailsRepository,ITourTemplateRepository tourTemplateRepository,
-            IOrderDetailRepository orderDetailRepository,IOrderRepository orderRepository,IProductRepository productRepository
+            IOrderDetailRepository orderDetailRepository,IOrderRepository orderRepository,IProductRepository productRepository,
+            IHostingEnvironment env, IHttpContextAccessor httpContextAccessor
             ) : base(mapper, unitOfWork)
         {
             _currentUserService = currentUserService;
@@ -68,7 +73,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _orderRepo = orderRepository;
             _orderDetailRepo = orderDetailRepository;
             _productRepo = productRepository;
-           
+            _env = env;
+            _httpContextAccessor = httpContextAccessor;
+
 
 
 
@@ -119,7 +126,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     specialtyShop.Description = updateDto.Description;
 
                 if (!string.IsNullOrWhiteSpace(updateDto.Location))
-                    specialtyShop.Location = updateDto.Location;
+                    specialtyShop.Location = updateDto.Location;    
 
                 if (!string.IsNullOrWhiteSpace(updateDto.PhoneNumber))
                     specialtyShop.PhoneNumber = updateDto.PhoneNumber;
@@ -138,6 +145,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (updateDto.IsShopActive.HasValue)
                     specialtyShop.IsShopActive = updateDto.IsShopActive.Value;
+               
 
                 specialtyShop.UpdatedAt = DateTime.UtcNow;
                 specialtyShop.UpdatedById = currentUser.Id;
@@ -153,6 +161,55 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return ApiResponse<SpecialtyShopResponseDto>.Error(500, $"An error occurred while updating shop information: {ex.Message}");
             }
         }
+
+        public async Task<ApiResponse<string>> UpdateShopLogoAsync(UpdateLogoDto dto, CurrentUserObject currentUser)
+        {
+            var logoFile = dto.Logo;
+
+            if (logoFile == null || logoFile.Length == 0)
+                return ApiResponse<string>.Error(400, "No file uploaded.");
+
+            const long MaxFileSize = 5 * 1024 * 1024;
+            if (logoFile.Length > MaxFileSize)
+                return ApiResponse<string>.Error(400, "File too large. Max 5MB.");
+
+            var allowedExts = new[] { ".png", ".jpg", ".jpeg", ".webp" };
+            var ext = Path.GetExtension(logoFile.FileName).ToLowerInvariant();
+            if (!allowedExts.Contains(ext))
+                return ApiResponse<string>.Error(400, "Invalid file type. Only .png, .jpg, .jpeg, .webp allowed.");
+
+            var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(currentUser.Id);
+            if (specialtyShop == null)
+                return ApiResponse<string>.NotFound("You don't have a specialty shop yet. Please apply first.");
+
+            var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var folder = Path.Combine(webRoot, "images", "logos");
+
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+
+            var fileName = $"logo_{Guid.NewGuid()}{ext}";
+            var filePath = Path.Combine(folder, fileName);
+
+            using var stream = new FileStream(filePath, FileMode.Create);
+            await logoFile.CopyToAsync(stream);
+
+            var request = _httpContextAccessor.HttpContext!.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            var relativePath = Path.Combine("images", "logos", fileName).Replace("\\", "/");
+            var fullUrl = $"{baseUrl}/{relativePath}";
+
+            specialtyShop.LogoUrl = fullUrl;
+            specialtyShop.UpdatedAt = DateTime.UtcNow;
+            specialtyShop.UpdatedById = currentUser.Id;
+
+            await _unitOfWork.SpecialtyShopRepository.UpdateAsync(specialtyShop);
+            await _unitOfWork.SaveChangesAsync();
+
+            return ApiResponse<string>.Success(fullUrl, "Logo updated successfully.");
+        }
+
+
 
         /// <summary>
         /// Lấy danh sách tất cả shops đang hoạt động

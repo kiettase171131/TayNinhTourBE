@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop;
@@ -6,7 +8,6 @@ using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.Voucher;
 using TayNinhTourApi.BusinessLogicLayer.Utilities;
-using TayNinhTourApi.BusinessLogicLayer.Common;
 
 namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
 {
@@ -32,6 +33,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="currentUser">Thông tin user hiện tại</param>
         /// <returns>Thông tin SpecialtyShop sau khi cập nhật</returns>
         Task<ApiResponse<SpecialtyShopResponseDto>> UpdateMyShopAsync(UpdateSpecialtyShopDto updateDto, CurrentUserObject currentUser);
+        Task<ApiResponse<string>> UpdateShopLogoAsync(UpdateLogoDto dto, CurrentUserObject currentUser);
 
         /// <summary>
         /// Lấy danh sách tất cả shops đang hoạt động

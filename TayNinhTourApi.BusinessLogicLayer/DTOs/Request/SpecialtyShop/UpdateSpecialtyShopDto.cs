@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 using TayNinhTourApi.BusinessLogicLayer.Attributes;
 
@@ -40,6 +41,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
         [StringLength(200, ErrorMessage = "Website URL cannot exceed 200 characters")]
         [Url(ErrorMessage = "Invalid website URL format")]
         public string? Website { get; set; }
+
+        
 
         /// <summary>
         /// Loại shop
