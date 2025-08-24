@@ -11,7 +11,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO
     public class EditAccountProfileDTO
     {
         [Required(ErrorMessage = "Account name is required.")]
-        [RegularExpression(@"^[a-zA-Z\s]+$", ErrorMessage = "Account name must contain only letters and spaces.")]
+
         public string? Name { get; set; }
        
         
