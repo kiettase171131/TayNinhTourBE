@@ -1621,7 +1621,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = DataAccessLayer.Enums.NotificationType.Warning,
                     Priority = DataAccessLayer.Enums.NotificationPriority.High,
                     Icon = "⚠️",
-                    ActionUrl = "/guides/list",
+                    ActionUrl = "/tour-company/tours",
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
                     IsRead = false,
                     CreatedAt = DateTime.UtcNow,

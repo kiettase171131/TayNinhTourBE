@@ -364,23 +364,72 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy thống kê yêu cầu rút tiền
         /// </summary>
-        public async Task<ApiResponse<WithdrawalStatsDto>> GetStatsAsync(Guid? userId = null)
+        public async Task<ApiResponse<WithdrawalStatsDto>> GetStatsAsync(DateTime? startDate = null, DateTime? endDate = null)
         {
             try
             {
-                // Implementation sẽ được thêm sau khi có đủ data
-                var stats = new WithdrawalStatsDto
+                var stats = await _unitOfWork.WithdrawalRequestRepository.GetTotalStatsAsync(startDate, endDate);
+                
+                // Calculate approval rate
+                double approvalRate = 0;
+                if (stats.TotalRequests > 0)
                 {
-                    TotalRequests = await _unitOfWork.WithdrawalRequestRepository.CountByStatusAsync(WithdrawalStatus.Pending) +
-                                   await _unitOfWork.WithdrawalRequestRepository.CountByStatusAsync(WithdrawalStatus.Approved) +
-                                   await _unitOfWork.WithdrawalRequestRepository.CountByStatusAsync(WithdrawalStatus.Rejected),
-                    PendingRequests = await _unitOfWork.WithdrawalRequestRepository.CountByStatusAsync(WithdrawalStatus.Pending),
-                    ApprovedRequests = await _unitOfWork.WithdrawalRequestRepository.CountByStatusAsync(WithdrawalStatus.Approved),
-                    RejectedRequests = await _unitOfWork.WithdrawalRequestRepository.CountByStatusAsync(WithdrawalStatus.Rejected),
-                    PendingAmount = await _unitOfWork.WithdrawalRequestRepository.GetTotalPendingAmountAsync()
+                    var processedRequests = stats.ApprovedRequests + stats.RejectedRequests + stats.CancelledRequests;
+                    if (processedRequests > 0)
+                    {
+                        approvalRate = (double)stats.ApprovedRequests / processedRequests * 100;
+                    }
+                }
+
+                // Get monthly stats (current and previous month)
+                var currentDate = DateTime.UtcNow;
+                var currentMonthStats = await _unitOfWork.WithdrawalRequestRepository.GetMonthlyStatsAsync(
+                    currentDate.Year, currentDate.Month);
+                var previousMonth = currentDate.AddMonths(-1);
+                var previousMonthStats = await _unitOfWork.WithdrawalRequestRepository.GetMonthlyStatsAsync(
+                    previousMonth.Year, previousMonth.Month);
+
+                var statsDto = new WithdrawalStatsDto
+                {
+                    TotalRequests = stats.TotalRequests,
+                    PendingRequests = stats.PendingRequests,
+                    ApprovedRequests = stats.ApprovedRequests,
+                    RejectedRequests = stats.RejectedRequests,
+                    CancelledRequests = stats.CancelledRequests,
+                    TotalAmountRequested = stats.TotalAmount,
+                    PendingAmount = stats.PendingAmount,
+                    ApprovedAmount = stats.ApprovedAmount,
+                    RejectedAmount = stats.RejectedAmount,
+                    AverageProcessingTimeHours = stats.AverageProcessingTimeHours,
+                    ApprovalRate = approvalRate,
+                    LastRequestDate = stats.LastRequestDate,
+                    LastApprovalDate = stats.LastApprovalDate,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    GeneratedAt = DateTime.UtcNow,
+                    CurrentMonth = new MonthlyStats
+                    {
+                        Month = currentDate.ToString("MM/yyyy"),
+                        RequestCount = currentMonthStats.TotalRequests,
+                        TotalAmount = currentMonthStats.TotalAmount,
+                        ApprovedCount = currentMonthStats.ApprovedRequests,
+                        ApprovedAmount = currentMonthStats.ApprovedAmount,
+                        ApprovalRate = currentMonthStats.TotalRequests > 0 ? 
+                            (double)currentMonthStats.ApprovedRequests / currentMonthStats.TotalRequests * 100 : 0
+                    },
+                    PreviousMonth = new MonthlyStats
+                    {
+                        Month = previousMonth.ToString("MM/yyyy"),
+                        RequestCount = previousMonthStats.TotalRequests,
+                        TotalAmount = previousMonthStats.TotalAmount,
+                        ApprovedCount = previousMonthStats.ApprovedRequests,
+                        ApprovedAmount = previousMonthStats.ApprovedAmount,
+                        ApprovalRate = previousMonthStats.TotalRequests > 0 ? 
+                            (double)previousMonthStats.ApprovedRequests / previousMonthStats.TotalRequests * 100 : 0
+                    }
                 };
 
-                return ApiResponse<WithdrawalStatsDto>.Success(stats);
+                return ApiResponse<WithdrawalStatsDto>.Success(statsDto, "Lấy thống kê thành công");
             }
             catch (Exception ex)
             {
@@ -483,6 +532,168 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 return ApiResponse<bool>.Error($"Lỗi khi validate yêu cầu rút tiền: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Lấy thống kê yêu cầu rút tiền theo role cho TourCompany và SpecialtyShop
+        /// </summary>
+        public async Task<ApiResponse<WithdrawalRoleStatsSummaryDto>> GetRoleStatsAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            try
+            {
+                // Lấy thống kê cho TourCompany
+                var tourCompanyStats = await _unitOfWork.WithdrawalRequestRepository.GetStatsByRoleAsync("Tour Company", startDate, endDate);
+                
+                // Lấy thống kê cho SpecialtyShop
+                var specialtyShopStats = await _unitOfWork.WithdrawalRequestRepository.GetStatsByRoleAsync("Specialty Shop", startDate, endDate);
+
+                var summary = new WithdrawalRoleStatsSummaryDto
+                {
+                    TourCompanyStats = new WithdrawalRoleStatsDto
+                    {
+                        Role = "Tour Company",
+                        TotalRequests = tourCompanyStats.TotalRequests,
+                        PendingRequests = tourCompanyStats.PendingRequests,
+                        ApprovedRequests = tourCompanyStats.ApprovedRequests,
+                        RejectedRequests = tourCompanyStats.RejectedRequests,
+                        TotalAmountRequested = tourCompanyStats.TotalAmount,
+                        PendingAmount = tourCompanyStats.PendingAmount,
+                        ApprovedAmount = tourCompanyStats.ApprovedAmount,
+                        RejectedAmount = tourCompanyStats.RejectedAmount,
+                        StartDate = startDate,
+                        EndDate = endDate
+                    },
+                    SpecialtyShopStats = new WithdrawalRoleStatsDto
+                    {
+                        Role = "Specialty Shop",
+                        TotalRequests = specialtyShopStats.TotalRequests,
+                        PendingRequests = specialtyShopStats.PendingRequests,
+                        ApprovedRequests = specialtyShopStats.ApprovedRequests,
+                        RejectedRequests = specialtyShopStats.RejectedRequests,
+                        TotalAmountRequested = specialtyShopStats.TotalAmount,
+                        PendingAmount = specialtyShopStats.PendingAmount,
+                        ApprovedAmount = specialtyShopStats.ApprovedAmount,
+                        RejectedAmount = specialtyShopStats.RejectedAmount,
+                        StartDate = startDate,
+                        EndDate = endDate
+                    },
+                    GeneratedAt = DateTime.UtcNow,
+                    StartDate = startDate,
+                    EndDate = endDate
+                };
+
+                return ApiResponse<WithdrawalRoleStatsSummaryDto>.Success(summary, "Lấy thống kê thành công");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<WithdrawalRoleStatsSummaryDto>.Error($"Lỗi khi lấy thống kê theo role: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Lấy thống kê yêu cầu rút tiền của user cụ thể
+        /// </summary>
+        public async Task<ApiResponse<WithdrawalStatsDto>> GetStatsForUserAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            try
+            {
+                // Get all requests for specific user with date filtering
+                var allUserRequests = await _unitOfWork.WithdrawalRequestRepository.GetUserRequestsWithFilterAsync(userId, startDate, endDate);
+                
+                var totalRequests = allUserRequests.Count();
+                var pendingRequests = allUserRequests.Count(w => w.Status == WithdrawalStatus.Pending);
+                var approvedRequests = allUserRequests.Count(w => w.Status == WithdrawalStatus.Approved);
+                var rejectedRequests = allUserRequests.Count(w => w.Status == WithdrawalStatus.Rejected);
+                var cancelledRequests = allUserRequests.Count(w => w.Status == WithdrawalStatus.Cancelled);
+
+                var totalAmountRequested = allUserRequests.Sum(w => w.Amount);
+                var pendingAmount = allUserRequests.Where(w => w.Status == WithdrawalStatus.Pending).Sum(w => w.Amount);
+                var approvedAmount = allUserRequests.Where(w => w.Status == WithdrawalStatus.Approved).Sum(w => w.Amount);
+                var rejectedAmount = allUserRequests.Where(w => w.Status == WithdrawalStatus.Rejected).Sum(w => w.Amount);
+
+                // Calculate approval rate
+                double approvalRate = 0;
+                if (totalRequests > 0)
+                {
+                    var processedRequests = approvedRequests + rejectedRequests + cancelledRequests;
+                    if (processedRequests > 0)
+                    {
+                        approvalRate = (double)approvedRequests / processedRequests * 100;
+                    }
+                }
+
+                // Calculate average processing time (only for processed requests)
+                var processedRequestsList = allUserRequests.Where(w => w.ProcessedAt.HasValue).ToList();
+                double averageProcessingTimeHours = 0;
+                if (processedRequestsList.Any())
+                {
+                    averageProcessingTimeHours = processedRequestsList
+                        .Average(w => (w.ProcessedAt!.Value - w.RequestedAt).TotalHours);
+                }
+
+                var lastRequest = allUserRequests.OrderByDescending(w => w.RequestedAt).FirstOrDefault();
+                var lastApprovedRequest = allUserRequests
+                    .Where(w => w.Status == WithdrawalStatus.Approved && w.ProcessedAt.HasValue)
+                    .OrderByDescending(w => w.ProcessedAt)
+                    .FirstOrDefault();
+
+                // Get monthly stats for comparison (current and previous month)
+                var currentDate = DateTime.UtcNow;
+                var currentMonthRequests = allUserRequests.Where(w => 
+                    w.RequestedAt.Year == currentDate.Year && 
+                    w.RequestedAt.Month == currentDate.Month).ToList();
+                
+                var previousMonth = currentDate.AddMonths(-1);
+                var previousMonthRequests = allUserRequests.Where(w => 
+                    w.RequestedAt.Year == previousMonth.Year && 
+                    w.RequestedAt.Month == previousMonth.Month).ToList();
+
+                var statsDto = new WithdrawalStatsDto
+                {
+                    TotalRequests = totalRequests,
+                    PendingRequests = pendingRequests,
+                    ApprovedRequests = approvedRequests,
+                    RejectedRequests = rejectedRequests,
+                    CancelledRequests = cancelledRequests,
+                    TotalAmountRequested = totalAmountRequested,
+                    PendingAmount = pendingAmount,
+                    ApprovedAmount = approvedAmount,
+                    RejectedAmount = rejectedAmount,
+                    AverageProcessingTimeHours = averageProcessingTimeHours,
+                    ApprovalRate = approvalRate,
+                    LastRequestDate = lastRequest?.RequestedAt,
+                    LastApprovalDate = lastApprovedRequest?.ProcessedAt,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    GeneratedAt = DateTime.UtcNow,
+                    CurrentMonth = new MonthlyStats
+                    {
+                        Month = currentDate.ToString("MM/yyyy"),
+                        RequestCount = currentMonthRequests.Count,
+                        TotalAmount = currentMonthRequests.Sum(w => w.Amount),
+                        ApprovedCount = currentMonthRequests.Count(w => w.Status == WithdrawalStatus.Approved),
+                        ApprovedAmount = currentMonthRequests.Where(w => w.Status == WithdrawalStatus.Approved).Sum(w => w.Amount),
+                        ApprovalRate = currentMonthRequests.Any() ? 
+                            (double)currentMonthRequests.Count(w => w.Status == WithdrawalStatus.Approved) / currentMonthRequests.Count * 100 : 0
+                    },
+                    PreviousMonth = new MonthlyStats
+                    {
+                        Month = previousMonth.ToString("MM/yyyy"),
+                        RequestCount = previousMonthRequests.Count,
+                        TotalAmount = previousMonthRequests.Sum(w => w.Amount),
+                        ApprovedCount = previousMonthRequests.Count(w => w.Status == WithdrawalStatus.Approved),
+                        ApprovedAmount = previousMonthRequests.Where(w => w.Status == WithdrawalStatus.Approved).Sum(w => w.Amount),
+                        ApprovalRate = previousMonthRequests.Any() ? 
+                            (double)previousMonthRequests.Count(w => w.Status == WithdrawalStatus.Approved) / previousMonthRequests.Count * 100 : 0
+                    }
+                };
+
+                return ApiResponse<WithdrawalStatsDto>.Success(statsDto, "Lấy thống kê thành công");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<WithdrawalStatsDto>.Error($"Lỗi khi lấy thống kê: {ex.Message}");
             }
         }
 

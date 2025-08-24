@@ -316,6 +316,7 @@ builder.Services.AddScoped<EmailSender>();
 builder.Services.AddHostedService<BackgroundJobService>();
 builder.Services.AddHostedService<TourAutoCancelService>();
 builder.Services.AddHostedService<TourBookingCleanupService>();
+builder.Services.AddHostedService<OrderCleanupService>(); // NEW: Auto-hide old orders after 3 days
 builder.Services.AddHostedService<TourRevenueTransferService>(); // NEW: Automated revenue transfer service
 builder.Services.AddHostedService<TourReminderService>(); // NEW: Tour reminder email service
 

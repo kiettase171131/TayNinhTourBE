@@ -117,5 +117,36 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories.Interface
         /// <param name="month">Tháng</param>
         /// <returns>Thống kê rút tiền</returns>
         Task<(int TotalRequests, decimal TotalAmount, int ApprovedRequests, decimal ApprovedAmount)> GetMonthlyStatsAsync(int year, int month);
+
+        /// <summary>
+        /// Lấy thống kê yêu cầu rút tiền theo role (TourCompany hoặc SpecialtyShop)
+        /// </summary>
+        /// <param name="roleName">Tên role (TourCompany hoặc SpecialtyShop)</param>
+        /// <param name="startDate">Ngày bắt đầu (null = tất cả)</param>
+        /// <param name="endDate">Ngày kết thúc (null = tất cả)</param>
+        /// <returns>Thống kê yêu cầu rút tiền theo role</returns>
+        Task<(int TotalRequests, int PendingRequests, int ApprovedRequests, int RejectedRequests, 
+               decimal TotalAmount, decimal PendingAmount, decimal ApprovedAmount, decimal RejectedAmount)> 
+               GetStatsByRoleAsync(string roleName, DateTime? startDate = null, DateTime? endDate = null);
+
+        /// <summary>
+        /// Lấy thống kê tổng hợp yêu cầu rút tiền với filtering theo ngày
+        /// </summary>
+        /// <param name="startDate">Ngày bắt đầu (null = tất cả)</param>
+        /// <param name="endDate">Ngày kết thúc (null = tất cả)</param>
+        /// <returns>Thống kê tổng hợp yêu cầu rút tiền</returns>
+        Task<(int TotalRequests, int PendingRequests, int ApprovedRequests, int RejectedRequests, int CancelledRequests,
+               decimal TotalAmount, decimal PendingAmount, decimal ApprovedAmount, decimal RejectedAmount, decimal CancelledAmount,
+               double AverageProcessingTimeHours, DateTime? LastRequestDate, DateTime? LastApprovalDate)> 
+               GetTotalStatsAsync(DateTime? startDate = null, DateTime? endDate = null);
+
+        /// <summary>
+        /// Lấy tất cả yêu cầu rút tiền của user với filtering theo ngày
+        /// </summary>
+        /// <param name="userId">ID của user</param>
+        /// <param name="startDate">Ngày bắt đầu (null = tất cả)</param>
+        /// <param name="endDate">Ngày kết thúc (null = tất cả)</param>
+        /// <returns>Danh sách yêu cầu rút tiền của user</returns>
+        Task<IEnumerable<WithdrawalRequest>> GetUserRequestsWithFilterAsync(Guid userId, DateTime? startDate = null, DateTime? endDate = null);
     }
 }

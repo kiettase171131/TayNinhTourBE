@@ -345,8 +345,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.Normal,
                 Icon = "📩",
-                ActionUrl = $"/bookings/{bookingCode}"
-
+                ActionUrl = "/tour-company/tours"
             };
 
             return await CreateNotificationAsync(createDto);
@@ -369,13 +368,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "🚫",
-                ActionUrl = "/tours/pending-guide"
-
+                ActionUrl = "/tour-company/tours"
             });
         }
 
         /// <summary>
-        /// T?o th�ng b�o c?n t�m guide th? c�ng
+        /// T?o th�ng b�o c�n t�m guide th? c�ng
         /// </summary>
         public async Task<BaseResposeDto> CreateManualGuideSelectionNotificationAsync(
             Guid userId, 
@@ -390,8 +388,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
                 Icon = "⚠️",
-                ActionUrl = "/tours/manual-guide-selection"
-
+                ActionUrl = "/tour-company/tours"
             });
         }
 
@@ -411,8 +408,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Type = NotificationType.Critical,
                 Priority = NotificationPriority.Critical,
                 Icon = "🚨",
-                ActionUrl = "/tours/urgent-guide-needed"
-
+                ActionUrl = "/tour-company/tours"
             });
         }
 
@@ -449,7 +445,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = NotificationType.TourGuide,
                     Priority = NotificationPriority.High,
                     Icon = icon,
-                    ActionUrl = $"/invitations/{invitationId}",
+                    ActionUrl = "/tour-guide/invitations",
                     Data = new Dictionary<string, object>
                     {
                         ["invitationId"] = invitationId,
@@ -474,7 +470,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
 
         /// <summary>
-        /// T?o th�ng b�o khi invitation s?p h?t h?n (reminder)
+        /// T?o th�ng b�o khi invitation s?p h?t h�n (reminder)
         /// </summary>
         public async Task<BaseResposeDto> CreateInvitationExpiryReminderNotificationAsync(
             Guid guideUserId,
@@ -496,7 +492,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = hoursUntilExpiry <= 2 ? NotificationType.Critical : NotificationType.Warning,
                     Priority = hoursUntilExpiry <= 2 ? NotificationPriority.Critical : NotificationPriority.High,
                     Icon = urgencyIcon,
-                    ActionUrl = $"/invitations/{invitationId}",
+                    ActionUrl = "/tour-guide/invitations",
                     Data = new Dictionary<string, object>
                     {
                         ["invitationId"] = invitationId,
@@ -622,16 +618,16 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = "Bạn có một booking tour mới",
                 Type = NotificationType.Booking,
                 Priority = NotificationPriority.High,
-                Icon = "📥" // Hoặc "🆕", "📩", tùy phong cách hệ thống
-
+                Icon = "📥", // Hoặc "🆕", "📩", tùy phong cách hệ thống
+                ActionUrl = "/tour-company/tours"
             });
         }
 
         /// <summary>
-        /// T?o th�ng b�o h?y tour v?i danh s�ch bookings
+        /// T?o th�ng b�o h?y tour v?i danh s�c bookings
         /// </summary>
         /// <param name="userId">ID c?a user</param>
-        /// <param name="affectedBookings">Danh s�ch bookings b? ?nh h??ng</param>
+        /// <param name="affectedBookings">Danh s�c bookings b? ?nh h??ng</param>
         /// <param name="tourTitle">T�n tour</param>
         /// <param name="tourStartDate">Ng�y kh?i h�nh</param>
         /// <param name="reason">L� do h?y</param>
@@ -650,8 +646,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = $"Tour '{tourTitle}' đã bị hủy: {reason}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.High,
-                Icon = "❌" // Hoặc "⚠️", "🚫", "📛" tùy mức độ cảnh báo
-
+                Icon = "❌", // Hoặc "⚠️", "🚫", "📛" tùy mức độ cảnh báo
+                ActionUrl = "/tour-company/tours"
             });
         }
 
@@ -671,8 +667,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = $"Khách hàng đã hủy booking. Lý do: {reason ?? "Không có lý do"}",
                 Type = NotificationType.Warning,
                 Priority = NotificationPriority.Medium,
-                Icon = "🚫" // Hoặc "❌", "⚠️", "📭" tùy mức cảnh báo bạn muốn thể hiện
-
+                Icon = "🚫", // Hoặc "❌", "⚠️", "📭" tùy mức cảnh báo bạn muốn thể hiện
+                ActionUrl = "/tour-company/tours"
             });
         }
 
@@ -741,7 +737,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Type = NotificationType.System,
                         Priority = NotificationPriority.High,
                         AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"shopName\":\"{shopName}\",\"amount\":{amount}}}",
-                        ActionUrl = $"/admin/withdrawals/{withdrawalRequestId}",
+                        ActionUrl = "/admin/withdrawal-requests",
                         Icon = "💰",
                         ExpiresAt = DateTime.UtcNow.AddDays(7),
                         IsRead = false,
@@ -788,6 +784,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
+                // Determine wallet URL based on user role
+                string walletUrl = "/wallet"; // Default fallback
+                
+                // Check if user is TourCompany
+                var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
+                if (tourCompany != null && tourCompany.IsActive)
+                {
+                    walletUrl = "/tour-company/wallet";
+                }
+                else
+                {
+                    // Check if user is SpecialtyShop
+                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
+                    if (specialtyShop != null && specialtyShop.IsActive)
+                    {
+                        walletUrl = "/speciality-shop/wallet";
+                    }
+                }
+
                 var notification = new Notification
                 {
                     Id = Guid.NewGuid(),
@@ -797,7 +812,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = NotificationType.System,
                     Priority = NotificationPriority.High,
                     AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"amount\":{amount},\"bankAccount\":\"{bankAccount}\",\"transactionReference\":\"{transactionReference}\"}}",
-                    ActionUrl = $"/shop/withdrawals/{withdrawalRequestId}",
+                    ActionUrl = walletUrl,
                     Icon = "✅",
                     ExpiresAt = DateTime.UtcNow.AddDays(30),
                     IsRead = false,
@@ -841,6 +856,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         {
             try
             {
+                // Determine wallet URL based on user role
+                string walletUrl = "/wallet"; // Default fallback
+                
+                // Check if user is TourCompany
+                var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(userId);
+                if (tourCompany != null && tourCompany.IsActive)
+                {
+                    walletUrl = "/tour-company/wallet";
+                }
+                else
+                {
+                    // Check if user is SpecialtyShop
+                    var specialtyShop = await _unitOfWork.SpecialtyShopRepository.GetByUserIdAsync(userId);
+                    if (specialtyShop != null && specialtyShop.IsActive)
+                    {
+                        walletUrl = "/speciality-shop/wallet";
+                    }
+                }
+
                 var notification = new Notification
                 {
                     Id = Guid.NewGuid(),
@@ -850,7 +884,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Type = NotificationType.Warning,
                     Priority = NotificationPriority.High,
                     AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"amount\":{amount},\"reason\":\"{reason}\"}}",
-                    ActionUrl = $"/shop/withdrawals/{withdrawalRequestId}",
+                    ActionUrl = walletUrl,
                     Icon = "❌",
                     ExpiresAt = DateTime.UtcNow.AddDays(30),
                     IsRead = false,
@@ -908,7 +942,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         Type = NotificationType.Warning,
                         Priority = NotificationPriority.Urgent,
                         AdditionalData = $"{{\"withdrawalRequestId\":\"{withdrawalRequestId}\",\"shopName\":\"{shopName}\",\"amount\":{amount},\"daysPending\":{daysPending}}}",
-                        ActionUrl = $"/admin/withdrawals/{withdrawalRequestId}",
+                        ActionUrl = "/admin/withdrawal-requests",
                         Icon = "⏰",
                         ExpiresAt = DateTime.UtcNow.AddDays(3),
                         IsRead = false,

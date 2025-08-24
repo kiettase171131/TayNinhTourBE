@@ -186,22 +186,39 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <summary>
         /// Lấy thống kê tổng quan yêu cầu rút tiền cho admin
         /// </summary>
+        /// <param name="startDate">Ngày bắt đầu lọc (yyyy-MM-dd) - tùy chọn</param>
+        /// <param name="endDate">Ngày kết thúc lọc (yyyy-MM-dd) - tùy chọn</param>
         /// <returns>Thống kê yêu cầu rút tiền</returns>
         [HttpGet("stats")]
-        public async Task<IActionResult> GetWithdrawalStats()
+        public async Task<IActionResult> GetWithdrawalStats(
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
         {
             try
             {
-                _logger.LogInformation("Admin getting withdrawal stats");
+                _logger.LogInformation("Admin getting withdrawal stats - StartDate: {StartDate}, EndDate: {EndDate}", 
+                    startDate?.ToString("yyyy-MM-dd"), endDate?.ToString("yyyy-MM-dd"));
 
-                var result = await _withdrawalRequestService.GetStatsAsync();
+                // Validate date range
+                if (startDate.HasValue && endDate.HasValue && startDate > endDate)
+                {
+                    return BadRequest(new { 
+                        Success = false, 
+                        Message = "Ngày bắt đầu không thể lớn hơn ngày kết thúc" 
+                    });
+                }
+
+                var result = await _withdrawalRequestService.GetStatsAsync(startDate, endDate);
                 
                 return Ok(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting withdrawal stats for admin");
-                return StatusCode(500, "Lỗi server khi lấy thống kê");
+                return StatusCode(500, new { 
+                    Success = false, 
+                    Message = "Lỗi server khi lấy thống kê" 
+                });
             }
         }
 
@@ -292,6 +309,45 @@ namespace TayNinhTourApi.Controller.Controllers
             {
                 _logger.LogError(ex, "Error in bulk approve withdrawal requests");
                 return StatusCode(500, "Lỗi server khi duyệt hàng loạt");
+            }
+        }
+
+        /// <summary>
+        /// Lấy thống kê yêu cầu rút tiền theo role (TourCompany và SpecialtyShop)
+        /// </summary>
+        /// <param name="startDate">Ngày bắt đầu lọc (yyyy-MM-dd) - tùy chọn</param>
+        /// <param name="endDate">Ngày kết thúc lọc (yyyy-MM-dd) - tùy chọn</param>
+        /// <returns>Thống kê yêu cầu rút tiền theo role</returns>
+        [HttpGet("role-stats")]
+        public async Task<IActionResult> GetWithdrawalStatsByRole(
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
+        {
+            try
+            {
+                _logger.LogInformation("Admin getting withdrawal stats by role - StartDate: {StartDate}, EndDate: {EndDate}", 
+                    startDate?.ToString("yyyy-MM-dd"), endDate?.ToString("yyyy-MM-dd"));
+
+                // Validate date range
+                if (startDate.HasValue && endDate.HasValue && startDate > endDate)
+                {
+                    return BadRequest(new { 
+                        Success = false, 
+                        Message = "Ngày bắt đầu không thể lớn hơn ngày kết thúc" 
+                    });
+                }
+
+                var result = await _withdrawalRequestService.GetRoleStatsAsync(startDate, endDate);
+                
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting withdrawal stats by role for admin");
+                return StatusCode(500, new { 
+                    Success = false, 
+                    Message = "Lỗi server khi lấy thống kê theo role" 
+                });
             }
         }
 

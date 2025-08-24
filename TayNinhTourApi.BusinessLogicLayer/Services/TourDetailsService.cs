@@ -557,13 +557,19 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         public async Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
             int pageIndex,
             int pageSize,
-            Guid? tourTemplateId = null,
-            string? titleFilter = null,
+            string? searchTerm = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null,
+            string? scheduleDay = null,
+            string? startLocation = null,
+            string? endLocation = null,
+            bool? hasEarlyBird = null,
             bool includeInactive = false)
         {
             try
             {
-                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}", pageIndex, pageSize);
+                _logger.LogInformation("Getting paginated tour details, page: {PageIndex}, size: {PageSize}, searchTerm: {SearchTerm}, minPrice: {MinPrice}, maxPrice: {MaxPrice}, scheduleDay: {ScheduleDay}, startLocation: {StartLocation}, endLocation: {EndLocation}, hasEarlyBird: {HasEarlyBird}", 
+                    pageIndex, pageSize, searchTerm, minPrice, maxPrice, scheduleDay, startLocation, endLocation, hasEarlyBird);
 
                 // Build query for TourDetails with related entities (similar to UserTourSearch)
                 var query = _unitOfWork.TourDetailsRepository.GetQueryable();
@@ -580,15 +586,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     query = query.Where(td => !td.IsDeleted);
                 }
 
-                // Apply filters
-                if (tourTemplateId.HasValue)
+                // Search term filter - tìm kiếm theo title và description của tour
+                if (!string.IsNullOrEmpty(searchTerm))
                 {
-                    query = query.Where(td => td.TourTemplateId == tourTemplateId.Value);
-                }
-
-                if (!string.IsNullOrEmpty(titleFilter))
-                {
-                    query = query.Where(td => td.Title.Contains(titleFilter));
+                    var searchLower = searchTerm.ToLower();
+                    query = query.Where(td => td.Title.ToLower().Contains(searchLower) ||
+                                            (td.Description != null && td.Description.ToLower().Contains(searchLower)));
                 }
 
                 // Include navigation properties (similar to UserTourSearch)
@@ -602,18 +605,126 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // Apply additional filters for TourTemplate
                 query = query.Where(td => td.TourTemplate.IsActive && !td.TourTemplate.IsDeleted);
 
-                // Get total count
-                var totalCount = await query.CountAsync();
+                // Price filters - lọc theo giá min max của tour operation
+                if (minPrice.HasValue || maxPrice.HasValue)
+                {
+                    query = query.Where(td => td.TourOperation != null);
+                    
+                    if (minPrice.HasValue)
+                    {
+                        query = query.Where(td => td.TourOperation.Price >= minPrice.Value);
+                    }
+                    
+                    if (maxPrice.HasValue)
+                    {
+                        query = query.Where(td => td.TourOperation.Price <= maxPrice.Value);
+                    }
+                }
 
-                // Apply pagination and get results
+                // Schedule day filter - lọc theo thứ trong tuần từ tour template
+                if (!string.IsNullOrEmpty(scheduleDay))
+                {
+                    // Validate schedule day value
+                    if (Enum.TryParse<ScheduleDay>(scheduleDay, true, out var scheduleDayEnum))
+                    {
+                        query = query.Where(td => td.TourTemplate.ScheduleDays == scheduleDayEnum);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Invalid schedule day value: {ScheduleDay}. Valid values are: Saturday, Sunday", scheduleDay);
+                        // Return empty result for invalid schedule day
+                        return new ResponseGetTourDetailsPaginatedDto
+                        {
+                            StatusCode = 400,
+                            Message = $"Giá trị thứ trong tuần không hợp lệ: {scheduleDay}. Giá trị hợp lệ: Saturday, Sunday",
+                            success = false,
+                            Data = new List<EnrichedTourDetailDto>(),
+                            TotalCount = 0,
+                            PageIndex = pageIndex,
+                            PageSize = pageSize,
+                            TotalPages = 0,
+                            HasNextPage = false,
+                            HasPreviousPage = false
+                        };
+                    }
+                }
+
+                // Start location filter - lọc theo điểm bắt đầu từ tour template
+                if (!string.IsNullOrEmpty(startLocation))
+                {
+                    var startLocationLower = startLocation.ToLower();
+                    query = query.Where(td => td.TourTemplate.StartLocation.ToLower().Contains(startLocationLower));
+                }
+
+                // End location filter - lọc theo điểm kết thúc từ tour template
+                if (!string.IsNullOrEmpty(endLocation))
+                {
+                    var endLocationLower = endLocation.ToLower();
+                    query = query.Where(td => td.TourTemplate.EndLocation.ToLower().Contains(endLocationLower));
+                }
+
+                // Get initial results for early bird filtering
                 var tourDetails = await query
                     .OrderByDescending(td => td.CreatedAt)
-                    .Skip(pageIndex * pageSize)
-                    .Take(pageSize)
                     .ToListAsync();
 
+                // Apply early bird filter if specified
+                if (hasEarlyBird.HasValue)
+                {
+                    // Get TourPricingService for early bird calculation
+                    using var scope = _serviceProvider.CreateScope();
+                    var pricingService = scope.ServiceProvider.GetRequiredService<ITourPricingService>();
+                    var currentDate = DateTime.UtcNow;
+
+                    // Filter based on early bird eligibility
+                    tourDetails = tourDetails.Where(td =>
+                    {
+                        try
+                        {
+                            // Check if tour has pricing information
+                            if (td.TourOperation?.Price == null || td.TourOperation.Price <= 0)
+                                return !hasEarlyBird.Value; // If no pricing, include only if not filtering for early bird
+
+                            // Find earliest available slot for tour start date
+                            var earliestSlot = td.AssignedSlots
+                                .Where(slot => slot.TourDate >= DateOnly.FromDateTime(DateTime.Today) &&
+                                              slot.Status == TourSlotStatus.Available &&
+                                              slot.AvailableSpots > 0)
+                                .OrderBy(slot => slot.TourDate)
+                                .FirstOrDefault();
+
+                            if (earliestSlot == null)
+                                return !hasEarlyBird.Value; // If no available slots, include only if not filtering for early bird
+
+                            // Use tour public date (when status became Public) or created date as fallback
+                            var tourPublicDate = td.UpdatedAt?.Date ?? td.CreatedAt.Date;
+                            var tourStartDate = earliestSlot.TourDate.ToDateTime(TimeOnly.MinValue);
+
+                            // Check early bird eligibility
+                            var isEarlyBirdEligible = pricingService.IsEarlyBirdEligible(
+                                tourStartDate,
+                                tourPublicDate,
+                                currentDate);
+
+                            return hasEarlyBird.Value ? isEarlyBirdEligible : !isEarlyBirdEligible;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Error checking early bird eligibility for TourDetails {TourDetailsId}", td.Id);
+                            return !hasEarlyBird.Value; // On error, include only if not filtering for early bird
+                        }
+                    }).ToList();
+                }
+
+                // Apply pagination to filtered results
+                var totalCount = tourDetails.Count;
+                var paginatedResults = tourDetails
+                    .Skip(pageIndex * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
                 // Map to enriched DTOs (similar to UserTourSearch response structure)
-                var enrichedTourDetails = tourDetails.Select(td => new EnrichedTourDetailDto
+                var enrichedTourDetails = paginatedResults.Select(td => new EnrichedTourDetailDto
                 {
                     Id = td.Id,
                     Title = td.Title,
@@ -683,10 +794,23 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var hasNextPage = pageIndex < totalPages - 1;
                 var hasPreviousPage = pageIndex > 0;
 
+                // Build filter summary for response message
+                var appliedFilters = new List<string>();
+                if (!string.IsNullOrEmpty(searchTerm)) appliedFilters.Add($"tìm kiếm: '{searchTerm}'");
+                if (minPrice.HasValue) appliedFilters.Add($"giá từ: {minPrice.Value:N0}đ");
+                if (maxPrice.HasValue) appliedFilters.Add($"giá đến: {maxPrice.Value:N0}đ");
+                if (!string.IsNullOrEmpty(scheduleDay)) appliedFilters.Add($"thứ: {scheduleDay}");
+                if (!string.IsNullOrEmpty(startLocation)) appliedFilters.Add($"xuất phát: {startLocation}");
+                if (!string.IsNullOrEmpty(endLocation)) appliedFilters.Add($"điểm đến: {endLocation}");
+                if (hasEarlyBird.HasValue) appliedFilters.Add($"early bird: {(hasEarlyBird.Value ? "có" : "không")}");
+
+                var filterText = appliedFilters.Any() ? $" với bộ lọc: {string.Join(", ", appliedFilters)}" : "";
+                var resultMessage = $"Tìm thấy {totalCount} tour phù hợp{filterText}";
+
                 return new ResponseGetTourDetailsPaginatedDto
                 {
                     StatusCode = 200,
-                    Message = $"Tìm thấy {totalCount} tour phù hợp",
+                    Message = resultMessage,
                     success = true,
                     Data = enrichedTourDetails,
                     TotalCount = totalCount,
@@ -1296,7 +1420,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 int newSortOrder = request.SortOrder ?? await GetNextSortOrderAsync(request.TourDetailsId);
                 
                 // Check if there are existing items that would conflict with time order
-                foreach (var existingItem in existingItems)
+                foreach (var existingItem in existingItems.Where(t => t.IsActive))
                 {
                     // If new item has a lower sort order, its time must be < existing item's time
                     if (newSortOrder < existingItem.SortOrder && checkInTime >= existingItem.CheckInTime)

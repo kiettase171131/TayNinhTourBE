@@ -66,15 +66,25 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// </summary>
         /// <param name="pageIndex">Chỉ số trang (0-based)</param>
         /// <param name="pageSize">Kích thước trang</param>
-        /// <param name="tourTemplateId">Filter theo template (optional)</param>
-        /// <param name="titleFilter">Filter theo title (optional)</param>
+        /// <param name="searchTerm">Tìm kiếm theo title và description của tour (optional)</param>
+        /// <param name="minPrice">Giá tối thiểu của tour operation (optional)</param>
+        /// <param name="maxPrice">Giá tối đa của tour operation (optional)</param>
+        /// <param name="scheduleDay">Thứ trong tuần (Saturday/Sunday) từ tour template (optional)</param>
+        /// <param name="startLocation">Điểm bắt đầu từ tour template (optional)</param>
+        /// <param name="endLocation">Điểm kết thúc từ tour template (optional)</param>
+        /// <param name="hasEarlyBird">Lọc tour có early bird discount (optional)</param>
         /// <param name="includeInactive">Bao gồm inactive records</param>
         /// <returns>Danh sách TourDetails có phân trang</returns>
         Task<ResponseGetTourDetailsPaginatedDto> GetTourDetailsPaginatedAsync(
             int pageIndex,
             int pageSize,
-            Guid? tourTemplateId = null,
-            string? titleFilter = null,
+            string? searchTerm = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null,
+            string? scheduleDay = null,
+            string? startLocation = null,
+            string? endLocation = null,
+            bool? hasEarlyBird = null,
             bool includeInactive = false);
 
         // ===== TIMELINE OPERATIONS (EXISTING & NEW) =====

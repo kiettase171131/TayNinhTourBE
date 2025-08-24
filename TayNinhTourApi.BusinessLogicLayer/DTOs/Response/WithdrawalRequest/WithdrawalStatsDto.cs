@@ -79,6 +79,21 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.WithdrawalRequest
         /// Yêu cầu được duyệt gần nhất
         /// </summary>
         public DateTime? LastApprovalDate { get; set; }
+
+        /// <summary>
+        /// Thời gian bắt đầu lọc
+        /// </summary>
+        public DateTime? StartDate { get; set; }
+
+        /// <summary>
+        /// Thời gian kết thúc lọc
+        /// </summary>
+        public DateTime? EndDate { get; set; }
+
+        /// <summary>
+        /// Thời gian tạo báo cáo
+        /// </summary>
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
     }
 
     /// <summary>
