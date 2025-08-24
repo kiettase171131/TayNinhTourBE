@@ -367,14 +367,16 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTourCompany(Guid id, [FromBody] UpdateTourCompanyDto dto)
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<IActionResult> UpdateTourCompany([FromBody] UpdateTourCompanyDto dto)
+
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-
-            var result = await _tourCompanyService.UpdateTourCompanyAsync(id, dto);
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _tourCompanyService.UpdateTourCompanyAsync(currentUser.Id, dto);
             return StatusCode(result.StatusCode, result);
         }
     }
