@@ -73,7 +73,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (fromDate.HasValue || toDate.HasValue)
             {
                 query = query.Where(td => td.AssignedSlots.Any(slot =>
-                    slot.IsActive && 
+                    slot.IsActive &&
                     slot.Status == TourSlotStatus.Available &&
                     slot.CurrentBookings < slot.MaxGuests && // ✅ Check slot-specific capacity
                     (!fromDate.HasValue || slot.TourDate >= DateOnly.FromDateTime(fromDate.Value)) &&
@@ -83,7 +83,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 // ✅ NEW: Only show tours that have at least one available slot
                 query = query.Where(td => td.AssignedSlots.Any(slot =>
-                    slot.IsActive && 
+                    slot.IsActive &&
                     slot.Status == TourSlotStatus.Available &&
                     slot.CurrentBookings < slot.MaxGuests)); // Check slot-specific capacity
             }
@@ -137,11 +137,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     : 0;
 
                 // ✅ FIXED: Calculate available slots capacity correctly
-                var availableSlots = td.AssignedSlots.Where(s => 
-                    s.IsActive && 
+                var availableSlots = td.AssignedSlots.Where(s =>
+                    s.IsActive &&
                     s.Status == TourSlotStatus.Available &&
                     s.CurrentBookings < s.MaxGuests).ToList();
-                
+
                 var totalAvailableSpots = availableSlots.Sum(s => s.MaxGuests - s.CurrentBookings);
                 var totalMaxGuests = availableSlots.Sum(s => s.MaxGuests);
                 var totalCurrentBookings = availableSlots.Sum(s => s.CurrentBookings);
@@ -346,13 +346,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var tourPublicDate = tourOperation.TourDetails.UpdatedAt ?? tourOperation.TourDetails.CreatedAt;
 
             // ✅ FIXED: Check availability across all slots, not just TourOperation capacity
-            var availableSlots = tourOperation.TourDetails.AssignedSlots.Where(s => 
-                s.IsActive && 
+            var availableSlots = tourOperation.TourDetails.AssignedSlots.Where(s =>
+                s.IsActive &&
                 s.Status == TourSlotStatus.Available &&
                 s.CurrentBookings < s.MaxGuests).ToList();
-            
+
             var totalAvailableSpots = availableSlots.Sum(s => s.MaxGuests - s.CurrentBookings);
-            var isAvailable = totalAvailableSpots >= request.NumberOfGuests && 
+            var isAvailable = totalAvailableSpots >= request.NumberOfGuests &&
                              tourStartDate > VietnamTimeZoneUtility.GetVietnamNow();
 
             var pricingInfo = _pricingService.GetPricingInfo(
@@ -1928,7 +1928,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         /// <summary>
         /// Lấy tiến độ tour đang diễn ra cho user
         /// </summary>
-        public async Task<UserTourProgressDto?> GetTourProgressAsync(Guid tourOperationId, Guid userId)
+                public async Task<UserTourProgressDto?> GetTourProgressAsync_OLD(Guid tourOperationId, Guid userId)
         {
             try
             {
@@ -2040,7 +2040,106 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting tour progress for operation {TourOperationId}", tourOperationId);
-                return null;
+                throw;
+            }
+        }
+
+        public async Task<UserTourProgressDto?> GetTourProgressAsync(Guid tourOperationId, Guid userId)
+        {
+            try
+            {
+                _logger.LogInformation("Getting tour progress for operation {TourOperationId} and user {UserId}", tourOperationId, userId);
+
+                var tourOperation = await _unitOfWork.TourOperationRepository.GetQueryable()
+                    .Where(to => to.Id == tourOperationId && to.IsActive && !to.IsDeleted)
+                    .Include(to => to.TourDetails)
+                        .ThenInclude(td => td.Timeline.Where(ti => ti.IsActive))
+                            .ThenInclude(ti => ti.SpecialtyShop)
+                    .Include(to => to.TourGuide)
+                    .FirstOrDefaultAsync();
+
+                if (tourOperation?.TourDetails == null)
+                {
+                    _logger.LogWarning("Tour operation {TourOperationId} not found", tourOperationId);
+                    return null;
+                }
+
+                var activeSlot = await _unitOfWork.TourSlotRepository.GetQueryable()
+                    .Where(ts => ts.TourDetailsId == tourOperation.TourDetailsId && ts.IsActive)
+                    .Include(ts => ts.TimelineProgress)
+                        .ThenInclude(tp => tp.TimelineItem)
+                    .FirstOrDefaultAsync();
+
+                var timelineProgresses = activeSlot?.TimelineProgress?.ToList() ?? new List<TourSlotTimelineProgress>();
+
+                var timelineItems = tourOperation.TourDetails.Timeline
+                    .OrderBy(ti => ti.SortOrder)
+                    .Select(ti => {
+                        var progress = timelineProgresses.FirstOrDefault(tp => tp.TimelineItemId == ti.Id);
+                        var canBeActive = timelineProgresses.Where(tp => tp.TimelineItem.SortOrder < ti.SortOrder).All(tp => tp.IsCompleted);
+                        return new TourTimelineProgressItemDto
+                        {
+                            Id = ti.Id,
+                            CheckInTime = ti.CheckInTime.ToString(@"hh\:mm"),
+                            Activity = ti.Activity,
+                            SpecialtyShopId = ti.SpecialtyShopId,
+                            SpecialtyShopName = ti.SpecialtyShop?.ShopName,
+                            SortOrder = ti.SortOrder,
+                            IsCompleted = progress?.IsCompleted ?? false,
+                            CompletedAt = progress?.CompletedAt,
+                            IsActive = (progress == null || !progress.IsCompleted) && (ti.SortOrder == 1 || canBeActive)
+                        };
+                    }).ToList();
+
+                var totalItems = timelineItems.Count;
+                var completedItems = timelineItems.Count(ti => ti.IsCompleted);
+                var progressPercentage = totalItems > 0 ? (double)completedItems / totalItems * 100 : 0;
+
+                var bookings = await _unitOfWork.TourBookingRepository.GetQueryable()
+                    .Where(tb => tb.TourOperationId == tourOperationId && tb.Status == BookingStatus.Confirmed)
+                    .Include(tb => tb.Guests)
+                    .ToListAsync();
+
+                var totalGuests = bookings.Sum(b => b.NumberOfGuests);
+                var checkedInGuests = bookings.SelectMany(b => b.Guests).Count(g => g.IsCheckedIn);
+                var checkInPercentage = totalGuests > 0 ? (double)checkedInGuests / totalGuests * 100 : 0;
+
+                string currentStatus = completedItems == totalItems ? "Đã hoàn thành" : (completedItems > 0 ? "Đang diễn ra" : "Chưa bắt đầu");
+
+                DateTime? estimatedCompletion = null;
+                if (completedItems > 0 && completedItems < totalItems && activeSlot != null)
+                {
+                    var averageTimePerItem = TimeSpan.FromHours(8.0 / totalItems);
+                    var remainingItems = totalItems - completedItems;
+                    estimatedCompletion = DateTime.UtcNow.Add(averageTimePerItem * remainingItems);
+                }
+
+                return new UserTourProgressDto
+                {
+                    TourOperationId = tourOperationId,
+                    TourTitle = tourOperation.TourDetails.Title,
+                    TourStartDate = activeSlot?.TourDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.UtcNow,
+                    GuideName = tourOperation.TourGuide?.FullName,
+                    GuidePhone = tourOperation.TourGuide?.PhoneNumber,
+                    Timeline = timelineItems,
+                    Stats = new TourProgressStatsDto
+                    {
+                        TotalItems = totalItems,
+                        CompletedItems = completedItems,
+                        ProgressPercentage = progressPercentage,
+                        TotalGuests = totalGuests,
+                        CheckedInGuests = checkedInGuests,
+                        CheckInPercentage = checkInPercentage
+                    },
+                    CurrentStatus = currentStatus,
+                    CurrentLocation = timelineItems.FirstOrDefault(ti => ti.IsActive)?.Activity,
+                    EstimatedCompletion = estimatedCompletion
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting tour progress for operation {TourOperationId}", tourOperationId);
+                throw;
             }
         }
 
