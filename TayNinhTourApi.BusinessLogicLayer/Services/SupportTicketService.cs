@@ -71,11 +71,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 CreatedById = currentUserObject.Id
             };
             var uploadedUrls = new List<string>();
-            // 3. Xử lý upload file tương tự avatar
+            // 3. Xử lý upload file - Cho phép nhiều loại file hơn
             if (request.Files != null && request.Files.Any())
             {
-                const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
-                var allowedExts = new[] { ".png", ".jpg", ".jpeg", ".webp" };
+                const long MaxFileSize = 10 * 1024 * 1024; // Tăng lên 10 MB
+                // Cho phép cả hình ảnh và documents
+                var allowedExts = new[] { ".png", ".jpg", ".jpeg", ".webp", ".pdf", ".doc", ".docx", ".txt" };
 
                 // Đường dẫn gốc để lưu file
                 var webRoot = _env.WebRootPath
@@ -99,7 +100,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         return new ResponseSpTicketDto
                         {
                             StatusCode = 400,
-                            Message = $"File too large. Max size is {MaxFileSize / (1024 * 1024)} MB."
+                            Message = $"File '{file.FileName}' quá lớn. Kích thước tối đa là {MaxFileSize / (1024 * 1024)} MB."
                         };
 
                     // 3.2 Kiểm tra định dạng
@@ -108,21 +109,51 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         return new ResponseSpTicketDto
                         {
                             StatusCode = 400,
-                            Message = "Invalid file type. Only .png, .jpg, .jpeg, .webp are allowed."
+                            Message = $"Định dạng file '{ext}' không được hỗ trợ. Các định dạng được phép: {string.Join(", ", allowedExts)}"
                         };
 
-                    // 3.3 Đổi tên và lưu file
-                    var filename = $"{Guid.NewGuid()}{ext}";
-                    var filePath = Path.Combine(uploadsFolder, filename);
-                    using var stream = new FileStream(filePath, FileMode.Create);
-                    await file.CopyToAsync(stream);
+                    // 3.3 Validate tên file
+                    if (string.IsNullOrWhiteSpace(file.FileName) || file.FileName.Length > 255)
+                    {
+                        return new ResponseSpTicketDto
+                        {
+                            StatusCode = 400,
+                            Message = "Tên file không hợp lệ hoặc quá dài"
+                        };
+                    }
 
-                    // 3.4 Sinh URL public
+                    // 3.4 Tạo tên file an toàn
+                    var originalFileName = Path.GetFileNameWithoutExtension(file.FileName);
+                    var safeFileName = string.Join("_", originalFileName.Split(Path.GetInvalidFileNameChars()));
+                    
+                    // Giới hạn độ dài tên file
+                    if (safeFileName.Length > 50)
+                    {
+                        safeFileName = safeFileName.Substring(0, 50);
+                    }
+                    
+                    var filename = $"{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}_{safeFileName}{ext}";
+                    var filePath = Path.Combine(uploadsFolder, filename);
+
+                    try
+                    {
+                        using var stream = new FileStream(filePath, FileMode.Create);
+                        await file.CopyToAsync(stream);
+                    }
+                    catch (Exception ex)
+                    {
+                        return new ResponseSpTicketDto
+                        {
+                            StatusCode = 500,
+                            Message = $"Lỗi khi lưu file '{file.FileName}': {ex.Message}"
+                        };
+                    }
+
+                    // 3.5 Sinh URL public
                     var fileUrl = $"{baseUrl}/uploads/tickets/{ticket.Id}/{filename}";
                     uploadedUrls.Add(fileUrl);
 
-
-                    // 3.5 Thêm vào danh sách ảnh của ticket
+                    // 3.6 Thêm vào danh sách ảnh của ticket
                     ticket.Images.Add(new SupportTicketImage
                     {
                         Id = Guid.NewGuid(),
