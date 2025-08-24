@@ -311,6 +311,40 @@ namespace TayNinhTourApi.Controller.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy TourDetails public của một tour company cụ thể cho khách hàng mua tour
+        /// </summary>
+        /// <param name="tourCompanyId">ID của tour company</param>
+        /// <param name="pageIndex">Chỉ số trang (0-based, default: 0)</param>
+        /// <param name="pageSize">Kích thước trang (default: 10)</param>
+        /// <returns>Danh sách TourDetails public của tour company</returns>
+        [HttpGet("company/{tourCompanyId:guid}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetPublicTourDetailsByCompany(
+            [FromRoute] Guid tourCompanyId,
+            [FromQuery] int pageIndex = 0,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                _logger.LogInformation("Getting public TourDetails for TourCompany {TourCompanyId} - Page: {PageIndex}, Size: {PageSize}",
+                    tourCompanyId, pageIndex, pageSize);
+
+                var response = await _tourDetailsService.GetPublicTourDetailsByCompanyAsync(
+                    tourCompanyId, pageIndex, pageSize);
+                return StatusCode(response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting public TourDetails for TourCompany {TourCompanyId}", tourCompanyId);
+                return StatusCode(500, new
+                {
+                    StatusCode = 500,
+                    Message = "Có lỗi xảy ra khi lấy danh sách tour của công ty"
+                });
+            }
+        }
+
         // ===== TIMELINE ENDPOINTS (EXISTING & NEW) =====
 
         /// <summary>
