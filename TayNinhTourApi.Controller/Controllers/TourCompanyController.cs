@@ -366,7 +366,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
-        [HttpPut("{id}")]
+        [HttpPut("Update")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> UpdateTourCompany([FromBody] UpdateTourCompanyDto dto)
 
@@ -376,7 +376,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 return BadRequest(ModelState);
             }
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _tourCompanyService.UpdateTourCompanyAsync(currentUser.Id, dto);
+            var result = await _tourCompanyService.UpdateTourCompanyAsync(currentUser, dto);
             return StatusCode(result.StatusCode, result);
         }
         [HttpPost("update-tourcompany-logo")]

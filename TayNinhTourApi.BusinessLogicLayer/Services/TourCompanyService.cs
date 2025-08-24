@@ -448,9 +448,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
         }
-        public async Task<BaseResposeDto> UpdateTourCompanyAsync(Guid id, UpdateTourCompanyDto dto)
+        public async Task<BaseResposeDto> UpdateTourCompanyAsync(CurrentUserObject currentUser, UpdateTourCompanyDto dto)
         {
-            var tourCompany = await _unitOfWork.TourCompanyRepository.GetByIdAsync(id);
+            var tourCompany = await _unitOfWork.TourCompanyRepository.GetByIdAsync(currentUser.Id);
 
             if (tourCompany == null || tourCompany.IsDeleted)
             {
