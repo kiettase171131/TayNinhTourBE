@@ -34,7 +34,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         private readonly ITourGuideRepository _tourGuideRepository;
         private readonly ITourCompanyRepository _tourCompany;
         private readonly IAdminSettingDiscountRepository _adminSetting;
-        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository,ITourGuideRepository tourGuideRepository,IAdminSettingDiscountRepository adminSetting,ITourCompanyRepository tourCompany)
+        private readonly ITourDetailsRepository _tourDetails;
+
+        public CmsService(IUserRepository userRepository, IMapper mapper, IUnitOfWork unitOfWork, IBlogRepository repo, IBlogCommentRepository blogCommentRepository, IBlogReactionRepository blogReactionRepository, IRoleRepository roleRepository, BcryptUtility bcryptUtility, ISpecialtyShopRepository shopRepository,ITourGuideRepository tourGuideRepository,IAdminSettingDiscountRepository adminSetting,ITourCompanyRepository tourCompany, ITourDetailsRepository tourDetails)
         {
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
@@ -48,6 +50,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             _tourGuideRepository = tourGuideRepository;
             _adminSetting = adminSetting;
             _tourCompany = tourCompany;
+            _tourDetails = tourDetails;
         }
 
         public async Task<BaseResposeDto> DeleteUserAsync(Guid id)
@@ -628,8 +631,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 predicate,
                 include
             );
+            // Gán số lượng TourDetails Public cho từng company
+            foreach (var company in companies)
+            {
+                company.PublicTourDetailsCount = await _tourDetails.CountPublicByUserIdAsync(company.UserId);
+            }
 
-            
             var totalPages = (int)Math.Ceiling((double)totalCompanies / pageSizeValue);
 
             return new ResponseGetTourCompaniesDto
@@ -660,6 +667,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Message = "Tour company not found"
                 };
             }
+            // Gán số lượng TourDetails Public cho company này
+            tourCompany.PublicTourDetailsCount = await _tourDetails.CountPublicByUserIdAsync(tourCompany.UserId);
 
             return new ResponseGetTourCompanyByIdDto
             {

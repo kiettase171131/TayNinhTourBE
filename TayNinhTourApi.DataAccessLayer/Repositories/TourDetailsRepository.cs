@@ -210,5 +210,15 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
 
             return await query.AnyAsync();
         }
+        public async Task<int> CountPublicByUserIdAsync(Guid userId)
+        {
+            return await _context.TourDetails
+                .Where(td => td.TourTemplate.CreatedById == userId
+                  && td.Status == TourDetailsStatus.Public
+                  && !td.IsDeleted)
+
+                .CountAsync();
+        }
+
     }
 }

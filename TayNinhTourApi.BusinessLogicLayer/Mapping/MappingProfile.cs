@@ -297,8 +297,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Mapping
             CreateMap<TourCompany, TourCompanyCmsDto>()
     .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User.Email))
     .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.User.Name))
-    .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.User.PhoneNumber));
-
+    .ForMember(dest => dest.PhoneNumber, opt => opt.MapFrom(src => src.User.PhoneNumber))
+    .ForMember(dest => dest.PublicTour,
+               opt => opt.MapFrom(src => src.PublicTourDetailsCount));
 
             // All Shop mappings removed - using SpecialtyShop only
             #endregion

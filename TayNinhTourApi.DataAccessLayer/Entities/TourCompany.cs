@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace TayNinhTourApi.DataAccessLayer.Entities
 {
@@ -74,6 +75,12 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
 
         // Note: TourTemplate, TourDetails, and TourOperation relationships
         // are now handled through User entity instead of TourCompany
+
+        /// <summary>
+        /// Đếm số TourDetails có Status = Public của công ty này
+        /// </summary>
+        [NotMapped]
+        public int PublicTourDetailsCount { get; set; }
 
 
     }
