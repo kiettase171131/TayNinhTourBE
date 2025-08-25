@@ -1722,6 +1722,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             {
                 Id = booking.Id,
                 TourOperationId = booking.TourOperationId,
+                TourSlotId = booking.TourSlotId,
                 UserId = booking.UserId,
                 NumberOfGuests = booking.NumberOfGuests,
                 OriginalPrice = booking.OriginalPrice,

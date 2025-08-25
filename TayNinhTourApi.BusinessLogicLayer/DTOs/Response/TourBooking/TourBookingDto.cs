@@ -9,6 +9,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourBooking
     {
         public Guid Id { get; set; }
         public Guid TourOperationId { get; set; }
+        public Guid? TourSlotId { get; set; }
         public Guid UserId { get; set; }
         public int NumberOfGuests { get; set; }
         public decimal OriginalPrice { get; set; }
