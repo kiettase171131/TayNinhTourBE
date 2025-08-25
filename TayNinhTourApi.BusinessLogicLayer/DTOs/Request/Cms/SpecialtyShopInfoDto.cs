@@ -35,7 +35,14 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms
         [StringLength(200)]
         public string? Website { get; set; }
 
-        
+        [StringLength(100)]
+        public string? BusinessLicense { get; set; }
+
+        [StringLength(500)]
+        public string? BusinessLicenseUrl { get; set; }
+
+        [StringLength(500)]
+        public string? LogoUrl { get; set; }
 
         [StringLength(50)]
         public string? ShopType { get; set; }
