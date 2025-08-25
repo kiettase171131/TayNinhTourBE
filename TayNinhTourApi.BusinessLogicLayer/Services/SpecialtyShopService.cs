@@ -118,7 +118,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     return ApiResponse<SpecialtyShopResponseDto>.NotFound("You don't have a specialty shop yet. Please apply for shop registration first.");
                 }
 
-                // Update only provided fields
+                // Cập nhật các trường cơ bản
                 if (!string.IsNullOrWhiteSpace(updateDto.ShopName))
                     specialtyShop.ShopName = updateDto.ShopName;
 
@@ -126,7 +126,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     specialtyShop.Description = updateDto.Description;
 
                 if (!string.IsNullOrWhiteSpace(updateDto.Location))
-                    specialtyShop.Location = updateDto.Location;    
+                    specialtyShop.Location = updateDto.Location;
 
                 if (!string.IsNullOrWhiteSpace(updateDto.PhoneNumber))
                     specialtyShop.PhoneNumber = updateDto.PhoneNumber;
@@ -145,8 +145,50 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
                 if (updateDto.IsShopActive.HasValue)
                     specialtyShop.IsShopActive = updateDto.IsShopActive.Value;
-               
 
+                // ✅ Xử lý file Business License nếu có
+                if (updateDto.BusinessLicense != null && updateDto.BusinessLicense.Length > 0)
+                {
+                    const long MaxSize = 5 * 1024 * 1024;
+                    var allowedExts = new[] { ".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png", ".webp" };
+                    var ext = Path.GetExtension(updateDto.BusinessLicense.FileName).ToLowerInvariant();
+
+                    if (updateDto.BusinessLicense.Length > MaxSize)
+                        return ApiResponse<SpecialtyShopResponseDto>.Error(400, "Business license file too large. Max 5MB.");
+
+                    if (!allowedExts.Contains(ext))
+                        return ApiResponse<SpecialtyShopResponseDto>.Error(400, "Invalid business license file type.");
+
+                    // Xóa file cũ nếu có
+                    if (!string.IsNullOrEmpty(specialtyShop.BusinessLicenseUrl))
+                    {
+                        try
+                        {
+                            var oldPath = new Uri(specialtyShop.BusinessLicenseUrl).AbsolutePath.TrimStart('/');
+                            var physicalOldPath = Path.Combine(_env.WebRootPath ?? "wwwroot", oldPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                            if (System.IO.File.Exists(physicalOldPath))
+                                System.IO.File.Delete(physicalOldPath);
+                        }
+                        catch { /* Silent fail */ }
+                    }
+
+                    var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                    var folder = Path.Combine(webRoot, "files", "specialtyshop-licenses");
+                    if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+                    var fileName = $"license_{Guid.NewGuid()}{ext}";
+                    var filePath = Path.Combine(folder, fileName);
+
+                    using var stream = new FileStream(filePath, FileMode.Create);
+                    await updateDto.BusinessLicense.CopyToAsync(stream);
+
+                    var request = _httpContextAccessor.HttpContext!.Request;
+                    var baseUrl = $"{request.Scheme}://{request.Host}";
+                    var relativePath = Path.Combine("files", "specialtyshop-licenses", fileName).Replace("\\", "/");
+                    specialtyShop.BusinessLicenseUrl = $"{baseUrl}/{relativePath}";
+                }
+
+                // ✅ Update timestamp & save
                 specialtyShop.UpdatedAt = DateTime.UtcNow;
                 specialtyShop.UpdatedById = currentUser.Id;
 
@@ -161,6 +203,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return ApiResponse<SpecialtyShopResponseDto>.Error(500, $"An error occurred while updating shop information: {ex.Message}");
             }
         }
+
 
         public async Task<ApiResponse<string>> UpdateShopLogoAsync(UpdateLogoDto dto, CurrentUserObject currentUser)
         {

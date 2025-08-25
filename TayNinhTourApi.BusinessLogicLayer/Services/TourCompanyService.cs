@@ -464,9 +464,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             if (!string.IsNullOrWhiteSpace(dto.CompanyName))
                 tourCompany.CompanyName = dto.CompanyName;
 
-            tourCompany.Description = dto.Description;
-            tourCompany.Address = dto.Address;
-            tourCompany.Website = dto.Website;
+            if (!string.IsNullOrWhiteSpace(dto.Description))
+                tourCompany.Description = dto.Description;
+            if (!string.IsNullOrWhiteSpace(dto.Address))
+                tourCompany.Address = dto.Address;
+            if (!string.IsNullOrWhiteSpace(dto.Website))
+                tourCompany.Website = dto.Website;
 
             // ✅ Upload file BusinessLicense nếu có
             if (dto.BusinessLicense != null && dto.BusinessLicense.Length > 0)
@@ -476,7 +479,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 var ext = Path.GetExtension(dto.BusinessLicense.FileName).ToLowerInvariant();
 
                 if (dto.BusinessLicense.Length > MaxSize)
-                    return new BaseResposeDto { StatusCode = 400, Message = "File too large. Max 10MB." };
+                    return new BaseResposeDto { StatusCode = 400, Message = "File too large. Max 5MB." };
 
                 if (!allowedExts.Contains(ext))
                     return new BaseResposeDto { StatusCode = 400, Message = "Invalid file type." };

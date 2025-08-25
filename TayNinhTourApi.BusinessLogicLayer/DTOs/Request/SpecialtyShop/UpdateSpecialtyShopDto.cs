@@ -42,8 +42,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.SpecialtyShop
         [Url(ErrorMessage = "Invalid website URL format")]
         public string? Website { get; set; }
 
-        
 
+        public IFormFile? BusinessLicense { get; set; }
         /// <summary>
         /// Loại shop
         /// </summary>
