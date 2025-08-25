@@ -17,9 +17,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services.Interface
         /// <param name="includeShopInfo">Whether to include specialty shop information</param>
         /// <returns>Timeline with progress information</returns>
         Task<TimelineProgressResponse> GetTimelineWithProgressAsync(
-            Guid tourSlotId, 
-            Guid userId, 
-            bool includeInactive = false, 
+            Guid tourSlotId,
+            Guid? userId,
+            bool includeInactive = false,
             bool includeShopInfo = true);
 
         /// <summary>

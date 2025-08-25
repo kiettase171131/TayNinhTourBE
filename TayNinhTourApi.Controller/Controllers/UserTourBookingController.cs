@@ -872,26 +872,12 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <param name="tourSlotId">ID của tour slot</param>
         /// <returns>Tiến độ tour với timeline và thống kê</returns>
         [HttpGet("tour-slot/{tourSlotId}/timeline")]
-        [Authorize]
         public async Task<IActionResult> GetTourSlotTimeline(Guid tourSlotId)
         {
             try
             {
-                var userId = _currentUserService.GetCurrentUserId();
-
-                // Optional: Verify user has booking for this tour slot
-                var hasBooking = await _userTourBookingService.UserHasBookingForTourSlotAsync(userId, tourSlotId);
-                if (!hasBooking)
-                {
-                    return StatusCode(403, new
-                    {
-                        StatusCode = 403,
-                        Message = "Bạn không có quyền xem timeline này vì chưa đặt tour",
-                        success = false
-                    }.ToString());
-                }
-
-                var response = await _tourGuideTimelineService.GetTimelineWithProgressAsync(tourSlotId, userId);
+                // Timeline is now public, no user context needed for this specific call
+                var response = await _tourGuideTimelineService.GetTimelineWithProgressAsync(tourSlotId, null);
 
                 return Ok(new
                 {
@@ -901,22 +887,13 @@ namespace TayNinhTourApi.Controller.Controllers
                     success = true
                 });
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                return StatusCode(403, new
-                {
-                    StatusCode = 403,
-                    Message = ex.Message,
-                    success = false
-                });
-            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting timeline for tour slot {TourSlotId}", tourSlotId);
+                _logger.LogError(ex, "Error getting public timeline for tour slot {TourSlotId}", tourSlotId);
                 return StatusCode(500, new
                 {
                     StatusCode = 500,
-                    Message = "Lỗi server",
+                    Message = "Lỗi server khi lấy timeline",
                     success = false
                 });
             }

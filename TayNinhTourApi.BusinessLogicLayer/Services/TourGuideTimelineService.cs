@@ -34,19 +34,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         public async Task<TimelineProgressResponse> GetTimelineWithProgressAsync(
             Guid tourSlotId,
-            Guid userId,
+            Guid? userId, // Now nullable
             bool includeInactive = false,
             bool includeShopInfo = true)
         {
             try
             {
-                _logger.LogInformation("Getting timeline with progress for tour slot {TourSlotId} by user {UserId}",
-                    tourSlotId, userId);
-
-                // Validate tour guide access
-                if (!await ValidateTourGuideAccessAsync(tourSlotId, userId))
+                if (userId.HasValue)
                 {
-                    throw new UnauthorizedAccessException("Tour guide không có quyền truy cập tour slot này");
+                    _logger.LogInformation("Getting timeline with progress for tour slot {TourSlotId} by user {UserId}",
+                        tourSlotId, userId.Value);
+
+                    // Validate tour guide access only if a user is provided
+                    if (!await ValidateTourGuideAccessAsync(tourSlotId, userId.Value))
+                    {
+                        throw new UnauthorizedAccessException("Tour guide không có quyền truy cập tour slot này");
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Getting public timeline for tour slot {TourSlotId}", tourSlotId);
                 }
 
                 // Get tour slot with tour details
