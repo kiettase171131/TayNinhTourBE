@@ -190,12 +190,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourGuide
         /// <summary>
         /// Next timeline item to be completed
         /// </summary>
-        public TimelineWithProgressDto? NextItem { get; set; }
+        public TimelineWithProgressDto NextItem { get; set; } = new TimelineWithProgressDto();
 
         /// <summary>
         /// Last completed timeline item
         /// </summary>
-        public TimelineWithProgressDto? LastCompletedItem { get; set; }
+        public TimelineWithProgressDto LastCompletedItem { get; set; } = new TimelineWithProgressDto();
 
         /// <summary>
         /// Estimated completion time based on current progress
