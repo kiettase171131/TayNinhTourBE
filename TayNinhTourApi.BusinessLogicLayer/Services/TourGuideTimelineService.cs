@@ -70,7 +70,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 }
 
                 // Get timeline items with progress
-                var timelineItems = tourSlot.TourDetails.Timeline
+                var timelineItems = (tourSlot.TourDetails.Timeline ?? new List<TimelineItem>())
                     .OrderBy(ti => ti.SortOrder)
                     .ToList();
 
