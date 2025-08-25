@@ -1937,7 +1937,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             return await _unitOfWork.TourBookingRepository.GetQueryable()
                 .AnyAsync(tb => tb.UserId == userId &&
                                tb.TourSlotId == tourSlotId &&
-                               tb.Status == BookingStatus.Confirmed);
+                               (tb.Status == BookingStatus.Confirmed || tb.Status == BookingStatus.Pending || tb.Status == BookingStatus.Completed));
         }
 
         /// <summary>
