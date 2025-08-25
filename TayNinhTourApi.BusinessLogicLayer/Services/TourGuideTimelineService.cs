@@ -104,9 +104,11 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
 
                     // Include specialty shop info if requested
-                    if (includeShopInfo && item.SpecialtyShop != null)
+                    if (includeShopInfo)
                     {
-                        dto.SpecialtyShop = _mapper.Map<DTOs.Response.SpecialtyShop.SpecialtyShopResponseDto>(item.SpecialtyShop);
+                        dto.SpecialtyShop = item.SpecialtyShop != null
+                            ? _mapper.Map<DTOs.Response.SpecialtyShop.SpecialtyShopResponseDto>(item.SpecialtyShop)
+                            : new DTOs.Response.SpecialtyShop.SpecialtyShopResponseDto();
                     }
 
                     // Set IsNext flag

@@ -11,6 +11,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.SpecialtyShop
         /// </summary>
         public Guid Id { get; set; }
 
+        public SpecialtyShopResponseDto() { }
         /// <summary>
         /// ID của User sở hữu shop
         /// </summary>
