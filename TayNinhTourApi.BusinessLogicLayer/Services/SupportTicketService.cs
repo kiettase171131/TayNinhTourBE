@@ -74,7 +74,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             // 3. Xử lý upload file - Cho phép nhiều loại file hơn
             if (request.Files != null && request.Files.Any())
             {
-                const long MaxFileSize = 10 * 1024 * 1024; // Tăng lên 10 MB
+                const long MaxFileSize = 5 * 1024 * 1024; // Tăng lên 10 MB
                 // Cho phép cả hình ảnh và documents
                 var allowedExts = new[] { ".png", ".jpg", ".jpeg", ".webp", ".pdf", ".doc", ".docx", ".txt" };
 

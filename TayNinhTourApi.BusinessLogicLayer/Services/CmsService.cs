@@ -265,7 +265,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
         }
         public async Task<BaseResposeDto> CreateUserAsync(RequestCreateUserDto request)
         {
-            // 1. Kiểm tra email trùng
+            // 1. Kiểm tra email đã tồn tại
             var existingUser = await _userRepository.GetFirstOrDefaultAsync(x => x.Email == request.Email);
             if (existingUser != null)
             {
@@ -276,7 +276,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            // 2. Lấy role theo tên enum
+            // 2. Chuyển từ enum sang tên role
             string roleName = request.RoleName switch
             {
                 RoleNameEnum.Admin => Constants.RoleAdminName,
@@ -286,9 +286,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 RoleNameEnum.Blogger => Constants.RoleBloggerName,
                 RoleNameEnum.SpecialtyShop => Constants.RoleSpecialtyShopName,
                 _ => throw new ArgumentOutOfRangeException()
-            }; 
-          
-
+            };
 
             var role = await _roleRepository.GetFirstOrDefaultAsync(x => x.Name == roleName);
             if (role == null || role.IsDeleted || !role.IsActive)
@@ -300,7 +298,26 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            // 3. Tạo user
+            // 3. Validate thông tin bắt buộc theo role
+            if (request.RoleName == RoleNameEnum.TourCompany && request.TourCompanyInfo == null)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Thiếu thông tin công ty tour (TourCompanyInfo)"
+                };
+            }
+
+            if (request.RoleName == RoleNameEnum.SpecialtyShop && request.SpecialtyShopInfo == null)
+            {
+                return new BaseResposeDto
+                {
+                    StatusCode = 400,
+                    Message = "Thiếu thông tin shop đặc sản (SpecialtyShopInfo)"
+                };
+            }
+
+            // 4. Tạo user
             var newUser = new User
             {
                 Id = Guid.NewGuid(),
@@ -319,6 +336,57 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             await _userRepository.AddAsync(newUser);
             await _userRepository.SaveChangesAsync();
 
+            // 5. Nếu là TourCompany, tạo bản ghi TourCompany
+            if (request.RoleName == RoleNameEnum.TourCompany)
+            {
+                var company = request.TourCompanyInfo!;
+                var tourCompany = new TourCompany
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = newUser.Id,
+                    CompanyName = company.CompanyName,
+                    Description = company.Description,
+                    Address = company.Address,
+                    Website = company.Website,
+                 
+                    Wallet = 0,
+                    RevenueHold = 0,
+                    IsActive = true
+                };
+
+                await _tourCompany.AddAsync(tourCompany);
+            }
+
+            // 6. Nếu là SpecialtyShop, tạo bản ghi SpecialtyShop
+            else if (request.RoleName == RoleNameEnum.SpecialtyShop)
+            {
+                var shop = request.SpecialtyShopInfo!;
+                var specialtyShop = new SpecialtyShop
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = newUser.Id,
+                    ShopName = shop.ShopName,
+                    Location = shop.Location,
+                    RepresentativeName = shop.RepresentativeName,
+                    Email = shop.ContactEmail,
+                    PhoneNumber = shop.PhoneNumber,
+                    Address = shop.Address,
+                    Website = shop.Website,
+                   
+                    ShopType = shop.ShopType,
+                    OpeningHours = shop.OpeningHours,
+                    ClosingHours = shop.ClosingHours,
+                    Notes = shop.Notes,
+                    Wallet = 0,
+                    IsShopActive = true
+                };
+
+                await _shopRepository.AddAsync(specialtyShop);
+            }
+
+            // 7. SaveChanges một lần cuối
+            await _userRepository.SaveChangesAsync();
+
             return new BaseResposeDto
             {
                 StatusCode = 200,
@@ -326,6 +394,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 success = true
             };
         }
+
 
 
 

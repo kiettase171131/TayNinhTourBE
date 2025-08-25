@@ -111,6 +111,19 @@ namespace TayNinhTourApi.Controller.Controllers
             var result = await _specialtyShopService.UpdateMyShopAsync(updateDto, currentUser);
             return StatusCode(result.StatusCode, result);
         }
+        [HttpPost("update-logo")]
+        [Authorize(Roles = "Specialty Shop")]
+        public async Task<IActionResult> UpdateShopLogo([FromForm] UpdateLogoDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _specialtyShopService.UpdateShopLogoAsync(dto, currentUser);
+            return StatusCode(result.StatusCode, result);
+        }
 
         /// <summary>
         /// Lấy danh sách tất cả shops đang hoạt động

@@ -366,7 +366,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 });
             }
         }
-        [HttpPut("{id}")]
+        [HttpPut("Update")]
         [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
         public async Task<IActionResult> UpdateTourCompany([FromBody] UpdateTourCompanyDto dto)
 
@@ -376,10 +376,24 @@ namespace TayNinhTourApi.Controller.Controllers
                 return BadRequest(ModelState);
             }
             var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
-            var result = await _tourCompanyService.UpdateTourCompanyAsync(currentUser.Id, dto);
+            var result = await _tourCompanyService.UpdateTourCompanyAsync(currentUser, dto);
             return StatusCode(result.StatusCode, result);
         }
+        [HttpPost("update-tourcompany-logo")]
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Roles = "Tour Company")]
+        public async Task<IActionResult> UpdateTourCompanyLogo([FromForm] UpdateTourCompanyLogoDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            var currentUser = await TokenHelper.Instance.GetThisUserInfo(HttpContext);
+            var result = await _tourCompanyService.UpdateTourCompanyLogoAsync(dto, currentUser);
+            return StatusCode(result.StatusCode, result);
+        }
+
     }
+
 
     /// <summary>
     /// Request DTO cho copy tour template

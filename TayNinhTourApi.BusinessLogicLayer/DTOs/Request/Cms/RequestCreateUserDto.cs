@@ -33,6 +33,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms
         [Required(ErrorMessage = "Role là bắt buộc")]
         
         public RoleNameEnum RoleName { get; set; }
+        // Optional - các field chỉ dùng nếu role là TourCompany hoặc SpecialtyShop
+        public TourCompanyInfoDto? TourCompanyInfo { get; set; }
+        public SpecialtyShopInfoDto? SpecialtyShopInfo { get; set; }
     }
 
 

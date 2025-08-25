@@ -52,6 +52,8 @@ namespace TayNinhTourApi.DataAccessLayer.Entities
         /// </summary>
         [StringLength(200)]
         public string? Website { get; set; }
+        [StringLength(500)]
+        public string? LogoUrl { get; set; }
 
         /// <summary>
         /// Số giấy phép kinh doanh

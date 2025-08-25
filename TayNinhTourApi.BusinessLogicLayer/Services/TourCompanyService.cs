@@ -1,23 +1,32 @@
 ﻿using AutoMapper;
 using LinqKit;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using System.Linq;
 using TayNinhTourApi.BusinessLogicLayer.Common;
 using TayNinhTourApi.BusinessLogicLayer.Common.Enums;
 using TayNinhTourApi.BusinessLogicLayer.DTOs;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.AccountDTO;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.Cms;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Request.TourCompany;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response;
 using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourCompany;
 using TayNinhTourApi.BusinessLogicLayer.Services.Interface;
 using TayNinhTourApi.DataAccessLayer.Entities;
 using TayNinhTourApi.DataAccessLayer.Enums;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 
+
 namespace TayNinhTourApi.BusinessLogicLayer.Services
 {
     public class TourCompanyService : BaseService, ITourCompanyService
     {
-        public TourCompanyService(IUnitOfWork unitOfWork, IMapper mapper) : base(mapper, unitOfWork)
+        private readonly IHostingEnvironment _env;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public TourCompanyService(IUnitOfWork unitOfWork, IMapper mapper,IHostingEnvironment hostingEnvironment,IHttpContextAccessor httpContextAccessor) : base(mapper, unitOfWork)
         {
+            _env = hostingEnvironment;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<ResponseGetTourDto> GetTourByIdAsync(Guid id)
@@ -439,9 +448,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
         }
-        public async Task<BaseResposeDto> UpdateTourCompanyAsync(Guid id, UpdateTourCompanyDto dto)
+        public async Task<BaseResposeDto> UpdateTourCompanyAsync(CurrentUserObject currentUser, UpdateTourCompanyDto dto)
         {
-            var tourCompany = await _unitOfWork.TourCompanyRepository.GetByIdAsync(id);
+            var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(currentUser.Id);
 
             if (tourCompany == null || tourCompany.IsDeleted)
             {
@@ -452,15 +461,51 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 };
             }
 
-            // Cập nhật thông tin
-            tourCompany.CompanyName = dto.CompanyName;
-            tourCompany.Description = dto.Description;
-            tourCompany.Address = dto.Address;
-            tourCompany.Website = dto.Website;
-            tourCompany.BusinessLicense = dto.BusinessLicense;
+            if (!string.IsNullOrWhiteSpace(dto.CompanyName))
+                tourCompany.CompanyName = dto.CompanyName;
+
+            if (!string.IsNullOrWhiteSpace(dto.Description))
+                tourCompany.Description = dto.Description;
+            if (!string.IsNullOrWhiteSpace(dto.Address))
+                tourCompany.Address = dto.Address;
+            if (!string.IsNullOrWhiteSpace(dto.Website))
+                tourCompany.Website = dto.Website;
+
+            // ✅ Upload file BusinessLicense nếu có
+            if (dto.BusinessLicense != null && dto.BusinessLicense.Length > 0)
+            {
+                const long MaxSize = 5 * 1024 * 1024;
+                var allowedExts = new[] { ".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png", ".webp" };
+                var ext = Path.GetExtension(dto.BusinessLicense.FileName).ToLowerInvariant();
+
+                if (dto.BusinessLicense.Length > MaxSize)
+                    return new BaseResposeDto { StatusCode = 400, Message = "File too large. Max 5MB." };
+
+                if (!allowedExts.Contains(ext))
+                    return new BaseResposeDto { StatusCode = 400, Message = "Invalid file type." };
+
+                var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var folder = Path.Combine(webRoot, "files", "business-licenses");
+                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+                var fileName = $"license_{Guid.NewGuid()}{ext}";
+                var path = Path.Combine(folder, fileName);
+
+                using var stream = new FileStream(path, FileMode.Create);
+                await dto.BusinessLicense.CopyToAsync(stream);
+
+                var request = _httpContextAccessor.HttpContext!.Request;
+                var baseUrl = $"{request.Scheme}://{request.Host}";
+                var relativePath = Path.Combine("files", "business-licenses", fileName).Replace("\\", "/");
+
+                tourCompany.BusinessLicense = $"{baseUrl}/{relativePath}";
+            }
+
             tourCompany.UpdatedAt = DateTime.UtcNow;
+            tourCompany.UpdatedById = currentUser.Id;
 
             await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
+            await _unitOfWork.SaveChangesAsync();
 
             return new BaseResposeDto
             {
@@ -469,6 +514,54 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Message = "Tour company updated successfully"
             };
         }
+
+        public async Task<ApiResponse<string>> UpdateTourCompanyLogoAsync(UpdateTourCompanyLogoDto dto, CurrentUserObject currentUser)
+        {
+            var logoFile = dto.Logo;
+
+            if (logoFile == null || logoFile.Length == 0)
+                return ApiResponse<string>.Error(400, "No file uploaded.");
+
+            const long MaxFileSize = 5 * 1024 * 1024;
+            if (logoFile.Length > MaxFileSize)
+                return ApiResponse<string>.Error(400, "File too large. Max 5MB.");
+
+            var allowedExts = new[] { ".png", ".jpg", ".jpeg", ".webp" };
+            var ext = Path.GetExtension(logoFile.FileName).ToLowerInvariant();
+            if (!allowedExts.Contains(ext))
+                return ApiResponse<string>.Error(400, "Invalid file type. Only .png, .jpg, .jpeg, .webp allowed.");
+
+            var tourCompany = await _unitOfWork.TourCompanyRepository.GetByUserIdAsync(currentUser.Id);
+            if (tourCompany == null)
+                return ApiResponse<string>.NotFound("You are not associated with any tour company.");
+
+            var webRoot = _env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            var folder = Path.Combine(webRoot, "images", "tourcompany-logos");
+
+            if (!Directory.Exists(folder))
+                Directory.CreateDirectory(folder);
+
+            var fileName = $"tc_logo_{Guid.NewGuid()}{ext}";
+            var filePath = Path.Combine(folder, fileName);
+
+            using var stream = new FileStream(filePath, FileMode.Create);
+            await logoFile.CopyToAsync(stream);
+
+            var request = _httpContextAccessor.HttpContext!.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            var relativePath = Path.Combine("images", "tourcompany-logos", fileName).Replace("\\", "/");
+            var fullUrl = $"{baseUrl}/{relativePath}";
+
+            tourCompany.LogoUrl = fullUrl;
+            tourCompany.UpdatedAt = DateTime.UtcNow;
+            tourCompany.UpdatedById = currentUser.Id;
+
+            await _unitOfWork.TourCompanyRepository.UpdateAsync(tourCompany);
+            await _unitOfWork.SaveChangesAsync();
+
+            return ApiResponse<string>.Success(fullUrl, "Tour company logo updated successfully.");
+        }
+
 
     }
 }
