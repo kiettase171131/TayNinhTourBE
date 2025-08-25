@@ -14,10 +14,24 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     {
         private readonly IDashboardRepository _dashboardRepository;
 
-        // Commission and VAT rates
-        private const decimal PLATFORM_COMMISSION_RATE = 0.10m; // 10%
-        private const decimal VAT_RATE = 0.10m; // 10%
-        private const decimal TOTAL_DEDUCTION_RATE = PLATFORM_COMMISSION_RATE + VAT_RATE; // 20%
+        // Updated revenue calculation rates
+        private const decimal PLATFORM_COMMISSION_RATE = 0.10m; // 10% deduction for before tax revenue
+
+        /// <summary>
+        /// Tính doanh thu trước thuế theo công thức: giá - (10% × giá)
+        /// </summary>
+        private decimal CalculateBeforeTaxRevenue(decimal totalPrice)
+        {
+            return totalPrice - (totalPrice * PLATFORM_COMMISSION_RATE);
+        }
+
+        /// <summary>
+        /// Tính doanh thu sau thuế theo công thức: giá - (giá/11) - (10% × giá)
+        /// </summary>
+        private decimal CalculateAfterTaxRevenue(decimal totalPrice)
+        {
+            return totalPrice - (totalPrice / 11m) - (totalPrice * PLATFORM_COMMISSION_RATE);
+        }
 
         public DashboardService(IDashboardRepository dashboardRepository)
         {
@@ -266,11 +280,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
             var (totalSystemRevenueHold, totalSystemWallet, totalSystemBookings) = 
                 await _dashboardRepository.GetSystemTourRevenueOverviewAsync(startDate, endDate);
 
-            // Calculate totals
+            // Calculate totals with updated formula
             var totalBeforeTax = tourCompanyStats.Sum(tc => tc.MonthlyRevenueBeforeTax);
             var totalAfterTax = tourCompanyStats.Sum(tc => tc.MonthlyRevenueAfterTax);
-            var totalCommission = totalBeforeTax * PLATFORM_COMMISSION_RATE;
-            var totalVAT = totalBeforeTax * VAT_RATE;
+            
+            // Calculate total deductions based on the new formula
+            var totalDeductionsBeforeTax = totalBeforeTax * PLATFORM_COMMISSION_RATE / (1 - PLATFORM_COMMISSION_RATE); // Calculate original payments back
+            var totalDeductionsAfterTax = totalAfterTax - totalBeforeTax; // Additional deductions in after-tax calculation
 
             // Calculate pagination info
             var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
@@ -282,8 +298,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 ActiveTourCompanies = tourCompanyStats.Count(tc => tc.IsActive),
                 TotalSystemRevenueBeforeTax = totalBeforeTax,
                 TotalSystemRevenueAfterTax = totalAfterTax,
-                TotalPlatformCommission = totalCommission,
-                TotalVAT = totalVAT,
+                TotalPlatformCommission = totalDeductionsBeforeTax, // 10% deduction for before tax
+                TotalVAT = Math.Abs(totalDeductionsAfterTax), // Additional deductions for after tax
                 TotalMonthlyBookings = totalSystemBookings,
                 TotalRevenueHold = totalSystemRevenueHold,
                 TotalWalletBalance = totalSystemWallet,

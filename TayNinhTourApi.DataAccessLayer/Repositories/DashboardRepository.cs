@@ -116,13 +116,15 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
             if (startDate.HasValue) query = query.Where(od => od.Order.CreatedAt >= startDate.Value);
             if (endDate.HasValue) query = query.Where(od => od.Order.CreatedAt < endDate.Value);
 
-            // Ví dụ giữ nguyên công thức của bạn: 90% trước thuế, 80% sau thuế
+            // Cập nhật công thức: 
+            // - Doanh thu trước thuế = giá tiền khách trả - (10% × giá tiền khách trả)
+            // - Doanh thu sau thuế = giá tiền khách trả - (giá tiền × 1/11) - (10% × giá tiền)
             return await query
                 .GroupBy(od => od.Product.ShopId)
                 .Select(g => new ValueTuple<Guid, decimal, decimal>(
                     g.Key,
-                    g.Sum(x => x.Order.TotalAfterDiscount * 0.9m),
-                    g.Sum(x => x.Order.TotalAfterDiscount * 0.8m)
+                    g.Sum(x => x.Order.TotalAfterDiscount - (x.Order.TotalAfterDiscount * 0.1m)),    // Trước thuế: giá - 10%
+                    g.Sum(x => x.Order.TotalAfterDiscount - (x.Order.TotalAfterDiscount / 11m) - (x.Order.TotalAfterDiscount * 0.1m))    // Sau thuế: giá - (giá/11) - (10% × giá)
                 ))
                 .ToListAsync();
         }
@@ -202,23 +204,23 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                 .Select(p => p.Id)
                 .ToListAsync();
 
-            var totalRevenue90 = await _context.OrderDetails
+            var totalRevenueBeforeTax = await _context.OrderDetails
                 .Where(od =>
                     productIds.Contains(od.ProductId) &&
                     od.Order.Status == OrderStatus.Paid &&
                     od.Order.CreatedAt >= startDate &&
                     od.Order.CreatedAt < endDate)
-                .SumAsync(od => (decimal?)(od.Order.TotalAfterDiscount * 0.9m)) ?? 0;
+                .SumAsync(od => (decimal?)(od.Order.TotalAfterDiscount - (od.Order.TotalAfterDiscount * 0.1m))) ?? 0;    // Trước thuế: giá - 10%
 
-            var totalRevenue80 = await _context.OrderDetails
+            var totalRevenueAfterTax = await _context.OrderDetails
                 .Where(od =>
                     productIds.Contains(od.ProductId) &&
                     od.Order.Status == OrderStatus.Paid &&
                     od.Order.CreatedAt >= startDate &&
                     od.Order.CreatedAt < endDate)
-                .SumAsync(od => (decimal?)(od.Order.TotalAfterDiscount * 0.8m)) ?? 0;
+                .SumAsync(od => (decimal?)(od.Order.TotalAfterDiscount - (od.Order.TotalAfterDiscount / 11m) - (od.Order.TotalAfterDiscount * 0.1m))) ?? 0;   // Sau thuế: giá - (giá/11) - (10% × giá)
 
-            return (totalRevenue90, totalRevenue80);
+            return (totalRevenueBeforeTax, totalRevenueAfterTax);
         }
 
 
@@ -359,8 +361,9 @@ namespace TayNinhTourApi.DataAccessLayer.Repositories
                     && b.CreatedAt < endDate)
                 .ToListAsync();
 
-            var totalRevenueBeforeTax = monthlyBookings.Sum(b => b.TotalPrice);
-            var totalRevenueAfterTax = totalRevenueBeforeTax * 0.8m; // 80% after 20% deduction (10% commission + 10% VAT)
+            var totalRevenueBeforeTax = monthlyBookings.Sum(b => b.TotalPrice - (b.TotalPrice * 0.1m));  // Trước thuế: giá - 10%
+            // Sau thuế: giá - (giá/11) - (10% × giá)
+            var totalRevenueAfterTax = monthlyBookings.Sum(b => b.TotalPrice - (b.TotalPrice / 11m) - (b.TotalPrice * 0.1m));
             var confirmedBookings = monthlyBookings.Count;
             var bookedSlots = monthlyBookings.Sum(b => b.NumberOfGuests);
 
