@@ -19,8 +19,8 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly ISpecialtyShopRepository _specialtyShopRepository;
         private readonly IPaymentTransactionRepository _paymentTransactionRepository;
 
-        // Commission rate for specialty shops (20% = 10% commission + 10% VAT)
-        private const decimal SHOP_COMMISSION_RATE = 0.20m;
+        // Commission rate for specialty shops (10% commission only, no VAT)
+        private const decimal SHOP_COMMISSION_RATE = 0.10m;
 
         public PaymentController(
             IOrderRepository orderRepository, 
@@ -40,7 +40,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// PayOS webhook callback khi thanh toán thành công cho product orders
         /// URL: /api/payment-callback/paid/{orderCode}
         /// Supports both string PayOsOrderCode (TNDT format) and GUID Order.Id
-        /// Status = 1 (Paid) + Trừ stock + Xóa cart + Cộng tiền vào ví shop (sau khi trừ 20% commission + VAT) + Update PaymentTransaction status
+        /// Status = 1 (Paid) + Trừ stock + Xóa cart + Cộng tiền vào ví shop (sau khi trừ 10% commission) + Update PaymentTransaction status
         /// Follows PayOS best practices for webhook handling
         /// </summary>
         [HttpPost("paid/{orderCode}")]
@@ -128,19 +128,19 @@ namespace TayNinhTourApi.Controller.Controllers
                             // Calculate commission and shop amount
                             var itemTotalAmount = item.UnitPrice * item.Quantity;
                             var commissionAmount = itemTotalAmount * SHOP_COMMISSION_RATE;
-                            var shopWalletAmount = itemTotalAmount - commissionAmount; // Shop gets 80%
+                            var shopWalletAmount = itemTotalAmount - commissionAmount; // Shop gets 90%
                             
                             var specialtyShop = await _specialtyShopRepository.GetByUserIdAsync(product.ShopId);
                             if (specialtyShop != null)
                             {
-                                // Add only 80% to shop wallet (after 20% commission + VAT deduction)
+                                // Add 90% to shop wallet (after 10% commission deduction)
                                 specialtyShop.Wallet += shopWalletAmount;
                                 await _specialtyShopRepository.UpdateAsync(specialtyShop);
                                 
                                 totalWalletAdded += shopWalletAmount;
                                 totalCommissionDeducted += commissionAmount;
                                 
-                                Console.WriteLine($"Added {shopWalletAmount:N0} VNĐ to shop {specialtyShop.ShopName} wallet (after {commissionAmount:N0} VNĐ commission + VAT)");
+                                Console.WriteLine($"Added {shopWalletAmount:N0} VNĐ to shop {specialtyShop.ShopName} wallet (after {commissionAmount:N0} VNĐ commission)");
                             }
                         }
                     }
@@ -149,7 +149,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     await _specialtyShopRepository.SaveChangesAsync();
                     
                     Console.WriteLine($"Total wallet amount added to shops: {totalWalletAdded:N0} VNĐ");
-                    Console.WriteLine($"Total commission + VAT deducted: {totalCommissionDeducted:N0} VNĐ");
+                    Console.WriteLine($"Total commission deducted: {totalCommissionDeducted:N0} VNĐ");
                 }
                 else
                 {
@@ -158,7 +158,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 return Ok(new
                 {
-                    message = "Thanh toán thành công - Đã cập nhật trạng thái order và payment transaction, trừ stock và cộng tiền vào ví shop (sau khi trừ 20% hoa hồng + VAT)",
+                    message = "Thanh toán thành công - Đã cập nhật trạng thái order và payment transaction, trừ stock và cộng tiền vào ví shop (sau khi trừ 10% hoa hồng)",
                     orderId = order.Id,
                     status = order.Status,
                     statusValue = (int)order.Status, // = 1
@@ -166,7 +166,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     cartCleared = true,
                     walletUpdated = true,
                     paymentTransactionUpdated = true,
-                    commissionApplied = "20% commission + VAT deducted from shop revenue"
+                    commissionApplied = "10% commission deducted from shop revenue"
                 });
             }
             catch (Exception ex)
@@ -345,7 +345,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     await _productService.ClearCartAndUpdateInventoryAsync(order.Id);
                     Console.WriteLine("Stock updated and cart cleared");
 
-                    // Cộng tiền vào ví shop (sau khi trừ 20% commission + VAT)
+                    // Cộng tiền vào ví shop (sau khi trừ 10% commission)
                     var orderDetails = order.OrderDetails.ToList();
                     decimal totalWalletAdded = 0;
                     decimal totalCommissionDeducted = 0;
@@ -365,7 +365,7 @@ namespace TayNinhTourApi.Controller.Controllers
                             totalWalletAdded += shopRevenue;
                             totalCommissionDeducted += commission;
 
-                            Console.WriteLine($"Shop {shop.ShopName}: +{shopRevenue:N0} VNĐ (commission + VAT: -{commission:N0} VNĐ)");
+                            Console.WriteLine($"Shop {shop.ShopName}: +{shopRevenue:N0} VNĐ (commission: -{commission:N0} VNĐ)");
                         }
                     }
 
@@ -373,7 +373,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     await _specialtyShopRepository.SaveChangesAsync();
 
                     Console.WriteLine($"Total wallet amount added to shops: {totalWalletAdded:N0} VNĐ");
-                    Console.WriteLine($"Total commission + VAT deducted: {totalCommissionDeducted:N0} VNĐ");
+                    Console.WriteLine($"Total commission deducted: {totalCommissionDeducted:N0} VNĐ");
                 }
                 else
                 {
