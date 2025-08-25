@@ -7,6 +7,8 @@ using TayNinhTourApi.BusinessLogicLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.Utilities;
 using TayNinhTourApi.DataAccessLayer.UnitOfWork.Interface;
 using TayNinhTourApi.DataAccessLayer.Enums;
+using TayNinhTourApi.BusinessLogicLayer.DTOs;
+using TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourGuide;
 using Net.payOS;
 using Net.payOS.Types;
 
@@ -867,7 +869,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <summary>
         /// Lấy tiến độ tour đang diễn ra cho user
         /// </summary>
-        /// <param name="tourOperationId">ID của tour operation</param>
+        /// <param name="tourSlotId">ID của tour slot</param>
         /// <returns>Tiến độ tour với timeline và thống kê</returns>
         [HttpGet("tour-slot/{tourSlotId}/timeline")]
         [Authorize]
@@ -881,12 +883,17 @@ namespace TayNinhTourApi.Controller.Controllers
                 var hasBooking = await _userTourBookingService.UserHasBookingForTourSlotAsync(userId, tourSlotId);
                 if (!hasBooking)
                 {
-                    return Forbid();
+                    return StatusCode(403, new
+                    {
+                        StatusCode = 403,
+                        Message = "Bạn không có quyền xem timeline này vì chưa đặt tour",
+                        success = false
+                    }.ToString());
                 }
 
                 var response = await _tourGuideTimelineService.GetTimelineWithProgressAsync(tourSlotId, userId);
 
-                return Ok(new ApiResponse<TimelineProgressResponse>
+                return Ok(new
                 {
                     StatusCode = 200,
                     Message = "Lấy timeline thành công",
@@ -896,40 +903,21 @@ namespace TayNinhTourApi.Controller.Controllers
             }
             catch (UnauthorizedAccessException ex)
             {
-                return StatusCode(403, new BaseResposeDto { StatusCode = 403, Message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting timeline for tour slot {TourSlotId}", tourSlotId);
-                return StatusCode(500, new BaseResposeDto { StatusCode = 500, Message = "Lỗi server" });
-            }
-        }
-
-
-                var result = await _userTourBookingService.GetTourProgressAsync(tourOperationId, userId);
-
-                if (result == null)
+                return StatusCode(403, new
                 {
-                    return NotFound(new
-                    {
-                        success = false,
-                        message = "Không tìm thấy thông tin tiến độ tour"
-                    });
-                }
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "Lấy tiến độ tour thành công",
-                    data = result
+                    StatusCode = 403,
+                    Message = ex.Message,
+                    success = false
                 });
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error getting timeline for tour slot {TourSlotId}", tourSlotId);
                 return StatusCode(500, new
                 {
-                    success = false,
-                    message = $"Lỗi khi lấy tiến độ tour: {ex.Message}"
+                    StatusCode = 500,
+                    Message = "Lỗi server",
+                    success = false
                 });
             }
         }
