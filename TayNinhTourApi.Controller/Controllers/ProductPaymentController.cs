@@ -27,8 +27,8 @@ namespace TayNinhTourApi.Controller.Controllers
         private readonly IPaymentTransactionRepository _paymentTransactionRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        // Commission rate for specialty shops (20% = 10% commission + 10% VAT)
-        private const decimal SHOP_COMMISSION_RATE = 0.20m;
+        // Commission rate for specialty shops (10% commission only, no VAT)
+        private const decimal SHOP_COMMISSION_RATE = 0.10m;
 
         public ProductPaymentController(
             ILogger<ProductPaymentController> logger,
@@ -51,7 +51,7 @@ namespace TayNinhTourApi.Controller.Controllers
         /// <summary>
         /// Enhanced payment success callback
         /// URL: /api/product-payment/payment-success
-        /// Logic: Order status = 1 (Paid), PaymentTransaction status = 1 (Paid), trừ stock, xóa cart, cộng tiền vào ví shop (trừ 20% hoa hồng + VAT)
+        /// Logic: Order status = 1 (Paid), PaymentTransaction status = 1 (Paid), trừ stock, xóa cart, cộng tiền vào ví shop (trừ 10% hoa hồng)
         /// </summary>
         /// <param name="request">Thông tin callback từ frontend</param>
         /// <returns>Kết quả xử lý payment success</returns>
@@ -153,7 +153,7 @@ namespace TayNinhTourApi.Controller.Controllers
                 await _productService.ClearCartAndUpdateInventoryAsync(order.Id);
                 _logger.LogInformation("✅ Stock reduced and cart cleared");
 
-                // 4. Add money to specialty shop wallets (minus 20% commission + VAT)
+                // 4. Add money to specialty shop wallets (minus 10% commission only)
                 var orderDetails = order.OrderDetails.ToList();
                 decimal totalWalletAdded = 0;
                 decimal totalCommissionDeducted = 0;
@@ -169,20 +169,20 @@ namespace TayNinhTourApi.Controller.Controllers
 
                         // Calculate commission and shop amount
                         var itemTotalAmount = item.UnitPrice * item.Quantity;
-                        var commissionAmount = itemTotalAmount * SHOP_COMMISSION_RATE; // 20% commission + VAT
-                        var shopWalletAmount = itemTotalAmount - commissionAmount; // Shop gets 80%
+                        var commissionAmount = itemTotalAmount * SHOP_COMMISSION_RATE; // 10% commission
+                        var shopWalletAmount = itemTotalAmount - commissionAmount; // Shop gets 90%
 
                         var specialtyShop = await _specialtyShopRepository.GetByUserIdAsync(product.ShopId);
                         if (specialtyShop != null)
                         {
-                            // Add 80% to shop wallet (after 20% commission + VAT deduction)
+                            // Add 90% to shop wallet (after 10% commission deduction)
                             specialtyShop.Wallet += shopWalletAmount;
                             await _specialtyShopRepository.UpdateAsync(specialtyShop);
 
                             totalWalletAdded += shopWalletAmount;
                             totalCommissionDeducted += commissionAmount;
 
-                            _logger.LogInformation("💰 Added {Amount:N0} VNĐ to shop '{ShopName}' wallet (commission + VAT: -{Commission:N0} VNĐ)", 
+                            _logger.LogInformation("💰 Added {Amount:N0} VNĐ to shop '{ShopName}' wallet (commission: -{Commission:N0} VNĐ)", 
                                 shopWalletAmount, specialtyShop.ShopName, commissionAmount);
                         }
                     }
@@ -193,7 +193,7 @@ namespace TayNinhTourApi.Controller.Controllers
 
                 _logger.LogInformation("✅ Enhanced payment processing completed:");
                 _logger.LogInformation("   💰 Total wallet amount added: {TotalAdded:N0} VNĐ", totalWalletAdded);
-                _logger.LogInformation("   💸 Total commission + VAT deducted: {TotalCommission:N0} VNĐ", totalCommissionDeducted);
+                _logger.LogInformation("   💸 Total commission deducted: {TotalCommission:N0} VNĐ", totalCommissionDeducted);
 
                 return Ok(new
                 {
@@ -210,7 +210,7 @@ namespace TayNinhTourApi.Controller.Controllers
                     {
                         totalWalletAdded = totalWalletAdded,
                         totalCommissionDeducted = totalCommissionDeducted,
-                        commissionRate = "20%"
+                        commissionRate = "10%"
                     },
                     orderData = new
                     {

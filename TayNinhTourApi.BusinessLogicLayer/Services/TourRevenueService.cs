@@ -13,20 +13,17 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     /// Service quản lý doanh thu và ví tiền của TourCompany
     /// ENHANCED: Now works with booking-level revenue hold system
     /// Revenue is now stored in TourBooking.RevenueHold instead of TourCompany.RevenueHold
-    /// UPDATED: Tour companies now receive 80% (10% platform commission + 10% VAT)
+    /// UPDATED: Tour companies now receive 90% (10% platform commission only, no VAT)
     /// </summary>
     public class TourRevenueService : ITourRevenueService
     {
         private readonly IUnitOfWork _unitOfWork;
 
-        // Commission rate for tour companies (10% - platform fee)
+        // Commission rate for tour companies (10% - platform fee only)
         private const decimal PLATFORM_COMMISSION_RATE = 0.10m;
         
-        // VAT rate (10% - tax fee) 
-        private const decimal VAT_RATE = 0.10m;
-        
-        // Total deduction rate (20% = 10% platform + 10% VAT, so tour company gets 80%)
-        private const decimal TOTAL_DEDUCTION_RATE = PLATFORM_COMMISSION_RATE + VAT_RATE;
+        // Total deduction rate (10% platform commission only, so tour company gets 90%)
+        private const decimal TOTAL_DEDUCTION_RATE = PLATFORM_COMMISSION_RATE;
 
         public TourRevenueService(IUnitOfWork unitOfWork)
         {
@@ -35,7 +32,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Thêm tiền vào revenue hold sau khi booking thành công
-        /// UPDATED: Keep 100% of payment amount in revenue hold, commission and VAT deducted only at transfer time
+        /// UPDATED: Keep 100% of payment amount in revenue hold, commission deducted only at transfer time
         /// </summary>
         public async Task<BaseResposeDto> AddToRevenueHoldAsync(Guid tourCompanyUserId, decimal amount, Guid bookingId)
         {
@@ -77,7 +74,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // UPDATED: Set full amount in revenue hold (100%), commission and VAT will be deducted later at transfer time
+                // UPDATED: Set full amount in revenue hold (100%), commission will be deducted later at transfer time
                 booking.RevenueHold = amount; // Keep 100% of payment
                 booking.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow();
 
@@ -88,7 +85,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = $"Đã set revenue hold {amount:N0} VNĐ cho booking (100% số tiền thanh toán, phí hoa hồng và VAT sẽ trừ khi chuyển tiền)",
+                    Message = $"Đã set revenue hold {amount:N0} VNĐ cho booking (100% số tiền thanh toán, phí hoa hồng 10% sẽ trừ khi chuyển tiền)",
                     success = true
                 };
             }
@@ -117,7 +114,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Chuyển tiền từ booking revenue hold sang TourCompany wallet
-        /// UPDATED: Transfer revenue from booking to tour company wallet, deducting 20% total (10% commission + 10% VAT) at transfer time
+        /// UPDATED: Transfer revenue from booking to tour company wallet, deducting 10% commission only (no VAT) at transfer time
         /// </summary>
         public async Task<BaseResposeDto> TransferBookingRevenueToWalletAsync(Guid bookingId)
         {
@@ -208,14 +205,13 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // UPDATED: Calculate transfer amount by deducting 20% total (10% commission + 10% VAT) from the full revenue hold
+                // UPDATED: Calculate transfer amount by deducting 10% commission only (no VAT) from the full revenue hold
                 var fullAmount = booking.RevenueHold; // 100% of customer payment
                 var platformCommissionAmount = fullAmount * PLATFORM_COMMISSION_RATE; // 10% platform fee
-                var vatAmount = fullAmount * VAT_RATE; // 10% VAT fee
-                var totalDeductionAmount = fullAmount * TOTAL_DEDUCTION_RATE; // 20% total deduction
-                var transferAmount = fullAmount - totalDeductionAmount; // 80% goes to tour company
+                var totalDeductionAmount = fullAmount * TOTAL_DEDUCTION_RATE; // 10% total deduction
+                var transferAmount = fullAmount - totalDeductionAmount; // 90% goes to tour company
 
-                // Transfer net amount (after commission and VAT) to tour company wallet
+                // Transfer net amount (after commission) to tour company wallet
                 tourCompany.Wallet += transferAmount;
                 tourCompany.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow();
 
@@ -232,7 +228,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = $"Đã chuyển {transferAmount:N0} VNĐ từ booking {booking.BookingCode} vào ví công ty tour (sau khi trừ {platformCommissionAmount:N0} VNĐ phí hoa hồng và {vatAmount:N0} VNĐ phí VAT)",
+                    Message = $"Đã chuyển {transferAmount:N0} VNĐ từ booking {booking.BookingCode} vào ví công ty tour (sau khi trừ {platformCommissionAmount:N0} VNĐ phí hoa hồng 10%)",
                     success = true
                 };
             }
