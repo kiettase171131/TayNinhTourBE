@@ -121,8 +121,8 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     TourSlotId = tourSlotId,
                     TotalItems = timelineItems.Count,
                     CompletedItems = timelineWithProgress.Count(t => t.IsCompleted),
-                    NextItem = timelineWithProgress.FirstOrDefault(t => t.IsNext),
-                    LastCompletedItem = timelineWithProgress.LastOrDefault(t => t.IsCompleted)
+                    NextItem = timelineWithProgress.FirstOrDefault(t => t.IsNext) ?? new TimelineWithProgressDto(),
+                    LastCompletedItem = timelineWithProgress.LastOrDefault(t => t.IsCompleted) ?? new TimelineWithProgressDto()
                 };
 
                 // Build tour slot info
