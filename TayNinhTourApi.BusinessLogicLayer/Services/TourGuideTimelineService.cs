@@ -144,7 +144,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Title = tourSlot.TourDetails.Title,
                     Description = tourSlot.TourDetails.Description,
                     Status = tourSlot.TourDetails.Status.ToString(),
-                    ImageUrls = tourSlot.TourDetails.ImageUrls?.ToList() ?? new List<string>()
+                    ImageUrls = tourSlot.TourDetails.ImageUrls ?? new List<string>(),
                 };
 
                 // Check if timeline can be modified based on tour slot status

@@ -62,7 +62,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.DTOs.Response.TourGuide
         /// <summary>
         /// Specialty shop information if this timeline item involves a shop visit
         /// </summary>
-        public SpecialtyShopResponseDto SpecialtyShop { get; set; } = new SpecialtyShopResponseDto();
+        public SpecialtyShopResponseDto? SpecialtyShop { get; set; }
 
         /// <summary>
         /// User who completed this timeline item
