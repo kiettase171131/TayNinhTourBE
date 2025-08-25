@@ -13,26 +13,39 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
     /// Service quản lý doanh thu và ví tiền của TourCompany
     /// ENHANCED: Now works with booking-level revenue hold system
     /// Revenue is now stored in TourBooking.RevenueHold instead of TourCompany.RevenueHold
-    /// UPDATED: Tour companies now receive 90% (10% platform commission only, no VAT)
+    /// UPDATED: Tour companies revenue calculation - before tax: price - 10%, after tax: price - (price/11) - (10% × price)
     /// </summary>
     public class TourRevenueService : ITourRevenueService
     {
         private readonly IUnitOfWork _unitOfWork;
 
-        // Commission rate for tour companies (10% - platform fee only)
-        private const decimal PLATFORM_COMMISSION_RATE = 0.10m;
+        // Revenue calculation rates
+        private const decimal PLATFORM_COMMISSION_RATE = 0.10m; // 10% deduction for before tax revenue
         
-        // Total deduction rate (10% platform commission only, so tour company gets 90%)
-        private const decimal TOTAL_DEDUCTION_RATE = PLATFORM_COMMISSION_RATE;
-
         public TourRevenueService(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
         }
 
         /// <summary>
+        /// Tính doanh thu trước thuế theo công thức: giá - (10% × giá)
+        /// </summary>
+        private decimal CalculateBeforeTaxRevenue(decimal totalPrice)
+        {
+            return totalPrice - (totalPrice * PLATFORM_COMMISSION_RATE);
+        }
+
+        /// <summary>
+        /// Tính doanh thu sau thuế theo công thức: giá - (giá/11) - (10% × giá)
+        /// </summary>
+        private decimal CalculateAfterTaxRevenue(decimal totalPrice)
+        {
+            return totalPrice - (totalPrice / 11m) - (totalPrice * PLATFORM_COMMISSION_RATE);
+        }
+
+        /// <summary>
         /// Thêm tiền vào revenue hold sau khi booking thành công
-        /// UPDATED: Keep 100% of payment amount in revenue hold, commission deducted only at transfer time
+        /// UPDATED: Set before-tax revenue amount in revenue hold
         /// </summary>
         public async Task<BaseResposeDto> AddToRevenueHoldAsync(Guid tourCompanyUserId, decimal amount, Guid bookingId)
         {
@@ -74,8 +87,9 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // UPDATED: Set full amount in revenue hold (100%), commission will be deducted later at transfer time
-                booking.RevenueHold = amount; // Keep 100% of payment
+                // UPDATED: Set before-tax revenue amount in revenue hold
+                var beforeTaxRevenue = CalculateBeforeTaxRevenue(amount);
+                booking.RevenueHold = beforeTaxRevenue;
                 booking.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow();
 
                 await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
@@ -85,7 +99,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = $"Đã set revenue hold {amount:N0} VNĐ cho booking (100% số tiền thanh toán, phí hoa hồng 10% sẽ trừ khi chuyển tiền)",
+                    Message = $"Đã set revenue hold {booking.RevenueHold:N0} VNĐ cho booking (doanh thu trước thuế từ {amount:N0} VNĐ)",
                     success = true
                 };
             }
@@ -114,7 +128,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
 
         /// <summary>
         /// Chuyển tiền từ booking revenue hold sang TourCompany wallet
-        /// UPDATED: Transfer revenue from booking to tour company wallet, deducting 10% commission only (no VAT) at transfer time
+        /// UPDATED: Calculate transfer amount using new after-tax formula: price - (price/11) - (10% × price)
         /// </summary>
         public async Task<BaseResposeDto> TransferBookingRevenueToWalletAsync(Guid bookingId)
         {
@@ -205,13 +219,12 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     };
                 }
 
-                // UPDATED: Calculate transfer amount by deducting 10% commission only (no VAT) from the full revenue hold
-                var fullAmount = booking.RevenueHold; // 100% of customer payment
-                var platformCommissionAmount = fullAmount * PLATFORM_COMMISSION_RATE; // 10% platform fee
-                var totalDeductionAmount = fullAmount * TOTAL_DEDUCTION_RATE; // 10% total deduction
-                var transferAmount = fullAmount - totalDeductionAmount; // 90% goes to tour company
+                // UPDATED: Calculate transfer amount using new after-tax formula
+                var totalPrice = booking.TotalPrice;
+                var transferAmount = CalculateAfterTaxRevenue(totalPrice);
+                var deductionAmount = totalPrice - transferAmount;
 
-                // Transfer net amount (after commission) to tour company wallet
+                // Transfer calculated amount to tour company wallet
                 tourCompany.Wallet += transferAmount;
                 tourCompany.UpdatedAt = VietnamTimeZoneUtility.GetVietnamNow();
 
@@ -228,7 +241,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 return new BaseResposeDto
                 {
                     StatusCode = 200,
-                    Message = $"Đã chuyển {transferAmount:N0} VNĐ từ booking {booking.BookingCode} vào ví công ty tour (sau khi trừ {platformCommissionAmount:N0} VNĐ phí hoa hồng 10%)",
+                    Message = $"Đã chuyển {transferAmount:N0} VNĐ từ booking {booking.BookingCode} vào ví công ty tour (từ {totalPrice:N0} VNĐ, trừ {deductionAmount:N0} VNĐ theo công thức sau thuế)",
                     success = true
                 };
             }
