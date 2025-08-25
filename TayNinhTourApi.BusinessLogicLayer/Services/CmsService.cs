@@ -348,8 +348,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     Description = company.Description,
                     Address = company.Address,
                     Website = company.Website,
-                    BusinessLicense = company.BusinessLicense,
-                    LogoUrl = company.LogoUrl,
+                 
                     Wallet = 0,
                     RevenueHold = 0,
                     IsActive = true
@@ -373,9 +372,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                     PhoneNumber = shop.PhoneNumber,
                     Address = shop.Address,
                     Website = shop.Website,
-                    BusinessLicense = shop.BusinessLicense,
-                    BusinessLicenseUrl = shop.BusinessLicenseUrl,
-                    LogoUrl = shop.LogoUrl,
+                   
                     ShopType = shop.ShopType,
                     OpeningHours = shop.OpeningHours,
                     ClosingHours = shop.ClosingHours,
