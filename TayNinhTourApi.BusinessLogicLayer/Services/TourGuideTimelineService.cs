@@ -95,7 +95,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                         IsCompleted = progress?.IsCompleted ?? false,
                         CompletedAt = progress?.CompletedAt,
                         CompletionNotes = progress?.CompletionNotes,
-                        CanComplete = await CanCompleteTimelineItemAsync(tourSlotId, item.Id, userId),
+                        CanComplete = userId.HasValue ? await CanCompleteTimelineItemAsync(tourSlotId, item.Id, userId.Value) : false,
                         Position = i + 1,
                         TotalItems = timelineItems.Count,
                         CompletedByName = progress?.UpdatedBy?.Name,

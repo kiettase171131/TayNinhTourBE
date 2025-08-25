@@ -1837,7 +1837,10 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 booking.ConfirmedDate = DateTime.UtcNow;
                 booking.UpdatedAt = DateTime.UtcNow;
                 booking.RevenueHold = booking.TotalPrice;
-                booking.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
+                foreach (var guest in booking.Guests)
+                {
+                    guest.QRCodeData = _qrCodeService.GenerateQRCodeData(booking);
+                }
 
                 await _unitOfWork.TourBookingRepository.UpdateAsync(booking);
                 await _unitOfWork.SaveChangesAsync();
@@ -2119,7 +2122,20 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 Status = booking.Status,
                 StatusName = booking.Status.ToString(),
                 PayOsOrderCode = booking.PayOsOrderCode,
-                QRCodeData = booking.QRCodeData,
+                Guests = booking.Guests.Select(g => new TourBookingGuestDto
+                {
+                    Id = g.Id,
+                    TourBookingId = g.TourBookingId,
+                    GuestName = g.GuestName,
+                    GuestEmail = g.GuestEmail,
+                    GuestPhone = g.GuestPhone,
+                    IsGroupRepresentative = g.IsGroupRepresentative,
+                    QRCodeData = g.QRCodeData,
+                    IsCheckedIn = g.IsCheckedIn,
+                    CheckInTime = g.CheckInTime,
+                    CheckInNotes = g.CheckInNotes,
+                    CreatedAt = g.CreatedAt
+                }).ToList(),
                 BookingDate = booking.BookingDate,
                 ConfirmedDate = booking.ConfirmedDate,
                 CancelledDate = booking.CancelledDate,
@@ -2137,19 +2153,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 UpdatedAt = booking.UpdatedAt,
                 TourTitle = booking.TourOperation?.TourDetails?.Title ?? "N/A",
                 TourDate = booking.TourSlot?.TourDate.ToDateTime(TimeOnly.MinValue),
-                CompanyName = companyName, // ✅ NEW: Add company name
-                Guests = booking.Guests?.Select(g => new TourBookingGuestDto
-                {
-                    Id = g.Id,
-                    GuestName = g.GuestName,
-                    GuestEmail = g.GuestEmail,
-                    GuestPhone = g.GuestPhone,
-                    IsGroupRepresentative = g.IsGroupRepresentative,
-                    QRCodeData = g.QRCodeData,
-                    IsCheckedIn = g.IsCheckedIn,
-                    CheckInTime = g.CheckInTime,
-                    CheckInNotes = g.CheckInNotes
-                }).ToList() ?? new List<TourBookingGuestDto>()
+                CompanyName = companyName // ✅ NEW: Add company name
             };
         }
     }

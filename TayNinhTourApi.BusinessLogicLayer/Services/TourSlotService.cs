@@ -1016,7 +1016,7 @@ Slot Debug Info for {slotId}:
                 {
                     Id = slot.TourDetails.Id,
                     Title = slot.TourDetails.Title,
-                    Description = slot.TourDetails.Description,
+                    Description = slot.TourDetails.Description ?? string.Empty,
                     Status = slot.TourDetails.Status,
                     StatusName = GetTourDetailsStatusName(slot.TourDetails.Status)
                 };

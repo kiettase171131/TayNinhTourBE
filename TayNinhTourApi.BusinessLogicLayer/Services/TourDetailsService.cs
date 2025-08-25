@@ -2034,7 +2034,7 @@ namespace TayNinhTourApi.BusinessLogicLayer.Services
                 // 4. Validate sortOrder conflicts within request
                 var requestSortOrders = request.TimelineItems
                     .Where(item => item.SortOrder.HasValue)
-                    .Select(item => item.SortOrder.Value)
+                    .Select(item => item.SortOrder!.Value)
                     .ToList();
 
                 var duplicateSortOrders = requestSortOrders
